@@ -3,6 +3,7 @@
 </a>
 
 # Terraform Provider for Akuity Platform
+[![Tests](https://github.com/akuity/terraform-provider-akp/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/akuity/terraform-provider-akp/actions/workflows/test.yml)
 
 With this provider you can manage Argo CD instances and clusters on [Akuity Platform](https://akuity.io/akuity-platform/).
 
@@ -30,6 +31,7 @@ With this provider you can manage Argo CD instances and clusters on [Akuity Plat
         required_providers {
             akp = {
                 source = "akuity/akp"
+                version = "~> 0.1"
             }
             kubectl = {
                 source  = "gavinbunney/kubectl"
