@@ -80,6 +80,13 @@ func (r *AkpClusterResource) Create(ctx context.Context, req resource.CreateRequ
 		return
 	}
 	ctx = ctxutil.SetClientCredential(ctx, r.akpCli.Cred)
+	customArgoproj := plan.CustomImageRegistryArgoproj.ValueString()
+	customAkuity := plan.CustomImageRegistryAkuity.ValueString()
+	autoupgrade := plan.AutoUpgradeDisabled.ValueBool()
+	var labels map[string]string
+	var annotations map[string]string
+	resp.Diagnostics.Append(plan.Labels.ElementsAs(ctx, &labels, true)...)
+	resp.Diagnostics.Append(plan.Annotations.ElementsAs(ctx, &annotations, true)...)
 	apiReq := &argocdv1.CreateOrganizationInstanceClusterRequest{
 		OrganizationId:  r.akpCli.OrgId,
 		Name:            plan.Name.ValueString(),
@@ -88,13 +95,19 @@ func (r *AkpClusterResource) Create(ctx context.Context, req resource.CreateRequ
 		Namespace:       plan.Namespace.ValueString(),
 		NamespaceScoped: plan.NamespaceScoped.ValueBool(),
 		Data: &argocdv1.ClusterData{
-			Size: argocdv1.ClusterSize_CLUSTER_SIZE_SMALL,
+			Size: akptypes.StringClusterSize[plan.Size.ValueString()],
+			CustomImageRegistryArgoproj: &customArgoproj,
+			CustomImageRegistryAkuity:   &customAkuity,
+			AutoUpgradeDisabled:         &autoupgrade,
+			Labels:                      labels,
+			Annotations:                 annotations,
 		},
 		Upsert: false,
 	}
 	tflog.Info(ctx, "Creating Cluster...")
-	tflog.Debug(ctx, fmt.Sprintf("apiReq: %s", apiReq))
+	tflog.Debug(ctx, fmt.Sprintf("Api Request: %s", apiReq))
 	apiResp, err := r.akpCli.Cli.CreateOrganizationInstanceCluster(ctx, apiReq)
+	tflog.Debug(ctx, fmt.Sprintf("Api Response: %s", apiResp))
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Akuity cluster. %s", err))
 		return
@@ -104,7 +117,7 @@ func (r *AkpClusterResource) Create(ctx context.Context, req resource.CreateRequ
 	reconStatus := cluster.GetReconciliationStatus()
 	breakStatusesRecon := []reconv1.StatusCode{reconv1.StatusCode_STATUS_CODE_SUCCESSFUL, reconv1.StatusCode_STATUS_CODE_FAILED}
 	for !slices.Contains(breakStatusesRecon, reconStatus.GetCode()) {
-		time.Sleep(2 * time.Second)
+		time.Sleep(1 * time.Second)
 		apiResp2, err := r.akpCli.Cli.GetOrganizationInstanceCluster(ctx, &argocdv1.GetOrganizationInstanceClusterRequest{
 			OrganizationId: r.akpCli.OrgId,
 			InstanceId:     plan.InstanceId.ValueString(),
@@ -122,8 +135,10 @@ func (r *AkpClusterResource) Create(ctx context.Context, req resource.CreateRequ
 	tflog.Info(ctx, "Cluster created")
 
 	protoCluster := &akptypes.ProtoCluster{Cluster: cluster}
-	state := protoCluster.FromProto(plan.InstanceId.ValueString())
-
+	state, diag := protoCluster.FromProto(plan.InstanceId.ValueString())
+	if diag.HasError() {
+		resp.Diagnostics.Append(diag...)
+	}
 	manifests, err := r.GetManifests(ctx, plan.InstanceId.ValueString(), cluster.GetId())
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get cluster manifests. %s", err))
@@ -146,19 +161,24 @@ func (r *AkpClusterResource) Read(ctx context.Context, req resource.ReadRequest,
 	}
 
 	ctx = ctxutil.SetClientCredential(ctx, r.akpCli.Cred)
-	apiResp, err := r.akpCli.Cli.GetOrganizationInstanceCluster(ctx, &argocdv1.GetOrganizationInstanceClusterRequest{
+	apiReq := &argocdv1.GetOrganizationInstanceClusterRequest{
 		OrganizationId: r.akpCli.OrgId,
 		InstanceId:     state.InstanceId.ValueString(),
 		Id:             state.Id.ValueString(),
 		IdType:         idv1.Type_ID,
-	})
+	}
+	tflog.Debug(ctx, fmt.Sprintf("Api Request: %s", apiReq))
+	apiResp, err := r.akpCli.Cli.GetOrganizationInstanceCluster(ctx, apiReq)
+	tflog.Debug(ctx, fmt.Sprintf("Api Response: %s", apiResp))
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read Akuity cluster. %s", err))
 		return
 	}
 
-	// Update state
-	state.UpdateFromProto(apiResp.GetCluster())
+	diag := state.UpdateFromProto(apiResp.GetCluster())
+	if diag.HasError() {
+		resp.Diagnostics.Append(diag...)
+	}
 
 	// Save updated data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
@@ -169,21 +189,35 @@ func (r *AkpClusterResource) Update(ctx context.Context, req resource.UpdateRequ
 
 	// Read Terraform plan data into the model
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	ctx = ctxutil.SetClientCredential(ctx, r.akpCli.Cred)
-	apiResp, err := r.akpCli.Cli.UpdateOrganizationInstanceCluster(ctx, &argocdv1.UpdateOrganizationInstanceClusterRequest{
+	customArgoproj := plan.CustomImageRegistryArgoproj.ValueString()
+	customAkuity := plan.CustomImageRegistryAkuity.ValueString()
+	autoupgrade := plan.AutoUpgradeDisabled.ValueBool()
+	var labels map[string]string
+	var annotations map[string]string
+	resp.Diagnostics.Append(plan.Labels.ElementsAs(ctx, &labels, true)...)
+	resp.Diagnostics.Append(plan.Annotations.ElementsAs(ctx, &annotations, true)...)
+	apiReq :=&argocdv1.UpdateOrganizationInstanceClusterRequest{
 		OrganizationId: r.akpCli.OrgId,
 		InstanceId:     plan.InstanceId.ValueString(),
 		Id:             plan.Id.ValueString(),
 		Description:    plan.Description.ValueString(),
 		Data: &argocdv1.ClusterData{
-			Size: argocdv1.ClusterSize_CLUSTER_SIZE_SMALL,
+			Size: akptypes.StringClusterSize[plan.Size.ValueString()],
+			CustomImageRegistryArgoproj: &customArgoproj,
+			CustomImageRegistryAkuity:   &customAkuity,
+			AutoUpgradeDisabled:         &autoupgrade,
+			Labels:                      labels,
+			Annotations:                 annotations,
 		},
-	})
+	}
+	tflog.Debug(ctx, fmt.Sprintf("Api Request: %s", apiReq))
+	apiResp, err := r.akpCli.Cli.UpdateOrganizationInstanceCluster(ctx, apiReq)
+	tflog.Debug(ctx, fmt.Sprintf("Api Respons: %s", apiResp))
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update Akuity cluster. %s", err))
 		return
@@ -192,8 +226,10 @@ func (r *AkpClusterResource) Update(ctx context.Context, req resource.UpdateRequ
 	cluster := apiResp.GetCluster()
 	protoCluster := &akptypes.ProtoCluster{Cluster: cluster}
 	// Update state
-	state := protoCluster.FromProto(plan.InstanceId.ValueString())
-
+	state, diag := protoCluster.FromProto(plan.InstanceId.ValueString())
+	if diag.HasError() {
+		resp.Diagnostics.Append(diag...)
+	}
 	manifests, err := r.GetManifests(ctx, plan.InstanceId.ValueString(), cluster.GetId())
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get cluster manifests. %s", err))
@@ -217,15 +253,19 @@ func (r *AkpClusterResource) Delete(ctx context.Context, req resource.DeleteRequ
 	}
 
 	ctx = ctxutil.SetClientCredential(ctx, r.akpCli.Cred)
-	_, err := r.akpCli.Cli.DeleteOrganizationInstanceCluster(ctx, &argocdv1.DeleteOrganizationInstanceClusterRequest{
+	apiReq :=&argocdv1.DeleteOrganizationInstanceClusterRequest{
 		OrganizationId: r.akpCli.OrgId,
 		InstanceId:     state.InstanceId.ValueString(),
 		Id:             state.Id.ValueString(),
-	})
+	}
+	tflog.Debug(ctx, fmt.Sprintf("Api Request: %s", apiReq))
+	apiResp, err := r.akpCli.Cli.DeleteOrganizationInstanceCluster(ctx, apiReq)
+	tflog.Debug(ctx, fmt.Sprintf("Api Response: %s", apiResp))
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete Akuity cluster. %s", err))
 		return
 	}
+	time.Sleep(1 * time.Second)
 }
 
 // TODO: Implement cluster import

@@ -33,11 +33,17 @@ func (r *AkpClusterResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.
 				MarkdownDescription: "Argo CD Instance ID",
 				Type:                types.StringType,
 				Required:            true,
+				PlanModifiers: tfsdk.AttributePlanModifiers{
+					resource.RequiresReplace(),
+				},
 			},
 			"name": {
 				MarkdownDescription: "Cluster Name",
 				Type:                types.StringType,
 				Required:            true,
+				PlanModifiers: tfsdk.AttributePlanModifiers{
+					resource.RequiresReplace(),
+				},
 			},
 			"description": {
 				MarkdownDescription: "Cluster Description",
@@ -54,11 +60,67 @@ func (r *AkpClusterResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.
 				Required:            true,
 				PlanModifiers: tfsdk.AttributePlanModifiers{
 					resource.UseStateForUnknown(),
+					resource.RequiresReplace(),
 				},
 			},
 			"namespace_scoped": {
 				MarkdownDescription: "Agent Namespace Scoped",
 				Type:                types.BoolType,
+				Optional:            true,
+				Computed:            true,
+				PlanModifiers: tfsdk.AttributePlanModifiers{
+					resource.UseStateForUnknown(),
+					resource.RequiresReplace(),
+				},
+			},
+			"size": {
+				MarkdownDescription: "Cluster Size. One of `small`, `medium` or `large`",
+				Type:                types.StringType,
+				Required:            true,
+			},
+			"auto_upgrade_disabled": {
+				MarkdownDescription: "Disable Agents Auto Upgrade",
+				Type:                types.BoolType,
+				Optional:            true,
+				Computed:            true,
+				PlanModifiers: tfsdk.AttributePlanModifiers{
+					resource.UseStateForUnknown(),
+				},
+			},
+			"custom_image_registry_argoproj": {
+				MarkdownDescription: "Custom Registry for Argoproj Images",
+				Type:                types.StringType,
+				Optional:            true,
+				Computed:            true,
+				PlanModifiers: tfsdk.AttributePlanModifiers{
+					resource.UseStateForUnknown(),
+				},
+			},
+			"custom_image_registry_akuity": {
+				MarkdownDescription: "Custom Registry for Akuity Images",
+				Type:                types.StringType,
+				Optional:            true,
+				Computed:            true,
+				PlanModifiers: tfsdk.AttributePlanModifiers{
+					resource.UseStateForUnknown(),
+				},
+			},
+			"labels": {
+				MarkdownDescription: "Cluster Labels",
+				Type:                types.MapType{
+					ElemType: types.StringType,
+				},
+				Optional:            true,
+				Computed:            true,
+				PlanModifiers: tfsdk.AttributePlanModifiers{
+					resource.UseStateForUnknown(),
+				},
+			},
+			"annotations": {
+				MarkdownDescription: "Cluster Annotations",
+				Type:                types.MapType{
+					ElemType: types.StringType,
+				},
 				Optional:            true,
 				Computed:            true,
 				PlanModifiers: tfsdk.AttributePlanModifiers{

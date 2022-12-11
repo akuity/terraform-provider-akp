@@ -73,6 +73,40 @@ func (d *AkpClusterDataSource) GetSchema(ctx context.Context) (tfsdk.Schema, dia
 				Type:                types.BoolType,
 				Computed:            true,
 			},
+			"size": {
+				MarkdownDescription: "Cluster Size. One of `small`, `medium` or `large`",
+				Type:                types.StringType,
+				Computed:            true,
+			},
+			"auto_upgrade_disabled": {
+				MarkdownDescription: "Disable Agents Auto Upgrade",
+				Type:                types.BoolType,
+				Computed:            true,
+			},
+			"custom_image_registry_argoproj": {
+				MarkdownDescription: "Custom Registry for Argoproj Images",
+				Type:                types.StringType,
+				Computed:            true,
+			},
+			"custom_image_registry_akuity": {
+				MarkdownDescription: "Custom Registry for Akuity Images",
+				Type:                types.StringType,
+				Computed:            true,
+			},
+			"labels": {
+				MarkdownDescription: "Cluster Labels",
+				Type:                types.MapType{
+					ElemType: types.StringType,
+				},
+				Computed:            true,
+			},
+			"annotations": {
+				MarkdownDescription: "Cluster Annotations",
+				Type:                types.MapType{
+					ElemType: types.StringType,
+				},
+				Computed:            true,
+			},
 		},
 	}, nil
 }
@@ -124,12 +158,15 @@ func (d *AkpClusterDataSource) Read(ctx context.Context, req datasource.ReadRequ
 	tflog.Debug(ctx, "Reading an instance clusters")
 
 	ctx = ctxutil.SetClientCredential(ctx, d.akpCli.Cred)
-	apiResp, err := d.akpCli.Cli.GetOrganizationInstanceCluster(ctx, &argocdv1.GetOrganizationInstanceClusterRequest{
+	apiReq := &argocdv1.GetOrganizationInstanceClusterRequest{
 		OrganizationId: d.akpCli.OrgId,
 		InstanceId:     state.InstanceId.ValueString(),
 		Id:             state.Name.ValueString(),
 		IdType:         idv1.Type_NAME,
-	})
+	}
+	tflog.Debug(ctx, fmt.Sprintf("Api Request: %s", apiReq))
+	apiResp, err := d.akpCli.Cli.GetOrganizationInstanceCluster(ctx, apiReq)
+	tflog.Debug(ctx, fmt.Sprintf("Api Response: %s", apiResp))
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read instance clusters, got error: %s", err))
 		return
@@ -138,7 +175,10 @@ func (d *AkpClusterDataSource) Read(ctx context.Context, req datasource.ReadRequ
 	cluster := apiResp.GetCluster()
 
 	protoCluster := &akptypes.ProtoCluster{Cluster: cluster}
-	state = protoCluster.FromProto(state.InstanceId.ValueString())
+	state, diag := protoCluster.FromProto(state.InstanceId.ValueString())
+	if diag.HasError() {
+		resp.Diagnostics.Append(diag.Errors()...)
+	}
 	manifests, err := d.GetManifests(ctx, state.InstanceId.ValueString(), cluster.Id)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read manifests, got error: %s", err))

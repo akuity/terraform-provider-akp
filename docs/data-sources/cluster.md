@@ -33,10 +33,16 @@ data "akp_cluster" "example" {
 
 ### Read-Only
 
+- `annotations` (Map of String) Cluster Annotations
+- `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade
+- `custom_image_registry_akuity` (String) Custom Registry for Akuity Images
+- `custom_image_registry_argoproj` (String) Custom Registry for Argoproj Images
 - `description` (String) Cluster Description
 - `id` (String) Cluster ID
+- `labels` (Map of String) Cluster Labels
 - `manifests` (String, Sensitive) Agent Installation Manifests
 - `namespace` (String) Agent Installation Namespace
 - `namespace_scoped` (Boolean) Agent Namespace Scoped
+- `size` (String) Cluster Size. One of `small`, `medium` or `large`
 
 

@@ -18,9 +18,16 @@ data "akp_instance" "example" {
 }
 
 resource "akp_cluster" "example" {
-  name        = "some-value"
+  name        = "some-name"
   namespace   = "akuity"
+  size        = "small"
   instance_id = data.akp_instance.example.id
+  labels = {
+    label_1 = "example-label"
+  }
+  annotations = {
+    ann_1 = "example-annotation"
+  }
 }
 ```
 
@@ -32,10 +39,16 @@ resource "akp_cluster" "example" {
 - `instance_id` (String) Argo CD Instance ID
 - `name` (String) Cluster Name
 - `namespace` (String) Agent Installation Namespace
+- `size` (String) Cluster Size. One of `small`, `medium` or `large`
 
 ### Optional
 
+- `annotations` (Map of String) Cluster Annotations
+- `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade
+- `custom_image_registry_akuity` (String) Custom Registry for Akuity Images
+- `custom_image_registry_argoproj` (String) Custom Registry for Argoproj Images
 - `description` (String) Cluster Description
+- `labels` (Map of String) Cluster Labels
 - `namespace_scoped` (Boolean) Agent Namespace Scoped
 
 ### Read-Only

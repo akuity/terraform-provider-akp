@@ -3,7 +3,14 @@ data "akp_instance" "example" {
 }
 
 resource "akp_cluster" "example" {
-  name        = "some-value"
+  name        = "some-name"
   namespace   = "akuity"
+  size        = "small"
   instance_id = data.akp_instance.example.id
+  labels = {
+    label_1 = "example-label"
+  }
+  annotations = {
+    ann_1 = "example-annotation"
+  }
 }
