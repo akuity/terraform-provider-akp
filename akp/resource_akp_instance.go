@@ -11,6 +11,8 @@ import (
 	reconv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/reconciliation/v1"
 	ctxutil "github.com/akuity/api-client-go/pkg/utils/context"
 	akptypes "github.com/akuity/terraform-provider-akp/akp/types"
+	status "google.golang.org/grpc/status"
+	codes "google.golang.org/grpc/codes"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -122,9 +124,14 @@ func (r *AkpInstanceResource) Read(ctx context.Context, req resource.ReadRequest
 		IdType:         idv1.Type_ID,
 		OrganizationId: r.akpCli.OrgId,
 	})
-
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read Argo CD instance, got error: %s", err))
+	switch status.Code(err) {
+	case codes.OK:
+		tflog.Debug(ctx, fmt.Sprintf("Api Response: %s", apiResp))
+	case codes.NotFound:
+		resp.State.RemoveResource(ctx)
+		return
+	default:
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read Argo CD instance. %s", err))
 		return
 	}
 
@@ -134,8 +141,7 @@ func (r *AkpInstanceResource) Read(ctx context.Context, req resource.ReadRequest
 	state = protoInstance.FromProto()
 
 	tflog.Debug(ctx, "Updating State")
-	diags = resp.State.Set(ctx, &state)
-	resp.Diagnostics.Append(diags...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *AkpInstanceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
