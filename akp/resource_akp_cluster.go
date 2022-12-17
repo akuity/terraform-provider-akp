@@ -10,6 +10,8 @@ import (
 	reconv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/reconciliation/v1"
 	ctxutil "github.com/akuity/api-client-go/pkg/utils/context"
 	akptypes "github.com/akuity/terraform-provider-akp/akp/types"
+	status "google.golang.org/grpc/status"
+	codes "google.golang.org/grpc/codes"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -169,15 +171,22 @@ func (r *AkpClusterResource) Read(ctx context.Context, req resource.ReadRequest,
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Api Request: %s", apiReq))
 	apiResp, err := r.akpCli.Cli.GetOrganizationInstanceCluster(ctx, apiReq)
-	tflog.Debug(ctx, fmt.Sprintf("Api Response: %s", apiResp))
-	if err != nil {
+	switch status.Code(err) {
+	case codes.OK:
+		tflog.Debug(ctx, fmt.Sprintf("Api Response: %s", apiResp))
+	case codes.NotFound:
+		resp.State.RemoveResource(ctx)
+		return
+	default:
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read Akuity cluster. %s", err))
 		return
 	}
 
-	diag := state.UpdateFromProto(apiResp.GetCluster())
-	if diag.HasError() {
-		resp.Diagnostics.Append(diag...)
+	resp.Diagnostics.Append(state.UpdateFromProto(apiResp.GetCluster())...)
+
+	if state.Manifests.IsNull() || state.Manifests.IsUnknown() {
+		manifests, _ := r.GetManifests(ctx, state.InstanceId.ValueString(), state.Id.ValueString())
+		state.Manifests = types.StringValue(manifests)
 	}
 
 	// Save updated data into Terraform state
