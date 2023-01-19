@@ -3,130 +3,117 @@ package akp
 import (
 	"context"
 
-	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
-	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-func (r *AkpClusterResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
-	return tfsdk.Schema{
-		// This description is used by the documentation generator and the language server.
+func (r *AkpClusterResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+	resp.Schema = schema.Schema{
 		MarkdownDescription: "Create a cluster attached to an Argo CD instance. Use `.manifests` attribute to get agent installation manifests",
 
-		Attributes: map[string]tfsdk.Attribute{
-			"id": {
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
 				MarkdownDescription: "Cluster ID",
-				Type:                types.StringType,
 				Computed:            true,
-				PlanModifiers: tfsdk.AttributePlanModifiers{
-					resource.UseStateForUnknown(),
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
-			"manifests": {
+			"manifests": schema.StringAttribute{
 				MarkdownDescription: "Agent Installation Manifests",
-				Type:                types.StringType,
 				Computed:            true,
 				Sensitive:           true,
 			},
-			"instance_id": {
+			"instance_id": schema.StringAttribute{
 				MarkdownDescription: "Argo CD Instance ID",
-				Type:                types.StringType,
 				Required:            true,
-				PlanModifiers: tfsdk.AttributePlanModifiers{
-					resource.RequiresReplace(),
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
 				},
 			},
-			"name": {
+			"name": schema.StringAttribute{
 				MarkdownDescription: "Cluster Name",
-				Type:                types.StringType,
 				Required:            true,
-				PlanModifiers: tfsdk.AttributePlanModifiers{
-					resource.RequiresReplace(),
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
 				},
 			},
-			"description": {
+			"description": schema.StringAttribute{
 				MarkdownDescription: "Cluster Description",
-				Type:                types.StringType,
 				Optional:            true,
 				Computed:            true,
-				PlanModifiers: tfsdk.AttributePlanModifiers{
-					resource.UseStateForUnknown(),
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
-			"namespace": {
+			"namespace": schema.StringAttribute{
 				MarkdownDescription: "Agent Installation Namespace",
-				Type:                types.StringType,
 				Required:            true,
-				PlanModifiers: tfsdk.AttributePlanModifiers{
-					resource.UseStateForUnknown(),
-					resource.RequiresReplace(),
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
 				},
 			},
-			"namespace_scoped": {
+			"namespace_scoped": schema.BoolAttribute{
 				MarkdownDescription: "Agent Namespace Scoped",
-				Type:                types.BoolType,
 				Optional:            true,
 				Computed:            true,
-				PlanModifiers: tfsdk.AttributePlanModifiers{
-					resource.UseStateForUnknown(),
-					resource.RequiresReplace(),
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
+					boolplanmodifier.RequiresReplace(),
 				},
 			},
-			"size": {
+			"size": schema.StringAttribute{
 				MarkdownDescription: "Cluster Size. One of `small`, `medium` or `large`",
-				Type:                types.StringType,
 				Required:            true,
 			},
-			"auto_upgrade_disabled": {
+			"auto_upgrade_disabled": schema.BoolAttribute{
 				MarkdownDescription: "Disable Agents Auto Upgrade",
-				Type:                types.BoolType,
 				Optional:            true,
 				Computed:            true,
-				PlanModifiers: tfsdk.AttributePlanModifiers{
-					resource.UseStateForUnknown(),
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.UseStateForUnknown(),
 				},
 			},
-			"custom_image_registry_argoproj": {
+			"custom_image_registry_argoproj": schema.StringAttribute{
 				MarkdownDescription: "Custom Registry for Argoproj Images",
-				Type:                types.StringType,
 				Optional:            true,
 				Computed:            true,
-				PlanModifiers: tfsdk.AttributePlanModifiers{
-					resource.UseStateForUnknown(),
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
-			"custom_image_registry_akuity": {
+			"custom_image_registry_akuity": schema.StringAttribute{
 				MarkdownDescription: "Custom Registry for Akuity Images",
-				Type:                types.StringType,
 				Optional:            true,
 				Computed:            true,
-				PlanModifiers: tfsdk.AttributePlanModifiers{
-					resource.UseStateForUnknown(),
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
-			"labels": {
+			"labels": schema.MapAttribute{
+				ElementType: types.StringType,
 				MarkdownDescription: "Cluster Labels",
-				Type:                types.MapType{
-					ElemType: types.StringType,
-				},
 				Optional:            true,
 				Computed:            true,
-				PlanModifiers: tfsdk.AttributePlanModifiers{
-					resource.UseStateForUnknown(),
+				PlanModifiers: []planmodifier.Map{
+					mapplanmodifier.UseStateForUnknown(),
 				},
 			},
-			"annotations": {
+			"annotations": schema.MapAttribute{
+				ElementType: types.StringType,
 				MarkdownDescription: "Cluster Annotations",
-				Type:                types.MapType{
-					ElemType: types.StringType,
-				},
 				Optional:            true,
 				Computed:            true,
-				PlanModifiers: tfsdk.AttributePlanModifiers{
-					resource.UseStateForUnknown(),
+				PlanModifiers: []planmodifier.Map{
+					mapplanmodifier.UseStateForUnknown(),
 				},
 			},
 		},
-	}, nil
+	}
 }

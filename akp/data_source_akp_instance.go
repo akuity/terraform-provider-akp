@@ -9,9 +9,7 @@ import (
 	ctxutil "github.com/akuity/api-client-go/pkg/utils/context"
 	akptypes "github.com/akuity/terraform-provider-akp/akp/types"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
-	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
@@ -31,39 +29,33 @@ func (d *AkpInstanceDataSource) Metadata(ctx context.Context, req datasource.Met
 	resp.TypeName = req.ProviderTypeName + "_instance"
 }
 
-func (d *AkpInstanceDataSource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
-	return tfsdk.Schema{
-		// This description is used by the documentation generator and the language server.
+func (d *AkpInstanceDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = schema.Schema{
 		MarkdownDescription: "Find an Argo CD instance by its name",
 
-		Attributes: map[string]tfsdk.Attribute{
-			"id": {
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
 				MarkdownDescription: "Instance ID",
-				Type:                types.StringType,
 				Computed:            true,
 			},
-			"name": {
+			"name": schema.StringAttribute{
 				MarkdownDescription: "Instance Name",
-				Type:                types.StringType,
 				Required:            true,
 			},
-			"description": {
+			"description": schema.StringAttribute{
 				MarkdownDescription: "Instance Description",
-				Type:                types.StringType,
 				Computed:            true,
 			},
-			"hostname": {
+			"hostname": schema.StringAttribute{
 				MarkdownDescription: "Instance Hostname",
-				Type:                types.StringType,
 				Computed:            true,
 			},
-			"version": {
+			"version": schema.StringAttribute{
 				MarkdownDescription: "Argo CD Version",
-				Type:                types.StringType,
 				Computed:            true,
 			},
 		},
-	}, nil
+	}
 }
 
 func (d *AkpInstanceDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {

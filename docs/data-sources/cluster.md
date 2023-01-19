@@ -28,7 +28,6 @@ data "akp_cluster" "example" {
 
 ### Required
 
-- `instance_id` (String) Argo CD Instance ID
 - `name` (String) Cluster Name
 
 ### Read-Only
@@ -39,6 +38,7 @@ data "akp_cluster" "example" {
 - `custom_image_registry_argoproj` (String) Custom Registry for Argoproj Images
 - `description` (String) Cluster Description
 - `id` (String) Cluster ID
+- `instance_id` (String) Argo CD Instance ID
 - `labels` (Map of String) Cluster Labels
 - `manifests` (String, Sensitive) Agent Installation Manifests
 - `namespace` (String) Agent Installation Namespace

@@ -8,8 +8,7 @@ import (
 	ctxutil "github.com/akuity/api-client-go/pkg/utils/context"
 	akptypes "github.com/akuity/terraform-provider-akp/akp/types"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
@@ -36,100 +35,84 @@ func (d *AkpClustersDataSource) Metadata(ctx context.Context, req datasource.Met
 	resp.TypeName = req.ProviderTypeName + "_clusters"
 }
 
-func (d *AkpClustersDataSource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
-	return tfsdk.Schema{
-		// This description is used by the documentation generator and the language server.
+func (d *AkpClustersDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = schema.Schema{
 		MarkdownDescription: "Find all clusters attached to an Argo CD instance",
-
-		Attributes: map[string]tfsdk.Attribute{
-			"id": {
-				Type:                types.StringType,
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
 				Computed:            true,
 			},
-			"instance_id": {
+			"instance_id": schema.StringAttribute{
 				MarkdownDescription: "Argo CD Instance ID",
-				Type:                types.StringType,
 				Required:            true,
 			},
-			"clusters": {
+			"clusters": schema.ListNestedAttribute{
 				MarkdownDescription: "List of clusters",
 				Computed:            true,
-				Attributes: tfsdk.ListNestedAttributes(map[string]tfsdk.Attribute{
-					"id": {
-						MarkdownDescription: "Cluster ID",
-						Type:                types.StringType,
-						Computed:            true,
-					},
-					"manifests": {
-						MarkdownDescription: "Agent Installation Manifests",
-						Type:                types.StringType,
-						Computed:            true,
-						Sensitive:           true,
-					},
-					"instance_id": {
-						MarkdownDescription: "Argo CD Instance ID",
-						Type:                types.StringType,
-						Required:            true,
-					},
-					"name": {
-						MarkdownDescription: "Cluster Name",
-						Type:                types.StringType,
-						Computed:            true,
-					},
-					"description": {
-						MarkdownDescription: "Cluster Description",
-						Type:                types.StringType,
-						Computed:            true,
-					},
-					"namespace": {
-						MarkdownDescription: "Agent Installation Namespace",
-						Type:                types.StringType,
-						Computed:            true,
-					},
-					"namespace_scoped": {
-						MarkdownDescription: "Agent Namespace Scoped",
-						Type:                types.BoolType,
-						Computed:            true,
-					},
-					"size": {
-						MarkdownDescription: "Cluster Size. One of `small`, `medium` or `large`",
-						Type:                types.StringType,
-						Computed:            true,
-					},
-					"auto_upgrade_disabled": {
-						MarkdownDescription: "Disable Agents Auto Upgrade",
-						Type:                types.BoolType,
-						Computed:            true,
-					},
-					"custom_image_registry_argoproj": {
-						MarkdownDescription: "Custom Registry for Argoproj Images",
-						Type:                types.StringType,
-						Computed:            true,
-					},
-					"custom_image_registry_akuity": {
-						MarkdownDescription: "Custom Registry for Akuity Images",
-						Type:                types.StringType,
-						Computed:            true,
-					},
-					"labels": {
-						MarkdownDescription: "Cluster Labels",
-						Type:                types.MapType{
-							ElemType: types.StringType,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"id": schema.StringAttribute{
+							MarkdownDescription: "Cluster ID",
+							Computed:            true,
 						},
-						Computed:            true,
-					},
-					"annotations": {
-						MarkdownDescription: "Cluster Annotations",
-						Type:                types.MapType{
-							ElemType: types.StringType,
+						"manifests": schema.StringAttribute{
+							MarkdownDescription: "Agent Installation Manifests",
+							Computed:            true,
+							Sensitive:           true,
 						},
-						Computed:            true,
+						"instance_id": schema.StringAttribute{
+							MarkdownDescription: "Argo CD Instance ID",
+							Computed:            true,
+						},
+						"name": schema.StringAttribute{
+							MarkdownDescription: "Cluster Name",
+							Computed:            true,
+						},
+						"description": schema.StringAttribute{
+							MarkdownDescription: "Cluster Description",
+							Computed:            true,
+						},
+						"namespace": schema.StringAttribute{
+							MarkdownDescription: "Agent Installation Namespace",
+							Computed:            true,
+						},
+						"namespace_scoped": schema.BoolAttribute{
+							MarkdownDescription: "Agent Namespace Scoped",
+							Computed:            true,
+						},
+						"size": schema.StringAttribute{
+							MarkdownDescription: "Cluster Size. One of `small`, `medium` or `large`",
+							Computed:            true,
+						},
+						"auto_upgrade_disabled": schema.BoolAttribute{
+							MarkdownDescription: "Disable Agents Auto Upgrade",
+							Computed:            true,
+						},
+						"custom_image_registry_argoproj": schema.StringAttribute{
+							MarkdownDescription: "Custom Registry for Argoproj Images",
+							Computed:            true,
+						},
+						"custom_image_registry_akuity": schema.StringAttribute{
+							MarkdownDescription: "Custom Registry for Akuity Images",
+							Computed:            true,
+						},
+						"labels": schema.MapAttribute{
+							ElementType: types.StringType,
+							MarkdownDescription: "Cluster Labels",
+							Computed:            true,
+						},
+						"annotations": schema.MapAttribute{
+							ElementType:  types.StringType,
+							MarkdownDescription: "Cluster Annotations",
+							Computed:            true,
+						},
 					},
-				}),
+				},
 			},
 		},
-	}, nil
+	}
 }
+
 
 func (d *AkpClustersDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
 	// Prevent panic if the provider has not been configured.

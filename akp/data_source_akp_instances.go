@@ -8,14 +8,13 @@ import (
 	ctxutil "github.com/akuity/api-client-go/pkg/utils/context"
 	akptypes "github.com/akuity/terraform-provider-akp/akp/types"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
-var _ datasource.DataSource = &AkpInstanceDataSource{}
+var _ datasource.DataSource = &AkpInstancesDataSource{}
 
 func NewAkpInstancesDataSource() datasource.DataSource {
 	return &AkpInstancesDataSource{}
@@ -35,49 +34,43 @@ func (d *AkpInstancesDataSource) Metadata(ctx context.Context, req datasource.Me
 	resp.TypeName = req.ProviderTypeName + "_instances"
 }
 
-func (d *AkpInstancesDataSource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
-	return tfsdk.Schema{
-		// This description is used by the documentation generator and the language server.
+func (d *AkpInstancesDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = schema.Schema{
 		MarkdownDescription: "List all Argo CD instances",
-
-		Attributes: map[string]tfsdk.Attribute{
-			"id": {
-				Type:                types.StringType,
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
 				Computed:            true,
 			},
-			"instances": {
+			"instances": schema.ListNestedAttribute{
 				MarkdownDescription: "List of Argo CD instances for organization",
 				Computed:            true,
-				Attributes: tfsdk.ListNestedAttributes(map[string]tfsdk.Attribute{
-					"id": {
-						MarkdownDescription: "Instance ID",
-						Type:                types.StringType,
-						Computed:            true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"id": schema.StringAttribute{
+							MarkdownDescription: "Instance ID",
+							Computed:            true,
+						},
+						"name": schema.StringAttribute{
+							MarkdownDescription: "Instance Name",
+							Computed:            true,
+						},
+						"description": schema.StringAttribute{
+							MarkdownDescription: "Instance Description",
+							Computed:            true,
+						},
+						"hostname": schema.StringAttribute{
+							MarkdownDescription: "Instance Hostname",
+							Computed:            true,
+						},
+						"version": schema.StringAttribute{
+							MarkdownDescription: "Argo CD Version",
+							Computed:            true,
+						},
 					},
-					"name": {
-						MarkdownDescription: "Instance Name",
-						Type:                types.StringType,
-						Computed:            true,
-					},
-					"description": {
-						MarkdownDescription: "Instance Description",
-						Type:                types.StringType,
-						Computed:            true,
-					},
-					"hostname": {
-						MarkdownDescription: "Instance Hostname",
-						Type:                types.StringType,
-						Computed:            true,
-					},
-					"version": {
-						MarkdownDescription: "Argo CD Version",
-						Type:                types.StringType,
-						Computed:            true,
-					},
-				}),
+				},
 			},
 		},
-	}, nil
+	}
 }
 
 func (d *AkpInstancesDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {

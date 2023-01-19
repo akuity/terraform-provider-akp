@@ -37,10 +37,6 @@ data "akp_clusters" "example" {
 <a id="nestedatt--clusters"></a>
 ### Nested Schema for `clusters`
 
-Required:
-
-- `instance_id` (String) Argo CD Instance ID
-
 Read-Only:
 
 - `annotations` (Map of String) Cluster Annotations
@@ -49,6 +45,7 @@ Read-Only:
 - `custom_image_registry_argoproj` (String) Custom Registry for Argoproj Images
 - `description` (String) Cluster Description
 - `id` (String) Cluster ID
+- `instance_id` (String) Argo CD Instance ID
 - `labels` (Map of String) Cluster Labels
 - `manifests` (String, Sensitive) Agent Installation Manifests
 - `name` (String) Cluster Name
