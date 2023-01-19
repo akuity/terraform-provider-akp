@@ -4,8 +4,9 @@ import (
 	"context"
 
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
-	"github.com/hashicorp/terraform-plugin-framework/types"
+	// "github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 type ProtoCluster struct {
@@ -41,6 +42,7 @@ type AkpCluster struct {
 	Manifests                   types.String `tfsdk:"manifests"`
 	Labels                      types.Map    `tfsdk:"labels"`
 	Annotations                 types.Map    `tfsdk:"annotations"`
+	KubeConfig                  types.Object `tfsdk:"kube_config"`
 }
 
 func (x *ProtoCluster) FromProto(instanceId string) (*AkpCluster, diag.Diagnostics) {
@@ -69,6 +71,7 @@ func (x *ProtoCluster) FromProto(instanceId string) (*AkpCluster, diag.Diagnosti
 		CustomImageRegistryAkuity:   types.StringValue(*x.Data.CustomImageRegistryAkuity),
 		Labels:                      labels,
 		Annotations:                 annotations,
+		// KubeConfig:                  types.ObjectNull(map[string]attr.Type{}),
 	}
 	return res, diags
 }
