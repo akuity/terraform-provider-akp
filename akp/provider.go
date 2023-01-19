@@ -13,17 +13,15 @@ import (
 	"github.com/akuity/api-client-go/pkg/api/client"
 	ctxutil "github.com/akuity/api-client-go/pkg/utils/context"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
+	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
-	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 var _ provider.Provider = &AkpProvider{}
-var _ provider.ProviderWithMetadata = &AkpProvider{}
 
 type AkpProvider struct {
 	version string
@@ -48,41 +46,36 @@ func (p *AkpProvider) Metadata(ctx context.Context, req provider.MetadataRequest
 	resp.Version = p.version
 }
 
-func (p *AkpProvider) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
-	return tfsdk.Schema{
-		Attributes: map[string]tfsdk.Attribute{
-			"api_host": {
+func (p *AkpProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Attributes: map[string]schema.Attribute{
+			"api_host": schema.StringAttribute{
 				MarkdownDescription: "Akuity Platform API host, default: `https://akuity.cloud`. You can use environment variable `AKUITY_API_HOST` instead",
 				Optional:            true,
-				Type:                types.StringType,
 			},
-			"skip_tls_verify": {
+			"skip_tls_verify": schema.BoolAttribute{
 				MarkdownDescription: "Skip TLS Verify. Only use for testing self-hosted version",
 				Optional:            true,
-				Type:                types.BoolType,
 			},
-			"org_name": {
+			"org_name": schema.StringAttribute{
 				MarkdownDescription: "Organization Name",
 				Required:            true,
-				Type:                types.StringType,
 			},
-			"api_key_id": {
+			"api_key_id": schema.StringAttribute{
 				MarkdownDescription: "API Key Id. Use environment variable `AKUITY_API_KEY_ID` instead",
 				Optional:            true,
 				Sensitive:           true,
-				Type:                types.StringType,
 			},
-			"api_key_secret": {
+			"api_key_secret": schema.StringAttribute{
 				MarkdownDescription: "API Key Secret, Use environment variable `AKUITY_API_KEY_SECRET` instead",
 				Optional:            true,
 				Sensitive:           true,
-				Type:                types.StringType,
 			},
 		},
-	}, nil
-}
-
-func (p *AkpProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
+		}
+	}
+	
+	func (p *AkpProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
 	tflog.Info(ctx, "Configuring Akuity Provider")
 
 	var config AkpProviderModel

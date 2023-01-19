@@ -9,8 +9,7 @@ import (
 	ctxutil "github.com/akuity/api-client-go/pkg/utils/context"
 	akptypes "github.com/akuity/terraform-provider-akp/akp/types"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
@@ -31,84 +30,67 @@ func (d *AkpClusterDataSource) Metadata(ctx context.Context, req datasource.Meta
 	resp.TypeName = req.ProviderTypeName + "_cluster"
 }
 
-func (d *AkpClusterDataSource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
-	return tfsdk.Schema{
-
+func (d *AkpClusterDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = schema.Schema{
 		MarkdownDescription: "Find a cluster by its name and Argo CD instance ID",
-
-		Attributes: map[string]tfsdk.Attribute{
-			"id": {
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
 				MarkdownDescription: "Cluster ID",
-				Type:                types.StringType,
 				Computed:            true,
 			},
-			"manifests": {
+			"manifests": schema.StringAttribute{
 				MarkdownDescription: "Agent Installation Manifests",
-				Type:                types.StringType,
 				Computed:            true,
 				Sensitive:           true,
 			},
-			"instance_id": {
+			"instance_id": schema.StringAttribute{
 				MarkdownDescription: "Argo CD Instance ID",
-				Type:                types.StringType,
-				Required:            true,
+				Computed:            true,
 			},
-			"name": {
+			"name": schema.StringAttribute{
 				MarkdownDescription: "Cluster Name",
-				Type:                types.StringType,
 				Required:            true,
 			},
-			"description": {
+			"description": schema.StringAttribute{
 				MarkdownDescription: "Cluster Description",
-				Type:                types.StringType,
 				Computed:            true,
 			},
-			"namespace": {
+			"namespace": schema.StringAttribute{
 				MarkdownDescription: "Agent Installation Namespace",
-				Type:                types.StringType,
 				Computed:            true,
 			},
-			"namespace_scoped": {
+			"namespace_scoped": schema.BoolAttribute{
 				MarkdownDescription: "Agent Namespace Scoped",
-				Type:                types.BoolType,
 				Computed:            true,
 			},
-			"size": {
+			"size": schema.StringAttribute{
 				MarkdownDescription: "Cluster Size. One of `small`, `medium` or `large`",
-				Type:                types.StringType,
 				Computed:            true,
 			},
-			"auto_upgrade_disabled": {
+			"auto_upgrade_disabled": schema.BoolAttribute{
 				MarkdownDescription: "Disable Agents Auto Upgrade",
-				Type:                types.BoolType,
 				Computed:            true,
 			},
-			"custom_image_registry_argoproj": {
+			"custom_image_registry_argoproj": schema.StringAttribute{
 				MarkdownDescription: "Custom Registry for Argoproj Images",
-				Type:                types.StringType,
 				Computed:            true,
 			},
-			"custom_image_registry_akuity": {
+			"custom_image_registry_akuity": schema.StringAttribute{
 				MarkdownDescription: "Custom Registry for Akuity Images",
-				Type:                types.StringType,
 				Computed:            true,
 			},
-			"labels": {
+			"labels": schema.MapAttribute{
+				ElementType: types.StringType,
 				MarkdownDescription: "Cluster Labels",
-				Type:                types.MapType{
-					ElemType: types.StringType,
-				},
 				Computed:            true,
 			},
-			"annotations": {
+			"annotations": schema.MapAttribute{
+				ElementType: types.StringType,
 				MarkdownDescription: "Cluster Annotations",
-				Type:                types.MapType{
-					ElemType: types.StringType,
-				},
 				Computed:            true,
 			},
 		},
-	}, nil
+	}
 }
 
 func (d *AkpClusterDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
