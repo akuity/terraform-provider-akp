@@ -16,10 +16,10 @@ github.com/acomagu/bufpipe v1.0.3 h1:fxAGrHZTgQ9w5QqVItgzwj235/uYZYgbXitB+dLupOk
 github.com/acomagu/bufpipe v1.0.3/go.mod h1:mxdxdup/WdsKVreO5GpW4+M/1CE2sMG4jeGJ2sYmHc4=
 github.com/agext/levenshtein v1.2.2 h1:0S/Yg6LYmFJ5stwQeRp6EeOcCbj7xiqQSdNelsXvaqE=
 github.com/agext/levenshtein v1.2.2/go.mod h1:JEDfjyjHDjOF/1e4FlBE/PkbqA9OfWu2ki2W0IB5558=
-github.com/akuity/api-client-go v0.2.2 h1:NEcHR69FN5goJ/AM3b/bqfDXSTUDD3Vpzf2gpsdHdYA=
-github.com/akuity/api-client-go v0.2.2/go.mod h1:oxUmFQIYy6gyIr7Wrcoa03MeXWTHfzp+3MJHE7z4C7I=
-github.com/akuity/api-client-go v0.2.4 h1:GxZEtoQAjy+1AkLIAwJSmmh5vDfejrHgpuGG459q7oU=
-github.com/akuity/api-client-go v0.2.4/go.mod h1:oxUmFQIYy6gyIr7Wrcoa03MeXWTHfzp+3MJHE7z4C7I=
+github.com/akuity/api-client-go v0.3.0 h1:w1jq4FlCuCkbq+BD00Tt2+IOQqSZB2MIuIQ6ks5hctg=
+github.com/akuity/api-client-go v0.3.0/go.mod h1:r8hrBcOts2GLOZ928LQVNFQyf+0ZywPNd1QM87jxvXI=
+github.com/alevinval/sse v1.0.1 h1:cFubh2lMNdHT6niFLCsyTuhAgljaAWbdmceAe6qPIfo=
+github.com/alevinval/sse v1.0.1/go.mod h1:Bvl1EawUlmW1y1vSU5uDl03+1Zsqqz/+6D2PAUvftcw=
 github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239/go.mod h1:2FmKhYUyUczH0OGQWaF5ceTx0UBShxjsH6f8oGKYe2c=
 github.com/apparentlymart/go-dump v0.0.0-20190214190832-042adf3cf4a0 h1:MzVXffFUye+ZcSR6opIgz9Co7WcDx6ZcY+RjfFHoA0I=
 github.com/apparentlymart/go-textseg v1.0.0/go.mod h1:z96Txxhf3xSFMPmb5X/1W05FF/Nj9VFpLOpjS5yuumk=

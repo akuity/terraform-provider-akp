@@ -85,14 +85,14 @@ func (d *AkpInstanceDataSource) Read(ctx context.Context, req datasource.ReadReq
 	}
 	ctx = ctxutil.SetClientCredential(ctx, d.akpCli.Cred)
 
-	apiReq := &argocdv1.GetOrganizationInstanceRequest{
+	apiReq := &argocdv1.GetInstanceRequest{
 		OrganizationId: d.akpCli.OrgId,
 		IdType:         idv1.Type_NAME,
 		Id:             state.Name.ValueString(),
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("apiReq: %s", apiReq))
-	apiResp, err := d.akpCli.Cli.GetOrganizationInstance(ctx, apiReq)
+	apiResp, err := d.akpCli.Cli.GetInstance(ctx, apiReq)
 
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read Argo CD instance, got error: %s", err))

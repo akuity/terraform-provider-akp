@@ -135,18 +135,18 @@ func (d *AkpClustersDataSource) GetManifests(ctx context.Context, instanceId str
 
 	tflog.Info(ctx, "Retrieving manifests...")
 
-	apiReq := &argocdv1.GetOrganizationInstanceClusterManifestsRequest{
+	apiReq := &argocdv1.GetInstanceClusterManifestsRequest{
 		OrganizationId: d.akpCli.OrgId,
 		InstanceId:     instanceId,
 		Id:             clusterId,
 	}
 	tflog.Debug(ctx, fmt.Sprintf("apiReq: %s", apiReq))
-	apiResp, err := d.akpCli.Cli.GetOrganizationInstanceClusterManifests(ctx, apiReq)
+	apiResp, err := d.akpCli.Cli.GetInstanceClusterManifests(ctx, apiReq)
 	if err != nil {
 		return "", err
 	}
 
-	return apiResp.GetManifests(), nil
+	return string(apiResp.GetData()), nil
 }
 
 func (d *AkpClustersDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
@@ -161,12 +161,12 @@ func (d *AkpClustersDataSource) Read(ctx context.Context, req datasource.ReadReq
 	tflog.Debug(ctx, "Reading an instance clusters")
 
 	ctx = ctxutil.SetClientCredential(ctx, d.akpCli.Cred)
-	apiReq := &argocdv1.ListOrganizationInstanceClustersRequest{
+	apiReq := &argocdv1.ListInstanceClustersRequest{
 		OrganizationId: d.akpCli.OrgId,
 		InstanceId:     state.InstanceId.ValueString(),
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Api Request: %s", apiReq))
-	apiResp, err := d.akpCli.Cli.ListOrganizationInstanceClusters(ctx, apiReq)
+	apiResp, err := d.akpCli.Cli.ListInstanceClusters(ctx, apiReq)
 	tflog.Debug(ctx, fmt.Sprintf("Api Response: %s", apiResp))
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read instance clusters, got error: %s", err))

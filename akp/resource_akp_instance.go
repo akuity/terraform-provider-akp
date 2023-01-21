@@ -67,7 +67,7 @@ func (r *AkpInstanceResource) Create(ctx context.Context, req resource.CreateReq
 
 	ctx = ctxutil.SetClientCredential(ctx, r.akpCli.Cred)
 	description := plan.Description.ValueString()
-	apiResp, err := r.akpCli.Cli.CreateOrganizationInstance(ctx, &argocdv1.CreateOrganizationInstanceRequest{
+	apiResp, err := r.akpCli.Cli.CreateInstance(ctx, &argocdv1.CreateInstanceRequest{
 		OrganizationId: r.akpCli.OrgId,
 		Name:           plan.Name.ValueString(),
 		Version:        plan.Version.ValueString(),
@@ -83,7 +83,7 @@ func (r *AkpInstanceResource) Create(ctx context.Context, req resource.CreateReq
 	healthStatus := instance.GetHealthStatus()
 	for !slices.Contains(breakStatusesHealth, healthStatus.GetCode()) {
 		time.Sleep(2 * time.Second)
-		apiResp2, err := r.akpCli.Cli.GetOrganizationInstance(ctx, &argocdv1.GetOrganizationInstanceRequest{
+		apiResp2, err := r.akpCli.Cli.GetInstance(ctx, &argocdv1.GetInstanceRequest{
 			OrganizationId: r.akpCli.OrgId,
 			Id:             instance.GetId(),
 			IdType:         idv1.Type_ID,
@@ -119,7 +119,7 @@ func (r *AkpInstanceResource) Read(ctx context.Context, req resource.ReadRequest
 	}
 
 	ctx = ctxutil.SetClientCredential(ctx, r.akpCli.Cred)
-	apiResp, err := r.akpCli.Cli.GetOrganizationInstance(ctx, &argocdv1.GetOrganizationInstanceRequest{
+	apiResp, err := r.akpCli.Cli.GetInstance(ctx, &argocdv1.GetInstanceRequest{
 		Id:             state.Id.ValueString(),
 		IdType:         idv1.Type_ID,
 		OrganizationId: r.akpCli.OrgId,
@@ -159,13 +159,13 @@ func (r *AkpInstanceResource) Update(ctx context.Context, req resource.UpdateReq
 		return
 	}
 	ctx = ctxutil.SetClientCredential(ctx, r.akpCli.Cred)
-	apiReq := &argocdv1.UpdateOrganizationInstanceRequest{
+	apiReq := &argocdv1.UpdateInstanceRequest{
 		OrganizationId: r.akpCli.OrgId,
 		Id:             plan.Id.ValueString(),
 		Instance:       protoPlan,
 	}
 	tflog.Debug(ctx, fmt.Sprintf("apiReq: %s", apiReq))
-	apiResp, err := r.akpCli.Cli.UpdateOrganizationInstance(ctx, apiReq)
+	apiResp, err := r.akpCli.Cli.UpdateInstance(ctx, apiReq)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update Argo CD instance, got error: %s", err))
 		return
@@ -175,7 +175,7 @@ func (r *AkpInstanceResource) Update(ctx context.Context, req resource.UpdateReq
 	reconStatus := instance.GetReconciliationStatus()
 	for !slices.Contains(breakStatusesRecon, reconStatus.GetCode()) {
 		time.Sleep(2 * time.Second)
-		apiResp2, err := r.akpCli.Cli.GetOrganizationInstance(ctx, &argocdv1.GetOrganizationInstanceRequest{
+		apiResp2, err := r.akpCli.Cli.GetInstance(ctx, &argocdv1.GetInstanceRequest{
 			OrganizationId: r.akpCli.OrgId,
 			Id:             instance.GetId(),
 			IdType:         idv1.Type_ID,
@@ -203,7 +203,7 @@ func (r *AkpInstanceResource) Delete(ctx context.Context, req resource.DeleteReq
 		return
 	}
 	ctx = ctxutil.SetClientCredential(ctx, r.akpCli.Cred)
-	_, err := r.akpCli.Cli.DeleteOrganizationInstance(ctx, &argocdv1.DeleteOrganizationInstanceRequest{
+	_, err := r.akpCli.Cli.DeleteInstance(ctx, &argocdv1.DeleteInstanceRequest{
 		Id:             state.Id.ValueString(),
 		OrganizationId: r.akpCli.OrgId,
 	})

@@ -7,10 +7,10 @@ import (
 
 	"github.com/akuity/api-client-go/pkg/api/gateway/accesscontrol"
 	gwclient "github.com/akuity/api-client-go/pkg/api/gateway/client"
+	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 	orgcv1 "github.com/akuity/api-client-go/pkg/api/gen/organization/v1"
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
 
-	"github.com/akuity/api-client-go/pkg/api/client"
 	ctxutil "github.com/akuity/api-client-go/pkg/utils/context"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -36,7 +36,7 @@ type AkpProviderModel struct {
 }
 
 type AkpCli struct {
-	Cli   client.ArgoCDV1Client
+	Cli   argocdv1.ArgoCDServiceGatewayClient
 	Cred  accesscontrol.ClientCredential
 	OrgId string
 }
@@ -133,7 +133,8 @@ func (p *AkpProvider) Schema(ctx context.Context, req provider.SchemaRequest, re
 	cred := accesscontrol.NewAPIKeyCredential(apiKeyID, apiKeySecret)
 	// Get Organizaton ID by name
 	ctx = ctxutil.SetClientCredential(ctx, cred)
-	orgc := client.NewOrganizationV1Client(apiHost, gwclient.SkipTLSVerify(skipTLSVerify))
+	gwc := gwclient.NewClient(apiHost, gwclient.SkipTLSVerify(skipTLSVerify))
+	orgc := orgcv1.NewOrganizationServiceGatewayClient(gwc)
 	res, err := orgc.GetOrganization(ctx, &orgcv1.GetOrganizationRequest{
 		Id:     orgName,
 		IdType: idv1.Type_NAME,
@@ -152,10 +153,7 @@ func (p *AkpProvider) Schema(ctx context.Context, req provider.SchemaRequest, re
 	orgID := res.Organization.Id
 	tflog.Info(ctx, "Connection successful", map[string]any{"org_id": orgID})
 
-	argoc := client.NewArgoCDV1Client(apiHost,
-		gwclient.SkipTLSVerify(skipTLSVerify),
-	)
-
+	argoc := argocdv1.NewArgoCDServiceGatewayClient(gwc)
 	akpCli := &AkpCli{
 		Cli:   argoc,
 		Cred:  cred,
