@@ -34,10 +34,8 @@ func (x *AkpInstance) ToProto() (*argocdv1.Instance, diag.Diagnostics) {
 	res := &argocdv1.Instance{
 		Id:   x.Id.ValueString(),
 		Name: x.Name.ValueString(),
-		Data: &argocdv1.InstanceData{
-			Description:   x.Description.ValueString(),
-			Version:       x.Version.ValueString(),
-		},
+		Description:   x.Description.ValueString(),
+		Version:       x.Version.ValueString(),
 	}
 	return res, diagnostics
 }
@@ -46,8 +44,8 @@ func (x *ProtoInstance) FromProto() *AkpInstance {
 	return &AkpInstance{
 		Id:            types.StringValue(x.Id),
 		Name:          types.StringValue(x.Name),
-		Version:       types.StringValue(x.Data.Version),
-		Description:   types.StringValue(x.Data.Description),
+		Version:       types.StringValue(x.Version),
+		Description:   types.StringValue(x.Description),
 		Hostname:      types.StringValue(x.Hostname),
 	}
 }

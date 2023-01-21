@@ -100,7 +100,7 @@ func (d *AkpInstancesDataSource) Read(ctx context.Context, req datasource.ReadRe
 	tflog.Debug(ctx, "Reading an Argo CD Instances")
 
 	ctx = ctxutil.SetClientCredential(ctx, d.akpCli.Cred)
-	apiResp, err := d.akpCli.Cli.ListOrganizationInstances(ctx, &argocdv1.ListOrganizationInstancesRequest{
+	apiResp, err := d.akpCli.Cli.ListInstances(ctx, &argocdv1.ListInstancesRequest{
 		OrganizationId: d.akpCli.OrgId,
 	})
 
