@@ -45,7 +45,7 @@ func (d *AkpClusterDataSource) Schema(ctx context.Context, req datasource.Schema
 			},
 			"instance_id": schema.StringAttribute{
 				MarkdownDescription: "Argo CD Instance ID",
-				Computed:            true,
+				Required:            true,
 			},
 			"name": schema.StringAttribute{
 				MarkdownDescription: "Cluster Name",
