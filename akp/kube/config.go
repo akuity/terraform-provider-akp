@@ -7,6 +7,10 @@ import (
 	"github.com/mitchellh/go-homedir"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/discovery"
+	"k8s.io/kubectl/pkg/util/openapi"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	apimachineryschema "k8s.io/apimachinery/pkg/runtime/schema"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
@@ -26,6 +30,26 @@ type KubeConfig struct{
 	ConfigContextCluster  types.String     `tfsdk:"config_context_cluster"`
 	Token                 types.String     `tfsdk:"token"`
 	ProxyUrl              types.String     `tfsdk:"proxy_url"`
+}
+
+type Kubectl struct {
+	config        *rest.Config
+	fact          cmdutil.Factory
+	openAPISchema openapi.Resources
+}
+
+// NewKubectl returns a kubectl instance from a rest config
+func NewKubectl(config *rest.Config) (*Kubectl, error) {
+	kubeConfigFlags := genericclioptions.NewConfigFlags(true)
+	kubeConfigFlags.WithWrapConfigFn(func(_ *rest.Config) *rest.Config {
+		return config
+	})
+	matchVersionKubeConfigFlags := cmdutil.NewMatchVersionFlags(kubeConfigFlags)
+	fact := cmdutil.NewFactory(matchVersionKubeConfigFlags)
+	return &Kubectl{
+		config: config,
+		fact:   fact,
+	}, nil
 }
 
 // Adapted github.com/gavinbunney/terraform-provider-kubectl/kubernetes/provider.go functions
@@ -133,4 +157,20 @@ func InitializeConfiguration(k *KubeConfig) (*rest.Config, error) {
 	terraformVersion := "unknown"
 	cfg.UserAgent = fmt.Sprintf("HashiCorp/1.0 Terraform/%s", terraformVersion)
 	return cfg, nil
+}
+
+func (k *Kubectl) OpenAPISchema() (openapi.Resources, error) {
+	if k.openAPISchema != nil {
+		return k.openAPISchema, nil
+	}
+	disco, err := discovery.NewDiscoveryClientForConfig(k.config)
+	if err != nil {
+		return nil, err
+	}
+	openAPISchema, err := openapi.NewOpenAPIParser(openapi.NewOpenAPIGetter(disco)).Parse()
+	if err != nil {
+		return nil, err
+	}
+	k.openAPISchema = openAPISchema
+	return k.openAPISchema, nil
 }

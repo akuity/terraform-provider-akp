@@ -5,14 +5,13 @@ import (
 	"fmt"
 	"io"
 
-
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	kubeyaml "k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
 func SplitYAML(yamlData []byte) ([]unstructured.Unstructured, error) {
-	d := kubeyaml.NewYAMLOrJSONDecoder(bytes.NewReader(yamlData), 4096)
+	d := yaml.NewYAMLOrJSONDecoder(bytes.NewReader(yamlData), 4096)
 	var objs []unstructured.Unstructured
 	for {
 		ext := runtime.RawExtension{}
@@ -27,7 +26,7 @@ func SplitYAML(yamlData []byte) ([]unstructured.Unstructured, error) {
 			continue
 		}
 		u := unstructured.Unstructured{}
-		if err := kubeyaml.Unmarshal(ext.Raw, &u); err != nil {
+		if err := yaml.Unmarshal(ext.Raw, &u); err != nil {
 			return objs, fmt.Errorf("failed to unmarshal manifest: %v", err)
 		}
 		objs = append(objs, u)

@@ -4,7 +4,6 @@ import (
 	"context"
 
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
-	// "github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
@@ -15,15 +14,15 @@ type ProtoCluster struct {
 
 var (
 	StringClusterSize = map[string]argocdv1.ClusterSize{
-		"small": argocdv1.ClusterSize_CLUSTER_SIZE_SMALL,
-		"medium": argocdv1.ClusterSize_CLUSTER_SIZE_MEDIUM,
-		"large": argocdv1.ClusterSize_CLUSTER_SIZE_LARGE,
+		"small":       argocdv1.ClusterSize_CLUSTER_SIZE_SMALL,
+		"medium":      argocdv1.ClusterSize_CLUSTER_SIZE_MEDIUM,
+		"large":       argocdv1.ClusterSize_CLUSTER_SIZE_LARGE,
 		"unspecified": argocdv1.ClusterSize_CLUSTER_SIZE_UNSPECIFIED,
 	}
 	ClusterSizeString = map[argocdv1.ClusterSize]string{
-		argocdv1.ClusterSize_CLUSTER_SIZE_SMALL: "small",
-		argocdv1.ClusterSize_CLUSTER_SIZE_MEDIUM: "medium",
-		argocdv1.ClusterSize_CLUSTER_SIZE_LARGE: "large",
+		argocdv1.ClusterSize_CLUSTER_SIZE_SMALL:       "small",
+		argocdv1.ClusterSize_CLUSTER_SIZE_MEDIUM:      "medium",
+		argocdv1.ClusterSize_CLUSTER_SIZE_LARGE:       "large",
 		argocdv1.ClusterSize_CLUSTER_SIZE_UNSPECIFIED: "unspecified",
 	}
 )
@@ -43,6 +42,7 @@ type AkpCluster struct {
 	Labels                      types.Map    `tfsdk:"labels"`
 	Annotations                 types.Map    `tfsdk:"annotations"`
 	KubeConfig                  types.Object `tfsdk:"kube_config"`
+	AgentVersion                types.String `tfsdk:"agent_version"`
 }
 
 func (x *ProtoCluster) FromProto(instanceId string) (*AkpCluster, diag.Diagnostics) {
@@ -71,7 +71,11 @@ func (x *ProtoCluster) FromProto(instanceId string) (*AkpCluster, diag.Diagnosti
 		CustomImageRegistryAkuity:   types.StringValue(*x.Data.CustomImageRegistryAkuity),
 		Labels:                      labels,
 		Annotations:                 annotations,
-		// KubeConfig:                  types.ObjectNull(map[string]attr.Type{}),
+	}
+	if x.AgentState != nil {
+		res.AgentVersion = types.StringValue(x.AgentState.Version)
+	} else {
+		res.AgentVersion = types.StringNull()
 	}
 	return res, diags
 }
@@ -102,5 +106,10 @@ func (x *AkpCluster) UpdateFromProto(protoCluster *argocdv1.Cluster) diag.Diagno
 	x.CustomImageRegistryAkuity = types.StringValue(*protoCluster.Data.CustomImageRegistryAkuity)
 	x.Annotations = annotations
 	x.Labels = labels
+	if protoCluster.AgentState != nil {
+		x.AgentVersion = types.StringValue(protoCluster.AgentState.Version)
+	} else {
+		x.AgentVersion = types.StringNull()
+	}
 	return diags
 }

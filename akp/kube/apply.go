@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
-	"os"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,34 +12,12 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
-	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/rest"
 	"k8s.io/kubectl/pkg/cmd/apply"
 	"k8s.io/kubectl/pkg/cmd/delete"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/util/openapi"
+
 )
-
-// NewKubectl returns a kubectl instance from a rest config
-func NewKubectl(config *rest.Config) (*Kubectl, error) {
-	kubeConfigFlags := genericclioptions.NewConfigFlags(true)
-	kubeConfigFlags.WithWrapConfigFn(func(_ *rest.Config) *rest.Config {
-		return config
-	})
-	matchVersionKubeConfigFlags := cmdutil.NewMatchVersionFlags(kubeConfigFlags)
-	fact := cmdutil.NewFactory(matchVersionKubeConfigFlags)
-	return &Kubectl{
-		config: config,
-		fact:   fact,
-	}, nil
-}
-
-type Kubectl struct {
-	config        *rest.Config
-	fact          cmdutil.Factory
-	openAPISchema openapi.Resources
-}
 
 type ApplyOpts struct {
 	DryRunStrategy cmdutil.DryRunStrategy
@@ -78,22 +54,6 @@ func (k *Kubectl) ApplyResource(ctx context.Context, obj *unstructured.Unstructu
 		out = append(out, buf)
 	}
 	return strings.Join(out, ". "), applyErr
-}
-
-func (k *Kubectl) OpenAPISchema() (openapi.Resources, error) {
-	if k.openAPISchema != nil {
-		return k.openAPISchema, nil
-	}
-	disco, err := discovery.NewDiscoveryClientForConfig(k.config)
-	if err != nil {
-		return nil, err
-	}
-	openAPISchema, err := openapi.NewOpenAPIParser(openapi.NewOpenAPIGetter(disco)).Parse()
-	if err != nil {
-		return nil, err
-	}
-	k.openAPISchema = openAPISchema
-	return k.openAPISchema, nil
 }
 
 func (k *Kubectl) newApplyOptions(ioStreams genericclioptions.IOStreams, obj *unstructured.Unstructured, path string, applyOpts ApplyOpts) (*apply.ApplyOptions, error) {
@@ -158,23 +118,3 @@ func (k *Kubectl) newApplyOptions(ioStreams genericclioptions.IOStreams, obj *un
 	return o, nil
 }
 
-func writeFile(bytes []byte) (string, error) {
-	f, err := os.CreateTemp("", "")
-	if err != nil {
-		return "", fmt.Errorf("Failed to generate temp file for manifest: %v", err)
-	}
-	if _, err = f.Write(bytes); err != nil {
-		return "", fmt.Errorf("Failed to write manifest: %v", err)
-	}
-	if err = f.Close(); err != nil {
-		return "", fmt.Errorf("Failed to close manifest: %v", err)
-	}
-	return f.Name(), nil
-}
-
-func deleteFile(path string) {
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return
-	}
-	_ = os.Remove(path)
-}

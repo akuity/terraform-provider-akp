@@ -115,6 +115,10 @@ func (r *AkpClusterResource) Schema(ctx context.Context, req resource.SchemaRequ
 					mapplanmodifier.UseStateForUnknown(),
 				},
 			},
+			"agent_version": schema.StringAttribute{
+				MarkdownDescription: "Installed agent version",
+				Computed:            true,
+			},
 			"kube_config": schema.SingleNestedAttribute{
 				MarkdownDescription: "Kubernetes connection setings. If configured, terraform will try to connect to the cluster and install the agent",
 				Optional:            true,
