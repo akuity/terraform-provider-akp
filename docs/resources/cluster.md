@@ -48,12 +48,34 @@ resource "akp_cluster" "example" {
 - `custom_image_registry_akuity` (String) Custom Registry for Akuity Images
 - `custom_image_registry_argoproj` (String) Custom Registry for Argoproj Images
 - `description` (String) Cluster Description
+- `kube_config` (Attributes) Kubernetes connection setings. If configured, terraform will try to connect to the cluster and install the agent (see [below for nested schema](#nestedatt--kube_config))
 - `labels` (Map of String) Cluster Labels
 - `namespace_scoped` (Boolean) Agent Namespace Scoped
 
 ### Read-Only
 
+- `agent_version` (String) Installed agent version
 - `id` (String) Cluster ID
 - `manifests` (String, Sensitive) Agent Installation Manifests
+
+<a id="nestedatt--kube_config"></a>
+### Nested Schema for `kube_config`
+
+Optional:
+
+- `client_certificate` (String) PEM-encoded client certificate for TLS authentication.
+- `client_key` (String, Sensitive) PEM-encoded client certificate key for TLS authentication.
+- `cluster_ca_certificate` (String) PEM-encoded root certificates bundle for TLS authentication.
+- `config_context` (String) Context name to load from the kube config file.
+- `config_context_auth_info` (String)
+- `config_context_cluster` (String)
+- `config_path` (String) Path to the kube config file.
+- `config_paths` (List of String) A list of paths to kube config files. Can be set with KUBE_CONFIG_PATHS environment variable.
+- `host` (String) The hostname (in form of URI) of Kubernetes master.
+- `insecure` (Boolean) Whether server should be accessed without verifying the TLS certificate.
+- `password` (String, Sensitive) The password to use for HTTP basic authentication when accessing the Kubernetes master endpoint.
+- `proxy_url` (String) URL to the proxy to be used for all API requests
+- `token` (String, Sensitive) Token to authenticate an service account
+- `username` (String) The username to use for HTTP basic authentication when accessing the Kubernetes master endpoint.
 
 

@@ -3,9 +3,10 @@ package types
 import (
 	"context"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
-	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 type ProtoCluster struct {
@@ -14,16 +15,34 @@ type ProtoCluster struct {
 
 var (
 	StringClusterSize = map[string]argocdv1.ClusterSize{
-		"small": argocdv1.ClusterSize_CLUSTER_SIZE_SMALL,
-		"medium": argocdv1.ClusterSize_CLUSTER_SIZE_MEDIUM,
-		"large": argocdv1.ClusterSize_CLUSTER_SIZE_LARGE,
+		"small":       argocdv1.ClusterSize_CLUSTER_SIZE_SMALL,
+		"medium":      argocdv1.ClusterSize_CLUSTER_SIZE_MEDIUM,
+		"large":       argocdv1.ClusterSize_CLUSTER_SIZE_LARGE,
 		"unspecified": argocdv1.ClusterSize_CLUSTER_SIZE_UNSPECIFIED,
 	}
 	ClusterSizeString = map[argocdv1.ClusterSize]string{
-		argocdv1.ClusterSize_CLUSTER_SIZE_SMALL: "small",
-		argocdv1.ClusterSize_CLUSTER_SIZE_MEDIUM: "medium",
-		argocdv1.ClusterSize_CLUSTER_SIZE_LARGE: "large",
+		argocdv1.ClusterSize_CLUSTER_SIZE_SMALL:       "small",
+		argocdv1.ClusterSize_CLUSTER_SIZE_MEDIUM:      "medium",
+		argocdv1.ClusterSize_CLUSTER_SIZE_LARGE:       "large",
 		argocdv1.ClusterSize_CLUSTER_SIZE_UNSPECIFIED: "unspecified",
+	}
+	KubeConfigAttr=map[string]attr.Type{
+		"host": types.StringType,
+		"username": types.StringType,
+		"password": types.StringType,
+		"insecure": types.BoolType,
+		"client_certificate": types.StringType,
+		"client_key": types.StringType,
+		"cluster_ca_certificate": types.StringType,
+		"config_path": types.StringType,
+		"config_paths": types.ListType{
+			ElemType: types.StringType,
+		},
+		"config_context": types.StringType,
+		"config_context_auth_info": types.StringType,
+		"config_context_cluster": types.StringType,
+		"token": types.StringType,
+		"proxy_url": types.StringType,
 	}
 )
 
@@ -41,6 +60,8 @@ type AkpCluster struct {
 	Manifests                   types.String `tfsdk:"manifests"`
 	Labels                      types.Map    `tfsdk:"labels"`
 	Annotations                 types.Map    `tfsdk:"annotations"`
+	KubeConfig                  types.Object `tfsdk:"kube_config"`
+	AgentVersion                types.String `tfsdk:"agent_version"`
 }
 
 func (x *ProtoCluster) FromProto(instanceId string) (*AkpCluster, diag.Diagnostics) {
@@ -70,6 +91,12 @@ func (x *ProtoCluster) FromProto(instanceId string) (*AkpCluster, diag.Diagnosti
 		Labels:                      labels,
 		Annotations:                 annotations,
 	}
+	if x.AgentState != nil {
+		res.AgentVersion = types.StringValue(x.AgentState.Version)
+	} else {
+		res.AgentVersion = types.StringNull()
+	}
+	res.KubeConfig = types.ObjectNull(KubeConfigAttr)
 	return res, diags
 }
 
@@ -99,5 +126,10 @@ func (x *AkpCluster) UpdateFromProto(protoCluster *argocdv1.Cluster) diag.Diagno
 	x.CustomImageRegistryAkuity = types.StringValue(*protoCluster.Data.CustomImageRegistryAkuity)
 	x.Annotations = annotations
 	x.Labels = labels
+	if protoCluster.AgentState != nil {
+		x.AgentVersion = types.StringValue(protoCluster.AgentState.Version)
+	} else {
+		x.AgentVersion = types.StringNull()
+	}
 	return diags
 }
