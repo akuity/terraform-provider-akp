@@ -3,6 +3,7 @@ package types
 import (
 	"context"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -24,6 +25,24 @@ var (
 		argocdv1.ClusterSize_CLUSTER_SIZE_MEDIUM:      "medium",
 		argocdv1.ClusterSize_CLUSTER_SIZE_LARGE:       "large",
 		argocdv1.ClusterSize_CLUSTER_SIZE_UNSPECIFIED: "unspecified",
+	}
+	KubeConfigAttr=map[string]attr.Type{
+		"host": types.StringType,
+		"username": types.StringType,
+		"password": types.StringType,
+		"insecure": types.BoolType,
+		"client_certificate": types.StringType,
+		"client_key": types.StringType,
+		"cluster_ca_certificate": types.StringType,
+		"config_path": types.StringType,
+		"config_paths": types.ListType{
+			ElemType: types.StringType,
+		},
+		"config_context": types.StringType,
+		"config_context_auth_info": types.StringType,
+		"config_context_cluster": types.StringType,
+		"token": types.StringType,
+		"proxy_url": types.StringType,
 	}
 )
 
@@ -77,6 +96,7 @@ func (x *ProtoCluster) FromProto(instanceId string) (*AkpCluster, diag.Diagnosti
 	} else {
 		res.AgentVersion = types.StringNull()
 	}
+	res.KubeConfig = types.ObjectNull(KubeConfigAttr)
 	return res, diags
 }
 

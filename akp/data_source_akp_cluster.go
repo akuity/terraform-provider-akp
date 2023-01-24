@@ -89,6 +89,77 @@ func (d *AkpClusterDataSource) Schema(ctx context.Context, req datasource.Schema
 				MarkdownDescription: "Cluster Annotations",
 				Computed:            true,
 			},
+			"agent_version": schema.StringAttribute{
+				MarkdownDescription: "Installed agent version",
+				Computed:            true,
+			},
+			"kube_config": schema.SingleNestedAttribute{
+				MarkdownDescription: "Kubernetes connection setings. If configured, terraform will try to connect to the cluster and install the agent",
+				Optional:            true,
+				Attributes: map[string]schema.Attribute{
+					"host": schema.StringAttribute{
+						Optional:      true,
+						Description:   "The hostname (in form of URI) of Kubernetes master.",
+
+					},
+					"username": schema.StringAttribute{
+						Optional:      true,
+						Description:   "The username to use for HTTP basic authentication when accessing the Kubernetes master endpoint.",
+					},
+					"password": schema.StringAttribute{
+						Optional:      true,
+						Sensitive:     true,
+						Description:   "The password to use for HTTP basic authentication when accessing the Kubernetes master endpoint.",
+					},
+					"insecure": schema.BoolAttribute{
+						Optional:      true,
+						Description: "Whether server should be accessed without verifying the TLS certificate.",
+					},
+					"client_certificate": schema.StringAttribute{
+						Optional:      true,
+						Description:   "PEM-encoded client certificate for TLS authentication.",
+					},
+					"client_key": schema.StringAttribute{
+						Optional:      true,
+						Sensitive:     true,
+						Description:   "PEM-encoded client certificate key for TLS authentication.",
+					},
+					"cluster_ca_certificate": schema.StringAttribute{
+						Optional:      true,
+						Description:   "PEM-encoded root certificates bundle for TLS authentication.",
+					},
+					"config_paths": schema.ListAttribute{
+						ElementType:   types.StringType,
+						Optional:      true,
+						Description:   "A list of paths to kube config files. Can be set with KUBE_CONFIG_PATHS environment variable.",
+					},
+					"config_path": schema.StringAttribute{
+						Optional:      true,
+						Description:   "Path to the kube config file.",
+					},
+					"config_context": schema.StringAttribute{
+						Optional:      true,
+						Description:   "Context name to load from the kube config file.",
+					},
+					"config_context_auth_info": schema.StringAttribute{
+						Optional:      true,
+						Description:   "",
+					},
+					"config_context_cluster": schema.StringAttribute{
+						Optional:      true,
+						Description:   "",
+					},
+					"token": schema.StringAttribute{
+						Optional:      true,
+						Sensitive:     true,
+						Description:   "Token to authenticate an service account",
+					},
+					"proxy_url": schema.StringAttribute{
+						Optional:      true,
+						Description:   "URL to the proxy to be used for all API requests",
+					},
+				},
+			},
 		},
 	}
 }

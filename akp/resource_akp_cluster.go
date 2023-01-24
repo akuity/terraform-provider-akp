@@ -37,6 +37,7 @@ func NewAkpClusterResource() resource.Resource {
 // AkpClusterResource defines the resource implementation.
 type AkpClusterResource struct {
 	akpCli *AkpCli
+	kcfg *rest.Config
 }
 
 func (r *AkpClusterResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -61,7 +62,31 @@ func (r *AkpClusterResource) Configure(ctx context.Context, req resource.Configu
 	r.akpCli = akpCli
 }
 
-func (r *AkpClusterResource) getManifests(ctx context.Context, instanceId string, clusterId string) (manifests string, err error) {
+func (r *AkpClusterResource) getKcfg(ctx context.Context, kubeConf types.Object) (*rest.Config, diag.Diagnostics) {
+	var kubeConfig kube.KubeConfig
+	var diag diag.Diagnostics
+	if kubeConf.IsNull() || kubeConf.IsUnknown() {
+		diag.AddWarning("Kubectl not configured", "Cannot update agent because kubectl configuration is missing")
+		return nil, diag
+	}
+	tflog.Debug(ctx, fmt.Sprintf("Kube config: %s", kubeConf))
+	diag = kubeConf.As(ctx, &kubeConfig, basetypes.ObjectAsOptions{
+		UnhandledNullAsEmpty:    true,
+		UnhandledUnknownAsEmpty: true,
+	})
+	if diag.HasError() {
+		return nil, diag
+	}
+	kcfg, err := kube.InitializeConfiguration(&kubeConfig)
+	tflog.Debug(ctx, fmt.Sprintf("Kcfg: %s", kcfg))
+	if err != nil {
+		diag.AddError("Kubectl error", fmt.Sprintf("Cannot insitialize Kubectl. Check kubernetes configuration. Error: %s", err))
+		return nil, diag
+	}
+	return kcfg, diag
+}
+
+func (r *AkpClusterResource) getManifests(ctx context.Context, instanceId string, clusterId string) (string, error) {
 
 	tflog.Info(ctx, "Retrieving manifests...")
 
@@ -187,24 +212,6 @@ func (r *AkpClusterResource) Create(ctx context.Context, req resource.CreateRequ
 		return
 	}
 
-	// Configure kubernetes
-	var kubeConfig kube.KubeConfig
-	tflog.Debug(ctx, fmt.Sprintf("Plan kube config: %s", plan.KubeConfig))
-	diag := plan.KubeConfig.As(ctx, &kubeConfig, basetypes.ObjectAsOptions{
-		UnhandledNullAsEmpty:    false,
-		UnhandledUnknownAsEmpty: false,
-	})
-	if diag.HasError() {
-		resp.Diagnostics.Append(diag...)
-		return
-	}
-	kcfg, err := kube.InitializeConfiguration(&kubeConfig)
-	tflog.Debug(ctx, fmt.Sprintf("Kube config: %s", kcfg))
-	if err != nil {
-		diag.AddWarning("Kubectl not configured", "Cannot install agent because kubectl configuration is missing")
-		kcfg = nil
-	}
-
 	ctx = ctxutil.SetClientCredential(ctx, r.akpCli.Cred)
 	customArgoproj := plan.CustomImageRegistryArgoproj.ValueString()
 	customAkuity := plan.CustomImageRegistryAkuity.ValueString()
@@ -260,6 +267,8 @@ func (r *AkpClusterResource) Create(ctx context.Context, req resource.CreateRequ
 	state.Manifests = types.StringValue(manifests)
 	state.KubeConfig = plan.KubeConfig
 
+	kcfg, diag := r.getKcfg(ctx, plan.KubeConfig)
+	resp.Diagnostics.Append(diag...)
 	// Apply the manifests
 	if kcfg != nil {
 		tflog.Info(ctx, "Applying the manifests...")
@@ -366,23 +375,8 @@ func (r *AkpClusterResource) Update(ctx context.Context, req resource.UpdateRequ
 
 	state.Manifests = types.StringValue(manifests)
 
-	// Configure kubernetes
-	var kubeConfig kube.KubeConfig
-	tflog.Debug(ctx, fmt.Sprintf("Plan kube config: %s", plan.KubeConfig))
-	diag = plan.KubeConfig.As(ctx, &kubeConfig, basetypes.ObjectAsOptions{
-		UnhandledNullAsEmpty:    false,
-		UnhandledUnknownAsEmpty: false,
-	})
-	if diag.HasError() {
-		resp.Diagnostics.Append(diag...)
-		return
-	}
-	kcfg, err := kube.InitializeConfiguration(&kubeConfig)
-	tflog.Debug(ctx, fmt.Sprintf("Kube config: %s", kcfg))
-	if err != nil {
-		diag.AddWarning("Kubectl not configured", "Cannot update agent because kubectl configuration is missing")
-		kcfg = nil
-	}
+	kcfg, diag := r.getKcfg(ctx, plan.KubeConfig)
+	resp.Diagnostics.Append(diag...)
 	// Update k8s resources with terraform only if autoupgarde is disabled for the cluster
 	if state.AutoUpgradeDisabled.ValueBool() && kcfg != nil {
 		tflog.Info(ctx, "Applying the manifests...")
@@ -406,23 +400,8 @@ func (r *AkpClusterResource) Delete(ctx context.Context, req resource.DeleteRequ
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	// Configure kubernetes
-	var kubeConfig kube.KubeConfig
-	tflog.Debug(ctx, fmt.Sprintf("State kube config: %s", state.KubeConfig))
-	diag := state.KubeConfig.As(ctx, &kubeConfig, basetypes.ObjectAsOptions{
-		UnhandledNullAsEmpty:    false,
-		UnhandledUnknownAsEmpty: false,
-	})
-	if diag.HasError() {
-		resp.Diagnostics.Append(diag...)
-		return
-	}
-	kcfg, err := kube.InitializeConfiguration(&kubeConfig)
-	tflog.Debug(ctx, fmt.Sprintf("Kube config: %s", kcfg))
-	if err != nil {
-		diag.AddWarning("Kubectl not configured", "Cannot delete agent because kubectl configuration is missing")
-		kcfg = nil
-	}
+	kcfg, diag := r.getKcfg(ctx, state.KubeConfig)
+	resp.Diagnostics.Append(diag...)
 	// Delete the kubernetes resources
 	if kcfg != nil {
 		tflog.Info(ctx, "Deleting the resources...")
