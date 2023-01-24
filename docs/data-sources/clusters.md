@@ -39,7 +39,7 @@ data "akp_clusters" "example" {
 
 Optional:
 
-- `kube_config` (Attributes) Kubernetes connection setings. If configured, terraform will try to connect to the cluster and install the agent (see [below for nested schema](#nestedatt--clusters--kube_config))
+- `kube_config` (Attributes) Kubernetes connection setings. Redundant. Always null in this data source. (see [below for nested schema](#nestedatt--clusters--kube_config))
 
 Read-Only:
 
@@ -70,7 +70,7 @@ Optional:
 - `config_context_auth_info` (String)
 - `config_context_cluster` (String)
 - `config_path` (String) Path to the kube config file.
-- `config_paths` (List of String) A list of paths to kube config files. Can be set with KUBE_CONFIG_PATHS environment variable.
+- `config_paths` (List of String) A list of paths to kube config files.
 - `host` (String) The hostname (in form of URI) of Kubernetes master.
 - `insecure` (Boolean) Whether server should be accessed without verifying the TLS certificate.
 - `password` (String, Sensitive) The password to use for HTTP basic authentication when accessing the Kubernetes master endpoint.

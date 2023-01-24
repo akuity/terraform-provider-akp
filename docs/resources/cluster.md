@@ -44,7 +44,7 @@ resource "akp_cluster" "example" {
 ### Optional
 
 - `annotations` (Map of String) Cluster Annotations
-- `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade
+- `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
 - `custom_image_registry_akuity` (String) Custom Registry for Akuity Images
 - `custom_image_registry_argoproj` (String) Custom Registry for Argoproj Images
 - `description` (String) Cluster Description
@@ -70,7 +70,7 @@ Optional:
 - `config_context_auth_info` (String)
 - `config_context_cluster` (String)
 - `config_path` (String) Path to the kube config file.
-- `config_paths` (List of String) A list of paths to kube config files. Can be set with KUBE_CONFIG_PATHS environment variable.
+- `config_paths` (List of String) A list of paths to kube config files.
 - `host` (String) The hostname (in form of URI) of Kubernetes master.
 - `insecure` (Boolean) Whether server should be accessed without verifying the TLS certificate.
 - `password` (String, Sensitive) The password to use for HTTP basic authentication when accessing the Kubernetes master endpoint.

@@ -131,7 +131,7 @@ func (d *AkpClusterDataSource) Schema(ctx context.Context, req datasource.Schema
 					"config_paths": schema.ListAttribute{
 						ElementType:   types.StringType,
 						Optional:      true,
-						Description:   "A list of paths to kube config files. Can be set with KUBE_CONFIG_PATHS environment variable.",
+						Description:   "A list of paths to kube config files.",
 					},
 					"config_path": schema.StringAttribute{
 						Optional:      true,

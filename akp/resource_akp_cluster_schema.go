@@ -74,7 +74,7 @@ func (r *AkpClusterResource) Schema(ctx context.Context, req resource.SchemaRequ
 				Required:            true,
 			},
 			"auto_upgrade_disabled": schema.BoolAttribute{
-				MarkdownDescription: "Disable Agents Auto Upgrade",
+				MarkdownDescription: "Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically",
 				Optional:            true,
 				Computed:            true,
 				PlanModifiers: []planmodifier.Bool{
@@ -177,7 +177,7 @@ func (r *AkpClusterResource) Schema(ctx context.Context, req resource.SchemaRequ
 					"config_paths": schema.ListAttribute{
 						ElementType:   types.StringType,
 						Optional:      true,
-						Description:   "A list of paths to kube config files. Can be set with KUBE_CONFIG_PATHS environment variable.",
+						Description:   "A list of paths to kube config files.",
 						PlanModifiers: []planmodifier.List{
 							listplanmodifier.UseStateForUnknown(),
 						},

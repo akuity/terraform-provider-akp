@@ -111,7 +111,7 @@ func (d *AkpClustersDataSource) Schema(ctx context.Context, req datasource.Schem
 							Computed:            true,
 						},
 						"kube_config": schema.SingleNestedAttribute{
-							MarkdownDescription: "Kubernetes connection setings. If configured, terraform will try to connect to the cluster and install the agent",
+							MarkdownDescription: "Kubernetes connection setings. Redundant. Always null in this data source.",
 							Optional:            true,
 							Attributes: map[string]schema.Attribute{
 								"host": schema.StringAttribute{
@@ -148,7 +148,7 @@ func (d *AkpClustersDataSource) Schema(ctx context.Context, req datasource.Schem
 								"config_paths": schema.ListAttribute{
 									ElementType:   types.StringType,
 									Optional:      true,
-									Description:   "A list of paths to kube config files. Can be set with KUBE_CONFIG_PATHS environment variable.",
+									Description:   "A list of paths to kube config files.",
 								},
 								"config_path": schema.StringAttribute{
 									Optional:      true,
