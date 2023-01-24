@@ -49,6 +49,7 @@ With this provider you can manage Argo CD instances and clusters on [Akuity Plat
     resource "akp_cluster" "test" {
         name             = "test-cluster"
         description      = "Test Cluster 1"
+        size             = "small"
         namespace        = "akuity"
         instance_id      = data.akp_instance.existing.id
         kube_config      = {
