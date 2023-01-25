@@ -37,7 +37,7 @@ func NewAkpClusterResource() resource.Resource {
 // AkpClusterResource defines the resource implementation.
 type AkpClusterResource struct {
 	akpCli *AkpCli
-	kcfg *rest.Config
+	kcfg   *rest.Config
 }
 
 func (r *AkpClusterResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -84,25 +84,6 @@ func (r *AkpClusterResource) getKcfg(ctx context.Context, kubeConf types.Object)
 		return nil, diag
 	}
 	return kcfg, diag
-}
-
-func (r *AkpClusterResource) getManifests(ctx context.Context, instanceId string, clusterId string) (string, error) {
-
-	tflog.Info(ctx, "Retrieving manifests...")
-
-	apiReq := &argocdv1.GetInstanceClusterManifestsRequest{
-		OrganizationId: r.akpCli.OrgId,
-		InstanceId:     instanceId,
-		Id:             clusterId,
-	}
-	tflog.Debug(ctx, fmt.Sprintf("apiReq: %s", apiReq))
-	apiResp, err := r.akpCli.Cli.GetInstanceClusterManifests(ctx, apiReq)
-	if err != nil {
-		return "", err
-	}
-	tflog.Debug(ctx, fmt.Sprintf("apiResp: %s", apiResp))
-
-	return string(apiResp.GetData()), nil
 }
 
 func (r *AkpClusterResource) applyManifests(ctx context.Context, manifests string, cfg *rest.Config) diag.Diagnostics {
@@ -157,7 +138,6 @@ func (r *AkpClusterResource) deleteManifests(ctx context.Context, manifests stri
 }
 
 func (r *AkpClusterResource) waitClusterReconStatus(ctx context.Context, cluster *argocdv1.Cluster, instanceId string) (*argocdv1.Cluster, error) {
-
 	reconStatus := cluster.GetReconciliationStatus()
 	breakStatusesRecon := []reconv1.StatusCode{reconv1.StatusCode_STATUS_CODE_SUCCESSFUL, reconv1.StatusCode_STATUS_CODE_FAILED}
 
@@ -180,7 +160,6 @@ func (r *AkpClusterResource) waitClusterReconStatus(ctx context.Context, cluster
 }
 
 func (r *AkpClusterResource) waitClusterHealthStatus(ctx context.Context, cluster *argocdv1.Cluster, instanceId string) (*argocdv1.Cluster, error) {
-
 	healthStatus := cluster.GetHealthStatus()
 	breakStatusesHealth := []healthv1.StatusCode{healthv1.StatusCode_STATUS_CODE_HEALTHY, healthv1.StatusCode_STATUS_CODE_DEGRADED}
 
@@ -203,7 +182,7 @@ func (r *AkpClusterResource) waitClusterHealthStatus(ctx context.Context, cluste
 }
 
 func (r *AkpClusterResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan *akptypes.AkpCluster
+	var plan *akptypes.AkpClusterKube
 
 	// Read Terraform plan data into the model
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
@@ -245,7 +224,6 @@ func (r *AkpClusterResource) Create(ctx context.Context, req resource.CreateRequ
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Akuity cluster. %s", err))
 		return
 	}
-
 	cluster, err := r.waitClusterReconStatus(ctx, apiResp.GetCluster(), plan.InstanceId.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to check cluster reconciliation status. %s", err))
@@ -253,26 +231,19 @@ func (r *AkpClusterResource) Create(ctx context.Context, req resource.CreateRequ
 	}
 	tflog.Info(ctx, "Cluster created")
 
-	protoCluster := &akptypes.ProtoCluster{Cluster: cluster}
-	state, diag := protoCluster.FromProto(plan.InstanceId.ValueString())
-	if diag.HasError() {
-		resp.Diagnostics.Append(diag...)
+	state := &akptypes.AkpClusterKube{
+		InstanceId: plan.InstanceId,
 	}
+	resp.Diagnostics.Append(state.UpdateCluster(apiResp.GetCluster())...)
+	resp.Diagnostics.Append(state.UpdateManifests(ctx, r.akpCli.Cli, r.akpCli.OrgId)...)
 
-	manifests, err := r.getManifests(ctx, plan.InstanceId.ValueString(), cluster.GetId())
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get cluster manifests. %s", err))
-		return
-	}
-	state.Manifests = types.StringValue(manifests)
 	state.KubeConfig = plan.KubeConfig
-
 	kcfg, diag := r.getKcfg(ctx, plan.KubeConfig)
 	resp.Diagnostics.Append(diag...)
 	// Apply the manifests
 	if kcfg != nil {
 		tflog.Info(ctx, "Applying the manifests...")
-		resp.Diagnostics.Append(r.applyManifests(ctx, manifests, kcfg)...)
+		resp.Diagnostics.Append(r.applyManifests(ctx, state.Manifests.ValueString(), kcfg)...)
 		cluster, err = r.waitClusterHealthStatus(ctx, cluster, plan.InstanceId.ValueString())
 		state.AgentVersion = types.StringValue(cluster.AgentState.GetVersion())
 	}
@@ -281,7 +252,7 @@ func (r *AkpClusterResource) Create(ctx context.Context, req resource.CreateRequ
 }
 
 func (r *AkpClusterResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var state *akptypes.AkpCluster
+	var state *akptypes.AkpClusterKube
 
 	// Read Terraform prior state data into the model
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
@@ -310,11 +281,10 @@ func (r *AkpClusterResource) Read(ctx context.Context, req resource.ReadRequest,
 		return
 	}
 
-	resp.Diagnostics.Append(state.UpdateFromProto(apiResp.GetCluster())...)
+	resp.Diagnostics.Append(state.UpdateCluster(apiResp.GetCluster())...)
 
 	if state.Manifests.IsNull() || state.Manifests.IsUnknown() {
-		manifests, _ := r.getManifests(ctx, state.InstanceId.ValueString(), state.Id.ValueString())
-		state.Manifests = types.StringValue(manifests)
+		resp.Diagnostics.Append(state.UpdateManifests(ctx, r.akpCli.Cli, r.akpCli.OrgId)...)
 	}
 
 	// Save updated data into Terraform state
@@ -322,7 +292,7 @@ func (r *AkpClusterResource) Read(ctx context.Context, req resource.ReadRequest,
 }
 
 func (r *AkpClusterResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan *akptypes.AkpCluster
+	var plan *akptypes.AkpClusterKube
 
 	// Read Terraform plan data into the model
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
@@ -360,39 +330,30 @@ func (r *AkpClusterResource) Update(ctx context.Context, req resource.UpdateRequ
 		return
 	}
 
-	cluster := apiResp.GetCluster()
-	protoCluster := &akptypes.ProtoCluster{Cluster: cluster}
-	// Update state
-	state, diag := protoCluster.FromProto(plan.InstanceId.ValueString())
-	if diag.HasError() {
-		resp.Diagnostics.Append(diag...)
+	state := &akptypes.AkpClusterKube{
+		InstanceId: plan.InstanceId,
 	}
-	manifests, err := r.getManifests(ctx, plan.InstanceId.ValueString(), cluster.GetId())
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get cluster manifests. %s", err))
-		return
-	}
-
-	state.Manifests = types.StringValue(manifests)
+	resp.Diagnostics.Append(state.UpdateCluster(apiResp.GetCluster())...)
+	resp.Diagnostics.Append(state.UpdateManifests(ctx, r.akpCli.Cli, r.akpCli.OrgId)...)
+	state.KubeConfig = plan.KubeConfig
 
 	kcfg, diag := r.getKcfg(ctx, plan.KubeConfig)
 	resp.Diagnostics.Append(diag...)
 	// Update k8s resources with terraform only if autoupgarde is disabled for the cluster
 	if state.AutoUpgradeDisabled.ValueBool() && kcfg != nil {
 		tflog.Info(ctx, "Applying the manifests...")
-		resp.Diagnostics.Append(r.applyManifests(ctx, manifests, kcfg)...)
-		cluster, err = r.waitClusterHealthStatus(ctx, cluster, plan.InstanceId.ValueString())
+		resp.Diagnostics.Append(r.applyManifests(ctx, state.Manifests.ValueString(), kcfg)...)
+		cluster, _ := r.waitClusterHealthStatus(ctx, apiResp.GetCluster(), plan.InstanceId.ValueString())
 		state.AgentVersion = types.StringValue(cluster.AgentState.GetVersion())
 	}
-
-	state.KubeConfig = plan.KubeConfig
+	
 
 	// Save updated data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *AkpClusterResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var state *akptypes.AkpCluster
+	var state *akptypes.AkpClusterKube
 
 	// Read Terraform prior state data into the model
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)

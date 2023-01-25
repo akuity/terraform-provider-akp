@@ -40,7 +40,7 @@ func (d *AkpClustersDataSource) Schema(ctx context.Context, req datasource.Schem
 		MarkdownDescription: "Find all clusters attached to an Argo CD instance",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
-				Computed:            true,
+				Computed: true,
 			},
 			"instance_id": schema.StringAttribute{
 				MarkdownDescription: "Argo CD Instance ID",
@@ -97,12 +97,12 @@ func (d *AkpClustersDataSource) Schema(ctx context.Context, req datasource.Schem
 							Computed:            true,
 						},
 						"labels": schema.MapAttribute{
-							ElementType: types.StringType,
+							ElementType:         types.StringType,
 							MarkdownDescription: "Cluster Labels",
 							Computed:            true,
 						},
 						"annotations": schema.MapAttribute{
-							ElementType:  types.StringType,
+							ElementType:         types.StringType,
 							MarkdownDescription: "Cluster Annotations",
 							Computed:            true,
 						},
@@ -110,80 +110,12 @@ func (d *AkpClustersDataSource) Schema(ctx context.Context, req datasource.Schem
 							MarkdownDescription: "Installed agent version",
 							Computed:            true,
 						},
-						"kube_config": schema.SingleNestedAttribute{
-							MarkdownDescription: "Kubernetes connection setings. Redundant. Always null in this data source.",
-							Optional:            true,
-							Attributes: map[string]schema.Attribute{
-								"host": schema.StringAttribute{
-									Optional:      true,
-									Description:   "The hostname (in form of URI) of Kubernetes master.",
-			
-								},
-								"username": schema.StringAttribute{
-									Optional:      true,
-									Description:   "The username to use for HTTP basic authentication when accessing the Kubernetes master endpoint.",
-								},
-								"password": schema.StringAttribute{
-									Optional:      true,
-									Sensitive:     true,
-									Description:   "The password to use for HTTP basic authentication when accessing the Kubernetes master endpoint.",
-								},
-								"insecure": schema.BoolAttribute{
-									Optional:      true,
-									Description: "Whether server should be accessed without verifying the TLS certificate.",
-								},
-								"client_certificate": schema.StringAttribute{
-									Optional:      true,
-									Description:   "PEM-encoded client certificate for TLS authentication.",
-								},
-								"client_key": schema.StringAttribute{
-									Optional:      true,
-									Sensitive:     true,
-									Description:   "PEM-encoded client certificate key for TLS authentication.",
-								},
-								"cluster_ca_certificate": schema.StringAttribute{
-									Optional:      true,
-									Description:   "PEM-encoded root certificates bundle for TLS authentication.",
-								},
-								"config_paths": schema.ListAttribute{
-									ElementType:   types.StringType,
-									Optional:      true,
-									Description:   "A list of paths to kube config files.",
-								},
-								"config_path": schema.StringAttribute{
-									Optional:      true,
-									Description:   "Path to the kube config file.",
-								},
-								"config_context": schema.StringAttribute{
-									Optional:      true,
-									Description:   "Context name to load from the kube config file.",
-								},
-								"config_context_auth_info": schema.StringAttribute{
-									Optional:      true,
-									Description:   "",
-								},
-								"config_context_cluster": schema.StringAttribute{
-									Optional:      true,
-									Description:   "",
-								},
-								"token": schema.StringAttribute{
-									Optional:      true,
-									Sensitive:     true,
-									Description:   "Token to authenticate an service account",
-								},
-								"proxy_url": schema.StringAttribute{
-									Optional:      true,
-									Description:   "URL to the proxy to be used for all API requests",
-								},
-							},
-						},
 					},
 				},
 			},
 		},
 	}
 }
-
 
 func (d *AkpClustersDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
 	// Prevent panic if the provider has not been configured.
@@ -200,24 +132,6 @@ func (d *AkpClustersDataSource) Configure(ctx context.Context, req datasource.Co
 		return
 	}
 	d.akpCli = akpCli
-}
-
-func (d *AkpClustersDataSource) GetManifests(ctx context.Context, instanceId string, clusterId string) (manifests string, err error) {
-
-	tflog.Info(ctx, "Retrieving manifests...")
-
-	apiReq := &argocdv1.GetInstanceClusterManifestsRequest{
-		OrganizationId: d.akpCli.OrgId,
-		InstanceId:     instanceId,
-		Id:             clusterId,
-	}
-	tflog.Debug(ctx, fmt.Sprintf("apiReq: %s", apiReq))
-	apiResp, err := d.akpCli.Cli.GetInstanceClusterManifests(ctx, apiReq)
-	if err != nil {
-		return "", err
-	}
-
-	return string(apiResp.GetData()), nil
 }
 
 func (d *AkpClustersDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
@@ -247,17 +161,11 @@ func (d *AkpClustersDataSource) Read(ctx context.Context, req datasource.ReadReq
 	clusters := apiResp.GetClusters()
 
 	for _, cluster := range clusters {
-		protoCluster := &akptypes.ProtoCluster{Cluster: cluster}
-		stateCluster, diag := protoCluster.FromProto(state.InstanceId.ValueString())
-		if diag.HasError() {
-			resp.Diagnostics.Append(diag...)
+		stateCluster := &akptypes.AkpCluster{
+			InstanceId: state.InstanceId,
 		}
-		manifests, err := d.GetManifests(ctx, state.InstanceId.ValueString(), cluster.Id)
-		if err != nil {
-			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read manifests, got error: %s", err))
-			return
-		}
-		stateCluster.Manifests = types.StringValue(manifests)
+		resp.Diagnostics.Append(stateCluster.UpdateCluster(cluster)...)
+		resp.Diagnostics.Append(stateCluster.UpdateManifests(ctx, d.akpCli.Cli, d.akpCli.OrgId)...)
 		state.Clusters = append(state.Clusters, stateCluster)
 	}
 	state.Id = types.StringValue(state.InstanceId.ValueString())
