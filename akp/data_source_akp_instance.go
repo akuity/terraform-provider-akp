@@ -95,13 +95,12 @@ func (d *AkpInstanceDataSource) Read(ctx context.Context, req datasource.ReadReq
 	apiResp, err := d.akpCli.Cli.GetInstance(ctx, apiReq)
 
 	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read Argo CD instance, got error: %s", err))
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read Argo CD instance: %s", err))
 		return
 	}
 
-	tflog.Info(ctx, "Got Argo CD instances")
-	protoInstance := &akptypes.ProtoInstance{Instance: apiResp.GetInstance()}
-	state = protoInstance.FromProto()
+	tflog.Info(ctx, "Got Argo CD instance")
+	resp.Diagnostics.Append(state.UpdateInstance(apiResp.GetInstance())...)
 
 	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)

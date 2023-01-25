@@ -110,10 +110,10 @@ func (d *AkpInstancesDataSource) Read(ctx context.Context, req datasource.ReadRe
 	}
 
 	tflog.Info(ctx, "Got Argo CD instances")
-	instances := apiResp.GetInstances()
-	for _, instance := range instances {
-		protoInstance := &akptypes.ProtoInstance{Instance: instance}
-		state.Instances = append(state.Instances, protoInstance.FromProto())
+	for _, instance := range apiResp.GetInstances() {
+		stateInstance := &akptypes.AkpInstance{}
+		resp.Diagnostics.Append(stateInstance.UpdateInstance(instance)...)
+		state.Instances = append(state.Instances, stateInstance)
 	}
 
 	state.Id = types.StringValue(d.akpCli.OrgId)
