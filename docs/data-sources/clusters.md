@@ -37,10 +37,6 @@ data "akp_clusters" "example" {
 <a id="nestedatt--clusters"></a>
 ### Nested Schema for `clusters`
 
-Optional:
-
-- `kube_config` (Attributes) Kubernetes connection setings. Redundant. Always null in this data source. (see [below for nested schema](#nestedatt--clusters--kube_config))
-
 Read-Only:
 
 - `agent_version` (String) Installed agent version
@@ -57,25 +53,5 @@ Read-Only:
 - `namespace` (String) Agent Installation Namespace
 - `namespace_scoped` (Boolean) Agent Namespace Scoped
 - `size` (String) Cluster Size. One of `small`, `medium` or `large`
-
-<a id="nestedatt--clusters--kube_config"></a>
-### Nested Schema for `clusters.kube_config`
-
-Optional:
-
-- `client_certificate` (String) PEM-encoded client certificate for TLS authentication.
-- `client_key` (String, Sensitive) PEM-encoded client certificate key for TLS authentication.
-- `cluster_ca_certificate` (String) PEM-encoded root certificates bundle for TLS authentication.
-- `config_context` (String) Context name to load from the kube config file.
-- `config_context_auth_info` (String)
-- `config_context_cluster` (String)
-- `config_path` (String) Path to the kube config file.
-- `config_paths` (List of String) A list of paths to kube config files.
-- `host` (String) The hostname (in form of URI) of Kubernetes master.
-- `insecure` (Boolean) Whether server should be accessed without verifying the TLS certificate.
-- `password` (String, Sensitive) The password to use for HTTP basic authentication when accessing the Kubernetes master endpoint.
-- `proxy_url` (String) URL to the proxy to be used for all API requests
-- `token` (String, Sensitive) Token to authenticate an service account
-- `username` (String) The username to use for HTTP basic authentication when accessing the Kubernetes master endpoint.
 
 

@@ -11,12 +11,12 @@ import (
 	reconv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/reconciliation/v1"
 	ctxutil "github.com/akuity/api-client-go/pkg/utils/context"
 	akptypes "github.com/akuity/terraform-provider-akp/akp/types"
-	status "google.golang.org/grpc/status"
-	codes "google.golang.org/grpc/codes"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"golang.org/x/exp/slices"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
@@ -102,8 +102,8 @@ func (r *AkpInstanceResource) Create(ctx context.Context, req resource.CreateReq
 	}
 	tflog.Info(ctx, "Argo CD instance created")
 
-	protoInstance := &akptypes.ProtoInstance{Instance: instance}
-	state := protoInstance.FromProto()
+	state := &akptypes.AkpInstance{}
+	resp.Diagnostics.Append(state.UpdateInstance(instance)...)
 	tflog.Debug(ctx, "Updating State")
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
@@ -135,10 +135,8 @@ func (r *AkpInstanceResource) Read(ctx context.Context, req resource.ReadRequest
 		return
 	}
 
-	tflog.Info(ctx, "Got Argo CD instance")
-	instance := apiResp.GetInstance()
-	protoInstance := &akptypes.ProtoInstance{Instance: instance}
-	state = protoInstance.FromProto()
+	tflog.Debug(ctx, "Got Argo CD instance")
+	resp.Diagnostics.Append(state.UpdateInstance(apiResp.GetInstance())...)
 
 	tflog.Debug(ctx, "Updating State")
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
@@ -188,8 +186,8 @@ func (r *AkpInstanceResource) Update(ctx context.Context, req resource.UpdateReq
 		reconStatus = instance.GetReconciliationStatus()
 		tflog.Debug(ctx, fmt.Sprintf("Argo CD instance status: %s", reconStatus.String()))
 	}
-	protoInstance := &akptypes.ProtoInstance{Instance: instance}
-	state := protoInstance.FromProto()
+	state := &akptypes.AkpInstance{}
+	resp.Diagnostics.Append(state.UpdateInstance(instance)...)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
