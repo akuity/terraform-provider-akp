@@ -21,6 +21,10 @@ var (
 
 func (x *AkpArgoCDHelmSettings) UpdateObject(p *argocdv1.ArgoCDHelmSettings) diag.Diagnostics {
 	diags := diag.Diagnostics{}
+	if p == nil {
+		diags.AddError("Conversion Error", "*argocdv1.ArgoCDHelmSettings is <nil>")
+		return diags
+	}
 	x.Enabled = types.BoolValue(p.GetEnabled())
 	x.ValueFileSchemas = types.StringValue(p.GetValueFileSchemas())
 	return diags

@@ -23,6 +23,10 @@ var (
 
 func (x *AkpArgoCDResourceSettings) UpdateObject(p *argocdv1.ArgoCDResourceSettings) diag.Diagnostics {
 	diags := diag.Diagnostics{}
+	if p == nil {
+		diags.AddError("Conversion Error", "*argocdv1.ArgoCDResourceSettings is <nil>")
+		return diags
+	}
 	x.Inclusions = types.StringValue(p.GetInclusions())
 	x.Exclusions = types.StringValue(p.GetExclusions())
 	x.CompareOptions = types.StringValue(p.GetCompareOptions())

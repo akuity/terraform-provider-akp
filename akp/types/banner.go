@@ -23,6 +23,10 @@ var (
 
 func (x *AkpArgoCDBanner) UpdateObject(p *argocdv1.ArgoCDBannerConfig) diag.Diagnostics {
 	diags := diag.Diagnostics{}
+	if p == nil {
+		diags.AddError("Conversion Error", "*argocdv1.ArgoCDBannerConfig is <nil>")
+		return diags
+	}
 	x.Message = types.StringValue(p.GetMessage())
 	x.Url = types.StringValue(p.GetUrl())
 	x.Permanent = types.BoolValue(p.GetPermanent())

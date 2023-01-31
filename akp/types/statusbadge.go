@@ -21,6 +21,10 @@ var (
 
 func (x *AkpArgoCDStatusBadge) UpdateObject(p *argocdv1.ArgoCDStatusBadgeConfig) diag.Diagnostics {
 	diags := diag.Diagnostics{}
+	if p == nil {
+		diags.AddError("Conversion Error", "*argocdv1.ArgoCDStatusBadgeConfig is <nil>")
+		return diags
+	}
 	x.Enabled = types.BoolValue(p.GetEnabled())
 	x.Url = types.StringValue(p.GetUrl())
 	return diags

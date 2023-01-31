@@ -21,6 +21,10 @@ var (
 
 func (x *AkpArgoCDGoogleAnalytics) UpdateObject(p *argocdv1.ArgoCDGoogleAnalyticsConfig) diag.Diagnostics {
 	diags := diag.Diagnostics{}
+	if p == nil {
+		diags.AddError("Conversion Error", "*argocdv1.ArgoCDGoogleAnalyticsConfig is <nil>")
+		return diags
+	}
 	x.TrackingId = types.StringValue(p.GetTrackingId())
 	x.AnonymizeUsers = types.BoolValue(p.GetAnonymizeUsers())
 	return diags

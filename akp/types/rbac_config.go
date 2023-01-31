@@ -10,34 +10,43 @@ import (
 )
 
 type AkpArgoCDRBACConfig struct {
-	DefaultPolicy types.String   `tfsdk:"default_policy"`
-	PolicyCsv     types.String   `tfsdk:"policy_csv"`
-	Scopes        types.List     `tfsdk:"scopes"`
+	DefaultPolicy types.String `tfsdk:"default_policy"`
+	PolicyCsv     types.String `tfsdk:"policy_csv"`
+	Scopes        types.List   `tfsdk:"scopes"`
 }
 
 var (
 	RBACConfigMapAttrTypes = map[string]attr.Type{
 		"default_policy": types.StringType,
 		"policy_csv":     types.StringType,
-		"scopes":         types.ListType{
+		"scopes": types.ListType{
 			ElemType: types.StringType,
 		},
 	}
 )
 
 func (x *AkpArgoCDRBACConfig) UpdateObject(p *argocdv1.ArgoCDRBACConfigMap) diag.Diagnostics {
-	d := diag.Diagnostics{}
+	diags := diag.Diagnostics{}
+	if p == nil {
+		diags.AddError("Conversion Error", "*argocdv1.ArgoCDRBACConfigMap is <nil>")
+		return diags
+	}
 	x.DefaultPolicy = types.StringValue(p.GetDefaultPolicy())
 	x.PolicyCsv = types.StringValue(p.GetPolicyCsv())
-	x.Scopes, d = types.ListValueFrom(context.Background(),types.StringType,p.GetScopes())
-	return d
+	x.Scopes, diags = types.ListValueFrom(context.Background(), types.StringType, p.GetScopes())
+	return diags
 }
 
 func (x *AkpArgoCDRBACConfig) As(target *argocdv1.ArgoCDRBACConfigMap) diag.Diagnostics {
+	diags := diag.Diagnostics{}
 	target.DefaultPolicy = x.DefaultPolicy.ValueString()
 	target.PolicyCsv = x.PolicyCsv.ValueString()
-	var scopes []string
-	diag := x.Scopes.ElementsAs(context.Background(), &scopes, true)
-	target.Scopes = scopes
-	return diag
+	if x.Scopes.IsNull() {
+		target.Scopes = nil
+	} else if !x.Scopes.IsUnknown() {
+		var scopes []string
+		diags.Append(x.Scopes.ElementsAs(context.Background(), &scopes, true)...)
+		target.Scopes = scopes
+	}
+	return diags
 }

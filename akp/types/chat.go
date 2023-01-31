@@ -21,6 +21,10 @@ var (
 
 func (x *AkpArgoCDChat) UpdateObject(p *argocdv1.ArgoCDAlertConfig) diag.Diagnostics {
 	diags := diag.Diagnostics{}
+	if p == nil {
+		diags.AddError("Conversion Error", "*argocdv1.ArgoCDAlertConfig is <nil>")
+		return diags
+	}
 	x.Message = types.StringValue(p.GetMessage())
 	x.Url = types.StringValue(p.GetUrl())
 	return diags

@@ -21,6 +21,10 @@ var (
 
 func (x *AkpArgoCDWebTerminal) UpdateObject(p *argocdv1.ArgoCDWebTerminalConfig) diag.Diagnostics {
 	diags := diag.Diagnostics{}
+	if p == nil {
+		diags.AddError("Conversion Error", "*argocdv1.ArgoCDWebTerminalConfig is <nil>")
+		return diags
+	}
 	x.Enabled = types.BoolValue(p.GetEnabled())
 	x.Shells = types.StringValue(p.GetShells())
 	return diags

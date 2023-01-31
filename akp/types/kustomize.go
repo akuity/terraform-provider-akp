@@ -21,6 +21,10 @@ var (
 
 func (x *AkpArgoCDKustomizeSettings) UpdateObject(p *argocdv1.ArgoCDKustomizeSettings) diag.Diagnostics {
 	diags := diag.Diagnostics{}
+	if p == nil {
+		diags.AddError("Conversion Error", "*argocdv1.ArgoCDKustomizeSettings is <nil>")
+		return diags
+	}
 	x.Enabled = types.BoolValue(p.GetEnabled())
 	x.BuildOptions = types.StringValue(p.GetBuildOptions())
 	return diags

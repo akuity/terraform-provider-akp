@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -50,6 +51,9 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 				MarkdownDescription: "Argo CD Configuration",
 				Optional:            true,
 				Computed:            true,
+				PlanModifiers: []planmodifier.Object{
+					objectplanmodifier.UseStateForUnknown(),
+				},
 				Attributes: map[string]schema.Attribute{
 					"admin": schema.BoolAttribute{
 						MarkdownDescription: "Enable Admin Login",
@@ -63,6 +67,9 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 						MarkdownDescription: "Status Badge Configuration",
 						Optional:            true,
 						Computed:            true,
+						PlanModifiers: []planmodifier.Object{
+							objectplanmodifier.UseStateForUnknown(),
+						},
 						Attributes: map[string]schema.Attribute{
 							"enabled": schema.BoolAttribute{
 								MarkdownDescription: "Enable Status Badge",
@@ -86,6 +93,9 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 						MarkdownDescription: "Google Analytics Configuration",
 						Optional:            true,
 						Computed:            true,
+						PlanModifiers: []planmodifier.Object{
+							objectplanmodifier.UseStateForUnknown(),
+						},
 						Attributes: map[string]schema.Attribute{
 							"tracking_id": schema.StringAttribute{
 								MarkdownDescription: "Google Tracking ID",
@@ -117,6 +127,9 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 						MarkdownDescription: "Argo CD Banner Configuration",
 						Optional:            true,
 						Computed:            true,
+						PlanModifiers: []planmodifier.Object{
+							objectplanmodifier.UseStateForUnknown(),
+						},
 						Attributes: map[string]schema.Attribute{
 							"message": schema.StringAttribute{
 								MarkdownDescription: "Banner Message",
@@ -148,6 +161,9 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 						MarkdownDescription: "Chat Configuration",
 						Optional:            true,
 						Computed:            true,
+						PlanModifiers: []planmodifier.Object{
+							objectplanmodifier.UseStateForUnknown(),
+						},
 						Attributes: map[string]schema.Attribute{
 							"message": schema.StringAttribute{
 								MarkdownDescription: "Alert Message",
@@ -179,6 +195,9 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 						MarkdownDescription: "Kustomize Settings",
 						Optional:            true,
 						Computed:            true,
+						PlanModifiers: []planmodifier.Object{
+							objectplanmodifier.UseStateForUnknown(),
+						},
 						Attributes: map[string]schema.Attribute{
 							"enabled": schema.BoolAttribute{
 								MarkdownDescription: "Enable Kustomize",
@@ -202,6 +221,9 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 						MarkdownDescription: "Disale Agent Auto-upgrade",
 						Optional:            true,
 						Computed:            true,
+						PlanModifiers: []planmodifier.Object{
+							objectplanmodifier.UseStateForUnknown(),
+						},
 						Attributes: map[string]schema.Attribute{
 							"enabled": schema.BoolAttribute{
 								MarkdownDescription: "Enable Helm",
@@ -225,6 +247,9 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 						MarkdownDescription: "Custom resource settings",
 						Optional:            true,
 						Computed:            true,
+						PlanModifiers: []planmodifier.Object{
+							objectplanmodifier.UseStateForUnknown(),
+						},
 						Attributes: map[string]schema.Attribute{
 							"inclusions": schema.StringAttribute{
 								MarkdownDescription: "Inclusions",
@@ -280,6 +305,9 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 						MarkdownDescription: "Web Terminal Config",
 						Optional:            true,
 						Computed:            true,
+						PlanModifiers: []planmodifier.Object{
+							objectplanmodifier.UseStateForUnknown(),
+						},
 						Attributes: map[string]schema.Attribute{
 							"enabled": schema.BoolAttribute{
 								MarkdownDescription: "Enable Web Terminal",
@@ -304,6 +332,10 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 			"rbac_config": schema.SingleNestedAttribute{
 				MarkdownDescription: "RBAC Config Map, more info [in Argo CD docs](https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/)",
 				Optional:            true,
+				Computed:            true,
+				PlanModifiers: []planmodifier.Object{
+					objectplanmodifier.UseStateForUnknown(),
+				},
 				Attributes: map[string]schema.Attribute{
 					"default_policy": schema.StringAttribute{
 						MarkdownDescription: "Value of `policy.default` in `argocd-rbac-cm` configmap",
@@ -328,6 +360,181 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 						ElementType: types.StringType,
 						PlanModifiers: []planmodifier.List{
 							listplanmodifier.UseStateForUnknown(),
+						},
+					},
+				},
+			},
+			"spec": schema.SingleNestedAttribute{
+				MarkdownDescription: "Instance Specification",
+				Optional:            true,
+				Computed:            true,
+				PlanModifiers: []planmodifier.Object{
+					objectplanmodifier.UseStateForUnknown(),
+				},
+				Attributes: map[string]schema.Attribute{
+					"audit_extension": schema.BoolAttribute{
+						MarkdownDescription: "Enable Audit Extension",
+						Optional:    true,
+						Computed:    true,
+						PlanModifiers: []planmodifier.Bool{
+							boolplanmodifier.UseStateForUnknown(),
+						},
+					},
+					"backend_ip_allow_list": schema.BoolAttribute{
+						MarkdownDescription: "Apply IP Allow List to Cluster Agents",
+						Optional:    true,
+						Computed:    true,
+						PlanModifiers: []planmodifier.Bool{
+							boolplanmodifier.UseStateForUnknown(),
+						},
+					},
+					"cluster_customization_defaults": schema.SingleNestedAttribute{
+						MarkdownDescription: "Default Values For Cluster Agents",
+						Optional:            true,
+						Computed:            true,
+						PlanModifiers: []planmodifier.Object{
+							objectplanmodifier.UseStateForUnknown(),
+						},
+						Attributes: map[string]schema.Attribute{
+							"custom_image_registry_argoproj": schema.StringAttribute{
+								MarkdownDescription: "Custom Image Registry for Argoproj images",
+								Optional:            true,
+								Computed:            true,
+								PlanModifiers: []planmodifier.String{
+									stringplanmodifier.UseStateForUnknown(),
+								},
+							},
+							"custom_image_registry_akuity": schema.StringAttribute{
+								MarkdownDescription: "Custom Image Registry for Akuity images",
+								Optional:            true,
+								Computed:            true,
+								PlanModifiers: []planmodifier.String{
+									stringplanmodifier.UseStateForUnknown(),
+								},
+							},
+							"auto_upgrade_disabled": schema.BoolAttribute{
+								MarkdownDescription: "Disale Agent Auto-upgrade",
+								Optional:            true,
+								Computed:            true,
+								PlanModifiers: []planmodifier.Bool{
+									boolplanmodifier.UseStateForUnknown(),
+								},
+							},
+						},
+					},
+					"declarative_management": schema.BoolAttribute{
+						MarkdownDescription: "Enable Declarative Management",
+						Optional:            true,
+						Computed:            true,
+						PlanModifiers: []planmodifier.Bool{
+							boolplanmodifier.UseStateForUnknown(),
+						},
+					},
+					"extensions": schema.ListNestedAttribute{
+						MarkdownDescription: "Extensions",
+						Optional:            true,
+						Computed:            true,
+						PlanModifiers: []planmodifier.List{
+							listplanmodifier.UseStateForUnknown(),
+						},
+						NestedObject: schema.NestedAttributeObject{
+							Attributes: map[string]schema.Attribute{
+								"id": schema.StringAttribute{
+									MarkdownDescription: "Extension ID",
+									Optional:            true,
+									Computed:            true,
+									PlanModifiers: []planmodifier.String{
+										stringplanmodifier.UseStateForUnknown(),
+									},
+								},
+								"version": schema.StringAttribute{
+									MarkdownDescription: "Extension version",
+									Optional:            true,
+									Computed:            true,
+									PlanModifiers: []planmodifier.String{
+										stringplanmodifier.UseStateForUnknown(),
+									},
+								},
+							},
+						},
+					},
+					"image_updater": schema.BoolAttribute{
+						MarkdownDescription: "Enable Image Updater",
+						Optional:            true,
+						Computed:            true,
+						PlanModifiers: []planmodifier.Bool{
+							boolplanmodifier.UseStateForUnknown(),
+						},
+					},
+					"ip_allow_list": schema.ListNestedAttribute{
+						MarkdownDescription: "IP Allow List",
+						Optional:            true,
+						PlanModifiers: []planmodifier.List{
+							listplanmodifier.UseStateForUnknown(),
+						},
+						NestedObject: schema.NestedAttributeObject{
+							Attributes: map[string]schema.Attribute{
+								"ip": schema.StringAttribute{
+									MarkdownDescription: "IP Address",
+									Optional: true,
+									Computed: true,
+									PlanModifiers: []planmodifier.String{
+										stringplanmodifier.UseStateForUnknown(),
+									},
+								},
+								"description": schema.StringAttribute{
+									MarkdownDescription: "IP Description",
+									Optional: true,
+									Computed: true,
+									PlanModifiers: []planmodifier.String{
+										stringplanmodifier.UseStateForUnknown(),
+									},
+								},
+							},
+						},
+					},
+					"repo_server_delegate": schema.SingleNestedAttribute{
+						MarkdownDescription: "In case some clusters don't have network access to your private Git provider you can delegate these operations to one specific cluster.",
+						Optional:            true,
+						Computed:            true,
+						PlanModifiers: []planmodifier.Object{
+							objectplanmodifier.UseStateForUnknown(),
+						},
+						Attributes: map[string]schema.Attribute{
+							"control_plane": schema.SingleNestedAttribute{
+								MarkdownDescription: "Redundant. Always `null`",
+								Computed:    true,
+								Attributes: map[string]schema.Attribute{},
+								PlanModifiers: []planmodifier.Object{
+									objectplanmodifier.UseStateForUnknown(),
+								},
+							},
+							"managed_cluster": schema.SingleNestedAttribute{
+								MarkdownDescription: "Cluster",
+								Optional:    true,
+								Computed:    true,
+								PlanModifiers: []planmodifier.Object{
+									objectplanmodifier.UseStateForUnknown(),
+								},
+								Attributes: map[string]schema.Attribute{
+									"cluster_name": schema.StringAttribute{
+										MarkdownDescription: "Cluster Name",
+										Optional: true,
+										Computed: true,
+										PlanModifiers: []planmodifier.String{
+											stringplanmodifier.UseStateForUnknown(),
+										},
+									},
+								},
+							},
+						},
+					},
+					"subdomain": schema.StringAttribute{
+						MarkdownDescription: "Instance Subdomain",
+						Optional:            true,
+						Computed:            true,
+						PlanModifiers: []planmodifier.String{
+							stringplanmodifier.UseStateForUnknown(),
 						},
 					},
 				},

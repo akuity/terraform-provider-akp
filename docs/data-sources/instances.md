@@ -35,6 +35,7 @@ Read-Only:
 - `id` (String) Instance ID
 - `name` (String) Instance Name
 - `rbac_config` (Attributes) RBAC Config Map, more info [in Argo CD docs](https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/) (see [below for nested schema](#nestedatt--instances--rbac_config))
+- `spec` (Attributes) Instance Specification (see [below for nested schema](#nestedatt--instances--spec))
 - `version` (String) Argo CD Version
 
 <a id="nestedatt--instances--config"></a>
@@ -140,5 +141,68 @@ Read-Only:
 - `default_policy` (String) Value of `policy.default` in `argocd-rbac-cm` configmap
 - `policy_csv` (String) Value of `policy.csv` in `argocd-rbac-cm` configmap
 - `scopes` (List of String) List of OIDC scopes
+
+
+<a id="nestedatt--instances--spec"></a>
+### Nested Schema for `instances.spec`
+
+Read-Only:
+
+- `audit_extension` (Boolean) Enable Audit Extension
+- `backend_ip_allow_list` (Boolean) Apply IP Allow List to Cluster Agents
+- `cluster_customization_defaults` (Attributes) Default Values For Cluster Agents (see [below for nested schema](#nestedatt--instances--spec--cluster_customization_defaults))
+- `declarative_management` (Boolean) Enable Declarative Management
+- `extensions` (Attributes List) Extensions (see [below for nested schema](#nestedatt--instances--spec--extensions))
+- `image_updater` (Boolean) Enable Image Updater
+- `ip_allow_list` (Attributes List) IP Allow List (see [below for nested schema](#nestedatt--instances--spec--ip_allow_list))
+- `repo_server_delegate` (Attributes) In case some clusters don't have network access to your private Git provider you can delegate these operations to one specific cluster. (see [below for nested schema](#nestedatt--instances--spec--repo_server_delegate))
+- `subdomain` (String) Instance Subdomain
+
+<a id="nestedatt--instances--spec--cluster_customization_defaults"></a>
+### Nested Schema for `instances.spec.cluster_customization_defaults`
+
+Read-Only:
+
+- `auto_upgrade_disabled` (Boolean) Disale Agent Auto-upgrade
+- `custom_image_registry_akuity` (String) Custom Image Registry for Akuity images
+- `custom_image_registry_argoproj` (String) Custom Image Registry for Argoproj images
+
+
+<a id="nestedatt--instances--spec--extensions"></a>
+### Nested Schema for `instances.spec.extensions`
+
+Read-Only:
+
+- `id` (String) Extension ID
+- `version` (String) Extension version
+
+
+<a id="nestedatt--instances--spec--ip_allow_list"></a>
+### Nested Schema for `instances.spec.ip_allow_list`
+
+Read-Only:
+
+- `description` (String) IP Description
+- `ip` (String) IP Address
+
+
+<a id="nestedatt--instances--spec--repo_server_delegate"></a>
+### Nested Schema for `instances.spec.repo_server_delegate`
+
+Read-Only:
+
+- `control_plane` (Attributes) Redundant. Always `null` (see [below for nested schema](#nestedatt--instances--spec--repo_server_delegate--control_plane))
+- `managed_cluster` (Attributes) Cluster (see [below for nested schema](#nestedatt--instances--spec--repo_server_delegate--managed_cluster))
+
+<a id="nestedatt--instances--spec--repo_server_delegate--control_plane"></a>
+### Nested Schema for `instances.spec.repo_server_delegate.managed_cluster`
+
+
+<a id="nestedatt--instances--spec--repo_server_delegate--managed_cluster"></a>
+### Nested Schema for `instances.spec.repo_server_delegate.managed_cluster`
+
+Read-Only:
+
+- `cluster_name` (String) Cluster Name
 
 

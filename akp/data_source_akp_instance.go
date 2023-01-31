@@ -224,6 +224,103 @@ func (d *AkpInstanceDataSource) Schema(ctx context.Context, req datasource.Schem
 					},
 				},
 			},
+			"spec": schema.SingleNestedAttribute{
+				MarkdownDescription: "Instance Specification",
+				Computed:            true,
+				Attributes: map[string]schema.Attribute{
+					"audit_extension": schema.BoolAttribute{
+						MarkdownDescription: "Enable Audit Extension",
+						Computed:    true,
+					},
+					"backend_ip_allow_list": schema.BoolAttribute{
+						MarkdownDescription: "Apply IP Allow List to Cluster Agents",
+						Computed:    true,
+					},
+					"cluster_customization_defaults": schema.SingleNestedAttribute{
+						MarkdownDescription: "Default Values For Cluster Agents",
+						Computed:            true,
+						Attributes: map[string]schema.Attribute{
+							"custom_image_registry_argoproj": schema.StringAttribute{
+								MarkdownDescription: "Custom Image Registry for Argoproj images",
+								Computed:            true,
+							},
+							"custom_image_registry_akuity": schema.StringAttribute{
+								MarkdownDescription: "Custom Image Registry for Akuity images",
+								Computed:            true,
+							},
+							"auto_upgrade_disabled": schema.BoolAttribute{
+								MarkdownDescription: "Disale Agent Auto-upgrade",
+								Computed:            true,
+							},
+						},
+					},
+					"declarative_management": schema.BoolAttribute{
+						MarkdownDescription: "Enable Declarative Management",
+						Computed:            true,
+					},
+					"extensions": schema.ListNestedAttribute{
+						MarkdownDescription: "Extensions",
+						Computed:            true,
+						NestedObject: schema.NestedAttributeObject{
+							Attributes: map[string]schema.Attribute{
+								"id": schema.StringAttribute{
+									MarkdownDescription: "Extension ID",
+									Computed:            true,
+								},
+								"version": schema.StringAttribute{
+									MarkdownDescription: "Extension version",
+									Computed:            true,
+								},
+							},
+						},
+					},
+					"image_updater": schema.BoolAttribute{
+						MarkdownDescription: "Enable Image Updater",
+						Computed:            true,
+					},
+					"ip_allow_list": schema.ListNestedAttribute{
+						MarkdownDescription: "IP Allow List",
+						Computed:            true,
+						NestedObject: schema.NestedAttributeObject{
+							Attributes: map[string]schema.Attribute{
+								"ip": schema.StringAttribute{
+									MarkdownDescription: "IP Address",
+									Computed: true,
+								},
+								"description": schema.StringAttribute{
+									MarkdownDescription: "IP Description",
+									Computed: true,
+								},
+							},
+						},
+					},
+					"repo_server_delegate": schema.SingleNestedAttribute{
+						MarkdownDescription: "In case some clusters don't have network access to your private Git provider you can delegate these operations to one specific cluster.",
+						Computed:            true,
+						Attributes: map[string]schema.Attribute{
+							"control_plane": schema.SingleNestedAttribute{
+								MarkdownDescription: "Redundant. Always `null`",
+								Computed:    true,
+								Attributes: map[string]schema.Attribute{},
+							},
+							"managed_cluster": schema.SingleNestedAttribute{
+								MarkdownDescription: "Cluster",
+								Computed:    true,
+								Attributes: map[string]schema.Attribute{
+									"cluster_name": schema.StringAttribute{
+										MarkdownDescription: "Cluster Name",
+										Computed: true,
+									},
+								},
+							},
+						},
+					},
+					"subdomain": schema.StringAttribute{
+						MarkdownDescription: "Instance Subdomain",
+						Computed:            true,
+					},
+				},
+			},
 		},
 	}
 }
@@ -261,9 +358,9 @@ func (d *AkpInstanceDataSource) Read(ctx context.Context, req datasource.ReadReq
 		Id:             state.Name.ValueString(),
 	}
 
-	tflog.Debug(ctx, fmt.Sprintf("apiReq: %s", apiReq))
+	tflog.Debug(ctx, fmt.Sprintf("API Req: %s", apiReq))
 	apiResp, err := d.akpCli.Cli.GetInstance(ctx, apiReq)
-
+	tflog.Debug(ctx, fmt.Sprintf("API Resp: %s", apiResp))
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read Argo CD instance: %s", err))
 		return

@@ -146,7 +146,7 @@ func (r *AkpClusterResource) waitClusterReconStatus(ctx context.Context, cluster
 		apiResp, err := r.akpCli.Cli.GetInstanceCluster(ctx, &argocdv1.GetInstanceClusterRequest{
 			OrganizationId: r.akpCli.OrgId,
 			InstanceId:     instanceId,
-			Id:             cluster.GetId(),
+			Id:             cluster.Id,
 			IdType:         idv1.Type_ID,
 		})
 		if err != nil {
@@ -168,7 +168,7 @@ func (r *AkpClusterResource) waitClusterHealthStatus(ctx context.Context, cluste
 		apiResp, err := r.akpCli.Cli.GetInstanceCluster(ctx, &argocdv1.GetInstanceClusterRequest{
 			OrganizationId: r.akpCli.OrgId,
 			InstanceId:     instanceId,
-			Id:             cluster.GetId(),
+			Id:             cluster.Id,
 			IdType:         idv1.Type_ID,
 		})
 		if err != nil {
@@ -346,7 +346,6 @@ func (r *AkpClusterResource) Update(ctx context.Context, req resource.UpdateRequ
 		cluster, _ := r.waitClusterHealthStatus(ctx, apiResp.GetCluster(), plan.InstanceId.ValueString())
 		state.AgentVersion = types.StringValue(cluster.AgentState.GetVersion())
 	}
-	
 
 	// Save updated data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
