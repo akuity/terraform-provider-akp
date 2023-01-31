@@ -15,11 +15,13 @@ type AkpInstance struct {
 	Version       types.String `tfsdk:"version"`
 	Description   types.String `tfsdk:"description"`
 	Hostname      types.String `tfsdk:"hostname"`
-	RbacConfigMap types.Object `tfsdk:"rbac_config"`
+	RbacConfig    types.Object `tfsdk:"rbac_config"`
+	Config        types.Object `tfsdk:"config"`
 }
 
 func (x *AkpInstance) UpdateFrom(p *argocdv1.Instance) diag.Diagnostics {
-	rbacConfigMapObject := &AkpArgoCDRBACConfig{}
+	rbacConfigObject := &AkpArgoCDRBACConfig{}
+	configObject := &AkpArgoCDConfig{}
 	diags := diag.Diagnostics{}
 	d := diag.Diagnostics{}
 	x.Id = types.StringValue(p.Id)
@@ -27,23 +29,31 @@ func (x *AkpInstance) UpdateFrom(p *argocdv1.Instance) diag.Diagnostics {
 	x.Version = types.StringValue(p.GetVersion())
 	x.Description = types.StringValue(p.GetDescription())
 	x.Hostname = types.StringValue(p.GetHostname())
-	diags.Append(rbacConfigMapObject.UpdateObject(p.RbacConfig)...)
-	x.RbacConfigMap, d = types.ObjectValueFrom(context.Background(), RBACConfigMapAttrTypes, rbacConfigMapObject)
+	diags.Append(rbacConfigObject.UpdateObject(p.GetRbacConfig())...)
+	x.RbacConfig, d = types.ObjectValueFrom(context.Background(), RBACConfigMapAttrTypes, rbacConfigObject)
+	diags.Append(d...)
+	diags.Append(configObject.UpdateObject(p.GetConfig())...)
+	x.Config, d = types.ObjectValueFrom(context.Background(), configMapAttrTypes, configObject)
 	diags.Append(d...)
 	return diags
 }
 
 func (x *AkpInstance) As(target *argocdv1.Instance) diag.Diagnostics {
 	rbacConfigTF := AkpArgoCDRBACConfig{}
+	configTF := AkpArgoCDConfig{}
+	diags := diag.Diagnostics{}
 	target.Name = x.Name.ValueString()
 	target.Description = x.Description.ValueString()
 	target.Version = x.Version.ValueString()
-	diags := x.RbacConfigMap.As(context.Background(), &rbacConfigTF, basetypes.ObjectAsOptions{
+	diags.Append(x.RbacConfig.As(context.Background(), &rbacConfigTF, basetypes.ObjectAsOptions{
 		UnhandledNullAsEmpty: false,
 		UnhandledUnknownAsEmpty: true,
-	})
-	rbacConfig := &argocdv1.ArgoCDRBACConfigMap{}
-	diags.Append(rbacConfigTF.As(rbacConfig)...)
-	target.RbacConfig = rbacConfig
+	})...)
+	diags.Append(rbacConfigTF.As(target.RbacConfig)...)
+	diags.Append(x.Config.As(context.Background(), &configTF, basetypes.ObjectAsOptions{
+		UnhandledNullAsEmpty: false,
+		UnhandledUnknownAsEmpty: true,
+	})...)
+	diags.Append(configTF.As(target.Config)...)
 	return diags
 }

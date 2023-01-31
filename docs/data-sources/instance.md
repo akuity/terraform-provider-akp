@@ -27,11 +27,107 @@ data "akp_instance" "example" {
 
 ### Read-Only
 
+- `config` (Attributes) Argo CD Configuration (see [below for nested schema](#nestedatt--config))
 - `description` (String) Instance Description
 - `hostname` (String) Instance Hostname
 - `id` (String) Instance ID
 - `rbac_config` (Attributes) RBAC Config Map, more info [in Argo CD docs](https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/) (see [below for nested schema](#nestedatt--rbac_config))
 - `version` (String) Argo CD Version
+
+<a id="nestedatt--config"></a>
+### Nested Schema for `config`
+
+Read-Only:
+
+- `admin` (Boolean) Enable Admin Login
+- `allow_anonymous` (Boolean) Allow Anonymous Access
+- `banner` (Attributes) Argo CD Banner Configuration (see [below for nested schema](#nestedatt--config--banner))
+- `chat` (Attributes) Chat Configuration (see [below for nested schema](#nestedatt--config--chat))
+- `dex` (String) Dex Config YAML
+- `google_analytics` (Attributes) Google Analytics Configuration (see [below for nested schema](#nestedatt--config--google_analytics))
+- `helm` (Attributes) Disale Agent Auto-upgrade (see [below for nested schema](#nestedatt--config--helm))
+- `instance_label_key` (String) Instance Label Key
+- `kustomize` (Attributes) Kustomize Settings (see [below for nested schema](#nestedatt--config--kustomize))
+- `oidc` (String) OIDC Config YAML
+- `resource_settings` (Attributes) Custom resource settings (see [below for nested schema](#nestedatt--config--resource_settings))
+- `status_badge` (Attributes) Status Badge Configuration (see [below for nested schema](#nestedatt--config--status_badge))
+- `users_session` (String) Users Session Duration
+- `web_terminal` (Attributes) Web Terminal Config (see [below for nested schema](#nestedatt--config--web_terminal))
+
+<a id="nestedatt--config--banner"></a>
+### Nested Schema for `config.banner`
+
+Read-Only:
+
+- `message` (String) Banner Message
+- `permanent` (Boolean) Disable hide button
+- `url` (String) Banner Hyperlink URL
+
+
+<a id="nestedatt--config--chat"></a>
+### Nested Schema for `config.chat`
+
+Read-Only:
+
+- `message` (String) Alert Message
+- `url` (String) Alert URL
+
+
+<a id="nestedatt--config--google_analytics"></a>
+### Nested Schema for `config.google_analytics`
+
+Read-Only:
+
+- `anonymize_users` (Boolean) Anonymize Users
+- `tracking_id` (String) Google Tracking ID
+
+
+<a id="nestedatt--config--helm"></a>
+### Nested Schema for `config.helm`
+
+Read-Only:
+
+- `enabled` (Boolean) Enable Helm
+- `value_file_schemas` (String) Value File Schemas
+
+
+<a id="nestedatt--config--kustomize"></a>
+### Nested Schema for `config.kustomize`
+
+Read-Only:
+
+- `build_options` (String) Build options
+- `enabled` (Boolean) Enable Kustomize
+
+
+<a id="nestedatt--config--resource_settings"></a>
+### Nested Schema for `config.resource_settings`
+
+Read-Only:
+
+- `compare_options` (String) Compare Options
+- `exclusions` (String) Exclusions
+- `inclusions` (String) Inclusions
+
+
+<a id="nestedatt--config--status_badge"></a>
+### Nested Schema for `config.status_badge`
+
+Read-Only:
+
+- `enabled` (Boolean) Enable Status Badge
+- `url` (String) URL
+
+
+<a id="nestedatt--config--web_terminal"></a>
+### Nested Schema for `config.web_terminal`
+
+Read-Only:
+
+- `enabled` (Boolean) Enable Web Terminal
+- `shells` (String) Shells
+
+
 
 <a id="nestedatt--rbac_config"></a>
 ### Nested Schema for `rbac_config`
