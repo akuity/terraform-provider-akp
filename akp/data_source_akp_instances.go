@@ -66,6 +66,25 @@ func (d *AkpInstancesDataSource) Schema(ctx context.Context, req datasource.Sche
 							MarkdownDescription: "Argo CD Version",
 							Computed:            true,
 						},
+						"rbac_config": schema.SingleNestedAttribute{
+							MarkdownDescription: "RBAC Config Map, more info [in Argo CD docs](https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/)",
+							Computed:            true,
+							Attributes: map[string]schema.Attribute{
+								"default_policy": schema.StringAttribute{
+									MarkdownDescription: "Value of `policy.default` in `argocd-rbac-cm` configmap",
+									Computed:    true,
+								},
+								"policy_csv": schema.StringAttribute{
+									MarkdownDescription: "Value of `policy.csv` in `argocd-rbac-cm` configmap",
+									Computed:    true,
+								},
+								"scopes": schema.ListAttribute{
+									MarkdownDescription: "List of OIDC scopes",
+									Computed:    true,
+									ElementType: types.StringType,
+								},
+							},
+						},
 					},
 				},
 			},
@@ -112,7 +131,7 @@ func (d *AkpInstancesDataSource) Read(ctx context.Context, req datasource.ReadRe
 	tflog.Info(ctx, "Got Argo CD instances")
 	for _, instance := range apiResp.GetInstances() {
 		stateInstance := &akptypes.AkpInstance{}
-		resp.Diagnostics.Append(stateInstance.UpdateInstance(instance)...)
+		resp.Diagnostics.Append(stateInstance.UpdateFrom(instance)...)
 		state.Instances = append(state.Instances, stateInstance)
 	}
 

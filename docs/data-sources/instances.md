@@ -33,6 +33,16 @@ Read-Only:
 - `hostname` (String) Instance Hostname
 - `id` (String) Instance ID
 - `name` (String) Instance Name
+- `rbac_config` (Attributes) RBAC Config Map, more info [in Argo CD docs](https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/) (see [below for nested schema](#nestedatt--instances--rbac_config))
 - `version` (String) Argo CD Version
+
+<a id="nestedatt--instances--rbac_config"></a>
+### Nested Schema for `instances.rbac_config`
+
+Read-Only:
+
+- `default_policy` (String) Value of `policy.default` in `argocd-rbac-cm` configmap
+- `policy_csv` (String) Value of `policy.csv` in `argocd-rbac-cm` configmap
+- `scopes` (List of String) List of OIDC scopes
 
 

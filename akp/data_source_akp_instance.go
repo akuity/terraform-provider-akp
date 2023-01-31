@@ -10,6 +10,7 @@ import (
 	akptypes "github.com/akuity/terraform-provider-akp/akp/types"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
@@ -53,6 +54,25 @@ func (d *AkpInstanceDataSource) Schema(ctx context.Context, req datasource.Schem
 			"version": schema.StringAttribute{
 				MarkdownDescription: "Argo CD Version",
 				Computed:            true,
+			},
+			"rbac_config": schema.SingleNestedAttribute{
+				MarkdownDescription: "RBAC Config Map, more info [in Argo CD docs](https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/)",
+				Computed:            true,
+				Attributes: map[string]schema.Attribute{
+					"default_policy": schema.StringAttribute{
+						MarkdownDescription: "Value of `policy.default` in `argocd-rbac-cm` configmap",
+						Computed:    true,
+					},
+					"policy_csv": schema.StringAttribute{
+						MarkdownDescription: "Value of `policy.csv` in `argocd-rbac-cm` configmap",
+						Computed:    true,
+					},
+					"scopes": schema.ListAttribute{
+						MarkdownDescription: "List of OIDC scopes",
+						Computed:    true,
+						ElementType: types.StringType,
+					},
+				},
 			},
 		},
 	}
@@ -100,7 +120,7 @@ func (d *AkpInstanceDataSource) Read(ctx context.Context, req datasource.ReadReq
 	}
 
 	tflog.Info(ctx, "Got Argo CD instance")
-	resp.Diagnostics.Append(state.UpdateInstance(apiResp.GetInstance())...)
+	resp.Diagnostics.Append(state.UpdateFrom(apiResp.GetInstance())...)
 
 	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)

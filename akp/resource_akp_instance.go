@@ -13,6 +13,7 @@ import (
 	akptypes "github.com/akuity/terraform-provider-akp/akp/types"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"golang.org/x/exp/slices"
 	codes "google.golang.org/grpc/codes"
@@ -30,6 +31,75 @@ func NewAkpInstanceResource() resource.Resource {
 // AkpInstanceResource defines the resource implementation.
 type AkpInstanceResource struct {
 	akpCli *AkpCli
+}
+
+func (r *AkpInstanceResource) waitInstanceHealthStatus(ctx context.Context, instance *argocdv1.Instance) (*argocdv1.Instance, error) {
+	healthStatus := instance.GetHealthStatus()
+	breakStatusesHealth := []healthv1.StatusCode{healthv1.StatusCode_STATUS_CODE_HEALTHY, healthv1.StatusCode_STATUS_CODE_DEGRADED}
+
+	for !slices.Contains(breakStatusesHealth, healthStatus.GetCode()) {
+		time.Sleep(2 * time.Second)
+		apiReq := &argocdv1.GetInstanceRequest{
+			OrganizationId: r.akpCli.OrgId,
+			Id:             instance.GetId(),
+			IdType:         idv1.Type_ID,
+		}
+		tflog.Debug(ctx, fmt.Sprintf("Api Req: %s", apiReq.String()))
+		apiResp, err := r.akpCli.Cli.GetInstance(ctx, apiReq)
+		tflog.Debug(ctx, fmt.Sprintf("Api Resp: %s", apiResp.String()))
+		if err != nil {
+			return nil, err
+		}
+		instance = apiResp.GetInstance()
+		healthStatus = instance.GetHealthStatus()
+		tflog.Info(ctx, fmt.Sprintf("Instance health status: %s", healthStatus.String()))
+	}
+	return instance, nil
+}
+
+func (r *AkpInstanceResource) waitInstanceReconStatus(ctx context.Context, instance *argocdv1.Instance) (*argocdv1.Instance, error) {
+	reconStatus := instance.GetReconciliationStatus()
+	breakStatusesRecon := []reconv1.StatusCode{reconv1.StatusCode_STATUS_CODE_SUCCESSFUL, reconv1.StatusCode_STATUS_CODE_FAILED}
+
+	for !slices.Contains(breakStatusesRecon, reconStatus.GetCode()) {
+		time.Sleep(1 * time.Second)
+		apiReq := &argocdv1.GetInstanceRequest{
+			OrganizationId: r.akpCli.OrgId,
+			Id:             instance.GetId(),
+			IdType:         idv1.Type_ID,
+		}
+		tflog.Debug(ctx, fmt.Sprintf("Api Req: %s", apiReq.String()))
+		apiResp, err := r.akpCli.Cli.GetInstance(ctx, apiReq)
+		tflog.Debug(ctx, fmt.Sprintf("Api Resp: %s", apiResp.String()))
+		if err != nil {
+			return nil, err
+		}
+		instance = apiResp.GetInstance()
+		reconStatus = instance.GetReconciliationStatus()
+		tflog.Info(ctx, fmt.Sprintf("Instance reconciliation status: %s", reconStatus.String()))
+	}
+	return instance, nil
+}
+
+func (r *AkpInstanceResource) UpdateInstance(ctx context.Context, id string, to *argocdv1.Instance) diag.Diagnostics {
+	diag := diag.Diagnostics{}
+	apiReq := &argocdv1.UpdateInstanceRequest{
+		OrganizationId: r.akpCli.OrgId,
+		Id:             id,
+		Instance:       to,
+	}
+	tflog.Debug(ctx, fmt.Sprintf("Api Req: %s", apiReq.String()))
+	apiResp, err := r.akpCli.Cli.UpdateInstance(ctx, apiReq)
+	tflog.Debug(ctx, fmt.Sprintf("Api Resp: %s", apiResp.String()))
+	if err != nil {
+		diag.AddError("Client Error", fmt.Sprintf("Unable to update Argo CD instance: %s", err))
+		return diag
+	}
+	to, err = r.waitInstanceReconStatus(ctx, apiResp.GetInstance())
+	if err != nil {
+		diag.AddError("Client Error", fmt.Sprintf("Unable to check Argo CD reconciliation instance status: %s", err))
+	}
+	return diag
 }
 
 func (r *AkpInstanceResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -67,43 +137,36 @@ func (r *AkpInstanceResource) Create(ctx context.Context, req resource.CreateReq
 
 	ctx = ctxutil.SetClientCredential(ctx, r.akpCli.Cred)
 	description := plan.Description.ValueString()
-	apiResp, err := r.akpCli.Cli.CreateInstance(ctx, &argocdv1.CreateInstanceRequest{
+	apiReq := &argocdv1.CreateInstanceRequest{
 		OrganizationId: r.akpCli.OrgId,
 		Name:           plan.Name.ValueString(),
 		Version:        plan.Version.ValueString(),
 		Description:    &description,
-	})
-
+	}
+	tflog.Debug(ctx, fmt.Sprintf("Api Req: %s", apiReq.String()))
+	apiResp, err := r.akpCli.Cli.CreateInstance(ctx, apiReq)
+	tflog.Debug(ctx, fmt.Sprintf("Api Resp: %s", apiResp.String()))
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Argo CD instance. %s", err))
 		return
 	}
-	breakStatusesHealth := []healthv1.StatusCode{healthv1.StatusCode_STATUS_CODE_HEALTHY, healthv1.StatusCode_STATUS_CODE_DEGRADED}
-	instance := apiResp.GetInstance()
-	healthStatus := instance.GetHealthStatus()
-	for !slices.Contains(breakStatusesHealth, healthStatus.GetCode()) {
-		time.Sleep(2 * time.Second)
-		apiResp2, err := r.akpCli.Cli.GetInstance(ctx, &argocdv1.GetInstanceRequest{
-			OrganizationId: r.akpCli.OrgId,
-			Id:             instance.GetId(),
-			IdType:         idv1.Type_ID,
-		})
-		if err != nil {
-			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to check health of Argo CD instance. %s", err))
-			return
-		}
-		instance = apiResp2.GetInstance()
-		healthStatus = instance.GetHealthStatus()
-		tflog.Debug(ctx, fmt.Sprintf("Argo CD instance status: %s", healthStatus.String()))
-	}
-	if instance.GetHealthStatus().GetCode() != healthv1.StatusCode_STATUS_CODE_HEALTHY {
-		resp.Diagnostics.AddError("Server Error", fmt.Sprintf("Instance is not healthy. %s", err))
+	instance, err := r.waitInstanceHealthStatus(ctx, apiResp.GetInstance())
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to check instance health. %s", err))
 		return
 	}
 	tflog.Info(ctx, "Argo CD instance created")
-
+	if instance.GetHealthStatus().GetCode() != healthv1.StatusCode_STATUS_CODE_HEALTHY {
+		resp.Diagnostics.AddError("Server Error", fmt.Sprintf("Instance is not healthy. %s", err))
+	} else {
+		// Update the instance
+	    resp.Diagnostics.Append(plan.As(instance)...)
+		tflog.Debug(ctx, fmt.Sprintf("Updating Instance to %s", instance))
+		resp.Diagnostics.Append(r.UpdateInstance(ctx, instance.Id, instance)...)
+		tflog.Info(ctx, "Argo CD instance updated")
+	}
 	state := &akptypes.AkpInstance{}
-	resp.Diagnostics.Append(state.UpdateInstance(instance)...)
+	resp.Diagnostics.Append(state.UpdateFrom(instance)...)
 	tflog.Debug(ctx, "Updating State")
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
@@ -136,7 +199,7 @@ func (r *AkpInstanceResource) Read(ctx context.Context, req resource.ReadRequest
 	}
 
 	tflog.Debug(ctx, "Got Argo CD instance")
-	resp.Diagnostics.Append(state.UpdateInstance(apiResp.GetInstance())...)
+	resp.Diagnostics.Append(state.UpdateFrom(apiResp.GetInstance())...)
 
 	tflog.Debug(ctx, "Updating State")
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
@@ -145,49 +208,16 @@ func (r *AkpInstanceResource) Read(ctx context.Context, req resource.ReadRequest
 func (r *AkpInstanceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan *akptypes.AkpInstance
 
-	diags := req.Plan.Get(ctx, &plan)
-	resp.Diagnostics.Append(diags...)
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-
-	protoPlan, diag := plan.ToProto()
-	resp.Diagnostics.Append(diag...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
+	instance := &argocdv1.Instance{}
+	resp.Diagnostics.Append(plan.As(instance)...)
 	ctx = ctxutil.SetClientCredential(ctx, r.akpCli.Cred)
-	apiReq := &argocdv1.UpdateInstanceRequest{
-		OrganizationId: r.akpCli.OrgId,
-		Id:             plan.Id.ValueString(),
-		Instance:       protoPlan,
-	}
-	tflog.Debug(ctx, fmt.Sprintf("apiReq: %s", apiReq))
-	apiResp, err := r.akpCli.Cli.UpdateInstance(ctx, apiReq)
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update Argo CD instance, got error: %s", err))
-		return
-	}
-	breakStatusesRecon := []reconv1.StatusCode{reconv1.StatusCode_STATUS_CODE_SUCCESSFUL, reconv1.StatusCode_STATUS_CODE_FAILED}
-	instance := apiResp.GetInstance()
-	reconStatus := instance.GetReconciliationStatus()
-	for !slices.Contains(breakStatusesRecon, reconStatus.GetCode()) {
-		time.Sleep(2 * time.Second)
-		apiResp2, err := r.akpCli.Cli.GetInstance(ctx, &argocdv1.GetInstanceRequest{
-			OrganizationId: r.akpCli.OrgId,
-			Id:             instance.GetId(),
-			IdType:         idv1.Type_ID,
-		})
-		if err != nil {
-			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to check health of Argo CD instance. %s", err))
-			return
-		}
-		instance = apiResp2.GetInstance()
-		reconStatus = instance.GetReconciliationStatus()
-		tflog.Debug(ctx, fmt.Sprintf("Argo CD instance status: %s", reconStatus.String()))
-	}
+	resp.Diagnostics.Append(r.UpdateInstance(ctx, plan.Id.ValueString(), instance)...)
 	state := &akptypes.AkpInstance{}
-	resp.Diagnostics.Append(state.UpdateInstance(instance)...)
+	resp.Diagnostics.Append(state.UpdateFrom(instance)...)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 

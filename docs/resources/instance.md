@@ -30,10 +30,20 @@ resource "akp_instance" "example" {
 ### Optional
 
 - `description` (String) Instance Description
+- `rbac_config` (Attributes) RBAC Config Map, more info [in Argo CD docs](https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/) (see [below for nested schema](#nestedatt--rbac_config))
 
 ### Read-Only
 
 - `hostname` (String) Instance hostname
 - `id` (String) Instance ID
+
+<a id="nestedatt--rbac_config"></a>
+### Nested Schema for `rbac_config`
+
+Optional:
+
+- `default_policy` (String) Value of `policy.default` in `argocd-rbac-cm` configmap
+- `policy_csv` (String) Value of `policy.csv` in `argocd-rbac-cm` configmap
+- `scopes` (List of String) List of OIDC scopes
 
 
