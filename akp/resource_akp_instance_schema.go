@@ -6,11 +6,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	akplist "github.com/akuity/terraform-provider-akp/akp/planmodifiers/list"
+	akpobject "github.com/akuity/terraform-provider-akp/akp/planmodifiers/object"
 )
 
 func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
@@ -52,7 +52,7 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 				Optional:            true,
 				Computed:            true,
 				PlanModifiers: []planmodifier.Object{
-					objectplanmodifier.UseStateForUnknown(),
+					akpobject.UseStateNullForUnknown(),
 				},
 				Attributes: map[string]schema.Attribute{
 					"admin": schema.BoolAttribute{
@@ -68,7 +68,7 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 						Optional:            true,
 						Computed:            true,
 						PlanModifiers: []planmodifier.Object{
-							objectplanmodifier.UseStateForUnknown(),
+							akpobject.UseStateNullForUnknown(),
 						},
 						Attributes: map[string]schema.Attribute{
 							"enabled": schema.BoolAttribute{
@@ -94,7 +94,7 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 						Optional:            true,
 						Computed:            true,
 						PlanModifiers: []planmodifier.Object{
-							objectplanmodifier.UseStateForUnknown(),
+							akpobject.UseStateNullForUnknown(),
 						},
 						Attributes: map[string]schema.Attribute{
 							"tracking_id": schema.StringAttribute{
@@ -128,7 +128,7 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 						Optional:            true,
 						Computed:            true,
 						PlanModifiers: []planmodifier.Object{
-							objectplanmodifier.UseStateForUnknown(),
+							akpobject.UseStateNullForUnknown(),
 						},
 						Attributes: map[string]schema.Attribute{
 							"message": schema.StringAttribute{
@@ -162,7 +162,7 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 						Optional:            true,
 						Computed:            true,
 						PlanModifiers: []planmodifier.Object{
-							objectplanmodifier.UseStateForUnknown(),
+							akpobject.UseStateNullForUnknown(),
 						},
 						Attributes: map[string]schema.Attribute{
 							"message": schema.StringAttribute{
@@ -196,7 +196,7 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 						Optional:            true,
 						Computed:            true,
 						PlanModifiers: []planmodifier.Object{
-							objectplanmodifier.UseStateForUnknown(),
+							akpobject.UseStateNullForUnknown(),
 						},
 						Attributes: map[string]schema.Attribute{
 							"enabled": schema.BoolAttribute{
@@ -222,7 +222,7 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 						Optional:            true,
 						Computed:            true,
 						PlanModifiers: []planmodifier.Object{
-							objectplanmodifier.UseStateForUnknown(),
+							akpobject.UseStateNullForUnknown(),
 						},
 						Attributes: map[string]schema.Attribute{
 							"enabled": schema.BoolAttribute{
@@ -248,7 +248,7 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 						Optional:            true,
 						Computed:            true,
 						PlanModifiers: []planmodifier.Object{
-							objectplanmodifier.UseStateForUnknown(),
+							akpobject.UseStateNullForUnknown(),
 						},
 						Attributes: map[string]schema.Attribute{
 							"inclusions": schema.StringAttribute{
@@ -306,7 +306,7 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 						Optional:            true,
 						Computed:            true,
 						PlanModifiers: []planmodifier.Object{
-							objectplanmodifier.UseStateForUnknown(),
+							akpobject.UseStateNullForUnknown(),
 						},
 						Attributes: map[string]schema.Attribute{
 							"enabled": schema.BoolAttribute{
@@ -334,7 +334,7 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 				Optional:            true,
 				Computed:            true,
 				PlanModifiers: []planmodifier.Object{
-					objectplanmodifier.UseStateForUnknown(),
+					akpobject.UseStateNullForUnknown(),
 				},
 				Attributes: map[string]schema.Attribute{
 					"default_policy": schema.StringAttribute{
@@ -359,7 +359,7 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 						Computed:    true,
 						ElementType: types.StringType,
 						PlanModifiers: []planmodifier.List{
-							listplanmodifier.UseStateForUnknown(),
+							akplist.UseStateNullForUnknown(),
 						},
 					},
 				},
@@ -369,7 +369,7 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 				Optional:            true,
 				Computed:            true,
 				PlanModifiers: []planmodifier.Object{
-					objectplanmodifier.UseStateForUnknown(),
+					akpobject.UseStateNullForUnknown(),
 				},
 				Attributes: map[string]schema.Attribute{
 					"audit_extension": schema.BoolAttribute{
@@ -393,7 +393,7 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 						Optional:            true,
 						Computed:            true,
 						PlanModifiers: []planmodifier.Object{
-							objectplanmodifier.UseStateForUnknown(),
+							akpobject.UseStateNullForUnknown(),
 						},
 						Attributes: map[string]schema.Attribute{
 							"custom_image_registry_argoproj": schema.StringAttribute{
@@ -435,7 +435,7 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 						Optional:            true,
 						Computed:            true,
 						PlanModifiers: []planmodifier.List{
-							listplanmodifier.UseStateForUnknown(),
+							akplist.UseStateNullForUnknown(),
 						},
 						NestedObject: schema.NestedAttributeObject{
 							Attributes: map[string]schema.Attribute{
@@ -470,7 +470,7 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 						MarkdownDescription: "IP Allow List",
 						Optional:            true,
 						PlanModifiers: []planmodifier.List{
-							listplanmodifier.UseStateForUnknown(),
+							akplist.UseStateNullForUnknown(),
 						},
 						NestedObject: schema.NestedAttributeObject{
 							Attributes: map[string]schema.Attribute{
@@ -498,7 +498,7 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 						Optional:            true,
 						Computed:            true,
 						PlanModifiers: []planmodifier.Object{
-							objectplanmodifier.UseStateForUnknown(),
+							akpobject.UseStateNullForUnknown(),
 						},
 						Attributes: map[string]schema.Attribute{
 							"control_plane": schema.SingleNestedAttribute{
@@ -506,7 +506,7 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 								Computed:    true,
 								Attributes: map[string]schema.Attribute{},
 								PlanModifiers: []planmodifier.Object{
-									objectplanmodifier.UseStateForUnknown(),
+									akpobject.UseStateNullForUnknown(),
 								},
 							},
 							"managed_cluster": schema.SingleNestedAttribute{
@@ -514,7 +514,7 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 								Optional:    true,
 								Computed:    true,
 								PlanModifiers: []planmodifier.Object{
-									objectplanmodifier.UseStateForUnknown(),
+									akpobject.UseStateNullForUnknown(),
 								},
 								Attributes: map[string]schema.Attribute{
 									"cluster_name": schema.StringAttribute{
