@@ -218,7 +218,7 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 						},
 					},
 					"helm": schema.SingleNestedAttribute{
-						MarkdownDescription: "Disale Agent Auto-upgrade",
+						MarkdownDescription: "Helm Configuration",
 						Optional:            true,
 						Computed:            true,
 						PlanModifiers: []planmodifier.Object{
@@ -413,7 +413,7 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 								},
 							},
 							"auto_upgrade_disabled": schema.BoolAttribute{
-								MarkdownDescription: "Disale Agent Auto-upgrade",
+								MarkdownDescription: "Disable Agent Auto-upgrade",
 								Optional:            true,
 								Computed:            true,
 								PlanModifiers: []planmodifier.Bool{

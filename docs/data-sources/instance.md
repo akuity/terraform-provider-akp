@@ -46,7 +46,7 @@ Read-Only:
 - `chat` (Attributes) Chat Configuration (see [below for nested schema](#nestedatt--config--chat))
 - `dex` (String) Dex Config YAML
 - `google_analytics` (Attributes) Google Analytics Configuration (see [below for nested schema](#nestedatt--config--google_analytics))
-- `helm` (Attributes) Disale Agent Auto-upgrade (see [below for nested schema](#nestedatt--config--helm))
+- `helm` (Attributes) Helm Configuration (see [below for nested schema](#nestedatt--config--helm))
 - `instance_label_key` (String) Instance Label Key
 - `kustomize` (Attributes) Kustomize Settings (see [below for nested schema](#nestedatt--config--kustomize))
 - `oidc` (String) OIDC Config YAML
@@ -160,7 +160,7 @@ Read-Only:
 
 Read-Only:
 
-- `auto_upgrade_disabled` (Boolean) Disale Agent Auto-upgrade
+- `auto_upgrade_disabled` (Boolean) Disable Agent Auto-upgrade
 - `custom_image_registry_akuity` (String) Custom Image Registry for Akuity images
 - `custom_image_registry_argoproj` (String) Custom Image Registry for Argoproj images
 
