@@ -146,7 +146,7 @@ func (d *AkpInstanceDataSource) Schema(ctx context.Context, req datasource.Schem
 						},
 					},
 					"helm": schema.SingleNestedAttribute{
-						MarkdownDescription: "Disale Agent Auto-upgrade",
+						MarkdownDescription: "Helm Configuration",
 						Computed:            true,
 						Attributes: map[string]schema.Attribute{
 							"enabled": schema.BoolAttribute{
@@ -249,7 +249,7 @@ func (d *AkpInstanceDataSource) Schema(ctx context.Context, req datasource.Schem
 								Computed:            true,
 							},
 							"auto_upgrade_disabled": schema.BoolAttribute{
-								MarkdownDescription: "Disale Agent Auto-upgrade",
+								MarkdownDescription: "Disable Agent Auto-upgrade",
 								Computed:            true,
 							},
 						},
