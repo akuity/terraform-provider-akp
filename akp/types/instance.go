@@ -51,7 +51,7 @@ func MergeInstance(state *AkpInstance, plan *AkpInstance) (*AkpInstance, diag.Di
 	}
 
 	if plan.Config.IsUnknown() {
-		res.Config = plan.Config
+		res.Config = state.Config
 	} else if plan.Config.IsNull() {
 		res.Config = types.ObjectNull(configMapAttrTypes)
 	} else {
@@ -67,7 +67,7 @@ func MergeInstance(state *AkpInstance, plan *AkpInstance) (*AkpInstance, diag.Di
 	}
 
 	if plan.Spec.IsUnknown() {
-		res.Spec = plan.Spec
+		res.Spec = state.Spec
 	} else if plan.Spec.IsNull() {
 		res.Spec = types.ObjectNull(instanceSpecAttrTypes)
 	} else {

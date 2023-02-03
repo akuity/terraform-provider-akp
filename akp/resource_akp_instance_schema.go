@@ -33,10 +33,6 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 			"description": schema.StringAttribute{
 				MarkdownDescription: "Instance Description",
 				Optional:            true,
-				Computed:            true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"version": schema.StringAttribute{
 				MarkdownDescription: "Argo CD version. Should be equal to any [argo cd image tag](https://quay.io/repository/argoproj/argocd?tab=tags).<br>Note that `2.5.3` will result a degraded instance! Use `v2.5.3`",
@@ -51,7 +47,7 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 				Optional:            true,
 				Computed:            true,
 				PlanModifiers: []planmodifier.Object{
-					akpobject.UseStateNullForUnknown(),
+					objectplanmodifier.UseStateForUnknown(),
 				},
 				Attributes: map[string]schema.Attribute{
 					"admin": schema.BoolAttribute{
@@ -330,6 +326,10 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 			"spec": schema.SingleNestedAttribute{
 				MarkdownDescription: "Instance Specification",
 				Optional:            true,
+				Computed:            true,
+				PlanModifiers: []planmodifier.Object{
+					objectplanmodifier.UseStateForUnknown(),
+				},
 				Attributes: map[string]schema.Attribute{
 					"audit_extension": schema.BoolAttribute{
 						MarkdownDescription: "Enable Audit Extension",
@@ -384,6 +384,9 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 					"declarative_management": schema.BoolAttribute{
 						MarkdownDescription: "Enable Declarative Management",
 						Optional:            true,
+						PlanModifiers: []planmodifier.Bool{
+							boolplanmodifier.UseStateForUnknown(),
+						},
 					},
 					"extensions": schema.ListNestedAttribute{
 						MarkdownDescription: "Extensions",
