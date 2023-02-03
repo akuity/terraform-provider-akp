@@ -15,9 +15,32 @@ type AkpArgoCDWebTerminal struct {
 var (
 	webTerminalAttrTypes = map[string]attr.Type{
 		"enabled": types.BoolType,
-		"shells": types.StringType,
+		"shells":  types.StringType,
 	}
 )
+
+func MergeWebTerminal(state *AkpArgoCDWebTerminal, plan *AkpArgoCDWebTerminal) (*AkpArgoCDWebTerminal, diag.Diagnostics) {
+	diags := diag.Diagnostics{}
+	res := &AkpArgoCDWebTerminal{}
+
+	if plan.Enabled.IsUnknown() {
+		res.Enabled = state.Enabled
+	} else if plan.Enabled.IsNull() {
+		res.Enabled = types.BoolNull()
+	} else {
+		res.Enabled = plan.Enabled
+	}
+
+	if plan.Shells.IsUnknown() {
+		res.Shells = state.Shells
+	} else if plan.Shells.IsNull() {
+		res.Shells = types.StringNull()
+	} else {
+		res.Shells = plan.Shells
+	}
+
+	return res, diags
+}
 
 func (x *AkpArgoCDWebTerminal) UpdateObject(p *argocdv1.ArgoCDWebTerminalConfig) diag.Diagnostics {
 	diags := diag.Diagnostics{}
@@ -26,7 +49,11 @@ func (x *AkpArgoCDWebTerminal) UpdateObject(p *argocdv1.ArgoCDWebTerminalConfig)
 		return diags
 	}
 	x.Enabled = types.BoolValue(p.GetEnabled())
-	x.Shells = types.StringValue(p.GetShells())
+	if p.Shells == "" {
+		x.Shells = types.StringNull()
+	} else {
+		x.Shells = types.StringValue(p.Shells)
+	}
 	return diags
 }
 

@@ -62,6 +62,189 @@ var (
 	}
 )
 
+func MergeConfig(state *AkpArgoCDConfig, plan *AkpArgoCDConfig) (*AkpArgoCDConfig, diag.Diagnostics) {
+	diags := diag.Diagnostics{}
+	res := &AkpArgoCDConfig{}
+
+	if plan.AdminEnabled.IsUnknown() {
+		res.AdminEnabled = state.AdminEnabled
+	} else if plan.AdminEnabled.IsNull() {
+		res.AdminEnabled = types.BoolNull()
+	} else {
+		res.AdminEnabled = plan.AdminEnabled
+	}
+
+	if plan.AllowAnonymousUser.IsUnknown() {
+		res.AllowAnonymousUser = state.AllowAnonymousUser
+	} else if plan.AllowAnonymousUser.IsNull() {
+		res.AllowAnonymousUser = types.BoolNull()
+	} else {
+		res.AllowAnonymousUser = plan.AllowAnonymousUser
+	}
+
+	if plan.Banner.IsUnknown() {
+		res.Banner = state.Banner
+	} else if plan.Banner.IsNull() {
+		res.Banner = types.ObjectNull(bannerAttrTypes)
+	} else {
+		var stateBanner, planBanner AkpArgoCDBanner
+		diags.Append(state.Banner.As(context.Background(), &stateBanner, basetypes.ObjectAsOptions{
+			UnhandledNullAsEmpty: true,
+		})...)
+		diags.Append(plan.Banner.As(context.Background(), &planBanner, basetypes.ObjectAsOptions{})...)
+		resBanner, d := MergeBanner(&stateBanner, &planBanner)
+		diags.Append(d...)
+		res.Banner, d = types.ObjectValueFrom(context.Background(), bannerAttrTypes, resBanner)
+		diags.Append(d...)
+	}
+
+	if plan.Chat.IsUnknown() {
+		res.Chat = state.Chat
+	} else if plan.Chat.IsNull() {
+		res.Chat = types.ObjectNull(chatAttrTypes)
+	} else {
+		var stateChat, planChat AkpArgoCDChat
+		diags.Append(state.Chat.As(context.Background(), &stateChat, basetypes.ObjectAsOptions{
+			UnhandledNullAsEmpty: true,
+		})...)
+		diags.Append(plan.Chat.As(context.Background(), &planChat, basetypes.ObjectAsOptions{})...)
+		resChat, d := MergeChat(&stateChat, &planChat)
+		diags.Append(d...)
+		res.Chat, d = types.ObjectValueFrom(context.Background(), chatAttrTypes, resChat)
+		diags.Append(d...)
+	}
+
+	if plan.DexConfig.IsUnknown() {
+		res.DexConfig = state.DexConfig
+	} else if plan.DexConfig.IsNull() {
+		res.DexConfig = types.StringNull()
+	} else {
+		res.DexConfig = plan.DexConfig
+	}
+
+	if plan.GoogleAnalytics.IsUnknown() {
+		res.GoogleAnalytics = state.GoogleAnalytics
+	} else if plan.GoogleAnalytics.IsNull() {
+		res.GoogleAnalytics = types.ObjectNull(googleAnalyticsAttrTypes)
+	} else {
+		var stateGoogleAnalytics, planGoogleAnalytics AkpArgoCDGoogleAnalytics
+		diags.Append(state.GoogleAnalytics.As(context.Background(), &stateGoogleAnalytics, basetypes.ObjectAsOptions{
+			UnhandledNullAsEmpty: true,
+		})...)
+		diags.Append(plan.GoogleAnalytics.As(context.Background(), &planGoogleAnalytics, basetypes.ObjectAsOptions{})...)
+		resGoogleAnalytics, d := MergeGoogleAnalytics(&stateGoogleAnalytics, &planGoogleAnalytics)
+		diags.Append(d...)
+		res.GoogleAnalytics, d = types.ObjectValueFrom(context.Background(), googleAnalyticsAttrTypes, resGoogleAnalytics)
+		diags.Append(d...)
+	}
+
+	if plan.HelmSettings.IsUnknown() {
+		res.HelmSettings = state.HelmSettings
+	} else if plan.HelmSettings.IsNull() {
+		res.HelmSettings = types.ObjectNull(helmSettingsAttrTypes)
+	} else {
+		var stateHelmSettings, planHelmSettings AkpArgoCDHelmSettings
+		diags.Append(state.HelmSettings.As(context.Background(), &stateHelmSettings, basetypes.ObjectAsOptions{
+			UnhandledNullAsEmpty: true,
+		})...)
+		diags.Append(plan.HelmSettings.As(context.Background(), &planHelmSettings, basetypes.ObjectAsOptions{})...)
+		resHelmSettings, d := MergeHelmSettings(&stateHelmSettings, &planHelmSettings)
+		diags.Append(d...)
+		res.HelmSettings, d = types.ObjectValueFrom(context.Background(), helmSettingsAttrTypes, resHelmSettings)
+		diags.Append(d...)
+	}
+
+	if plan.InstanceLabelKey.IsUnknown() {
+		res.InstanceLabelKey = state.InstanceLabelKey
+	} else if plan.InstanceLabelKey.IsNull() {
+		res.InstanceLabelKey = types.StringNull()
+	} else {
+		res.InstanceLabelKey = plan.InstanceLabelKey
+	}
+
+	if plan.KustomizeSettings.IsUnknown() {
+		res.KustomizeSettings = state.KustomizeSettings
+	} else if plan.KustomizeSettings.IsNull() {
+		res.KustomizeSettings = types.ObjectNull(kustomizeSettingsAttrTypes)
+	} else {
+		var stateKustomizeSettings, planKustomizeSettings AkpArgoCDKustomizeSettings
+		diags.Append(state.KustomizeSettings.As(context.Background(), &stateKustomizeSettings, basetypes.ObjectAsOptions{
+			UnhandledNullAsEmpty: true,
+		})...)
+		diags.Append(plan.KustomizeSettings.As(context.Background(), &planKustomizeSettings, basetypes.ObjectAsOptions{})...)
+		resKustomizeSettings, d := MergeKustomizeSettings(&stateKustomizeSettings, &planKustomizeSettings)
+		diags.Append(d...)
+		res.KustomizeSettings, d = types.ObjectValueFrom(context.Background(), kustomizeSettingsAttrTypes, resKustomizeSettings)
+		diags.Append(d...)
+	}
+
+	if plan.OidcConfig.IsUnknown() {
+		res.OidcConfig = state.OidcConfig
+	} else if plan.OidcConfig.IsNull() {
+		res.OidcConfig = types.StringNull()
+	} else {
+		res.OidcConfig = plan.OidcConfig
+	}
+
+	if plan.ResourceSettings.IsUnknown() {
+		res.ResourceSettings = state.ResourceSettings
+	} else if plan.ResourceSettings.IsNull() {
+		res.ResourceSettings = types.ObjectNull(resourceSettingsAttrTypes)
+	} else {
+		var stateResourceSettings, planResourceSettings AkpArgoCDResourceSettings
+		diags.Append(state.ResourceSettings.As(context.Background(), &stateResourceSettings, basetypes.ObjectAsOptions{
+			UnhandledNullAsEmpty: true,
+		})...)
+		diags.Append(plan.ResourceSettings.As(context.Background(), &planResourceSettings, basetypes.ObjectAsOptions{})...)
+		resResourceSettings, d := MergeResourceSettings(&stateResourceSettings, &planResourceSettings)
+		diags.Append(d...)
+		res.ResourceSettings, d = types.ObjectValueFrom(context.Background(), resourceSettingsAttrTypes, resResourceSettings)
+		diags.Append(d...)
+	}
+
+	if plan.StatusBadge.IsUnknown() {
+		res.StatusBadge = state.StatusBadge
+	} else if plan.StatusBadge.IsNull() {
+		res.StatusBadge = types.ObjectNull(statusBadgeAttrTypes)
+	} else {
+		var stateStatusBadge, planStatusBadge AkpArgoCDStatusBadge
+		diags.Append(state.StatusBadge.As(context.Background(), &stateStatusBadge, basetypes.ObjectAsOptions{
+			UnhandledNullAsEmpty: true,
+		})...)
+		diags.Append(plan.StatusBadge.As(context.Background(), &planStatusBadge, basetypes.ObjectAsOptions{})...)
+		resStatusBadge, d := MergeStatusBadge(&stateStatusBadge, &planStatusBadge)
+		diags.Append(d...)
+		res.StatusBadge, d = types.ObjectValueFrom(context.Background(), statusBadgeAttrTypes, resStatusBadge)
+		diags.Append(d...)
+	}
+
+	if plan.UsersSessionDuration.IsUnknown() {
+		res.UsersSessionDuration = state.UsersSessionDuration
+	} else if plan.UsersSessionDuration.IsNull() {
+		res.UsersSessionDuration = types.StringNull()
+	} else {
+		res.UsersSessionDuration = plan.UsersSessionDuration
+	}
+
+	if plan.WebTerminal.IsUnknown() {
+		res.WebTerminal = state.WebTerminal
+	} else if plan.WebTerminal.IsNull() {
+		res.WebTerminal = types.ObjectNull(webTerminalAttrTypes)
+	} else {
+		var stateWebTerminal, planWebTerminal AkpArgoCDWebTerminal
+		diags.Append(state.WebTerminal.As(context.Background(), &stateWebTerminal, basetypes.ObjectAsOptions{
+			UnhandledNullAsEmpty: true,
+		})...)
+		diags.Append(plan.WebTerminal.As(context.Background(), &planWebTerminal, basetypes.ObjectAsOptions{})...)
+		resWebTerminal, d := MergeWebTerminal(&stateWebTerminal, &planWebTerminal)
+		diags.Append(d...)
+		res.WebTerminal, d = types.ObjectValueFrom(context.Background(), webTerminalAttrTypes, resWebTerminal)
+		diags.Append(d...)
+	}
+
+	return res, diags
+}
+
 func (x *AkpArgoCDConfig) UpdateObject(p *argocdv1.ArgoCDConfigMap) diag.Diagnostics {
 	diags := diag.Diagnostics{}
 	d := diag.Diagnostics{}
@@ -71,7 +254,7 @@ func (x *AkpArgoCDConfig) UpdateObject(p *argocdv1.ArgoCDConfigMap) diag.Diagnos
 	}
 	x.AdminEnabled = types.BoolValue(p.GetAdminEnabled())
 	x.AllowAnonymousUser = types.BoolValue(p.GetAllowAnonymousUser())
-	if p.Banner == nil {
+	if p.Banner == nil || p.Banner.String() == "" {
 		x.Banner = types.ObjectNull(bannerAttrTypes)
 	} else {
 		banner := &AkpArgoCDBanner{}
@@ -80,7 +263,7 @@ func (x *AkpArgoCDConfig) UpdateObject(p *argocdv1.ArgoCDConfigMap) diag.Diagnos
 		diags.Append(d...)
 	}
 
-	if p.Chat == nil {
+	if p.Chat == nil || p.Chat.String() == "" {
 		x.Chat = types.ObjectNull(chatAttrTypes)
 	} else {
 		chat := &AkpArgoCDChat{}
@@ -89,9 +272,13 @@ func (x *AkpArgoCDConfig) UpdateObject(p *argocdv1.ArgoCDConfigMap) diag.Diagnos
 		diags.Append(d...)
 	}
 
-	x.DexConfig = types.StringValue(p.GetDexConfig())
+	if p.DexConfig == "" {
+		x.DexConfig = types.StringNull()
+	} else {
+		x.DexConfig = types.StringValue(p.DexConfig)
+	}
 
-	if p.GoogleAnalytics == nil {
+	if p.GoogleAnalytics == nil || p.GoogleAnalytics.String() == "" {
 		x.GoogleAnalytics = types.ObjectNull(googleAnalyticsAttrTypes)
 	} else {
 		googleAnalytics := &AkpArgoCDGoogleAnalytics{}
@@ -100,7 +287,7 @@ func (x *AkpArgoCDConfig) UpdateObject(p *argocdv1.ArgoCDConfigMap) diag.Diagnos
 		diags.Append(d...)
 	}
 
-	if p.HelmSettings == nil {
+	if p.HelmSettings == nil || p.HelmSettings.String() == "" {
 		x.HelmSettings = types.ObjectNull(helmSettingsAttrTypes)
 	} else {
 		helmSettings := &AkpArgoCDHelmSettings{}
@@ -109,9 +296,13 @@ func (x *AkpArgoCDConfig) UpdateObject(p *argocdv1.ArgoCDConfigMap) diag.Diagnos
 		diags.Append(d...)
 	}
 
-	x.InstanceLabelKey = types.StringValue(p.GetInstanceLabelKey())
+	if p.InstanceLabelKey == "" {
+		x.InstanceLabelKey = types.StringNull()
+	} else {
+		x.InstanceLabelKey = types.StringValue(p.InstanceLabelKey)
+	}
 
-	if p.KustomizeSettings == nil {
+	if p.KustomizeSettings == nil || p.KustomizeSettings.String() == "" {
 		x.KustomizeSettings = types.ObjectNull(kustomizeSettingsAttrTypes)
 	} else {
 		kustomizeSettings := &AkpArgoCDKustomizeSettings{}
@@ -120,9 +311,13 @@ func (x *AkpArgoCDConfig) UpdateObject(p *argocdv1.ArgoCDConfigMap) diag.Diagnos
 		diags.Append(d...)
 	}
 
-	x.OidcConfig = types.StringValue(p.GetOidcConfig())
+	if p.OidcConfig == "" {
+		x.OidcConfig = types.StringNull()
+	} else {
+		x.OidcConfig = types.StringValue(p.OidcConfig)
+	}
 
-	if p.ResourceSettings == nil {
+	if p.ResourceSettings == nil || p.ResourceSettings.String() == "" {
 		x.ResourceSettings = types.ObjectNull(resourceSettingsAttrTypes)
 	} else {
 		resourceSettings := &AkpArgoCDResourceSettings{}
@@ -131,7 +326,7 @@ func (x *AkpArgoCDConfig) UpdateObject(p *argocdv1.ArgoCDConfigMap) diag.Diagnos
 		diags.Append(d...)
 	}
 
-	if p.StatusBadge == nil {
+	if p.StatusBadge == nil || p.StatusBadge.String() == "" {
 		x.StatusBadge = types.ObjectNull(statusBadgeAttrTypes)
 	} else {
 		statusBadge := &AkpArgoCDStatusBadge{}
@@ -139,9 +334,14 @@ func (x *AkpArgoCDConfig) UpdateObject(p *argocdv1.ArgoCDConfigMap) diag.Diagnos
 		x.StatusBadge, d = types.ObjectValueFrom(context.Background(), statusBadgeAttrTypes, &statusBadge)
 		diags.Append(d...)
 	}
-	x.UsersSessionDuration = types.StringValue(p.GetUsersSessionDuration())
 
-	if p.WebTerminal == nil {
+	if p.UsersSessionDuration == "" {
+		x.UsersSessionDuration = types.StringNull()
+	} else {
+		x.UsersSessionDuration = types.StringValue(p.UsersSessionDuration)
+	}
+
+	if p.WebTerminal == nil || p.WebTerminal.String() == "" {
 		x.WebTerminal = types.ObjectNull(webTerminalAttrTypes)
 	} else {
 		webTerminal := &AkpArgoCDWebTerminal{}
@@ -161,6 +361,9 @@ func (x *AkpArgoCDConfig) As(target *argocdv1.ArgoCDConfigMap) diag.Diagnostics 
 		target.Banner = nil
 	} else if !x.Banner.IsUnknown() {
 		banner := AkpArgoCDBanner{}
+		if target.Banner != nil {
+			diags.Append(banner.UpdateObject(target.Banner)...)
+		}
 		targetBanner := argocdv1.ArgoCDBannerConfig{}
 		diags.Append(x.Banner.As(context.Background(), &banner, basetypes.ObjectAsOptions{})...)
 		diags.Append(banner.As(&targetBanner)...)
@@ -171,6 +374,9 @@ func (x *AkpArgoCDConfig) As(target *argocdv1.ArgoCDConfigMap) diag.Diagnostics 
 		target.Chat = nil
 	} else if !x.Chat.IsUnknown() {
 		chat := AkpArgoCDChat{}
+		if target.Chat != nil {
+			diags.Append(chat.UpdateObject(target.Chat)...)
+		}
 		targetChat := argocdv1.ArgoCDAlertConfig{}
 		diags.Append(x.Chat.As(context.Background(), &chat, basetypes.ObjectAsOptions{})...)
 		diags.Append(chat.As(&targetChat)...)
@@ -183,6 +389,9 @@ func (x *AkpArgoCDConfig) As(target *argocdv1.ArgoCDConfigMap) diag.Diagnostics 
 		target.GoogleAnalytics = nil
 	} else if !x.GoogleAnalytics.IsUnknown() {
 		googleAnalytics := AkpArgoCDGoogleAnalytics{}
+		if target.GoogleAnalytics != nil {
+			diags.Append(googleAnalytics.UpdateObject(target.GoogleAnalytics)...)
+		}
 		targetGoogleAnalytics := argocdv1.ArgoCDGoogleAnalyticsConfig{}
 		diags.Append(x.GoogleAnalytics.As(context.Background(), &googleAnalytics, basetypes.ObjectAsOptions{})...)
 		diags.Append(googleAnalytics.As(&targetGoogleAnalytics)...)
@@ -193,6 +402,9 @@ func (x *AkpArgoCDConfig) As(target *argocdv1.ArgoCDConfigMap) diag.Diagnostics 
 		target.HelmSettings = nil
 	} else if !x.HelmSettings.IsUnknown() {
 		helmSettings := AkpArgoCDHelmSettings{}
+		if target.HelmSettings != nil {
+			diags.Append(helmSettings.UpdateObject(target.HelmSettings)...)
+		}
 		targetHelmSettings := argocdv1.ArgoCDHelmSettings{}
 		diags.Append(x.HelmSettings.As(context.Background(), &helmSettings, basetypes.ObjectAsOptions{})...)
 		diags.Append(helmSettings.As(&targetHelmSettings)...)
@@ -205,6 +417,9 @@ func (x *AkpArgoCDConfig) As(target *argocdv1.ArgoCDConfigMap) diag.Diagnostics 
 		target.KustomizeSettings = nil
 	} else if !x.KustomizeSettings.IsUnknown() {
 		kustomizeSettings := AkpArgoCDKustomizeSettings{}
+		if target.KustomizeSettings != nil {
+			diags.Append(kustomizeSettings.UpdateObject(target.KustomizeSettings)...)
+		}
 		targetKustomizeSettings := argocdv1.ArgoCDKustomizeSettings{}
 		diags.Append(x.KustomizeSettings.As(context.Background(), &kustomizeSettings, basetypes.ObjectAsOptions{})...)
 		diags.Append(kustomizeSettings.As(&targetKustomizeSettings)...)
@@ -217,6 +432,9 @@ func (x *AkpArgoCDConfig) As(target *argocdv1.ArgoCDConfigMap) diag.Diagnostics 
 		target.ResourceSettings = nil
 	} else if !x.ResourceSettings.IsUnknown() {
 		resourceSettings := AkpArgoCDResourceSettings{}
+		if target.ResourceSettings != nil {
+			diags.Append(resourceSettings.UpdateObject(target.ResourceSettings)...)
+		}
 		targetResourceSettings := argocdv1.ArgoCDResourceSettings{}
 		diags.Append(x.ResourceSettings.As(context.Background(), &resourceSettings, basetypes.ObjectAsOptions{})...)
 		diags.Append(resourceSettings.As(&targetResourceSettings)...)
@@ -227,6 +445,9 @@ func (x *AkpArgoCDConfig) As(target *argocdv1.ArgoCDConfigMap) diag.Diagnostics 
 		target.StatusBadge = nil
 	} else if !x.StatusBadge.IsUnknown() {
 		statusBadge := AkpArgoCDStatusBadge{}
+		if target.StatusBadge != nil {
+			diags.Append(statusBadge.UpdateObject(target.StatusBadge)...)
+		}
 		targetStatusBadge := argocdv1.ArgoCDStatusBadgeConfig{}
 		diags.Append(x.StatusBadge.As(context.Background(), &statusBadge, basetypes.ObjectAsOptions{})...)
 		diags.Append(statusBadge.As(&targetStatusBadge)...)
@@ -239,6 +460,9 @@ func (x *AkpArgoCDConfig) As(target *argocdv1.ArgoCDConfigMap) diag.Diagnostics 
 		target.WebTerminal = nil
 	} else if !x.WebTerminal.IsUnknown() {
 		webTerminal := AkpArgoCDWebTerminal{}
+		if target.WebTerminal != nil {
+			diags.Append(webTerminal.UpdateObject(target.WebTerminal)...)
+		}
 		targetWebTerminal := argocdv1.ArgoCDWebTerminalConfig{}
 		diags.Append(x.WebTerminal.As(context.Background(), &webTerminal, basetypes.ObjectAsOptions{})...)
 		diags.Append(webTerminal.As(&targetWebTerminal)...)

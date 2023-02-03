@@ -3,14 +3,16 @@ package akp
 import (
 	"context"
 
+	akplist "github.com/akuity/terraform-provider-akp/akp/planmodifiers/list"
+	akpobject "github.com/akuity/terraform-provider-akp/akp/planmodifiers/object"
+	akpstring "github.com/akuity/terraform-provider-akp/akp/planmodifiers/string"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	akplist "github.com/akuity/terraform-provider-akp/akp/planmodifiers/list"
-	akpobject "github.com/akuity/terraform-provider-akp/akp/planmodifiers/object"
 )
 
 func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
@@ -31,10 +33,6 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 			"description": schema.StringAttribute{
 				MarkdownDescription: "Instance Description",
 				Optional:            true,
-				Computed:            true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"version": schema.StringAttribute{
 				MarkdownDescription: "Argo CD version. Should be equal to any [argo cd image tag](https://quay.io/repository/argoproj/argocd?tab=tags).<br>Note that `2.5.3` will result a degraded instance! Use `v2.5.3`",
@@ -43,16 +41,13 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 			"hostname": schema.StringAttribute{
 				MarkdownDescription: "Instance hostname",
 				Computed:            true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"config": schema.SingleNestedAttribute{
 				MarkdownDescription: "Argo CD Configuration",
 				Optional:            true,
 				Computed:            true,
 				PlanModifiers: []planmodifier.Object{
-					akpobject.UseStateNullForUnknown(),
+					objectplanmodifier.UseStateForUnknown(),
 				},
 				Attributes: map[string]schema.Attribute{
 					"admin": schema.BoolAttribute{
@@ -168,35 +163,23 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 							"message": schema.StringAttribute{
 								MarkdownDescription: "Alert Message",
 								Optional:            true,
-								Computed:            true,
-								PlanModifiers: []planmodifier.String{
-									stringplanmodifier.UseStateForUnknown(),
-								},
 							},
 							"url": schema.StringAttribute{
 								MarkdownDescription: "Alert URL",
 								Optional:            true,
-								Computed:            true,
-								PlanModifiers: []planmodifier.String{
-									stringplanmodifier.UseStateForUnknown(),
-								},
 							},
 						},
 					},
 					"instance_label_key": schema.StringAttribute{
 						MarkdownDescription: "Instance Label Key",
 						Optional:            true,
-						Computed:            true,
-						PlanModifiers: []planmodifier.String{
-							stringplanmodifier.UseStateForUnknown(),
-						},
 					},
 					"kustomize": schema.SingleNestedAttribute{
 						MarkdownDescription: "Kustomize Settings",
 						Optional:            true,
 						Computed:            true,
 						PlanModifiers: []planmodifier.Object{
-							akpobject.UseStateNullForUnknown(),
+							objectplanmodifier.UseStateForUnknown(),
 						},
 						Attributes: map[string]schema.Attribute{
 							"enabled": schema.BoolAttribute{
@@ -212,7 +195,7 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 								Optional:            true,
 								Computed:            true,
 								PlanModifiers: []planmodifier.String{
-									stringplanmodifier.UseStateForUnknown(),
+									akpstring.UseStateNullForUnknown(),
 								},
 							},
 						},
@@ -222,7 +205,7 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 						Optional:            true,
 						Computed:            true,
 						PlanModifiers: []planmodifier.Object{
-							akpobject.UseStateNullForUnknown(),
+							objectplanmodifier.UseStateForUnknown(),
 						},
 						Attributes: map[string]schema.Attribute{
 							"enabled": schema.BoolAttribute{
@@ -238,7 +221,7 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 								Optional:            true,
 								Computed:            true,
 								PlanModifiers: []planmodifier.String{
-									stringplanmodifier.UseStateForUnknown(),
+									akpstring.UseStateNullForUnknown(),
 								},
 							},
 						},
@@ -282,32 +265,20 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 						Optional:            true,
 						Computed:            true,
 						PlanModifiers: []planmodifier.String{
-							stringplanmodifier.UseStateForUnknown(),
+							akpstring.UseStateNullForUnknown(),
 						},
 					},
 					"oidc": schema.StringAttribute{
 						MarkdownDescription: "OIDC Config YAML",
 						Optional:            true,
-						Computed:            true,
-						PlanModifiers: []planmodifier.String{
-							stringplanmodifier.UseStateForUnknown(),
-						},
 					},
 					"dex": schema.StringAttribute{
 						MarkdownDescription: "Dex Config YAML",
 						Optional:            true,
-						Computed:            true,
-						PlanModifiers: []planmodifier.String{
-							stringplanmodifier.UseStateForUnknown(),
-						},
 					},
 					"web_terminal": schema.SingleNestedAttribute{
 						MarkdownDescription: "Web Terminal Config",
 						Optional:            true,
-						Computed:            true,
-						PlanModifiers: []planmodifier.Object{
-							akpobject.UseStateNullForUnknown(),
-						},
 						Attributes: map[string]schema.Attribute{
 							"enabled": schema.BoolAttribute{
 								MarkdownDescription: "Enable Web Terminal",
@@ -322,7 +293,7 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 								Optional:            true,
 								Computed:            true,
 								PlanModifiers: []planmodifier.String{
-									stringplanmodifier.UseStateForUnknown(),
+									akpstring.UseStateNullForUnknown(),
 								},
 							},
 						},
@@ -332,26 +303,14 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 			"rbac_config": schema.SingleNestedAttribute{
 				MarkdownDescription: "RBAC Config Map, more info [in Argo CD docs](https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/)",
 				Optional:            true,
-				Computed:            true,
-				PlanModifiers: []planmodifier.Object{
-					akpobject.UseStateNullForUnknown(),
-				},
 				Attributes: map[string]schema.Attribute{
 					"default_policy": schema.StringAttribute{
 						MarkdownDescription: "Value of `policy.default` in `argocd-rbac-cm` configmap",
 						Optional:    true,
-						Computed:    true,
-						PlanModifiers: []planmodifier.String{
-							stringplanmodifier.UseStateForUnknown(),
-						},
 					},
 					"policy_csv": schema.StringAttribute{
 						MarkdownDescription: "Value of `policy.csv` in `argocd-rbac-cm` configmap",
 						Optional:    true,
-						Computed:    true,
-						PlanModifiers: []planmodifier.String{
-							stringplanmodifier.UseStateForUnknown(),
-						},
 					},
 					"scopes": schema.ListAttribute{
 						MarkdownDescription: "List of OIDC scopes",
@@ -369,7 +328,7 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 				Optional:            true,
 				Computed:            true,
 				PlanModifiers: []planmodifier.Object{
-					akpobject.UseStateNullForUnknown(),
+					objectplanmodifier.UseStateForUnknown(),
 				},
 				Attributes: map[string]schema.Attribute{
 					"audit_extension": schema.BoolAttribute{
@@ -425,7 +384,6 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 					"declarative_management": schema.BoolAttribute{
 						MarkdownDescription: "Enable Declarative Management",
 						Optional:            true,
-						Computed:            true,
 						PlanModifiers: []planmodifier.Bool{
 							boolplanmodifier.UseStateForUnknown(),
 						},
@@ -477,18 +435,10 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 								"ip": schema.StringAttribute{
 									MarkdownDescription: "IP Address",
 									Optional: true,
-									Computed: true,
-									PlanModifiers: []planmodifier.String{
-										stringplanmodifier.UseStateForUnknown(),
-									},
 								},
 								"description": schema.StringAttribute{
 									MarkdownDescription: "IP Description",
 									Optional: true,
-									Computed: true,
-									PlanModifiers: []planmodifier.String{
-										stringplanmodifier.UseStateForUnknown(),
-									},
 								},
 							},
 						},

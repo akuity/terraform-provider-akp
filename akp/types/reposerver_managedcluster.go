@@ -17,6 +17,21 @@ var (
 	}
 )
 
+func MergeRepoServerDelegateManagedCluster(state *AkpRepoServerDelegateManagedCluster, plan *AkpRepoServerDelegateManagedCluster) (*AkpRepoServerDelegateManagedCluster, diag.Diagnostics) {
+	diags := diag.Diagnostics{}
+	res := &AkpRepoServerDelegateManagedCluster{}
+
+	if plan.ClusterName.IsUnknown() {
+		res.ClusterName = state.ClusterName
+	} else if plan.ClusterName.IsNull() {
+		res.ClusterName = types.StringNull()
+	} else {
+		res.ClusterName = plan.ClusterName
+	}
+
+	return res, diags
+}
+
 func (x *AkpRepoServerDelegateManagedCluster) UpdateObject(p *argocdv1.RepoServerDelegateManagedCluster) diag.Diagnostics {
 	diags := diag.Diagnostics{}
 	if p == nil {

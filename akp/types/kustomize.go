@@ -8,16 +8,39 @@ import (
 )
 
 type AkpArgoCDKustomizeSettings struct {
-	Enabled      types.Bool   `tfsdk:"enabled"`
 	BuildOptions types.String `tfsdk:"build_options"`
+	Enabled      types.Bool   `tfsdk:"enabled"`
 }
 
 var (
 	kustomizeSettingsAttrTypes = map[string]attr.Type{
-		"enabled":       types.BoolType,
 		"build_options": types.StringType,
+		"enabled":       types.BoolType,
 	}
 )
+
+func MergeKustomizeSettings(state *AkpArgoCDKustomizeSettings, plan *AkpArgoCDKustomizeSettings) (*AkpArgoCDKustomizeSettings, diag.Diagnostics) {
+	diags := diag.Diagnostics{}
+	res := &AkpArgoCDKustomizeSettings{}
+
+	if plan.BuildOptions.IsUnknown() {
+		res.BuildOptions = state.BuildOptions
+	} else if plan.BuildOptions.IsNull() {
+		res.BuildOptions = types.StringNull()
+	} else {
+		res.BuildOptions = plan.BuildOptions
+	}
+
+	if plan.Enabled.IsUnknown() {
+		res.Enabled = state.Enabled
+	} else if plan.Enabled.IsNull() {
+		res.Enabled = types.BoolNull()
+	} else {
+		res.Enabled = plan.Enabled
+	}
+
+	return res, diags
+}
 
 func (x *AkpArgoCDKustomizeSettings) UpdateObject(p *argocdv1.ArgoCDKustomizeSettings) diag.Diagnostics {
 	diags := diag.Diagnostics{}
@@ -26,7 +49,12 @@ func (x *AkpArgoCDKustomizeSettings) UpdateObject(p *argocdv1.ArgoCDKustomizeSet
 		return diags
 	}
 	x.Enabled = types.BoolValue(p.GetEnabled())
-	x.BuildOptions = types.StringValue(p.GetBuildOptions())
+
+	if p.BuildOptions == "" {
+		x.BuildOptions = types.StringNull()
+	} else {
+		x.BuildOptions = types.StringValue(p.BuildOptions)
+	}
 	return diags
 }
 

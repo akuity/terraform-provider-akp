@@ -8,18 +8,49 @@ import (
 )
 
 type AkpArgoCDResourceSettings struct {
-	Inclusions     types.String `tfsdk:"inclusions"`
-	Exclusions     types.String `tfsdk:"exclusions"`
 	CompareOptions types.String `tfsdk:"compare_options"`
+	Exclusions     types.String `tfsdk:"exclusions"`
+	Inclusions     types.String `tfsdk:"inclusions"`
 }
 
 var (
 	resourceSettingsAttrTypes = map[string]attr.Type{
-		"inclusions":      types.StringType,
-		"exclusions":      types.StringType,
 		"compare_options": types.StringType,
+		"exclusions":      types.StringType,
+		"inclusions":      types.StringType,
 	}
 )
+
+func MergeResourceSettings(state *AkpArgoCDResourceSettings, plan *AkpArgoCDResourceSettings) (*AkpArgoCDResourceSettings, diag.Diagnostics) {
+	diags := diag.Diagnostics{}
+	res := &AkpArgoCDResourceSettings{}
+
+	if plan.CompareOptions.IsUnknown() {
+		res.CompareOptions = state.CompareOptions
+	} else if plan.CompareOptions.IsNull() {
+		res.CompareOptions = types.StringNull()
+	} else {
+		res.CompareOptions = plan.CompareOptions
+	}
+
+	if plan.Exclusions.IsUnknown() {
+		res.Exclusions = state.Exclusions
+	} else if plan.Exclusions.IsNull() {
+		res.Exclusions = types.StringNull()
+	} else {
+		res.Exclusions = plan.Exclusions
+	}
+
+	if plan.Inclusions.IsUnknown() {
+		res.Inclusions = state.Inclusions
+	} else if plan.Inclusions.IsNull() {
+		res.Inclusions = types.StringNull()
+	} else {
+		res.Inclusions = plan.Inclusions
+	}
+
+	return res, diags
+}
 
 func (x *AkpArgoCDResourceSettings) UpdateObject(p *argocdv1.ArgoCDResourceSettings) diag.Diagnostics {
 	diags := diag.Diagnostics{}
@@ -27,9 +58,25 @@ func (x *AkpArgoCDResourceSettings) UpdateObject(p *argocdv1.ArgoCDResourceSetti
 		diags.AddError("Conversion Error", "*argocdv1.ArgoCDResourceSettings is <nil>")
 		return diags
 	}
-	x.Inclusions = types.StringValue(p.GetInclusions())
-	x.Exclusions = types.StringValue(p.GetExclusions())
-	x.CompareOptions = types.StringValue(p.GetCompareOptions())
+
+	if p.CompareOptions == "" {
+		x.CompareOptions = types.StringNull()
+	} else {
+		x.CompareOptions = types.StringValue(p.CompareOptions)
+	}
+
+	if p.Exclusions == "" {
+		p.Exclusions = types.BoolType.String()
+	} else {
+		x.Exclusions = types.StringValue(p.Exclusions)
+	}
+
+	if p.Inclusions == "" {
+		x.Inclusions = types.StringNull()
+	} else {
+		x.Inclusions = types.StringValue(p.Inclusions)
+	}
+
 	return diags
 }
 
