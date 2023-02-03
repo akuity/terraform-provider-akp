@@ -19,14 +19,47 @@ var (
 	}
 )
 
+func MergeChat(state *AkpArgoCDChat, plan *AkpArgoCDChat) (*AkpArgoCDChat, diag.Diagnostics) {
+	diags := diag.Diagnostics{}
+	res := &AkpArgoCDChat{}
+
+	if plan.Message.IsUnknown() {
+		res.Message = state.Message
+	} else if plan.Message.IsNull() {
+		res.Message = types.StringNull()
+	} else {
+		res.Message = plan.Message
+	}
+
+	if plan.Url.IsUnknown() {
+		res.Url = state.Url
+	} else if plan.Url.IsNull() {
+		res.Url = types.StringNull()
+	} else {
+		res.Url = plan.Url
+	}
+
+	return res, diags
+}
+
 func (x *AkpArgoCDChat) UpdateObject(p *argocdv1.ArgoCDAlertConfig) diag.Diagnostics {
 	diags := diag.Diagnostics{}
 	if p == nil {
 		diags.AddError("Conversion Error", "*argocdv1.ArgoCDAlertConfig is <nil>")
 		return diags
 	}
-	x.Message = types.StringValue(p.GetMessage())
-	x.Url = types.StringValue(p.GetUrl())
+	if p.Message == "" {
+		x.Message = types.StringNull()
+	} else {
+		x.Message = types.StringValue(p.Message)
+	}
+
+	if p.Url == "" {
+		x.Url = types.StringNull()
+	} else {
+		x.Url = types.StringValue(p.Url)
+	}
+
 	return diags
 }
 

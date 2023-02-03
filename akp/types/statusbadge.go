@@ -19,6 +19,29 @@ var (
 	}
 )
 
+func MergeStatusBadge(state *AkpArgoCDStatusBadge, plan *AkpArgoCDStatusBadge) (*AkpArgoCDStatusBadge, diag.Diagnostics) {
+	diags := diag.Diagnostics{}
+	res := &AkpArgoCDStatusBadge{}
+
+	if plan.Enabled.IsUnknown() {
+		res.Enabled = state.Enabled
+	} else if plan.Enabled.IsNull() {
+		res.Enabled = types.BoolNull()
+	} else {
+		res.Enabled = plan.Enabled
+	}
+
+	if plan.Url.IsUnknown() {
+		res.Url = state.Url
+	} else if plan.Url.IsNull() {
+		res.Url = types.StringNull()
+	} else {
+		res.Url = plan.Url
+	}
+
+	return res, diags
+}
+
 func (x *AkpArgoCDStatusBadge) UpdateObject(p *argocdv1.ArgoCDStatusBadgeConfig) diag.Diagnostics {
 	diags := diag.Diagnostics{}
 	if p == nil {
@@ -26,7 +49,12 @@ func (x *AkpArgoCDStatusBadge) UpdateObject(p *argocdv1.ArgoCDStatusBadgeConfig)
 		return diags
 	}
 	x.Enabled = types.BoolValue(p.GetEnabled())
-	x.Url = types.StringValue(p.GetUrl())
+
+	if p.Url == "" {
+		x.Url = types.StringNull()
+	} else {
+		x.Url = types.StringValue(p.Url)
+	}
 	return diags
 }
 

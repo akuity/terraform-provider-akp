@@ -25,8 +25,16 @@ func (x *AkpIPAllowListEntry) UpdateObject(p *argocdv1.IPAllowListEntry) diag.Di
 		diags.AddError("Conversion Error", "*argocdv1.IPAllowListEntry is <nil>")
 		return diags
 	}
-	x.Ip = types.StringValue(p.GetIp())
-	x.Description = types.StringValue(p.GetDescription())
+	if p.Ip == "" {
+		x.Ip = types.StringNull()
+	} else {
+		x.Ip = types.StringValue(p.Ip)
+	}
+	if p.Description == "" {
+		x.Description = types.StringNull()
+	} else {
+		x.Description = types.StringValue(p.Description)
+	}
 	return diags
 }
 

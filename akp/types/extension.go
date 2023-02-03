@@ -25,8 +25,18 @@ func (x *AkpArgoCDExtensionInstallEntry) UpdateObject(p *argocdv1.ArgoCDExtensio
 		diags.AddError("Conversion Error", "*argocdv1.ArgoCDExtensionInstallEntry is <nil>")
 		return diags
 	}
-	x.Id = types.StringValue(p.Id)
-	x.Version = types.StringValue(p.Version)
+	if p.Id == "" {
+		x.Id = types.StringNull()
+	} else {
+		x.Id = types.StringValue(p.Id)
+	}
+
+	if p.Version == "" {
+		x.Version = types.StringNull()
+	} else {
+		x.Version = types.StringValue(p.Version)
+	}
+
 	return diags
 }
 

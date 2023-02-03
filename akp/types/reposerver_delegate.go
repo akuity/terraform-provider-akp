@@ -11,8 +11,8 @@ import (
 )
 
 type AkpRepoServerDelegate struct {
-	ControlPlane     types.Object `tfsdk:"control_plane"`
-	ManagedCluster   types.Object `tfsdk:"managed_cluster"`
+	ControlPlane   types.Object `tfsdk:"control_plane"`
+	ManagedCluster types.Object `tfsdk:"managed_cluster"`
 }
 
 var (
@@ -20,11 +20,50 @@ var (
 		"control_plane": types.ObjectType{
 			AttrTypes: repoServerDelegateControlPlanerAttrTypes,
 		},
-		"managed_cluster":   types.ObjectType{
+		"managed_cluster": types.ObjectType{
 			AttrTypes: repoServerDelegateManagedClusterAttrTypes,
 		},
 	}
 )
+
+func MergeRepoServerDelegate(state *AkpRepoServerDelegate, plan *AkpRepoServerDelegate) (*AkpRepoServerDelegate, diag.Diagnostics) {
+	diags := diag.Diagnostics{}
+	res := &AkpRepoServerDelegate{}
+
+	if plan.ControlPlane.IsUnknown() {
+		res.ControlPlane = state.ControlPlane
+	} else if plan.ControlPlane.IsNull() {
+		res.ControlPlane = types.ObjectNull(repoServerDelegateControlPlanerAttrTypes)
+	} else {
+		var stateRepoServerDelegateCP, planRepoServerDelegateCP AkpRepoServerDelegateControlPlane
+		diags.Append(state.ControlPlane.As(context.Background(), &stateRepoServerDelegateCP, basetypes.ObjectAsOptions{
+			UnhandledNullAsEmpty: true,
+		})...)
+		diags.Append(plan.ControlPlane.As(context.Background(), &planRepoServerDelegateCP, basetypes.ObjectAsOptions{})...)
+		resRepoServerDelegateCP, d := MergeRepoServerDelegateControlPlane(&stateRepoServerDelegateCP, &planRepoServerDelegateCP)
+		diags.Append(d...)
+		res.ControlPlane, d = types.ObjectValueFrom(context.Background(), repoServerDelegateControlPlanerAttrTypes, resRepoServerDelegateCP)
+		diags.Append(d...)
+	}
+
+	if plan.ManagedCluster.IsUnknown() {
+		res.ManagedCluster = state.ManagedCluster
+	} else if plan.ManagedCluster.IsNull() {
+		res.ManagedCluster = types.ObjectNull(repoServerDelegateManagedClusterAttrTypes)
+	} else {
+		var stateRepoServerDelegateMC, planRepoServerDelegateMC AkpRepoServerDelegateManagedCluster
+		diags.Append(state.ManagedCluster.As(context.Background(), &stateRepoServerDelegateMC, basetypes.ObjectAsOptions{
+			UnhandledNullAsEmpty: true,
+		})...)
+		diags.Append(plan.ManagedCluster.As(context.Background(), &planRepoServerDelegateMC, basetypes.ObjectAsOptions{})...)
+		resRepoServerDelegateMC, d := MergeRepoServerDelegateManagedCluster(&stateRepoServerDelegateMC, &planRepoServerDelegateMC)
+		diags.Append(d...)
+		res.ManagedCluster, d = types.ObjectValueFrom(context.Background(), repoServerDelegateManagedClusterAttrTypes, resRepoServerDelegateMC)
+		diags.Append(d...)
+	}
+
+	return res, diags
+}
 
 func (x *AkpRepoServerDelegate) UpdateObject(p *argocdv1.RepoServerDelegate) diag.Diagnostics {
 	diags := diag.Diagnostics{}
@@ -34,7 +73,7 @@ func (x *AkpRepoServerDelegate) UpdateObject(p *argocdv1.RepoServerDelegate) dia
 		return diags
 	}
 
-	if p.ControlPlane == nil {
+	if p.ControlPlane == nil || p.ControlPlane.String() == "" {
 		x.ControlPlane = types.ObjectNull(repoServerDelegateControlPlanerAttrTypes)
 	} else {
 		controlPlaneObject := &AkpRepoServerDelegateControlPlane{}
@@ -43,7 +82,7 @@ func (x *AkpRepoServerDelegate) UpdateObject(p *argocdv1.RepoServerDelegate) dia
 		diags.Append(d...)
 	}
 
-	if p.ManagedCluster == nil {
+	if p.ManagedCluster == nil || p.ManagedCluster.String() == "" {
 		x.ManagedCluster = types.ObjectNull(repoServerDelegateManagedClusterAttrTypes)
 	} else {
 		managedClusterObject := &AkpRepoServerDelegateManagedCluster{}
@@ -77,7 +116,6 @@ func (x *AkpRepoServerDelegate) As(target *argocdv1.RepoServerDelegate) diag.Dia
 		diags.Append(managedCluster.As(&targetManagedCluster)...)
 		target.ManagedCluster = &targetManagedCluster
 	}
-
 
 	return diags
 }

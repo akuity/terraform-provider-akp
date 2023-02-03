@@ -9,17 +9,48 @@ import (
 
 type AkpArgoCDBanner struct {
 	Message   types.String `tfsdk:"message"`
-	Url       types.String `tfsdk:"url"`
 	Permanent types.Bool   `tfsdk:"permanent"`
+	Url       types.String `tfsdk:"url"`
 }
 
 var (
 	bannerAttrTypes = map[string]attr.Type{
 		"message":   types.StringType,
-		"url":       types.StringType,
 		"permanent": types.BoolType,
+		"url":       types.StringType,
 	}
 )
+
+func MergeBanner(state *AkpArgoCDBanner, plan *AkpArgoCDBanner) (*AkpArgoCDBanner, diag.Diagnostics) {
+	diags := diag.Diagnostics{}
+	res := &AkpArgoCDBanner{}
+
+	if plan.Message.IsUnknown() {
+		res.Message = state.Message
+	} else if plan.Message.IsNull() {
+		res.Message = types.StringNull()
+	} else {
+		res.Message = plan.Message
+	}
+
+	if plan.Permanent.IsUnknown() {
+		res.Permanent = state.Permanent
+	} else if plan.Permanent.IsNull() {
+		res.Permanent = types.BoolNull()
+	} else {
+		res.Permanent = plan.Permanent
+	}
+
+	if plan.Url.IsUnknown() {
+		res.Url = state.Url
+	} else if plan.Url.IsNull() {
+		res.Url = types.StringNull()
+	} else {
+		res.Url = plan.Url
+	}
+
+	return res, diags
+}
 
 func (x *AkpArgoCDBanner) UpdateObject(p *argocdv1.ArgoCDBannerConfig) diag.Diagnostics {
 	diags := diag.Diagnostics{}
@@ -27,9 +58,20 @@ func (x *AkpArgoCDBanner) UpdateObject(p *argocdv1.ArgoCDBannerConfig) diag.Diag
 		diags.AddError("Conversion Error", "*argocdv1.ArgoCDBannerConfig is <nil>")
 		return diags
 	}
-	x.Message = types.StringValue(p.GetMessage())
-	x.Url = types.StringValue(p.GetUrl())
+	if p.Message == "" {
+		x.Message = types.StringNull()
+	} else {
+		x.Message = types.StringValue(p.Message)
+	}
+
 	x.Permanent = types.BoolValue(p.GetPermanent())
+
+	if p.Url == "" {
+		x.Url = types.StringNull()
+	} else {
+		x.Url = types.StringValue(p.Url)
+	}
+
 	return diags
 }
 
