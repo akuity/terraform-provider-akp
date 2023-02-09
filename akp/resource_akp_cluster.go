@@ -240,10 +240,17 @@ func (r *AkpClusterResource) Create(ctx context.Context, req resource.CreateRequ
 	state.KubeConfig = plan.KubeConfig
 	kcfg, diag := r.getKcfg(ctx, plan.KubeConfig)
 	resp.Diagnostics.Append(diag...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	// Apply the manifests
 	if kcfg != nil {
 		tflog.Info(ctx, "Applying the manifests...")
 		resp.Diagnostics.Append(r.applyManifests(ctx, state.Manifests.ValueString(), kcfg)...)
+		if resp.Diagnostics.HasError() {
+			resp.State.Set(ctx, &state)
+			return
+		}
 		cluster, err = r.waitClusterHealthStatus(ctx, cluster, plan.InstanceId.ValueString())
 		state.AgentVersion = types.StringValue(cluster.AgentState.GetVersion())
 	}
