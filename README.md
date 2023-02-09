@@ -21,41 +21,58 @@ With this provider you can manage Argo CD instances and clusters on [Akuity Plat
 1. Create an API key for your organization
    * Use `Admin` role for the key
 2. Configure Environment variables
-    ```shell
-    export AKUITY_API_KEY_ID=<key-id>
-    export AKUITY_API_KEY_SECRET=<key-secret>
-    ```
+  ```shell
+  export AKUITY_API_KEY_ID=<key-id>
+  export AKUITY_API_KEY_SECRET=<key-secret>
+  ```
 3. Use this or similar configuration:
-    ```hcl
-    terraform {
-        required_providers {
-            akp = {
-                source = "akuity/akp"
-                version = "~> 0.2"
-            }
-        }
+  ```hcl
+  terraform {
+    required_providers {
+      akp = {
+        source = "akuity/akp"
+        version = "~> 0.2"
+      }
     }
+  }
 
-    provider "akp" {
-        org_name = "<organization-name>"
+  provider "akp" {
+    org_name = "<organization-name>"
+  }
+
+  # Read the existing Argo CD Instance
+  data "akp_instance" "existing" {
+    name = "manualy-created"
+  }
+
+  # Add cluster to the existing instance and install the agent
+  resource "akp_cluster" "test" {
+    name             = "test-cluster"
+    description      = "Test Cluster 1"
+    size             = "small"
+    namespace        = "akuity"
+    instance_id      = data.akp_instance.existing.id
+    kube_config      = {
+        # Configuration similar to `kubernetes` provider
     }
+  }
+  ```
 
-    # Read the existing Argo CD Instance
-    data "akp_instance" "existing" {
-        name = "manualy-created"
-    }
+## Creating an Argo CD instance with Terraform
 
-    # Add cluster to the existing instance and install the agent
-    resource "akp_cluster" "test" {
-        name             = "test-cluster"
-        description      = "Test Cluster 1"
-        size             = "small"
-        namespace        = "akuity"
-        instance_id      = data.akp_instance.existing.id
-        kube_config      = {
-            # Configuration similar to `kubernetes` provider
-        }
-    }
+``` hcl
+resource "akp_instance" "example" {
+  name        = "tf-100-clusters-example"
+  version     = "v2.6.0"
+  description = "An example of terraform automation for managing Akuity Platform resources"
+  web_terminal = {
+    enabled = true
+  }
+  kustomize = {
+    build_options = "--enable-helm"
+  }
+  declarative_management = true
+}
+```
 
-
-    ```
+See more examples in [terraform-akp-example](https://github.com/akuity/terraform-akp-example) repo
