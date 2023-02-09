@@ -28,7 +28,7 @@ type AkpProvider struct {
 }
 
 type AkpProviderModel struct {
-	ApiHost          types.String `tfsdk:"api_host"`
+	ServerUrl        types.String `tfsdk:"server_url"`
 	ApiKeyId         types.String `tfsdk:"api_key_id"`
 	ApiKeySecret     types.String `tfsdk:"api_key_secret"`
 	OrganizationName types.String `tfsdk:"org_name"`
@@ -49,8 +49,8 @@ func (p *AkpProvider) Metadata(ctx context.Context, req provider.MetadataRequest
 func (p *AkpProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"api_host": schema.StringAttribute{
-				MarkdownDescription: "Akuity Platform API host, default: `https://akuity.cloud`. You can use environment variable `AKUITY_API_HOST` instead",
+			"server_url": schema.StringAttribute{
+				MarkdownDescription: "Akuity Platform API URL, default: `https://akuity.cloud`. You can use environment variable `AKUITY_SERVER_URL` instead",
 				Optional:            true,
 			},
 			"skip_tls_verify": schema.BoolAttribute{
@@ -62,20 +62,20 @@ func (p *AkpProvider) Schema(ctx context.Context, req provider.SchemaRequest, re
 				Required:            true,
 			},
 			"api_key_id": schema.StringAttribute{
-				MarkdownDescription: "API Key Id. Use environment variable `AKUITY_API_KEY_ID` instead",
+				MarkdownDescription: "API Key Id. Use environment variable `AKUITY_API_KEY_ID`",
 				Optional:            true,
 				Sensitive:           true,
 			},
 			"api_key_secret": schema.StringAttribute{
-				MarkdownDescription: "API Key Secret, Use environment variable `AKUITY_API_KEY_SECRET` instead",
+				MarkdownDescription: "API Key Secret, Use environment variable `AKUITY_API_KEY_SECRET`",
 				Optional:            true,
 				Sensitive:           true,
 			},
 		},
-		}
 	}
-	
-	func (p *AkpProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
+}
+
+func (p *AkpProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
 	tflog.Info(ctx, "Configuring Akuity Provider")
 
 	var config AkpProviderModel
@@ -85,13 +85,13 @@ func (p *AkpProvider) Schema(ctx context.Context, req provider.SchemaRequest, re
 		return
 	}
 
-	apiHost := os.Getenv("AKUITY_API_HOST")
+	ServerUrl := os.Getenv("AKUITY_SERVER_URL")
 	apiKeyID := os.Getenv("AKUITY_API_KEY_ID")
 	apiKeySecret := os.Getenv("AKUITY_API_KEY_SECRET")
 
 	skipTLSVerify := config.SkipTLSVerify.ValueBool()
-	if apiHost == "" {
-		apiHost = config.ApiHost.ValueString()
+	if ServerUrl == "" {
+		ServerUrl = config.ServerUrl.ValueString()
 	}
 	if apiKeyID == "" {
 		apiKeyID = config.ApiKeyId.ValueString()
@@ -99,8 +99,8 @@ func (p *AkpProvider) Schema(ctx context.Context, req provider.SchemaRequest, re
 	if apiKeySecret == "" {
 		apiKeySecret = config.ApiKeySecret.ValueString()
 	}
-	if apiHost == "" {
-		apiHost = "https://akuity.cloud"
+	if ServerUrl == "" {
+		ServerUrl = "https://akuity.cloud"
 	}
 	if apiKeyID == "" {
 		resp.Diagnostics.AddAttributeError(
@@ -123,7 +123,7 @@ func (p *AkpProvider) Schema(ctx context.Context, req provider.SchemaRequest, re
 		return
 	}
 	orgName := config.OrganizationName.ValueString()
-	ctx = tflog.SetField(ctx, "api_host", apiHost)
+	ctx = tflog.SetField(ctx, "server_url", ServerUrl)
 	ctx = tflog.SetField(ctx, "skip_tls_verify", skipTLSVerify)
 	ctx = tflog.SetField(ctx, "api_key_id", apiKeyID)
 	ctx = tflog.SetField(ctx, "org_name", orgName)
@@ -133,7 +133,7 @@ func (p *AkpProvider) Schema(ctx context.Context, req provider.SchemaRequest, re
 	cred := accesscontrol.NewAPIKeyCredential(apiKeyID, apiKeySecret)
 	// Get Organizaton ID by name
 	ctx = ctxutil.SetClientCredential(ctx, cred)
-	gwc := gwclient.NewClient(apiHost, gwclient.SkipTLSVerify(skipTLSVerify))
+	gwc := gwclient.NewClient(ServerUrl, gwclient.SkipTLSVerify(skipTLSVerify))
 	orgc := orgcv1.NewOrganizationServiceGatewayClient(gwc)
 	res, err := orgc.GetOrganization(ctx, &orgcv1.GetOrganizationRequest{
 		Id:     orgName,

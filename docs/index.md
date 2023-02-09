@@ -27,7 +27,7 @@ provider "akp" {
 
 ### Optional
 
-- `api_host` (String) Akuity Platform API host, default: `https://akuity.cloud`. You can use environment variable `AKUITY_API_HOST` instead
-- `api_key_id` (String, Sensitive) API Key Id. Use environment variable `AKUITY_API_KEY_ID` instead
-- `api_key_secret` (String, Sensitive) API Key Secret, Use environment variable `AKUITY_API_KEY_SECRET` instead
+- `api_key_id` (String, Sensitive) API Key Id. Use environment variable `AKUITY_API_KEY_ID`
+- `api_key_secret` (String, Sensitive) API Key Secret, Use environment variable `AKUITY_API_KEY_SECRET`
+- `server_url` (String) Akuity Platform API URL, default: `https://akuity.cloud`. You can use environment variable `AKUITY_SERVER_URL` instead
 - `skip_tls_verify` (Boolean) Skip TLS Verify. Only use for testing self-hosted version
