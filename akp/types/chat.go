@@ -42,11 +42,13 @@ func MergeChat(state *AkpArgoCDChat, plan *AkpArgoCDChat) (*AkpArgoCDChat, diag.
 	return res, diags
 }
 
-func (x *AkpArgoCDChat) UpdateObject(p *argocdv1.ArgoCDAlertConfig) diag.Diagnostics {
+func (x *AkpArgoCDChat) UpdateObject(input *argocdv1.ArgoCDAlertConfig) diag.Diagnostics {
 	diags := diag.Diagnostics{}
-	if p == nil {
-		diags.AddError("Conversion Error", "*argocdv1.ArgoCDAlertConfig is <nil>")
-		return diags
+	var p *argocdv1.ArgoCDAlertConfig
+	if input == nil {
+		p = &argocdv1.ArgoCDAlertConfig{}
+	} else {
+		p = input
 	}
 	if p.Message == "" {
 		x.Message = types.StringNull()

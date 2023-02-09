@@ -29,37 +29,42 @@ data "akp_instances" "all" {}
 
 Read-Only:
 
-- `config` (Attributes) Argo CD Configuration (see [below for nested schema](#nestedatt--instances--config))
+- `admin_enabled` (Boolean) Enable Admin Login
+- `allow_anonymous` (Boolean) Allow Anonymous Access
+- `audit_extension_enabled` (Boolean) Enable Audit Extension
+- `backend_ip_allow_list` (Boolean) Apply IP Allow List to Cluster Agents
+- `banner` (Attributes) Argo CD Banner Configuration (see [below for nested schema](#nestedatt--instances--banner))
+- `chat` (Attributes) Chat Configuration (see [below for nested schema](#nestedatt--instances--chat))
+- `cluster_customization_defaults` (Attributes) Default Values For Cluster Agents (see [below for nested schema](#nestedatt--instances--cluster_customization_defaults))
+- `declarative_management_enabled` (Boolean) Enable Declarative Management
+- `default_policy` (String) Value of `policy.default` in `argocd-rbac-cm` configmap
 - `description` (String) Instance Description
+- `dex` (String) Dex Config YAML
+- `extensions` (Attributes List) Extensions (see [below for nested schema](#nestedatt--instances--extensions))
+- `google_analytics` (Attributes) Google Analytics Configuration (see [below for nested schema](#nestedatt--instances--google_analytics))
+- `helm` (Attributes) Helm Configuration (see [below for nested schema](#nestedatt--instances--helm))
+- `helm_enabled` (Boolean) Enable Helm
 - `hostname` (String) Instance Hostname
 - `id` (String) Instance ID
-- `name` (String) Instance Name
-- `rbac_config` (Attributes) RBAC Config Map, more info [in Argo CD docs](https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/) (see [below for nested schema](#nestedatt--instances--rbac_config))
-- `spec` (Attributes) Instance Specification (see [below for nested schema](#nestedatt--instances--spec))
-- `version` (String) Argo CD Version
-
-<a id="nestedatt--instances--config"></a>
-### Nested Schema for `instances.config`
-
-Read-Only:
-
-- `admin` (Boolean) Enable Admin Login
-- `allow_anonymous` (Boolean) Allow Anonymous Access
-- `banner` (Attributes) Argo CD Banner Configuration (see [below for nested schema](#nestedatt--instances--config--banner))
-- `chat` (Attributes) Chat Configuration (see [below for nested schema](#nestedatt--instances--config--chat))
-- `dex` (String) Dex Config YAML
-- `google_analytics` (Attributes) Google Analytics Configuration (see [below for nested schema](#nestedatt--instances--config--google_analytics))
-- `helm` (Attributes) Helm Configuration (see [below for nested schema](#nestedatt--instances--config--helm))
+- `image_updater_enabled` (Boolean) Enable Image Updater
 - `instance_label_key` (String) Instance Label Key
-- `kustomize` (Attributes) Kustomize Settings (see [below for nested schema](#nestedatt--instances--config--kustomize))
+- `ip_allow_list` (Attributes List) IP Allow List (see [below for nested schema](#nestedatt--instances--ip_allow_list))
+- `kustomize` (Attributes) Kustomize Settings (see [below for nested schema](#nestedatt--instances--kustomize))
+- `kustomize_enabled` (Boolean) Enable Kustomize
+- `name` (String) Instance Name
 - `oidc` (String) OIDC Config YAML
-- `resource_settings` (Attributes) Custom resource settings (see [below for nested schema](#nestedatt--instances--config--resource_settings))
-- `status_badge` (Attributes) Status Badge Configuration (see [below for nested schema](#nestedatt--instances--config--status_badge))
+- `oidc_scopes` (List of String) List of OIDC scopes
+- `policy_csv` (String) Value of `policy.csv` in `argocd-rbac-cm` configmap
+- `repo_server_delegate` (Attributes) In case some clusters don't have network access to your private Git provider you can delegate these operations to one specific cluster. (see [below for nested schema](#nestedatt--instances--repo_server_delegate))
+- `resource_settings` (Attributes) Custom resource settings (see [below for nested schema](#nestedatt--instances--resource_settings))
+- `status_badge` (Attributes) Status Badge Configuration (see [below for nested schema](#nestedatt--instances--status_badge))
+- `subdomain` (String) Instance Subdomain
 - `users_session` (String) Users Session Duration
-- `web_terminal` (Attributes) Web Terminal Config (see [below for nested schema](#nestedatt--instances--config--web_terminal))
+- `version` (String) Argo CD Version
+- `web_terminal` (Attributes) Web Terminal Config (see [below for nested schema](#nestedatt--instances--web_terminal))
 
-<a id="nestedatt--instances--config--banner"></a>
-### Nested Schema for `instances.config.banner`
+<a id="nestedatt--instances--banner"></a>
+### Nested Schema for `instances.banner`
 
 Read-Only:
 
@@ -68,8 +73,8 @@ Read-Only:
 - `url` (String) Banner Hyperlink URL
 
 
-<a id="nestedatt--instances--config--chat"></a>
-### Nested Schema for `instances.config.chat`
+<a id="nestedatt--instances--chat"></a>
+### Nested Schema for `instances.chat`
 
 Read-Only:
 
@@ -77,89 +82,8 @@ Read-Only:
 - `url` (String) Alert URL
 
 
-<a id="nestedatt--instances--config--google_analytics"></a>
-### Nested Schema for `instances.config.google_analytics`
-
-Read-Only:
-
-- `anonymize_users` (Boolean) Anonymize Users
-- `tracking_id` (String) Google Tracking ID
-
-
-<a id="nestedatt--instances--config--helm"></a>
-### Nested Schema for `instances.config.helm`
-
-Read-Only:
-
-- `enabled` (Boolean) Enable Helm
-- `value_file_schemas` (String) Value File Schemas
-
-
-<a id="nestedatt--instances--config--kustomize"></a>
-### Nested Schema for `instances.config.kustomize`
-
-Read-Only:
-
-- `build_options` (String) Build options
-- `enabled` (Boolean) Enable Kustomize
-
-
-<a id="nestedatt--instances--config--resource_settings"></a>
-### Nested Schema for `instances.config.resource_settings`
-
-Read-Only:
-
-- `compare_options` (String) Compare Options
-- `exclusions` (String) Exclusions
-- `inclusions` (String) Inclusions
-
-
-<a id="nestedatt--instances--config--status_badge"></a>
-### Nested Schema for `instances.config.status_badge`
-
-Read-Only:
-
-- `enabled` (Boolean) Enable Status Badge
-- `url` (String) URL
-
-
-<a id="nestedatt--instances--config--web_terminal"></a>
-### Nested Schema for `instances.config.web_terminal`
-
-Read-Only:
-
-- `enabled` (Boolean) Enable Web Terminal
-- `shells` (String) Shells
-
-
-
-<a id="nestedatt--instances--rbac_config"></a>
-### Nested Schema for `instances.rbac_config`
-
-Read-Only:
-
-- `default_policy` (String) Value of `policy.default` in `argocd-rbac-cm` configmap
-- `policy_csv` (String) Value of `policy.csv` in `argocd-rbac-cm` configmap
-- `scopes` (List of String) List of OIDC scopes
-
-
-<a id="nestedatt--instances--spec"></a>
-### Nested Schema for `instances.spec`
-
-Read-Only:
-
-- `audit_extension` (Boolean) Enable Audit Extension
-- `backend_ip_allow_list` (Boolean) Apply IP Allow List to Cluster Agents
-- `cluster_customization_defaults` (Attributes) Default Values For Cluster Agents (see [below for nested schema](#nestedatt--instances--spec--cluster_customization_defaults))
-- `declarative_management` (Boolean) Enable Declarative Management
-- `extensions` (Attributes List) Extensions (see [below for nested schema](#nestedatt--instances--spec--extensions))
-- `image_updater` (Boolean) Enable Image Updater
-- `ip_allow_list` (Attributes List) IP Allow List (see [below for nested schema](#nestedatt--instances--spec--ip_allow_list))
-- `repo_server_delegate` (Attributes) In case some clusters don't have network access to your private Git provider you can delegate these operations to one specific cluster. (see [below for nested schema](#nestedatt--instances--spec--repo_server_delegate))
-- `subdomain` (String) Instance Subdomain
-
-<a id="nestedatt--instances--spec--cluster_customization_defaults"></a>
-### Nested Schema for `instances.spec.cluster_customization_defaults`
+<a id="nestedatt--instances--cluster_customization_defaults"></a>
+### Nested Schema for `instances.cluster_customization_defaults`
 
 Read-Only:
 
@@ -168,8 +92,8 @@ Read-Only:
 - `custom_image_registry_argoproj` (String) Custom Image Registry for Argoproj images
 
 
-<a id="nestedatt--instances--spec--extensions"></a>
-### Nested Schema for `instances.spec.extensions`
+<a id="nestedatt--instances--extensions"></a>
+### Nested Schema for `instances.extensions`
 
 Read-Only:
 
@@ -177,8 +101,25 @@ Read-Only:
 - `version` (String) Extension version
 
 
-<a id="nestedatt--instances--spec--ip_allow_list"></a>
-### Nested Schema for `instances.spec.ip_allow_list`
+<a id="nestedatt--instances--google_analytics"></a>
+### Nested Schema for `instances.google_analytics`
+
+Read-Only:
+
+- `anonymize_users` (Boolean) Anonymize Users
+- `tracking_id` (String) Google Tracking ID
+
+
+<a id="nestedatt--instances--helm"></a>
+### Nested Schema for `instances.helm`
+
+Read-Only:
+
+- `value_file_schemas` (String) Value File Schemas
+
+
+<a id="nestedatt--instances--ip_allow_list"></a>
+### Nested Schema for `instances.ip_allow_list`
 
 Read-Only:
 
@@ -186,23 +127,60 @@ Read-Only:
 - `ip` (String) IP Address
 
 
-<a id="nestedatt--instances--spec--repo_server_delegate"></a>
-### Nested Schema for `instances.spec.repo_server_delegate`
+<a id="nestedatt--instances--kustomize"></a>
+### Nested Schema for `instances.kustomize`
 
 Read-Only:
 
-- `control_plane` (Attributes) Redundant. Always `null` (see [below for nested schema](#nestedatt--instances--spec--repo_server_delegate--control_plane))
-- `managed_cluster` (Attributes) Cluster (see [below for nested schema](#nestedatt--instances--spec--repo_server_delegate--managed_cluster))
-
-<a id="nestedatt--instances--spec--repo_server_delegate--control_plane"></a>
-### Nested Schema for `instances.spec.repo_server_delegate.managed_cluster`
+- `build_options` (String) Build options
 
 
-<a id="nestedatt--instances--spec--repo_server_delegate--managed_cluster"></a>
-### Nested Schema for `instances.spec.repo_server_delegate.managed_cluster`
+<a id="nestedatt--instances--repo_server_delegate"></a>
+### Nested Schema for `instances.repo_server_delegate`
+
+Read-Only:
+
+- `control_plane` (Attributes) Redundant. Always `null` (see [below for nested schema](#nestedatt--instances--repo_server_delegate--control_plane))
+- `managed_cluster` (Attributes) Cluster (see [below for nested schema](#nestedatt--instances--repo_server_delegate--managed_cluster))
+
+<a id="nestedatt--instances--repo_server_delegate--control_plane"></a>
+### Nested Schema for `instances.repo_server_delegate.control_plane`
+
+
+<a id="nestedatt--instances--repo_server_delegate--managed_cluster"></a>
+### Nested Schema for `instances.repo_server_delegate.managed_cluster`
 
 Read-Only:
 
 - `cluster_name` (String) Cluster Name
+
+
+
+<a id="nestedatt--instances--resource_settings"></a>
+### Nested Schema for `instances.resource_settings`
+
+Read-Only:
+
+- `compare_options` (String) Compare Options
+- `exclusions` (String) Exclusions
+- `inclusions` (String) Inclusions
+
+
+<a id="nestedatt--instances--status_badge"></a>
+### Nested Schema for `instances.status_badge`
+
+Read-Only:
+
+- `enabled` (Boolean) Enable Status Badge
+- `url` (String) URL
+
+
+<a id="nestedatt--instances--web_terminal"></a>
+### Nested Schema for `instances.web_terminal`
+
+Read-Only:
+
+- `enabled` (Boolean) Enable Web Terminal
+- `shells` (String) Shells
 
 

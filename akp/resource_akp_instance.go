@@ -209,11 +209,13 @@ func (r *AkpInstanceResource) Read(ctx context.Context, req resource.ReadRequest
 	}
 
 	ctx = ctxutil.SetClientCredential(ctx, r.akpCli.Cred)
-	apiResp, err := r.akpCli.Cli.GetInstance(ctx, &argocdv1.GetInstanceRequest{
+	apiReq := &argocdv1.GetInstanceRequest{
 		Id:             state.Id.ValueString(),
 		IdType:         idv1.Type_ID,
 		OrganizationId: r.akpCli.OrgId,
-	})
+	}
+	tflog.Debug(ctx, fmt.Sprintf("Api Request: %s", apiReq))
+	apiResp, err := r.akpCli.Cli.GetInstance(ctx, apiReq)
 	switch status.Code(err) {
 	case codes.OK:
 		tflog.Debug(ctx, fmt.Sprintf("Api Response: %s", apiResp))

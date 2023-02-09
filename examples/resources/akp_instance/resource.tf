@@ -1,17 +1,11 @@
 resource "akp_instance" "example" {
-  name        = "example-argocd-instance-name"
-  version     = "v2.5.6"
-  description = "Some description"
-  rbac_config = {
-    default_policy = "role:readonly"
+  name           = "example-argocd-instance-name"
+  version        = "v2.6.0"
+  description    = "Some description"
+  default_policy = "role:readonly"
+  web_terminal = {
+    enabled = true
   }
-  config = {
-    web_terminal = {
-      enabled = true
-    }
-  }
-  spec = {
-    declarative_management = true
-    subdomain              = "custom"
-  }
+  declarative_management_enabled = true
+  subdomain                      = "custom"
 }

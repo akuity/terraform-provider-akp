@@ -52,19 +52,23 @@ func MergeBanner(state *AkpArgoCDBanner, plan *AkpArgoCDBanner) (*AkpArgoCDBanne
 	return res, diags
 }
 
-func (x *AkpArgoCDBanner) UpdateObject(p *argocdv1.ArgoCDBannerConfig) diag.Diagnostics {
+func (x *AkpArgoCDBanner) UpdateObject(input *argocdv1.ArgoCDBannerConfig) diag.Diagnostics {
 	diags := diag.Diagnostics{}
-	if p == nil {
-		diags.AddError("Conversion Error", "*argocdv1.ArgoCDBannerConfig is <nil>")
-		return diags
+
+	var p *argocdv1.ArgoCDBannerConfig
+	if input == nil {
+		p = &argocdv1.ArgoCDBannerConfig{}
+	} else {
+		p = input
 	}
-	if p.Message == "" {
+
+	if p.Message == "" { // not computed
 		x.Message = types.StringNull()
 	} else {
 		x.Message = types.StringValue(p.Message)
 	}
 
-	x.Permanent = types.BoolValue(p.GetPermanent())
+	x.Permanent = types.BoolValue(p.GetPermanent()) // computed
 
 	if p.Url == "" {
 		x.Url = types.StringNull()

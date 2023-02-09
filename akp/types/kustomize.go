@@ -9,13 +9,11 @@ import (
 
 type AkpArgoCDKustomizeSettings struct {
 	BuildOptions types.String `tfsdk:"build_options"`
-	Enabled      types.Bool   `tfsdk:"enabled"`
 }
 
 var (
-	kustomizeSettingsAttrTypes = map[string]attr.Type{
+	KustomizeSettingsAttrTypes = map[string]attr.Type{
 		"build_options": types.StringType,
-		"enabled":       types.BoolType,
 	}
 )
 
@@ -31,26 +29,19 @@ func MergeKustomizeSettings(state *AkpArgoCDKustomizeSettings, plan *AkpArgoCDKu
 		res.BuildOptions = plan.BuildOptions
 	}
 
-	if plan.Enabled.IsUnknown() {
-		res.Enabled = state.Enabled
-	} else if plan.Enabled.IsNull() {
-		res.Enabled = types.BoolNull()
-	} else {
-		res.Enabled = plan.Enabled
-	}
-
 	return res, diags
 }
 
-func (x *AkpArgoCDKustomizeSettings) UpdateObject(p *argocdv1.ArgoCDKustomizeSettings) diag.Diagnostics {
+func (x *AkpArgoCDKustomizeSettings) UpdateObject(input *argocdv1.ArgoCDKustomizeSettings) diag.Diagnostics {
 	diags := diag.Diagnostics{}
-	if p == nil {
-		diags.AddError("Conversion Error", "*argocdv1.ArgoCDKustomizeSettings is <nil>")
-		return diags
+	var p *argocdv1.ArgoCDKustomizeSettings
+	if input == nil {
+		p = &argocdv1.ArgoCDKustomizeSettings{}
+	} else {
+		p = input
 	}
-	x.Enabled = types.BoolValue(p.GetEnabled())
 
-	if p.BuildOptions == "" {
+	if p.BuildOptions == "" { // not computed
 		x.BuildOptions = types.StringNull()
 	} else {
 		x.BuildOptions = types.StringValue(p.BuildOptions)
@@ -60,7 +51,6 @@ func (x *AkpArgoCDKustomizeSettings) UpdateObject(p *argocdv1.ArgoCDKustomizeSet
 
 func (x *AkpArgoCDKustomizeSettings) As(target *argocdv1.ArgoCDKustomizeSettings) diag.Diagnostics {
 	diags := diag.Diagnostics{}
-	target.Enabled = x.Enabled.ValueBool()
 	target.BuildOptions = x.BuildOptions.ValueString()
 	return diags
 }
