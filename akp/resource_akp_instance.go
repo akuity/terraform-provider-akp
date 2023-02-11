@@ -89,6 +89,23 @@ func (r *AkpInstanceResource) waitInstanceReconStatus(ctx context.Context, insta
 
 func (r *AkpInstanceResource) UpdateInstance(ctx context.Context, to *argocdv1.Instance) diag.Diagnostics {
 	diag := diag.Diagnostics{}
+	secrets := make(map[string]*argocdv1.PatchInstanceSecretRequest_ValueField)
+	for name, value := range to.Secrets {
+		secrets[name] = &argocdv1.PatchInstanceSecretRequest_ValueField{
+			Value: &value,
+		}
+	}
+	apiSecretReq := &argocdv1.PatchInstanceSecretRequest{
+		OrganizationId: r.akpCli.OrgId,
+		Id:             to.Id,
+		Secret:         secrets,
+	}
+	tflog.Debug(ctx, fmt.Sprintf("Api Req: %s", apiSecretReq.String()))
+	apiSecretResp, err := r.akpCli.Cli.PatchInstanceSecret(ctx, apiSecretReq)
+	tflog.Debug(ctx, fmt.Sprintf("Api Resp: %s", apiSecretResp.String()))
+	if err != nil {
+		diag.AddError("Client Error", fmt.Sprintf("Unable to update Argo CD secrets: %s", err))
+	}
 	apiReq := &argocdv1.UpdateInstanceRequest{
 		OrganizationId: r.akpCli.OrgId,
 		Id:             to.Id,
@@ -137,6 +154,7 @@ func (r *AkpInstanceResource) Create(ctx context.Context, req resource.CreateReq
 	}
 
 	ctx = ctxutil.SetClientCredential(ctx, r.akpCli.Cred)
+	ctx = tflog.MaskLogStrings(ctx, plan.GetSensitiveStrings()...)
 	description := plan.Description.ValueString()
 	apiReq := &argocdv1.CreateInstanceRequest{
 		OrganizationId: r.akpCli.OrgId,
@@ -164,10 +182,12 @@ func (r *AkpInstanceResource) Create(ctx context.Context, req resource.CreateReq
 	}
 
 	state := &akptypes.AkpInstance{}
-	resp.Diagnostics.Append(state.UpdateFrom(instance)...)
-	if resp.Diagnostics.HasError() {
+	err = state.Refresh(ctx, r.akpCli.Cli, r.akpCli.OrgId, instanceId)
+	if err != nil {
+		resp.Diagnostics.AddError("Server Error", fmt.Sprintf("Cannot refresh instance state. %s", err))
 		return
 	}
+
 	tflog.Debug(ctx, fmt.Sprintf("State: %s", state))
 	tflog.Debug(ctx, fmt.Sprintf("Plan: %s", plan))
 	desiredState, d := akptypes.MergeInstance(state, plan)
@@ -193,32 +213,32 @@ func (r *AkpInstanceResource) Create(ctx context.Context, req resource.CreateReq
 	tflog.Debug(ctx, fmt.Sprintf("Desired State: %s", desiredState))
 
 	finalState := &akptypes.AkpInstance{}
-	resp.Diagnostics.Append(finalState.UpdateFrom(instance)...)
+	err = finalState.Refresh(ctx, r.akpCli.Cli, r.akpCli.OrgId, instanceId)
+	if err != nil {
+		resp.Diagnostics.AddError("Server Error", fmt.Sprintf("Cannot refresh instance state. %s", err))
+		return
+	}
+	finalState.PopulateSecrets(plan)
 	tflog.Debug(ctx, fmt.Sprintf("Final State: %s", finalState))
 	resp.Diagnostics.Append(resp.State.Set(ctx, &finalState)...)
 }
 
 func (r *AkpInstanceResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	tflog.Debug(ctx, "Reading an Argo CD Instance")
-	var state *akptypes.AkpInstance
+	var tfState *akptypes.AkpInstance
 
-	diags := req.State.Get(ctx, &state)
+	diags := req.State.Get(ctx, &tfState)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
+	akpState := &akptypes.AkpInstance{}
 	ctx = ctxutil.SetClientCredential(ctx, r.akpCli.Cred)
-	apiReq := &argocdv1.GetInstanceRequest{
-		Id:             state.Id.ValueString(),
-		IdType:         idv1.Type_ID,
-		OrganizationId: r.akpCli.OrgId,
-	}
-	tflog.Debug(ctx, fmt.Sprintf("Api Request: %s", apiReq))
-	apiResp, err := r.akpCli.Cli.GetInstance(ctx, apiReq)
+	err := akpState.Refresh(ctx, r.akpCli.Cli, r.akpCli.OrgId, tfState.Id.ValueString())
 	switch status.Code(err) {
 	case codes.OK:
-		tflog.Debug(ctx, fmt.Sprintf("Api Response: %s", apiResp))
+		tflog.Debug(ctx, "State Refreshed")
 	case codes.NotFound:
 		resp.State.RemoveResource(ctx)
 		return
@@ -227,10 +247,8 @@ func (r *AkpInstanceResource) Read(ctx context.Context, req resource.ReadRequest
 		return
 	}
 
-	resp.Diagnostics.Append(state.UpdateFrom(apiResp.Instance)...)
-
-	tflog.Debug(ctx, fmt.Sprintf("Updating State to %s", state))
-	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	tflog.Debug(ctx, fmt.Sprintf("Updating State to %s", akpState))
+	resp.Diagnostics.Append(resp.State.Set(ctx, &akpState)...)
 }
 
 func (r *AkpInstanceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -247,6 +265,7 @@ func (r *AkpInstanceResource) Update(ctx context.Context, req resource.UpdateReq
 	tflog.Debug(ctx, fmt.Sprintf("Update plan: %s", plan))
 	resp.Diagnostics.Append(plan.As(instance)...)
 	ctx = ctxutil.SetClientCredential(ctx, r.akpCli.Cred)
+	ctx = tflog.MaskLogStrings(ctx, plan.GetSensitiveStrings()...)
 	resp.Diagnostics.Append(r.UpdateInstance(ctx, instance)...)
 	instance, err := r.waitInstanceReconStatus(ctx, instanceId)
 	if err != nil {
@@ -255,7 +274,12 @@ func (r *AkpInstanceResource) Update(ctx context.Context, req resource.UpdateReq
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Updated Argo CD instance: %s", instance))
 	state := &akptypes.AkpInstance{}
-	resp.Diagnostics.Append(state.UpdateFrom(instance)...)
+	err = state.Refresh(ctx, r.akpCli.Cli, r.akpCli.OrgId, instanceId)
+	if err != nil {
+		resp.Diagnostics.AddError("Server Error", fmt.Sprintf("Cannot refresh instance state. %s", err))
+		return
+	}
+	state.PopulateSecrets(plan)
 	tflog.Debug(ctx, fmt.Sprintf("Updating State to %s", state))
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }

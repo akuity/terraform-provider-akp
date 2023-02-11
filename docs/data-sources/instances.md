@@ -57,6 +57,7 @@ Read-Only:
 - `policy_csv` (String) Value of `policy.csv` in `argocd-rbac-cm` configmap
 - `repo_server_delegate` (Attributes) In case some clusters don't have network access to your private Git provider you can delegate these operations to one specific cluster. (see [below for nested schema](#nestedatt--instances--repo_server_delegate))
 - `resource_settings` (Attributes) Custom resource settings (see [below for nested schema](#nestedatt--instances--resource_settings))
+- `secrets` (Attributes List) List of secrets used in SSO Configuration (OIDC or DEX config YAML) (see [below for nested schema](#nestedatt--instances--secrets))
 - `status_badge` (Attributes) Status Badge Configuration (see [below for nested schema](#nestedatt--instances--status_badge))
 - `subdomain` (String) Instance Subdomain
 - `users_session` (String) Users Session Duration
@@ -164,6 +165,15 @@ Read-Only:
 - `compare_options` (String) Compare Options
 - `exclusions` (String) Exclusions
 - `inclusions` (String) Inclusions
+
+
+<a id="nestedatt--instances--secrets"></a>
+### Nested Schema for `instances.secrets`
+
+Read-Only:
+
+- `name` (String)
+- `value` (String, Sensitive) Akuity API does not return secret values. In datasources this field is always null
 
 
 <a id="nestedatt--instances--status_badge"></a>
