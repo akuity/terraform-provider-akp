@@ -303,16 +303,37 @@ func (d *AkpInstanceDataSource) Schema(ctx context.Context, req datasource.Schem
 				MarkdownDescription: "Instance Subdomain",
 				Computed:            true,
 			},
-			"secrets": schema.ListNestedAttribute{
-				MarkdownDescription: "List of secrets used in SSO Configuration (OIDC or DEX config YAML)",
+			"secrets": schema.MapNestedAttribute{
+				MarkdownDescription: "Map of secrets used in SSO Configuration (OIDC or DEX config YAML)",
 				Computed:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
-						"name": schema.StringAttribute{
-							Computed: true,
-						},
 						"value": schema.StringAttribute{
 							MarkdownDescription: "Akuity API does not return secret values. In datasources this field is always null",
+							Sensitive: true,
+							Computed:  true,
+						},
+					},
+				},
+			},
+			"notification_secrets": schema.MapNestedAttribute{
+				MarkdownDescription: "Map of secrets used in Notification Settings",
+				Computed:            true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"value": schema.StringAttribute{
+							Sensitive: true,
+							Computed:  true,
+						},
+					},
+				},
+			},
+			"image_updater_secrets": schema.MapNestedAttribute{
+				MarkdownDescription: "Map of secrets used in Image Updater Configuration",
+				Computed:            true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"value": schema.StringAttribute{
 							Sensitive: true,
 							Computed:  true,
 						},

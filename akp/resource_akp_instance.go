@@ -87,17 +87,79 @@ func (r *AkpInstanceResource) waitInstanceReconStatus(ctx context.Context, insta
 	return res, nil
 }
 
-func (r *AkpInstanceResource) UpdateInstance(ctx context.Context, to *argocdv1.Instance) diag.Diagnostics {
+func (r *AkpInstanceResource) UpdateInstance(ctx context.Context, to *akptypes.AkpInstance) diag.Diagnostics {
 	diag := diag.Diagnostics{}
+
+	// ---------------- Image Updater ----------------
+	imageUpdaterSecrets := make(map[string]*argocdv1.PatchInstanceImageUpdaterSecretRequest_ValueField)
+	imageUpdaterSecretsMap, d := akptypes.MapFromMapValue(to.ImageUpdaterSecrets)
+	diag.Append(d...)
+	for name, value := range imageUpdaterSecretsMap {
+		var valueField *string
+		if value != "" {
+			valueField = &value
+		}
+		imageUpdaterSecrets[name] = &argocdv1.PatchInstanceImageUpdaterSecretRequest_ValueField{
+			Value: valueField,
+		}
+	}
+	apiIUSecretReq := &argocdv1.PatchInstanceImageUpdaterSecretRequest{
+		OrganizationId: r.akpCli.OrgId,
+		Id:             to.Id.ValueString(),
+		Secret:         imageUpdaterSecrets,
+	}
+	tflog.Debug(ctx, fmt.Sprintf("Api Req: %s", apiIUSecretReq.String()))
+	apiIUSecretResp, err := r.akpCli.Cli.PatchInstanceImageUpdaterSecret(ctx, apiIUSecretReq)
+	tflog.Debug(ctx, fmt.Sprintf("Api Resp: %s", apiIUSecretResp.String()))
+	if err != nil {
+		diag.AddError("Client Error", fmt.Sprintf("Unable to update Argo CD Image Updater secrets: %s", err))
+	}
+
+	// ---------------- Notifications ----------------
+	notificationSecrets := make(map[string]*argocdv1.PatchInstanceNotificationSecretRequest_ValueField)
+	notificationSecretsMap, d := akptypes.MapFromMapValue(to.NotificationSecrets)
+	diag.Append(d...)
+	for name, value := range notificationSecretsMap {
+		var valueField *string
+		if value != "" {
+			valueField = &value
+		}
+		notificationSecrets[name] = &argocdv1.PatchInstanceNotificationSecretRequest_ValueField{
+			Value: valueField,
+		}
+	}
+	apiNotificationSecretReq := &argocdv1.PatchInstanceNotificationSecretRequest{
+		OrganizationId: r.akpCli.OrgId,
+		Id:             to.Id.ValueString(),
+		Secret:         notificationSecrets,
+	}
+	tflog.Debug(ctx, fmt.Sprintf("Api Req: %s", apiNotificationSecretReq.String()))
+	apiNotificationSecretResp, err := r.akpCli.Cli.PatchInstanceNotificationSecret(ctx, apiNotificationSecretReq)
+	tflog.Debug(ctx, fmt.Sprintf("Api Resp: %s", apiNotificationSecretResp.String()))
+	if err != nil {
+		diag.AddError("Client Error", fmt.Sprintf("Unable to update Argo CD Image Updater secrets: %s", err))
+	}
+
+	// ---------------- Secrets ----------------
+	desiredInstance := argocdv1.Instance{
+		Id: to.Id.ValueString(),
+	}
+	diag.Append(to.As(&desiredInstance)...)
+	tflog.Debug(ctx, fmt.Sprintf("Updating Instance to %s", desiredInstance.String()))
+
 	secrets := make(map[string]*argocdv1.PatchInstanceSecretRequest_ValueField)
-	for name, value := range to.Secrets {
+	for name, value := range desiredInstance.Secrets {
+		var valueField *string
+		if value != "" {
+			valueField = &value
+		}
 		secrets[name] = &argocdv1.PatchInstanceSecretRequest_ValueField{
-			Value: &value,
+			Value: valueField,
 		}
 	}
 	apiSecretReq := &argocdv1.PatchInstanceSecretRequest{
 		OrganizationId: r.akpCli.OrgId,
-		Id:             to.Id,
+		Id:             desiredInstance.Id,
 		Secret:         secrets,
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Api Req: %s", apiSecretReq.String()))
@@ -106,10 +168,12 @@ func (r *AkpInstanceResource) UpdateInstance(ctx context.Context, to *argocdv1.I
 	if err != nil {
 		diag.AddError("Client Error", fmt.Sprintf("Unable to update Argo CD secrets: %s", err))
 	}
+
+	// ---------------- Instance ----------------
 	apiReq := &argocdv1.UpdateInstanceRequest{
 		OrganizationId: r.akpCli.OrgId,
-		Id:             to.Id,
-		Instance:       to,
+		Id:             desiredInstance.Id,
+		Instance:       &desiredInstance,
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Api Req: %s", apiReq.String()))
 	apiResp, err := r.akpCli.Cli.UpdateInstance(ctx, apiReq)
@@ -197,12 +261,7 @@ func (r *AkpInstanceResource) Create(ctx context.Context, req resource.CreateReq
 		return
 	}
 	// Update the instance
-	desiredInstance := argocdv1.Instance{
-		Id: state.Id.ValueString(),
-	}
-	resp.Diagnostics.Append(desiredState.As(&desiredInstance)...)
-	tflog.Debug(ctx, fmt.Sprintf("Updating Instance to %s", desiredInstance.String()))
-	resp.Diagnostics.Append(r.UpdateInstance(ctx, &desiredInstance)...)
+	resp.Diagnostics.Append(r.UpdateInstance(ctx, desiredState)...)
 	tflog.Info(ctx, "Argo CD instance updated")
 	instance, err = r.waitInstanceReconStatus(ctx, instanceId)
 	if err != nil {
@@ -252,28 +311,25 @@ func (r *AkpInstanceResource) Read(ctx context.Context, req resource.ReadRequest
 }
 
 func (r *AkpInstanceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan *akptypes.AkpInstance
+	var plan, state *akptypes.AkpInstance
 
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 	instanceId := plan.Id.ValueString()
-	instance := &argocdv1.Instance{
-		Id: instanceId,
-	}
-	tflog.Debug(ctx, fmt.Sprintf("Update plan: %s", plan))
-	resp.Diagnostics.Append(plan.As(instance)...)
 	ctx = ctxutil.SetClientCredential(ctx, r.akpCli.Cred)
 	ctx = tflog.MaskLogStrings(ctx, plan.GetSensitiveStrings()...)
-	resp.Diagnostics.Append(r.UpdateInstance(ctx, instance)...)
+	desiredState, d := akptypes.MergeInstance(state, plan)
+	resp.Diagnostics.Append(d...)
+	resp.Diagnostics.Append(r.UpdateInstance(ctx, desiredState)...)
 	instance, err := r.waitInstanceReconStatus(ctx, instanceId)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to check instance reconciliation status. %s", err))
 		return
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Updated Argo CD instance: %s", instance))
-	state := &akptypes.AkpInstance{}
 	err = state.Refresh(ctx, r.akpCli.Cli, r.akpCli.OrgId, instanceId)
 	if err != nil {
 		resp.Diagnostics.AddError("Server Error", fmt.Sprintf("Cannot refresh instance state. %s", err))

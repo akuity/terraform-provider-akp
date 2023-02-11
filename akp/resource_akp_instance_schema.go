@@ -334,14 +334,11 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
-			"secrets": schema.ListNestedAttribute{
-				MarkdownDescription: "List of secrets used in SSO Configuration (OIDC or DEX config YAML)",
+			"secrets": schema.MapNestedAttribute{
+				MarkdownDescription: "Map of secrets used in SSO Configuration (OIDC or DEX config YAML)",
 				Optional:            true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
-						"name": schema.StringAttribute{
-							Required: true,
-						},
 						"value": schema.StringAttribute{
 							MarkdownDescription: "Akuity API does not return secret values. Provider will try to update the secret value on every apply",
 							Sensitive: true,
@@ -350,34 +347,30 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 					},
 				},
 			},
-			// "notification_secrets": schema.ListNestedAttribute{
-			// 	MarkdownDescription: "List of secrets used in Notification Settings",
-			// 	Optional:            true,
-			// 	NestedObject: schema.NestedAttributeObject{
-			// 		Attributes: map[string]schema.Attribute{
-			// 			"name": schema.StringAttribute{
-			// 				Required: true,
-			// 			},
-			// 			"value": schema.StringAttribute{
-			// 				Sensitive: true,
-			// 			},
-			// 		},
-			// 	},
-			// },
-			// "image_updater_secrets": schema.ListNestedAttribute{
-			// 	MarkdownDescription: "List of secrets used in Image Updater Configuration",
-			// 	Optional:            true,
-			// 	NestedObject: schema.NestedAttributeObject{
-			// 		Attributes: map[string]schema.Attribute{
-			// 			"name": schema.StringAttribute{
-			// 				Required: true,
-			// 			},
-			// 			"value": schema.StringAttribute{
-			// 				Sensitive: true,
-			// 			},
-			// 		},
-			// 	},
-			// },
+			"notification_secrets": schema.MapNestedAttribute{
+				MarkdownDescription: "Map of secrets used in Notification Settings",
+				Optional:            true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"value": schema.StringAttribute{
+							Sensitive: true,
+							Required:  true,
+						},
+					},
+				},
+			},
+			"image_updater_secrets": schema.MapNestedAttribute{
+				MarkdownDescription: "Map of secrets used in Image Updater Configuration",
+				Optional:            true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"value": schema.StringAttribute{
+							Sensitive: true,
+							Required:  true,
+						},
+					},
+				},
+			},
 		},
 	}
 }

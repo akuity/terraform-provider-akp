@@ -9,36 +9,70 @@ import (
 )
 
 type Secret struct {
-	Name  types.String `tfsdk:"name"`
 	Value types.String `tfsdk:"value"`
 }
 
 var (
 	secretAttrTypes = map[string]attr.Type{
-		"name":  types.StringType,
 		"value": types.StringType,
 	}
 )
 
-func ListValueFromMap(s map[string]string) (types.List, diag.Diagnostics) {
-	var secrets []Secret
+func MapValueFromMap(s map[string]string) (types.Map, diag.Diagnostics) {
+	var res types.Map
+	var diags diag.Diagnostics
+	secrets := make(map[string]Secret)
 	for name, value := range s {
-		secret := Secret{
-			Name:  types.StringValue(name),
+		secrets[name] = Secret{
 			Value: types.StringValue(value),
 		}
-		secrets = append(secrets, secret)
 	}
-	res, d := types.ListValueFrom(context.Background(), types.ObjectType{AttrTypes: secretAttrTypes}, secrets)
+	if len(secrets) == 0 {
+		res = types.MapNull(types.ObjectType{AttrTypes: secretAttrTypes})
+	} else {
+		res, diags = types.MapValueFrom(context.Background(), types.ObjectType{AttrTypes: secretAttrTypes}, secrets)
+	}
+	return res, diags
+}
+
+func MapFromMapValue(s types.Map) (map[string]string, diag.Diagnostics) {
+	var secrets map[string]Secret
+	d := s.ElementsAs(context.Background(), &secrets, true)
+	res := make(map[string]string)
+	for name, elem := range secrets {
+		res[name] = elem.Value.ValueString()
+	}
 	return res, d
 }
 
-func MapFromListValue(s types.List) (map[string]string, diag.Diagnostics) {
-	var secrets []Secret
-	d := s.ElementsAs(context.Background(),&secrets, true)
-	res := make(map[string]string)
-	for _, elem := range secrets {
-		res[elem.Name.ValueString()] = elem.Value.ValueString()
+func MergeSecrets(state *types.Map, plan *types.Map) (*types.Map, diag.Diagnostics) {
+	var stateSecrets, planSecrets map[string]Secret
+	diags := diag.Diagnostics{}
+	if !state.IsNull() {
+		diags.Append(state.ElementsAs(context.Background(), &stateSecrets, true)...)
+	} else {
+		stateSecrets = make(map[string]Secret)
 	}
-	return res, d
+	if !plan.IsNull() && !plan.IsUnknown() {
+		diags.Append(plan.ElementsAs(context.Background(), &planSecrets, true)...)
+	} else {
+		planSecrets = make(map[string]Secret)
+	}
+	res := make(map[string]Secret)
+	for name := range stateSecrets {
+		if val, ok := planSecrets[name]; ok {
+			res[name] = val // update secret from plan
+		} else {
+			res[name] = Secret{
+				Value: types.StringNull(), // remove secret
+			}
+		}
+	}
+	for name := range planSecrets {
+		if _, ok := stateSecrets[name]; !ok {
+			res[name] = planSecrets[name]
+		}
+	}
+	resMap, d := types.MapValueFrom(context.Background(), types.ObjectType{AttrTypes: secretAttrTypes}, res)
+	return &resMap, d
 }
