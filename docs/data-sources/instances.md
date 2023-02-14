@@ -47,17 +47,19 @@ Read-Only:
 - `hostname` (String) Instance Hostname
 - `id` (String) Instance ID
 - `image_updater_enabled` (Boolean) Enable Image Updater
+- `image_updater_secrets` (Attributes Map) Map of secrets used in Image Updater Configuration (see [below for nested schema](#nestedatt--instances--image_updater_secrets))
 - `instance_label_key` (String) Instance Label Key
 - `ip_allow_list` (Attributes List) IP Allow List (see [below for nested schema](#nestedatt--instances--ip_allow_list))
 - `kustomize` (Attributes) Kustomize Settings (see [below for nested schema](#nestedatt--instances--kustomize))
 - `kustomize_enabled` (Boolean) Enable Kustomize
 - `name` (String) Instance Name
+- `notification_secrets` (Attributes Map) Map of secrets used in Notification Settings (see [below for nested schema](#nestedatt--instances--notification_secrets))
 - `oidc` (String) OIDC Config YAML
 - `oidc_scopes` (List of String) List of OIDC scopes
 - `policy_csv` (String) Value of `policy.csv` in `argocd-rbac-cm` configmap
 - `repo_server_delegate` (Attributes) In case some clusters don't have network access to your private Git provider you can delegate these operations to one specific cluster. (see [below for nested schema](#nestedatt--instances--repo_server_delegate))
 - `resource_settings` (Attributes) Custom resource settings (see [below for nested schema](#nestedatt--instances--resource_settings))
-- `secrets` (Attributes List) List of secrets used in SSO Configuration (OIDC or DEX config YAML) (see [below for nested schema](#nestedatt--instances--secrets))
+- `secrets` (Attributes Map) Map of secrets used in SSO Configuration (OIDC or DEX config YAML) (see [below for nested schema](#nestedatt--instances--secrets))
 - `status_badge` (Attributes) Status Badge Configuration (see [below for nested schema](#nestedatt--instances--status_badge))
 - `subdomain` (String) Instance Subdomain
 - `users_session` (String) Users Session Duration
@@ -119,6 +121,14 @@ Read-Only:
 - `value_file_schemas` (String) Value File Schemas
 
 
+<a id="nestedatt--instances--image_updater_secrets"></a>
+### Nested Schema for `instances.image_updater_secrets`
+
+Read-Only:
+
+- `value` (String, Sensitive)
+
+
 <a id="nestedatt--instances--ip_allow_list"></a>
 ### Nested Schema for `instances.ip_allow_list`
 
@@ -134,6 +144,14 @@ Read-Only:
 Read-Only:
 
 - `build_options` (String) Build options
+
+
+<a id="nestedatt--instances--notification_secrets"></a>
+### Nested Schema for `instances.notification_secrets`
+
+Read-Only:
+
+- `value` (String, Sensitive)
 
 
 <a id="nestedatt--instances--repo_server_delegate"></a>
@@ -172,7 +190,6 @@ Read-Only:
 
 Read-Only:
 
-- `name` (String)
 - `value` (String, Sensitive) Akuity API does not return secret values. In datasources this field is always null
 
 
