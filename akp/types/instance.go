@@ -2,11 +2,14 @@ package types
 
 import (
 	"context"
+	"fmt"
 
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
+	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 type AkpInstance struct {
@@ -20,7 +23,7 @@ type AkpInstance struct {
 	ClusterCustomization  types.Object `tfsdk:"cluster_customization_defaults"` // optional
 	DeclarativeManagement types.Bool   `tfsdk:"declarative_management_enabled"` // optional computed
 	Extensions            types.List   `tfsdk:"extensions"`                     // optional
-	ImageUpdater          types.Bool   `tfsdk:"image_updater_enabled"`          // optional computed
+	ImageUpdaterEnabled   types.Bool   `tfsdk:"image_updater_enabled"`          // optional computed
 	IpAllowList           types.List   `tfsdk:"ip_allow_list"`                  // optional
 	RepoServerDelegate    types.Object `tfsdk:"repo_server_delegate"`           // optional
 	Subdomain             types.String `tfsdk:"subdomain"`                      // optional computed
@@ -43,6 +46,9 @@ type AkpInstance struct {
 	DefaultPolicy         types.String `tfsdk:"default_policy"`                 // optional
 	PolicyCsv             types.String `tfsdk:"policy_csv"`                     // optional
 	OidcScopes            types.List   `tfsdk:"oidc_scopes"`                    // optional
+	Secrets               types.Map    `tfsdk:"secrets"`                        // optional
+	NotificationSecrets   types.Map    `tfsdk:"notification_secrets"`           // optional
+	ImageUpdaterSecrets   types.Map    `tfsdk:"image_updater_secrets"`          // optional
 }
 
 func MergeInstance(state *AkpInstance, plan *AkpInstance) (*AkpInstance, diag.Diagnostics) {
@@ -325,12 +331,12 @@ func MergeInstance(state *AkpInstance, plan *AkpInstance) (*AkpInstance, diag.Di
 		res.Extensions = plan.Extensions
 	}
 
-	if plan.ImageUpdater.IsUnknown() {
-		res.ImageUpdater = state.ImageUpdater
-	} else if plan.ImageUpdater.IsNull() {
-		res.ImageUpdater = types.BoolNull()
+	if plan.ImageUpdaterEnabled.IsUnknown() {
+		res.ImageUpdaterEnabled = state.ImageUpdaterEnabled
+	} else if plan.ImageUpdaterEnabled.IsNull() {
+		res.ImageUpdaterEnabled = types.BoolNull()
 	} else {
-		res.ImageUpdater = plan.ImageUpdater
+		res.ImageUpdaterEnabled = plan.ImageUpdaterEnabled
 	}
 
 	if plan.IpAllowList.IsUnknown() {
@@ -365,10 +371,83 @@ func MergeInstance(state *AkpInstance, plan *AkpInstance) (*AkpInstance, diag.Di
 		res.Subdomain = plan.Subdomain
 	}
 
+	// ------- Secrets -------
+	if plan.Secrets.IsUnknown() {
+		res.Secrets = state.Secrets
+	} else {
+		secrets, d := MergeSecrets(&state.Secrets, &plan.Secrets)
+		diags.Append(d...)
+		res.Secrets = *secrets
+	}
+
+	if plan.NotificationSecrets.IsUnknown() {
+		res.NotificationSecrets = state.NotificationSecrets
+	} else {
+		secrets, d := MergeSecrets(&state.NotificationSecrets, &plan.NotificationSecrets)
+		diags.Append(d...)
+		res.NotificationSecrets = *secrets
+	}
+
+	if plan.ImageUpdaterSecrets.IsUnknown() {
+		res.ImageUpdaterSecrets = state.ImageUpdaterSecrets
+	} else {
+		secrets, d := MergeSecrets(&state.ImageUpdaterSecrets, &plan.ImageUpdaterSecrets)
+		diags.Append(d...)
+		res.ImageUpdaterSecrets = *secrets
+	}
 	return res, diags
 }
 
-func (x *AkpInstance) UpdateFrom(p *argocdv1.Instance) diag.Diagnostics {
+func (x *AkpInstance) Refresh(ctx context.Context, cli argocdv1.ArgoCDServiceGatewayClient, orgId string, instanceId string) error {
+	apiInstanceReq := &argocdv1.GetInstanceRequest{
+		OrganizationId: orgId,
+		Id:             instanceId,
+		IdType:         idv1.Type_ID,
+	}
+	tflog.Debug(ctx, fmt.Sprintf("Api Instance Req: %s", apiInstanceReq.String()))
+	apiInstanceResp, err := cli.GetInstance(ctx, apiInstanceReq)
+	tflog.Debug(ctx, fmt.Sprintf("Api Instance Resp: %s", apiInstanceResp.String()))
+	if err != nil {
+		return err
+	}
+	instance := apiInstanceResp.GetInstance()
+	x.UpdateInstance(instance)
+
+	apiIUReq := &argocdv1.GetInstanceImageUpdaterSettingsRequest{
+		OrganizationId: orgId,
+		Id:             instanceId,
+	}
+	tflog.Debug(ctx, fmt.Sprintf("Api ImageUpdater Req: %s", apiIUReq.String()))
+	apiIUResp, err := cli.GetInstanceImageUpdaterSettings(ctx, apiIUReq)
+	tflog.Debug(ctx, fmt.Sprintf("Api ImageUpdater Resp: %s", apiIUResp.String()))
+	if err != nil {
+		return err
+	}
+	// imageUpdaterConfig := apiIUResp.GetConfig()
+	// imageUpdaterSshConfig := apiIUResp.GetSshConfig()
+	imageUpdaterSecrets := apiIUResp.GetSecret()
+
+	x.UpdateImageUpdater(imageUpdaterSecrets)
+
+	apiNotificationReq := &argocdv1.GetInstanceNotificationSettingsRequest{
+		OrganizationId: orgId,
+		Id:             instanceId,
+	}
+	tflog.Debug(ctx, fmt.Sprintf("Api Notification Req: %s", apiNotificationReq.String()))
+	apiNotificationResp, err := cli.GetInstanceNotificationSettings(ctx, apiNotificationReq)
+	tflog.Debug(ctx, fmt.Sprintf("Api Notification Resp: %s", apiNotificationResp.String()))
+	if err != nil {
+		return err
+	}
+	// notificationConfig := apiNotificationResp.GetConfig()
+	notificationSecrets := apiNotificationResp.GetSecret()
+
+	x.UpdateNotifications(notificationSecrets)
+
+	return nil
+}
+
+func (x *AkpInstance) UpdateInstance(p *argocdv1.Instance) diag.Diagnostics {
 	diags := diag.Diagnostics{}
 	d := diag.Diagnostics{}
 	x.Id = types.StringValue(p.Id)
@@ -426,7 +505,7 @@ func (x *AkpInstance) UpdateFrom(p *argocdv1.Instance) diag.Diagnostics {
 		diags.Append(d...)
 	}
 
-	x.ImageUpdater = types.BoolValue(inputSpec.ImageUpdaterEnabled) // computed => cannot be null
+	x.ImageUpdaterEnabled = types.BoolValue(inputSpec.ImageUpdaterEnabled) // computed => cannot be null
 
 	if inputSpec.IpAllowList == nil || len(inputSpec.IpAllowList) == 0 {
 		x.IpAllowList = types.ListNull(
@@ -601,7 +680,78 @@ func (x *AkpInstance) UpdateFrom(p *argocdv1.Instance) diag.Diagnostics {
 		x.OidcScopes, diags = types.ListValueFrom(context.Background(), types.StringType, scopes)
 	}
 
+	// ----------- Secrets -------------
+	if len(p.GetSecrets()) == 0 {
+		x.Secrets = types.MapNull(types.ObjectType{AttrTypes: secretAttrTypes}) // not computed => can be null
+	} else {
+		x.Secrets, d = MapValueFromMap(p.Secrets)
+		diags.Append(d...)
+	}
 	return diags
+}
+
+func (x *AkpInstance) UpdateImageUpdater(imageUpdaterSecrets map[string]string) diag.Diagnostics {
+	var d diag.Diagnostics
+	diags := diag.Diagnostics{}
+	if len(imageUpdaterSecrets) == 0 {
+		x.ImageUpdaterSecrets = types.MapNull(types.ObjectType{AttrTypes: secretAttrTypes}) // not computed => can be null
+	} else {
+		x.ImageUpdaterSecrets, d = MapValueFromMap(imageUpdaterSecrets)
+		diags.Append(d...)
+	}
+	return diags
+}
+
+func (x *AkpInstance) UpdateNotifications(notificationSecrets map[string]string) diag.Diagnostics {
+	var d diag.Diagnostics
+	diags := diag.Diagnostics{}
+	if len(notificationSecrets) == 0 {
+		x.NotificationSecrets = types.MapNull(types.ObjectType{AttrTypes: secretAttrTypes}) // not computed => can be null
+	} else {
+		x.NotificationSecrets, d = MapValueFromMap(notificationSecrets)
+		diags.Append(d...)
+	}
+	return diags
+}
+
+func (x *AkpInstance) PopulateSecrets(source *AkpInstance) {
+	secrets, _ := MapFromMapValue(x.Secrets)
+	sourceSecrets, _ := MapFromMapValue(source.Secrets)
+	for name := range secrets {
+		secrets[name] = sourceSecrets[name]
+	}
+	x.Secrets, _ = MapValueFromMap(secrets)
+
+	imageUpdaterSecrets, _ := MapFromMapValue(x.ImageUpdaterSecrets)
+	sourceImageUpdaterSecrets, _ := MapFromMapValue(source.ImageUpdaterSecrets)
+	for name := range imageUpdaterSecrets {
+		imageUpdaterSecrets[name] = sourceImageUpdaterSecrets[name]
+	}
+	x.ImageUpdaterSecrets, _ = MapValueFromMap(imageUpdaterSecrets)
+
+	notificationSecrets, _ := MapFromMapValue(x.NotificationSecrets)
+	sourceNotificationSecrets, _ := MapFromMapValue(source.NotificationSecrets)
+	for name := range notificationSecrets {
+		notificationSecrets[name] = sourceNotificationSecrets[name]
+	}
+	x.NotificationSecrets, _ = MapValueFromMap(notificationSecrets)
+}
+
+func (x *AkpInstance) GetSensitiveStrings() []string {
+	var res []string
+	secrets, _ := MapFromMapValue(x.Secrets)
+	for _, value := range secrets {
+		res = append(res, value)
+	}
+	imageUpdaterSecrets, _ := MapFromMapValue(x.ImageUpdaterSecrets)
+	for _, value := range imageUpdaterSecrets {
+		res = append(res, value)
+	}
+	notificationSecrets, _ := MapFromMapValue(x.NotificationSecrets)
+	for _, value := range notificationSecrets {
+		res = append(res, value)
+	}
+	return res
 }
 
 func (x *AkpInstance) As(target *argocdv1.Instance) diag.Diagnostics {
@@ -645,7 +795,7 @@ func (x *AkpInstance) As(target *argocdv1.Instance) diag.Diagnostics {
 		}
 	}
 
-	target.Spec.ImageUpdaterEnabled = x.ImageUpdater.ValueBool()
+	target.Spec.ImageUpdaterEnabled = x.ImageUpdaterEnabled.ValueBool()
 
 	if x.IpAllowList.IsNull() {
 		target.Spec.IpAllowList = nil
@@ -805,6 +955,11 @@ func (x *AkpInstance) As(target *argocdv1.Instance) diag.Diagnostics {
 		diags.Append(x.OidcScopes.ElementsAs(context.Background(), &scopes, true)...)
 		target.RbacConfig.Scopes = scopes
 	}
+
+	// ------- Secrets -------
+	secrets, d := MapFromMapValue(x.Secrets)
+	target.Secrets = secrets
+	diags.Append(d...)
 
 	return diags
 }

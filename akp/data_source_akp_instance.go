@@ -303,6 +303,43 @@ func (d *AkpInstanceDataSource) Schema(ctx context.Context, req datasource.Schem
 				MarkdownDescription: "Instance Subdomain",
 				Computed:            true,
 			},
+			"secrets": schema.MapNestedAttribute{
+				MarkdownDescription: "Map of secrets used in SSO Configuration (OIDC or DEX config YAML)",
+				Computed:            true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"value": schema.StringAttribute{
+							MarkdownDescription: "Akuity API does not return secret values. In datasources this field is always null",
+							Sensitive: true,
+							Computed:  true,
+						},
+					},
+				},
+			},
+			"notification_secrets": schema.MapNestedAttribute{
+				MarkdownDescription: "Map of secrets used in Notification Settings",
+				Computed:            true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"value": schema.StringAttribute{
+							Sensitive: true,
+							Computed:  true,
+						},
+					},
+				},
+			},
+			"image_updater_secrets": schema.MapNestedAttribute{
+				MarkdownDescription: "Map of secrets used in Image Updater Configuration",
+				Computed:            true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"value": schema.StringAttribute{
+							Sensitive: true,
+							Computed:  true,
+						},
+					},
+				},
+			},
 		},
 	}
 }
@@ -348,8 +385,11 @@ func (d *AkpInstanceDataSource) Read(ctx context.Context, req datasource.ReadReq
 		return
 	}
 
-	tflog.Info(ctx, "Got Argo CD instance")
-	resp.Diagnostics.Append(state.UpdateFrom(apiResp.GetInstance())...)
+	err = state.Refresh(ctx, d.akpCli.Cli, d.akpCli.OrgId, apiResp.Instance.Id)
+	if err != nil {
+		resp.Diagnostics.AddError("Server Error", fmt.Sprintf("Cannot refresh instance state. %s", err))
+		return
+	}
 
 	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)

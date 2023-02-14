@@ -18,11 +18,15 @@ resource "akp_instance" "example" {
   version        = "v2.6.0"
   description    = "Some description"
   default_policy = "role:readonly"
+  subdomain      = "custom"
   web_terminal = {
     enabled = true
   }
+  secrets = [{
+    name  = "slack_token"
+    value = "secret"
+  }]
   declarative_management_enabled = true
-  subdomain                      = "custom"
 }
 ```
 
@@ -52,15 +56,18 @@ resource "akp_instance" "example" {
 - `helm` (Attributes) Helm Configuration (see [below for nested schema](#nestedatt--helm))
 - `helm_enabled` (Boolean) Enable Helm
 - `image_updater_enabled` (Boolean) Enable Image Updater
+- `image_updater_secrets` (Attributes Map) Map of secrets used in Image Updater Configuration (see [below for nested schema](#nestedatt--image_updater_secrets))
 - `instance_label_key` (String) Instance Label Key
 - `ip_allow_list` (Attributes List) IP Allow List (see [below for nested schema](#nestedatt--ip_allow_list))
 - `kustomize` (Attributes) Kustomize Settings (see [below for nested schema](#nestedatt--kustomize))
 - `kustomize_enabled` (Boolean) Enable Kustomize
+- `notification_secrets` (Attributes Map) Map of secrets used in Notification Settings (see [below for nested schema](#nestedatt--notification_secrets))
 - `oidc` (String) OIDC Config YAML
 - `oidc_scopes` (List of String) List of OIDC scopes
 - `policy_csv` (String) Value of `policy.csv` in `argocd-rbac-cm` configmap
 - `repo_server_delegate` (Attributes) In case some clusters don't have network access to your private Git provider you can delegate these operations to one specific cluster. (see [below for nested schema](#nestedatt--repo_server_delegate))
 - `resource_settings` (Attributes) Custom resource settings (see [below for nested schema](#nestedatt--resource_settings))
+- `secrets` (Attributes Map) Map of secrets used in SSO Configuration (OIDC or DEX config YAML) (see [below for nested schema](#nestedatt--secrets))
 - `status_badge` (Attributes) Status Badge Configuration (see [below for nested schema](#nestedatt--status_badge))
 - `subdomain` (String) Instance Subdomain. By default equals to instance id
 - `users_session` (String) Users Session Duration
@@ -132,6 +139,14 @@ Required:
 - `value_file_schemas` (String) Value File Schemas
 
 
+<a id="nestedatt--image_updater_secrets"></a>
+### Nested Schema for `image_updater_secrets`
+
+Required:
+
+- `value` (String, Sensitive)
+
+
 <a id="nestedatt--ip_allow_list"></a>
 ### Nested Schema for `ip_allow_list`
 
@@ -150,6 +165,14 @@ Optional:
 Required:
 
 - `build_options` (String) Build options
+
+
+<a id="nestedatt--notification_secrets"></a>
+### Nested Schema for `notification_secrets`
+
+Required:
+
+- `value` (String, Sensitive)
 
 
 <a id="nestedatt--repo_server_delegate"></a>
@@ -184,6 +207,14 @@ Optional:
 - `compare_options` (String) Compare Options
 - `exclusions` (String) Exclusions
 - `inclusions` (String) Inclusions
+
+
+<a id="nestedatt--secrets"></a>
+### Nested Schema for `secrets`
+
+Required:
+
+- `value` (String, Sensitive) Akuity API does not return secret values. Provider will try to update the secret value on every apply
 
 
 <a id="nestedatt--status_badge"></a>
