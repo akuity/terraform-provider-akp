@@ -31,7 +31,7 @@ With this provider you can manage Argo CD instances and clusters on [Akuity Plat
     required_providers {
       akp = {
         source = "akuity/akp"
-        version = "~> 0.2"
+        version = "~> 0.3"
       }
     }
   }
@@ -62,7 +62,7 @@ With this provider you can manage Argo CD instances and clusters on [Akuity Plat
 
 ``` hcl
 resource "akp_instance" "example" {
-  name        = "tf-100-clusters-example"
+  name        = "tf-example"
   version     = "v2.6.0"
   description = "An example of terraform automation for managing Akuity Platform resources"
   web_terminal = {
@@ -71,7 +71,27 @@ resource "akp_instance" "example" {
   kustomize = {
     build_options = "--enable-helm"
   }
-  declarative_management = true
+  secrets = {
+    sso_secret = {
+      value = "secret"
+    }
+  }
+  image_updater = {
+    secrets = {
+      docker_json = {
+        value = "secret"
+      }
+    }
+    registries = {
+      docker = {
+        prefix      = "docker.io"
+        api_url     = "https://registry-1.docker.io"
+        credentials = "secret:argocd/argocd-image-updater-secret#docker_json"
+      }
+    }
+  }
+  declarative_management_enabled = true
+  image_updater_enabled          = true
 }
 ```
 
