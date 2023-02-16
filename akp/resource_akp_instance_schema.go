@@ -341,8 +341,8 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 					Attributes: map[string]schema.Attribute{
 						"value": schema.StringAttribute{
 							MarkdownDescription: "Akuity API does not return secret values. Provider will try to update the secret value on every apply",
-							Sensitive: true,
-							Required:  true,
+							Sensitive:           true,
+							Required:            true,
 						},
 					},
 				},
@@ -359,14 +359,73 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 					},
 				},
 			},
-			"image_updater_secrets": schema.MapNestedAttribute{
-				MarkdownDescription: "Map of secrets used in Image Updater Configuration",
+			"image_updater": schema.SingleNestedAttribute{
+				MarkdownDescription: "Image Updater Settings",
 				Optional:            true,
-				NestedObject: schema.NestedAttributeObject{
-					Attributes: map[string]schema.Attribute{
-						"value": schema.StringAttribute{
-							Sensitive: true,
-							Required:  true,
+				Attributes: map[string]schema.Attribute{
+					"secrets": schema.MapNestedAttribute{
+						MarkdownDescription: "Map of secrets used in Image Updater Configuration",
+						Optional:            true,
+						NestedObject: schema.NestedAttributeObject{
+							Attributes: map[string]schema.Attribute{
+								"value": schema.StringAttribute{
+									Sensitive: true,
+									Required:  true,
+								},
+							},
+						},
+					},
+					"ssh_config": schema.StringAttribute{
+						MarkdownDescription: "SSH Client configuration (~/.ssh/config) in Image Updater",
+						Optional:            true,
+					},
+					"git_user": schema.StringAttribute{
+						MarkdownDescription: "User name used in git commit",
+						Optional:            true,
+					},
+					"git_email": schema.StringAttribute{
+						MarkdownDescription: "User email used in git commit",
+						Optional:            true,
+					},
+					"git_template": schema.StringAttribute{
+						MarkdownDescription: "Commit Message Template for `git` write-back method. Available variables are {{\"`{{AppName}}`\"}}, {{\"`{{AppChanges}}`\"}}. [More info](https://argocd-image-updater.readthedocs.io/en/stable/basics/update-methods/#changing-the-git-commit-message)",
+						Optional:            true,
+					},
+					"log_level": schema.StringAttribute{
+						MarkdownDescription: "Log level of Image Updater Controller. One of `error`, `warn`, `info`, `debug` or `trace`",
+						Optional:            true,
+					},
+					"registries": schema.MapNestedAttribute{
+						MarkdownDescription: "Custom container registries. Not required for most public registries. [More info](https://argocd-image-updater.readthedocs.io/en/stable/configuration/registries/#configuring-custom-registries)",
+						Optional:            true,
+						NestedObject: schema.NestedAttributeObject{
+							Attributes: map[string]schema.Attribute{
+								"prefix": schema.StringAttribute{
+									Required: true,
+								},
+								"api_url": schema.StringAttribute{
+									Optional: true,
+								},
+								"defaultns": schema.StringAttribute{
+									Optional: true,
+								},
+								"credentials": schema.StringAttribute{
+									MarkdownDescription: "Link to the configured secret. Must be in format `secret:argocd/argocd-image-updater-secret#<secret-name>`",
+									Optional:            true,
+								},
+								"credsexpire": schema.StringAttribute{
+									Optional: true,
+								},
+								"limit": schema.StringAttribute{
+									Optional: true,
+								},
+								"default": schema.BoolAttribute{
+									Optional: true,
+								},
+								"insecure": schema.BoolAttribute{
+									Optional: true,
+								},
+							},
 						},
 					},
 				},
