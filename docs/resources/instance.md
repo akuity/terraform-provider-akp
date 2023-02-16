@@ -77,7 +77,7 @@ resource "akp_instance" "example" {
 - `ip_allow_list` (Attributes List) IP Allow List (see [below for nested schema](#nestedatt--ip_allow_list))
 - `kustomize` (Attributes) Kustomize Settings (see [below for nested schema](#nestedatt--kustomize))
 - `kustomize_enabled` (Boolean) Enable Kustomize
-- `notification_secrets` (Attributes Map) Map of secrets used in Notification Settings (see [below for nested schema](#nestedatt--notification_secrets))
+- `notifications` (Attributes) Notifications (see [below for nested schema](#nestedatt--notifications))
 - `oidc` (String) OIDC Config YAML
 - `oidc_scopes` (List of String) List of OIDC scopes
 - `policy_csv` (String) Value of `policy.csv` in `argocd-rbac-cm` configmap
@@ -215,12 +215,21 @@ Required:
 - `build_options` (String) Build options
 
 
-<a id="nestedatt--notification_secrets"></a>
-### Nested Schema for `notification_secrets`
+<a id="nestedatt--notifications"></a>
+### Nested Schema for `notifications`
+
+Optional:
+
+- `config` (Map of String) Notification configuration. Similar to `argocd-notifications-cm` configmap. Contains [triggers](https://argocd-notifications.readthedocs.io/en/stable/triggers/), [templates](https://argocd-notifications.readthedocs.io/en/stable/templates/) and [services](https://argocd-notifications.readthedocs.io/en/stable/services/overview/)
+- `secrets` (Attributes Map) Map of secrets used in Notification Settings (see [below for nested schema](#nestedatt--notifications--secrets))
+
+<a id="nestedatt--notifications--secrets"></a>
+### Nested Schema for `notifications.secrets`
 
 Required:
 
 - `value` (String, Sensitive)
+
 
 
 <a id="nestedatt--repo_server_delegate"></a>

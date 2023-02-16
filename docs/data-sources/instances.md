@@ -53,7 +53,7 @@ Read-Only:
 - `kustomize` (Attributes) Kustomize Settings (see [below for nested schema](#nestedatt--instances--kustomize))
 - `kustomize_enabled` (Boolean) Enable Kustomize
 - `name` (String) Instance Name
-- `notification_secrets` (Attributes Map) Map of secrets used in Notification Settings (see [below for nested schema](#nestedatt--instances--notification_secrets))
+- `notifications` (Attributes) Notifications (see [below for nested schema](#nestedatt--instances--notifications))
 - `oidc` (String) OIDC Config YAML
 - `oidc_scopes` (List of String) List of OIDC scopes
 - `policy_csv` (String) Value of `policy.csv` in `argocd-rbac-cm` configmap
@@ -175,12 +175,21 @@ Read-Only:
 - `build_options` (String) Build options
 
 
-<a id="nestedatt--instances--notification_secrets"></a>
-### Nested Schema for `instances.notification_secrets`
+<a id="nestedatt--instances--notifications"></a>
+### Nested Schema for `instances.notifications`
+
+Read-Only:
+
+- `config` (Map of String) Notification configuration. Similar to `argocd-notifications-cm` configmap. Contains [triggers](https://argocd-notifications.readthedocs.io/en/stable/triggers/), [templates](https://argocd-notifications.readthedocs.io/en/stable/templates/) and [services](https://argocd-notifications.readthedocs.io/en/stable/services/overview/)
+- `secrets` (Attributes Map) Map of secrets used in Notification Settings (see [below for nested schema](#nestedatt--instances--notifications--secrets))
+
+<a id="nestedatt--instances--notifications--secrets"></a>
+### Nested Schema for `instances.notifications.secrets`
 
 Read-Only:
 
 - `value` (String, Sensitive)
+
 
 
 <a id="nestedatt--instances--repo_server_delegate"></a>

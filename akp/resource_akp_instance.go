@@ -142,8 +142,52 @@ func (r *AkpInstanceResource) UpdateImageUpdater(ctx context.Context, instanceId
 	return diag
 }
 
-func (r *AkpInstanceResource) UpdateInstance(ctx context.Context, to *akptypes.AkpInstance) diag.Diagnostics {
+func (r *AkpInstanceResource) UpdateNotifications(ctx context.Context, instanceId string, to *akptypes.AkpNotifications) diag.Diagnostics {
 	var d diag.Diagnostics
+	diag := diag.Diagnostics{}
+
+	// ---------------- Secrets----------------
+	notificationSecrets := make(map[string]*argocdv1.PatchInstanceNotificationSecretRequest_ValueField)
+	notificationSecretsMap, d := akptypes.MapFromMapValue(to.Secrets)
+	diag.Append(d...)
+	for name, value := range notificationSecretsMap {
+		var valueField *string
+		if value != "" {
+			valueField = &value
+		}
+		notificationSecrets[name] = &argocdv1.PatchInstanceNotificationSecretRequest_ValueField{
+			Value: valueField, // populate <nil> when value is "", which deletes the secret on server
+		}
+	}
+	apiNotificationSecretReq := &argocdv1.PatchInstanceNotificationSecretRequest{
+		OrganizationId: r.akpCli.OrgId,
+		Id:             instanceId,
+		Secret:         notificationSecrets,
+	}
+	tflog.Debug(ctx, fmt.Sprintf("Api Req: %s", apiNotificationSecretReq.String()))
+	apiNotificationSecretResp, err := r.akpCli.Cli.PatchInstanceNotificationSecret(ctx, apiNotificationSecretReq)
+	tflog.Debug(ctx, fmt.Sprintf("Api Resp: %s", apiNotificationSecretResp.String()))
+	if err != nil {
+		diag.AddError("Client Error", fmt.Sprintf("Unable to update Argo CD Notifications secrets: %s", err))
+	}
+
+	var notificationConfig map[string]string
+	diag.Append(to.Config.ElementsAs(ctx, &notificationConfig, true)...)
+	apiNotificationReq := &argocdv1.UpdateInstanceNotificationConfigRequest{
+		OrganizationId: r.akpCli.OrgId,
+		Id:             instanceId,
+		Config:         notificationConfig,
+	}
+	tflog.Debug(ctx, fmt.Sprintf("Api Req: %s", apiNotificationReq.String()))
+	apiNotificationResp, err := r.akpCli.Cli.UpdateInstanceNotificationConfig(ctx, apiNotificationReq)
+	tflog.Debug(ctx, fmt.Sprintf("Api Resp: %s", apiNotificationResp.String()))
+	if err != nil {
+		diag.AddError("Client Error", fmt.Sprintf("Unable to update Argo CD Notifications: %s", err))
+	}
+	return diag
+}
+
+func (r *AkpInstanceResource) UpdateInstance(ctx context.Context, to *akptypes.AkpInstance) diag.Diagnostics {
 	diag := diag.Diagnostics{}
 
 	if !to.ImageUpdater.IsNull() {
@@ -152,29 +196,10 @@ func (r *AkpInstanceResource) UpdateInstance(ctx context.Context, to *akptypes.A
 		diag.Append(r.UpdateImageUpdater(ctx, to.Id.ValueString(), &iu)...)
 	}
 
-	// ---------------- Notifications ----------------
-	notificationSecrets := make(map[string]*argocdv1.PatchInstanceNotificationSecretRequest_ValueField)
-	notificationSecretsMap, d := akptypes.MapFromMapValue(to.NotificationSecrets)
-	diag.Append(d...)
-	for name, value := range notificationSecretsMap {
-		var valueField *string
-		if value != "" {
-			valueField = &value
-		}
-		notificationSecrets[name] = &argocdv1.PatchInstanceNotificationSecretRequest_ValueField{
-			Value: valueField,
-		}
-	}
-	apiNotificationSecretReq := &argocdv1.PatchInstanceNotificationSecretRequest{
-		OrganizationId: r.akpCli.OrgId,
-		Id:             to.Id.ValueString(),
-		Secret:         notificationSecrets,
-	}
-	tflog.Debug(ctx, fmt.Sprintf("Api Req: %s", apiNotificationSecretReq.String()))
-	apiNotificationSecretResp, err := r.akpCli.Cli.PatchInstanceNotificationSecret(ctx, apiNotificationSecretReq)
-	tflog.Debug(ctx, fmt.Sprintf("Api Resp: %s", apiNotificationSecretResp.String()))
-	if err != nil {
-		diag.AddError("Client Error", fmt.Sprintf("Unable to update Argo CD Image Updater secrets: %s", err))
+	if !to.Notifications.IsNull() {
+		var notif akptypes.AkpNotifications
+		diag.Append(to.Notifications.As(context.Background(), &notif, basetypes.ObjectAsOptions{})...)
+		diag.Append(r.UpdateNotifications(ctx, to.Id.ValueString(), &notif)...)
 	}
 
 	// ---------------- Secrets ----------------

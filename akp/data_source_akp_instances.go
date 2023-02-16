@@ -327,15 +327,26 @@ func (d *AkpInstancesDataSource) Schema(ctx context.Context, req datasource.Sche
 								},
 							},
 						},
-						"notification_secrets": schema.MapNestedAttribute{
-							MarkdownDescription: "Map of secrets used in Notification Settings",
+						"notifications": schema.SingleNestedAttribute{
+							MarkdownDescription: "Notifications",
 							Computed:            true,
-							NestedObject: schema.NestedAttributeObject{
-								Attributes: map[string]schema.Attribute{
-									"value": schema.StringAttribute{
-										Sensitive: true,
-										Computed:  true,
+							Attributes: map[string]schema.Attribute{
+								"secrets": schema.MapNestedAttribute{
+									MarkdownDescription: "Map of secrets used in Notification Settings",
+									Computed:            true,
+									NestedObject: schema.NestedAttributeObject{
+										Attributes: map[string]schema.Attribute{
+											"value": schema.StringAttribute{
+												Sensitive: true,
+												Computed:  true,
+											},
+										},
 									},
+								},
+								"config": schema.MapAttribute{
+									MarkdownDescription: "Notification configuration. Similar to `argocd-notifications-cm` configmap. Contains [triggers](https://argocd-notifications.readthedocs.io/en/stable/triggers/), [templates](https://argocd-notifications.readthedocs.io/en/stable/templates/) and [services](https://argocd-notifications.readthedocs.io/en/stable/services/overview/)",
+									Computed:            true,
+									ElementType:         types.StringType,
 								},
 							},
 						},

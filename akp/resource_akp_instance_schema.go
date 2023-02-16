@@ -347,18 +347,6 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 					},
 				},
 			},
-			"notification_secrets": schema.MapNestedAttribute{
-				MarkdownDescription: "Map of secrets used in Notification Settings",
-				Optional:            true,
-				NestedObject: schema.NestedAttributeObject{
-					Attributes: map[string]schema.Attribute{
-						"value": schema.StringAttribute{
-							Sensitive: true,
-							Required:  true,
-						},
-					},
-				},
-			},
 			"image_updater": schema.SingleNestedAttribute{
 				MarkdownDescription: "Image Updater Settings",
 				Optional:            true,
@@ -427,6 +415,29 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 								},
 							},
 						},
+					},
+				},
+			},
+			"notifications": schema.SingleNestedAttribute{
+				MarkdownDescription: "Notifications",
+				Optional:            true,
+				Attributes: map[string]schema.Attribute{
+					"secrets": schema.MapNestedAttribute{
+						MarkdownDescription: "Map of secrets used in Notification Settings",
+						Optional:            true,
+						NestedObject: schema.NestedAttributeObject{
+							Attributes: map[string]schema.Attribute{
+								"value": schema.StringAttribute{
+									Sensitive: true,
+									Required:  true,
+								},
+							},
+						},
+					},
+					"config": schema.MapAttribute{
+						MarkdownDescription: "Notification configuration. Similar to `argocd-notifications-cm` configmap. Contains [triggers](https://argocd-notifications.readthedocs.io/en/stable/triggers/), [templates](https://argocd-notifications.readthedocs.io/en/stable/templates/) and [services](https://argocd-notifications.readthedocs.io/en/stable/services/overview/)",
+						Optional:            true,
+						ElementType:         types.StringType,
 					},
 				},
 			},

@@ -47,7 +47,7 @@ type AkpInstance struct {
 	PolicyCsv             types.String `tfsdk:"policy_csv"`                     // optional
 	OidcScopes            types.List   `tfsdk:"oidc_scopes"`                    // optional
 	Secrets               types.Map    `tfsdk:"secrets"`                        // optional
-	NotificationSecrets   types.Map    `tfsdk:"notification_secrets"`           // optional
+	Notifications         types.Object `tfsdk:"notifications"`                  // optional
 	ImageUpdater          types.Object `tfsdk:"image_updater"`                  // optional
 }
 
@@ -387,6 +387,22 @@ func MergeInstance(state *AkpInstance, plan *AkpInstance) (*AkpInstance, diag.Di
 		diags.Append(d...)
 	}
 
+	if plan.Notifications.IsUnknown() {
+		res.Notifications = state.Notifications
+	} else if plan.Notifications.IsNull() {
+		res.Notifications = types.ObjectNull(notificationsAttrTypes)
+	} else {
+		var stateNotifications, planNotifications AkpNotifications
+		diags.Append(state.Notifications.As(context.Background(), &stateNotifications, basetypes.ObjectAsOptions{
+			UnhandledNullAsEmpty: true,
+		})...)
+		diags.Append(plan.Notifications.As(context.Background(), &planNotifications, basetypes.ObjectAsOptions{})...)
+		resNotifications, d := MergeNotifications(&stateNotifications, &planNotifications)
+		diags.Append(d...)
+		res.Notifications, d = types.ObjectValueFrom(context.Background(), notificationsAttrTypes, resNotifications)
+		diags.Append(d...)
+	}
+
 	// ------- Secrets -------
 	if plan.Secrets.IsUnknown() {
 		res.Secrets = state.Secrets
@@ -394,14 +410,6 @@ func MergeInstance(state *AkpInstance, plan *AkpInstance) (*AkpInstance, diag.Di
 		secrets, d := MergeSecrets(&state.Secrets, &plan.Secrets)
 		diags.Append(d...)
 		res.Secrets = *secrets
-	}
-
-	if plan.NotificationSecrets.IsUnknown() {
-		res.NotificationSecrets = state.NotificationSecrets
-	} else {
-		secrets, d := MergeSecrets(&state.NotificationSecrets, &plan.NotificationSecrets)
-		diags.Append(d...)
-		res.NotificationSecrets = *secrets
 	}
 
 	return res, diags
@@ -448,10 +456,10 @@ func (x *AkpInstance) Refresh(ctx context.Context, cli argocdv1.ArgoCDServiceGat
 	if err != nil {
 		return err
 	}
-	// notificationConfig := apiNotificationResp.GetConfig()
+	notificationConfig := apiNotificationResp.GetConfig()
 	notificationSecrets := apiNotificationResp.GetSecret()
 
-	x.UpdateNotifications(notificationSecrets)
+	x.UpdateNotifications(notificationSecrets, notificationConfig)
 
 	return nil
 }
@@ -712,13 +720,15 @@ func (x *AkpInstance) UpdateImageUpdater(imageUpdaterSecrets map[string]string, 
 	return diags
 }
 
-func (x *AkpInstance) UpdateNotifications(notificationSecrets map[string]string) diag.Diagnostics {
+func (x *AkpInstance) UpdateNotifications(secrets map[string]string, config map[string]string) diag.Diagnostics {
 	var d diag.Diagnostics
 	diags := diag.Diagnostics{}
-	if len(notificationSecrets) == 0 {
-		x.NotificationSecrets = types.MapNull(types.ObjectType{AttrTypes: secretAttrTypes}) // not computed => can be null
+	if len(secrets)+len(config) == 0 {
+		x.Notifications = types.ObjectNull(notificationsAttrTypes)
 	} else {
-		x.NotificationSecrets, d = MapValueFromMap(notificationSecrets)
+		notifications := &AkpNotifications{}
+		diags.Append(notifications.UpdateNotifications(secrets, config)...)
+		x.Notifications, d = types.ObjectValueFrom(context.Background(), notificationsAttrTypes, notifications)
 		diags.Append(d...)
 	}
 	return diags
@@ -740,12 +750,13 @@ func (x *AkpInstance) PopulateSecrets(source *AkpInstance) {
 		x.ImageUpdater, _ = types.ObjectValueFrom(context.Background(), imageUpdaterAttrTypes, iu)
 	}
 
-	notificationSecrets, _ := MapFromMapValue(x.NotificationSecrets)
-	sourceNotificationSecrets, _ := MapFromMapValue(source.NotificationSecrets)
-	for name := range notificationSecrets {
-		notificationSecrets[name] = sourceNotificationSecrets[name]
+	if !x.Notifications.IsNull() && !source.Notifications.IsNull() {
+		var notif, sourceNotif AkpNotifications
+		x.Notifications.As(context.Background(), &notif, basetypes.ObjectAsOptions{})
+		source.Notifications.As(context.Background(), &sourceNotif, basetypes.ObjectAsOptions{})
+		notif.PopulateSecrets(&sourceNotif)
+		x.Notifications, _ = types.ObjectValueFrom(context.Background(), notificationsAttrTypes, notif)
 	}
-	x.NotificationSecrets, _ = MapValueFromMap(notificationSecrets)
 }
 
 func (x *AkpInstance) GetSensitiveStrings() []string {
@@ -761,10 +772,12 @@ func (x *AkpInstance) GetSensitiveStrings() []string {
 		res = append(res, iu.GetSensitiveStrings()...)
 	}
 
-	notificationSecrets, _ := MapFromMapValue(x.NotificationSecrets)
-	for _, value := range notificationSecrets {
-		res = append(res, value)
+	if !x.Notifications.IsNull() {
+		var notif AkpNotifications
+		x.Notifications.As(context.Background(), &notif, basetypes.ObjectAsOptions{})
+		res = append(res, notif.GetSensitiveStrings()...)
 	}
+
 	return res
 }
 
