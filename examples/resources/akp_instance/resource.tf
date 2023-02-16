@@ -7,9 +7,25 @@ resource "akp_instance" "example" {
   web_terminal = {
     enabled = true
   }
-  secrets = [{
-    name  = "slack_token"
-    value = "secret"
-  }]
+  secrets = {
+    sso_secret = {
+      value = "secret"
+    }
+  }
+  image_updater = {
+    secrets = {
+      docker_json = {
+        value = "secret"
+      }
+    }
+    registries = {
+      docker = {
+        prefix      = "docker.io"
+        api_url     = "https://registry-1.docker.io"
+        credentials = "secret:argocd/argocd-image-updater-secret#docker_json"
+      }
+    }
+  }
   declarative_management_enabled = true
+  image_updater_enabled          = true
 }

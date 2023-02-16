@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"golang.org/x/exp/slices"
 	codes "google.golang.org/grpc/codes"
@@ -87,12 +88,14 @@ func (r *AkpInstanceResource) waitInstanceReconStatus(ctx context.Context, insta
 	return res, nil
 }
 
-func (r *AkpInstanceResource) UpdateInstance(ctx context.Context, to *akptypes.AkpInstance) diag.Diagnostics {
+func (r *AkpInstanceResource) UpdateImageUpdater(ctx context.Context, instanceId string, to *akptypes.AkpImageUpdater) diag.Diagnostics {
+	var d diag.Diagnostics
 	diag := diag.Diagnostics{}
 
-	// ---------------- Image Updater ----------------
+	// ---------------- Secrets----------------
+	var imageUpdaterSecretsMap map[string]string
 	imageUpdaterSecrets := make(map[string]*argocdv1.PatchInstanceImageUpdaterSecretRequest_ValueField)
-	imageUpdaterSecretsMap, d := akptypes.MapFromMapValue(to.ImageUpdaterSecrets)
+	imageUpdaterSecretsMap, d = akptypes.MapFromMapValue(to.Secrets)
 	diag.Append(d...)
 	for name, value := range imageUpdaterSecretsMap {
 		var valueField *string
@@ -100,12 +103,12 @@ func (r *AkpInstanceResource) UpdateInstance(ctx context.Context, to *akptypes.A
 			valueField = &value
 		}
 		imageUpdaterSecrets[name] = &argocdv1.PatchInstanceImageUpdaterSecretRequest_ValueField{
-			Value: valueField,
+			Value: valueField, // populate <nil> when value is "", which deletes the secret on server
 		}
 	}
 	apiIUSecretReq := &argocdv1.PatchInstanceImageUpdaterSecretRequest{
 		OrganizationId: r.akpCli.OrgId,
-		Id:             to.Id.ValueString(),
+		Id:             instanceId,
 		Secret:         imageUpdaterSecrets,
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Api Req: %s", apiIUSecretReq.String()))
@@ -115,9 +118,37 @@ func (r *AkpInstanceResource) UpdateInstance(ctx context.Context, to *akptypes.A
 		diag.AddError("Client Error", fmt.Sprintf("Unable to update Argo CD Image Updater secrets: %s", err))
 	}
 
-	// ---------------- Notifications ----------------
+	// ---------------- Image Updater Config ----------------
+	imageUpdaterConfigMap := to.ConfigAsMap()
+	apiIUReq := &argocdv1.UpdateInstanceImageUpdaterConfigRequest{
+		OrganizationId: r.akpCli.OrgId,
+		Id:             instanceId,
+		Config:         imageUpdaterConfigMap,
+	}
+	tflog.Debug(ctx, fmt.Sprintf("Api Req: %s", apiIUReq.String()))
+	apiIUResp, err := r.akpCli.Cli.UpdateInstanceImageUpdaterConfig(ctx, apiIUReq)
+	tflog.Debug(ctx, fmt.Sprintf("Api Resp: %s", apiIUResp.String()))
+
+	// ---------------- Image Updater Ssh Config ----------------
+	imageUpdaterSshConfigMap := to.SshConfigAsMap()
+	apiIUSshReq := &argocdv1.UpdateInstanceImageUpdaterSSHConfigRequest{
+		OrganizationId: r.akpCli.OrgId,
+		Id:             instanceId,
+		Config:         imageUpdaterSshConfigMap,
+	}
+	tflog.Debug(ctx, fmt.Sprintf("Api Req: %s", apiIUSshReq.String()))
+	apiIUSshResp, err := r.akpCli.Cli.UpdateInstanceImageUpdaterSSHConfig(ctx, apiIUSshReq)
+	tflog.Debug(ctx, fmt.Sprintf("Api Resp: %s", apiIUSshResp.String()))
+	return diag
+}
+
+func (r *AkpInstanceResource) UpdateNotifications(ctx context.Context, instanceId string, to *akptypes.AkpNotifications) diag.Diagnostics {
+	var d diag.Diagnostics
+	diag := diag.Diagnostics{}
+
+	// ---------------- Secrets----------------
 	notificationSecrets := make(map[string]*argocdv1.PatchInstanceNotificationSecretRequest_ValueField)
-	notificationSecretsMap, d := akptypes.MapFromMapValue(to.NotificationSecrets)
+	notificationSecretsMap, d := akptypes.MapFromMapValue(to.Secrets)
 	diag.Append(d...)
 	for name, value := range notificationSecretsMap {
 		var valueField *string
@@ -125,19 +156,50 @@ func (r *AkpInstanceResource) UpdateInstance(ctx context.Context, to *akptypes.A
 			valueField = &value
 		}
 		notificationSecrets[name] = &argocdv1.PatchInstanceNotificationSecretRequest_ValueField{
-			Value: valueField,
+			Value: valueField, // populate <nil> when value is "", which deletes the secret on server
 		}
 	}
 	apiNotificationSecretReq := &argocdv1.PatchInstanceNotificationSecretRequest{
 		OrganizationId: r.akpCli.OrgId,
-		Id:             to.Id.ValueString(),
+		Id:             instanceId,
 		Secret:         notificationSecrets,
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Api Req: %s", apiNotificationSecretReq.String()))
 	apiNotificationSecretResp, err := r.akpCli.Cli.PatchInstanceNotificationSecret(ctx, apiNotificationSecretReq)
 	tflog.Debug(ctx, fmt.Sprintf("Api Resp: %s", apiNotificationSecretResp.String()))
 	if err != nil {
-		diag.AddError("Client Error", fmt.Sprintf("Unable to update Argo CD Image Updater secrets: %s", err))
+		diag.AddError("Client Error", fmt.Sprintf("Unable to update Argo CD Notifications secrets: %s", err))
+	}
+
+	var notificationConfig map[string]string
+	diag.Append(to.Config.ElementsAs(ctx, &notificationConfig, true)...)
+	apiNotificationReq := &argocdv1.UpdateInstanceNotificationConfigRequest{
+		OrganizationId: r.akpCli.OrgId,
+		Id:             instanceId,
+		Config:         notificationConfig,
+	}
+	tflog.Debug(ctx, fmt.Sprintf("Api Req: %s", apiNotificationReq.String()))
+	apiNotificationResp, err := r.akpCli.Cli.UpdateInstanceNotificationConfig(ctx, apiNotificationReq)
+	tflog.Debug(ctx, fmt.Sprintf("Api Resp: %s", apiNotificationResp.String()))
+	if err != nil {
+		diag.AddError("Client Error", fmt.Sprintf("Unable to update Argo CD Notifications: %s", err))
+	}
+	return diag
+}
+
+func (r *AkpInstanceResource) UpdateInstance(ctx context.Context, to *akptypes.AkpInstance) diag.Diagnostics {
+	diag := diag.Diagnostics{}
+
+	if !to.ImageUpdater.IsNull() {
+		var iu akptypes.AkpImageUpdater
+		diag.Append(to.ImageUpdater.As(context.Background(), &iu, basetypes.ObjectAsOptions{})...)
+		diag.Append(r.UpdateImageUpdater(ctx, to.Id.ValueString(), &iu)...)
+	}
+
+	if !to.Notifications.IsNull() {
+		var notif akptypes.AkpNotifications
+		diag.Append(to.Notifications.As(context.Background(), &notif, basetypes.ObjectAsOptions{})...)
+		diag.Append(r.UpdateNotifications(ctx, to.Id.ValueString(), &notif)...)
 	}
 
 	// ---------------- Secrets ----------------

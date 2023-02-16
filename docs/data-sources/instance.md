@@ -44,13 +44,13 @@ data "akp_instance" "example" {
 - `helm_enabled` (Boolean) Enable Helm
 - `hostname` (String) Instance Hostname
 - `id` (String) Instance ID
+- `image_updater` (Attributes) Image Updater Settings (see [below for nested schema](#nestedatt--image_updater))
 - `image_updater_enabled` (Boolean) Enable Image Updater
-- `image_updater_secrets` (Attributes Map) Map of secrets used in Image Updater Configuration (see [below for nested schema](#nestedatt--image_updater_secrets))
 - `instance_label_key` (String) Instance Label Key
 - `ip_allow_list` (Attributes List) IP Allow List (see [below for nested schema](#nestedatt--ip_allow_list))
 - `kustomize` (Attributes) Kustomize Settings (see [below for nested schema](#nestedatt--kustomize))
 - `kustomize_enabled` (Boolean) Enable Kustomize
-- `notification_secrets` (Attributes Map) Map of secrets used in Notification Settings (see [below for nested schema](#nestedatt--notification_secrets))
+- `notifications` (Attributes) Notifications (see [below for nested schema](#nestedatt--notifications))
 - `oidc` (String) OIDC Config YAML
 - `oidc_scopes` (List of String) List of OIDC scopes
 - `policy_csv` (String) Value of `policy.csv` in `argocd-rbac-cm` configmap
@@ -118,12 +118,41 @@ Read-Only:
 - `value_file_schemas` (String) Value File Schemas
 
 
-<a id="nestedatt--image_updater_secrets"></a>
-### Nested Schema for `image_updater_secrets`
+<a id="nestedatt--image_updater"></a>
+### Nested Schema for `image_updater`
 
 Read-Only:
 
-- `value` (String, Sensitive)
+- `git_email` (String) User email used in git commit
+- `git_template` (String) Commit Message Template for `git` write-back method. Available variables are `{{AppName}}`, `{{AppChanges}}`. [More info](https://argocd-image-updater.readthedocs.io/en/stable/basics/update-methods/#changing-the-git-commit-message)
+- `git_user` (String) User name used in git commit
+- `log_level` (String) Log level of Image Updater Controller. One of `error`, `warn`, `info`, `debug` or `trace`
+- `registries` (Attributes Map) Custom container registries. Not required for most public registries. [More info](https://argocd-image-updater.readthedocs.io/en/stable/configuration/registries/#configuring-custom-registries) (see [below for nested schema](#nestedatt--image_updater--registries))
+- `secrets` (Attributes Map) Map of secrets used in Image Updater Configuration (see [below for nested schema](#nestedatt--image_updater--secrets))
+- `ssh_config` (String) SSH Client configuration (~/.ssh/config) in Image Updater
+
+<a id="nestedatt--image_updater--registries"></a>
+### Nested Schema for `image_updater.registries`
+
+Read-Only:
+
+- `api_url` (String)
+- `credentials` (String) Link to the configured secret. Must be in format `secret:argocd/argocd-image-updater-secret#<secret-name>`
+- `credsexpire` (String)
+- `default` (Boolean)
+- `defaultns` (String)
+- `insecure` (Boolean)
+- `limit` (String)
+- `prefix` (String)
+
+
+<a id="nestedatt--image_updater--secrets"></a>
+### Nested Schema for `image_updater.secrets`
+
+Read-Only:
+
+- `value` (String, Sensitive) Api server doesn't return secret values, so this field is always null in data sources
+
 
 
 <a id="nestedatt--ip_allow_list"></a>
@@ -143,12 +172,21 @@ Read-Only:
 - `build_options` (String) Build options
 
 
-<a id="nestedatt--notification_secrets"></a>
-### Nested Schema for `notification_secrets`
+<a id="nestedatt--notifications"></a>
+### Nested Schema for `notifications`
+
+Read-Only:
+
+- `config` (Map of String) Notification configuration. Similar to `argocd-notifications-cm` configmap. Contains [triggers](https://argocd-notifications.readthedocs.io/en/stable/triggers/), [templates](https://argocd-notifications.readthedocs.io/en/stable/templates/) and [services](https://argocd-notifications.readthedocs.io/en/stable/services/overview/)
+- `secrets` (Attributes Map) Map of secrets used in Notification Settings (see [below for nested schema](#nestedatt--notifications--secrets))
+
+<a id="nestedatt--notifications--secrets"></a>
+### Nested Schema for `notifications.secrets`
 
 Read-Only:
 
 - `value` (String, Sensitive)
+
 
 
 <a id="nestedatt--repo_server_delegate"></a>

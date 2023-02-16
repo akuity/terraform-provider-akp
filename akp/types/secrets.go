@@ -37,7 +37,10 @@ func MapValueFromMap(s map[string]string) (types.Map, diag.Diagnostics) {
 
 func MapFromMapValue(s types.Map) (map[string]string, diag.Diagnostics) {
 	var secrets map[string]Secret
-	d := s.ElementsAs(context.Background(), &secrets, true)
+	var d diag.Diagnostics
+	if !s.IsNull() {
+		d = s.ElementsAs(context.Background(), &secrets, true)
+	}
 	res := make(map[string]string)
 	for name, elem := range secrets {
 		res[name] = elem.Value.ValueString()
