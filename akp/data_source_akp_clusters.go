@@ -88,14 +88,6 @@ func (d *AkpClustersDataSource) Schema(ctx context.Context, req datasource.Schem
 							MarkdownDescription: "Disable Agents Auto Upgrade",
 							Computed:            true,
 						},
-						"custom_image_registry_argoproj": schema.StringAttribute{
-							MarkdownDescription: "Custom Registry for Argoproj Images",
-							Computed:            true,
-						},
-						"custom_image_registry_akuity": schema.StringAttribute{
-							MarkdownDescription: "Custom Registry for Akuity Images",
-							Computed:            true,
-						},
 						"labels": schema.MapAttribute{
 							ElementType:         types.StringType,
 							MarkdownDescription: "Cluster Labels",

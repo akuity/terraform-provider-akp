@@ -241,14 +241,6 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 				MarkdownDescription: "Default Values For Cluster Agents",
 				Optional:            true,
 				Attributes: map[string]schema.Attribute{
-					"custom_image_registry_argoproj": schema.StringAttribute{
-						MarkdownDescription: "Custom Image Registry for Argoproj images",
-						Optional:            true,
-					},
-					"custom_image_registry_akuity": schema.StringAttribute{
-						MarkdownDescription: "Custom Image Registry for Akuity images",
-						Optional:            true,
-					},
 					"auto_upgrade_disabled": schema.BoolAttribute{
 						MarkdownDescription: "Disable Agent Auto-upgrade",
 						Optional:            true,

@@ -125,8 +125,6 @@ Optional:
 Optional:
 
 - `auto_upgrade_disabled` (Boolean) Disable Agent Auto-upgrade
-- `custom_image_registry_akuity` (String) Custom Image Registry for Akuity images
-- `custom_image_registry_argoproj` (String) Custom Image Registry for Argoproj images
 
 
 <a id="nestedatt--extensions"></a>

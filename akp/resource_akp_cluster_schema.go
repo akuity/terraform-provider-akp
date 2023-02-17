@@ -81,22 +81,6 @@ func (r *AkpClusterResource) Schema(ctx context.Context, req resource.SchemaRequ
 					boolplanmodifier.UseStateForUnknown(),
 				},
 			},
-			"custom_image_registry_argoproj": schema.StringAttribute{
-				MarkdownDescription: "Custom Registry for Argoproj Images",
-				Optional:            true,
-				Computed:            true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"custom_image_registry_akuity": schema.StringAttribute{
-				MarkdownDescription: "Custom Registry for Akuity Images",
-				Optional:            true,
-				Computed:            true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
 			"labels": schema.MapAttribute{
 				ElementType: types.StringType,
 				MarkdownDescription: "Cluster Labels",
