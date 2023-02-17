@@ -31,7 +31,7 @@ With this provider you can manage Argo CD instances and clusters on [Akuity Plat
     required_providers {
       akp = {
         source = "akuity/akp"
-        version = "~> 0.3"
+        version = "~> 0.4"
       }
     }
   }
