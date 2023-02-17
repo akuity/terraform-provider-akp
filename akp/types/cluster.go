@@ -34,8 +34,6 @@ type AkpCluster struct {
 	NamespaceScoped             types.Bool   `tfsdk:"namespace_scoped"`
 	Size                        types.String `tfsdk:"size"`
 	AutoUpgradeDisabled         types.Bool   `tfsdk:"auto_upgrade_disabled"`
-	CustomImageRegistryArgoproj types.String `tfsdk:"custom_image_registry_argoproj"`
-	CustomImageRegistryAkuity   types.String `tfsdk:"custom_image_registry_akuity"`
 	Manifests                   types.String `tfsdk:"manifests"`
 	Labels                      types.Map    `tfsdk:"labels"`
 	Annotations                 types.Map    `tfsdk:"annotations"`
@@ -51,8 +49,6 @@ type AkpClusterKube struct {
 	NamespaceScoped             types.Bool   `tfsdk:"namespace_scoped"`
 	Size                        types.String `tfsdk:"size"`
 	AutoUpgradeDisabled         types.Bool   `tfsdk:"auto_upgrade_disabled"`
-	CustomImageRegistryArgoproj types.String `tfsdk:"custom_image_registry_argoproj"`
-	CustomImageRegistryAkuity   types.String `tfsdk:"custom_image_registry_akuity"`
 	Manifests                   types.String `tfsdk:"manifests"`
 	Labels                      types.Map    `tfsdk:"labels"`
 	Annotations                 types.Map    `tfsdk:"annotations"`
@@ -68,8 +64,6 @@ func (x *AkpClusterKube) Update(p *AkpCluster) error {
 	x.NamespaceScoped = p.NamespaceScoped
 	x.Size = p.Size
 	x.AutoUpgradeDisabled = p.AutoUpgradeDisabled
-	x.CustomImageRegistryArgoproj = p.CustomImageRegistryArgoproj
-	x.CustomImageRegistryAkuity = p.CustomImageRegistryAkuity
 	// x.Manifests = p.Manifests
 	x.Labels = p.Labels
 	x.Annotations = p.Annotations
@@ -103,8 +97,6 @@ func (x *AkpCluster) UpdateCluster(p *argocdv1.Cluster) diag.Diagnostics {
 	x.NamespaceScoped = types.BoolValue(p.GetNamespaceScoped())
 	x.Size = types.StringValue(ClusterSizeString[p.Data.Size])
 	x.AutoUpgradeDisabled = types.BoolValue(*p.Data.AutoUpgradeDisabled)
-	x.CustomImageRegistryArgoproj = types.StringValue(*p.Data.CustomImageRegistryArgoproj)
-	x.CustomImageRegistryAkuity = types.StringValue(*p.Data.CustomImageRegistryAkuity)
 	return diags
 }
 

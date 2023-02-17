@@ -45,8 +45,6 @@ resource "akp_cluster" "example" {
 
 - `annotations` (Map of String) Cluster Annotations
 - `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
-- `custom_image_registry_akuity` (String) Custom Registry for Akuity Images
-- `custom_image_registry_argoproj` (String) Custom Registry for Argoproj Images
 - `description` (String) Cluster Description
 - `kube_config` (Attributes) Kubernetes connection setings. If configured, terraform will try to connect to the cluster and install the agent (see [below for nested schema](#nestedatt--kube_config))
 - `labels` (Map of String) Cluster Labels

@@ -42,8 +42,6 @@ Read-Only:
 - `agent_version` (String) Installed agent version
 - `annotations` (Map of String) Cluster Annotations
 - `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade
-- `custom_image_registry_akuity` (String) Custom Registry for Akuity Images
-- `custom_image_registry_argoproj` (String) Custom Registry for Argoproj Images
 - `description` (String) Cluster Description
 - `id` (String) Cluster ID
 - `instance_id` (String) Argo CD Instance ID

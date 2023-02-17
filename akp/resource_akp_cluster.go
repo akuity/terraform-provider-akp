@@ -192,8 +192,6 @@ func (r *AkpClusterResource) Create(ctx context.Context, req resource.CreateRequ
 	}
 
 	ctx = ctxutil.SetClientCredential(ctx, r.akpCli.Cred)
-	customArgoproj := plan.CustomImageRegistryArgoproj.ValueString()
-	customAkuity := plan.CustomImageRegistryAkuity.ValueString()
 	autoupgrade := plan.AutoUpgradeDisabled.ValueBool()
 	var labels map[string]string
 	var annotations map[string]string
@@ -208,8 +206,6 @@ func (r *AkpClusterResource) Create(ctx context.Context, req resource.CreateRequ
 		NamespaceScoped: plan.NamespaceScoped.ValueBool(),
 		Data: &argocdv1.ClusterData{
 			Size:                        akptypes.StringClusterSize[plan.Size.ValueString()],
-			CustomImageRegistryArgoproj: &customArgoproj,
-			CustomImageRegistryAkuity:   &customAkuity,
 			AutoUpgradeDisabled:         &autoupgrade,
 			Labels:                      labels,
 			Annotations:                 annotations,
@@ -308,8 +304,6 @@ func (r *AkpClusterResource) Update(ctx context.Context, req resource.UpdateRequ
 	}
 
 	ctx = ctxutil.SetClientCredential(ctx, r.akpCli.Cred)
-	customArgoproj := plan.CustomImageRegistryArgoproj.ValueString()
-	customAkuity := plan.CustomImageRegistryAkuity.ValueString()
 	autoupgrade := plan.AutoUpgradeDisabled.ValueBool()
 	var labels map[string]string
 	var annotations map[string]string
@@ -322,8 +316,6 @@ func (r *AkpClusterResource) Update(ctx context.Context, req resource.UpdateRequ
 		Description:    plan.Description.ValueString(),
 		Data: &argocdv1.ClusterData{
 			Size:                        akptypes.StringClusterSize[plan.Size.ValueString()],
-			CustomImageRegistryArgoproj: &customArgoproj,
-			CustomImageRegistryAkuity:   &customAkuity,
 			AutoUpgradeDisabled:         &autoupgrade,
 			Labels:                      labels,
 			Annotations:                 annotations,
