@@ -240,6 +240,7 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 			"cluster_customization_defaults": schema.SingleNestedAttribute{
 				MarkdownDescription: "Default Values For Cluster Agents",
 				Optional:            true,
+				Computed:            true,
 				Attributes: map[string]schema.Attribute{
 					"auto_upgrade_disabled": schema.BoolAttribute{
 						MarkdownDescription: "Disable Agent Auto-upgrade",

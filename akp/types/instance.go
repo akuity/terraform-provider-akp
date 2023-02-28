@@ -20,7 +20,7 @@ type AkpInstance struct {
 	Hostname              types.String `tfsdk:"hostname"`                       // computed
 	AuditExtension        types.Bool   `tfsdk:"audit_extension_enabled"`        // optional computed
 	BackendIpAllowList    types.Bool   `tfsdk:"backend_ip_allow_list"`          // optional computed
-	ClusterCustomization  types.Object `tfsdk:"cluster_customization_defaults"` // optional
+	ClusterCustomization  types.Object `tfsdk:"cluster_customization_defaults"` // optional computed
 	DeclarativeManagement types.Bool   `tfsdk:"declarative_management_enabled"` // optional computed
 	Extensions            types.List   `tfsdk:"extensions"`                     // optional
 	ImageUpdaterEnabled   types.Bool   `tfsdk:"image_updater_enabled"`          // optional computed
@@ -488,14 +488,10 @@ func (x *AkpInstance) UpdateInstance(p *argocdv1.Instance) diag.Diagnostics {
 	x.AuditExtension = types.BoolValue(inputSpec.AuditExtensionEnabled)         // computed => cannot be null
 	x.BackendIpAllowList = types.BoolValue(inputSpec.BackendIpAllowListEnabled) // computed => cannot be null
 
-	if inputSpec.ClusterCustomizationDefaults == nil || inputSpec.ClusterCustomizationDefaults.String() == "" {
-		x.ClusterCustomization = types.ObjectNull(clusterCustomizationAttrTypes) // not computed => can be null
-	} else {
-		clusterCustomizationObject := &AkpClusterCustomization{}
-		diags.Append(clusterCustomizationObject.UpdateObject(inputSpec.ClusterCustomizationDefaults)...)
-		x.ClusterCustomization, d = types.ObjectValueFrom(context.Background(), clusterCustomizationAttrTypes, clusterCustomizationObject)
-		diags.Append(d...)
-	}
+	clusterCustomizationObject := &AkpClusterCustomization{}  // computed => cannot be null
+	diags.Append(clusterCustomizationObject.UpdateObject(inputSpec.ClusterCustomizationDefaults)...)
+	x.ClusterCustomization, d = types.ObjectValueFrom(context.Background(), clusterCustomizationAttrTypes, clusterCustomizationObject)
+	diags.Append(d...)
 
 	x.DeclarativeManagement = types.BoolValue(inputSpec.DeclarativeManagementEnabled) // computed => cannot be null
 
