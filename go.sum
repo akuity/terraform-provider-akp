@@ -23,8 +23,6 @@ github.com/acomagu/bufpipe v1.0.3 h1:fxAGrHZTgQ9w5QqVItgzwj235/uYZYgbXitB+dLupOk
 github.com/acomagu/bufpipe v1.0.3/go.mod h1:mxdxdup/WdsKVreO5GpW4+M/1CE2sMG4jeGJ2sYmHc4=
 github.com/agext/levenshtein v1.2.3 h1:YB2fHEn0UJagG8T1rrWknE3ZQzWM06O8AMAatNn7lmo=
 github.com/agext/levenshtein v1.2.3/go.mod h1:JEDfjyjHDjOF/1e4FlBE/PkbqA9OfWu2ki2W0IB5558=
-github.com/akuity/api-client-go v0.3.0 h1:w1jq4FlCuCkbq+BD00Tt2+IOQqSZB2MIuIQ6ks5hctg=
-github.com/akuity/api-client-go v0.3.0/go.mod h1:r8hrBcOts2GLOZ928LQVNFQyf+0ZywPNd1QM87jxvXI=
 github.com/akuity/api-client-go v0.4.0 h1:CXo3z6+IHntHXPI392QcWh+e8HW8/AGVulvLerqvk7U=
 github.com/akuity/api-client-go v0.4.0/go.mod h1:r8hrBcOts2GLOZ928LQVNFQyf+0ZywPNd1QM87jxvXI=
 github.com/alevinval/sse v1.0.1 h1:cFubh2lMNdHT6niFLCsyTuhAgljaAWbdmceAe6qPIfo=
@@ -204,12 +202,12 @@ github.com/hashicorp/hcl/v2 v2.16.1 h1:BwuxEMD/tsYgbhIW7UuI3crjovf3MzuFWiVgiv57i
 github.com/hashicorp/hcl/v2 v2.16.1/go.mod h1:JRmR89jycNkrrqnMmvPDMd56n1rQJ2Q6KocSLCMCXng=
 github.com/hashicorp/logutils v1.0.0 h1:dLEQVugN8vlakKOUE3ihGLTZJRB4j+M2cdTm/ORI65Y=
 github.com/hashicorp/logutils v1.0.0/go.mod h1:QIAnNjmIWmVIIkWDTG1z5v++HQmx9WQRO+LraFDTW64=
-github.com/hashicorp/terraform-exec v0.17.3 h1:MX14Kvnka/oWGmIkyuyvL6POx25ZmKrjlaclkx3eErU=
-github.com/hashicorp/terraform-exec v0.17.3/go.mod h1:+NELG0EqQekJzhvikkeQsOAZpsw0cv/03rbeQJqscAI=
+github.com/hashicorp/terraform-exec v0.18.0 h1:BJa6/Fhxnb0zvsEGqUrFSybcnhAiBVSUgG7s09b6XlI=
+github.com/hashicorp/terraform-exec v0.18.0/go.mod h1:6PMRgg0Capig5Fn0zW9/+WM3vQsdwotwa8uxDVzLpHE=
 github.com/hashicorp/terraform-json v0.15.0 h1:/gIyNtR6SFw6h5yzlbDbACyGvIhKtQi8mTsbkNd79lE=
 github.com/hashicorp/terraform-json v0.15.0/go.mod h1:+L1RNzjDU5leLFZkHTFTbJXaoqUC6TqXlFgDoOXrtvk=
-github.com/hashicorp/terraform-plugin-docs v0.13.0 h1:6e+VIWsVGb6jYJewfzq2ok2smPzZrt1Wlm9koLeKazY=
-github.com/hashicorp/terraform-plugin-docs v0.13.0/go.mod h1:W0oCmHAjIlTHBbvtppWHe8fLfZ2BznQbuv8+UD8OucQ=
+github.com/hashicorp/terraform-plugin-docs v0.14.0 h1:arfzRQvJAsIayBEQjkMSfiX2FBgfeLGxyq8lJegn6rA=
+github.com/hashicorp/terraform-plugin-docs v0.14.0/go.mod h1:RD0Ckw2HNoLr47tlUWVJpHWHHLNQevfTet8ckB9TZ7c=
 github.com/hashicorp/terraform-plugin-framework v1.1.1 h1:PbnEKHsIU8KTTzoztHQGgjZUWx7Kk8uGtpGMMc1p+oI=
 github.com/hashicorp/terraform-plugin-framework v1.1.1/go.mod h1:DyZPxQA+4OKK5ELxFIIcqggcszqdWWUpTLPHAhS/tkY=
 github.com/hashicorp/terraform-plugin-go v0.14.3 h1:nlnJ1GXKdMwsC8g1Nh05tK2wsC3+3BL/DBBxFEki+j0=
@@ -388,8 +386,8 @@ github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5t
 github.com/zclconf/go-cty v1.1.0/go.mod h1:xnAOWiHeOqg2nWS62VtQ7pbOu17FtxJNW8RLEih+O3s=
 github.com/zclconf/go-cty v1.2.0/go.mod h1:hOPWgoHbaTUnI5k4D2ld+GRpFJSCe6bCM7m1q/N4PQ8=
 github.com/zclconf/go-cty v1.10.0/go.mod h1:vVKLxnk3puL4qRAv72AO+W99LUD4da90g3uUAzyuvAk=
-github.com/zclconf/go-cty v1.12.1 h1:PcupnljUm9EIvbgSHQnHhUr3fO6oFmkOrvs2BAFNXXY=
-github.com/zclconf/go-cty v1.12.1/go.mod h1:s9IfD1LK5ccNMSWCVFCE2rJfHiZgi7JijgeWIMfhLvA=
+github.com/zclconf/go-cty v1.13.0 h1:It5dfKTTZHe9aeppbNOda3mN7Ag7sg6QkBNm6TkyFa0=
+github.com/zclconf/go-cty v1.13.0/go.mod h1:YKQzy/7pZ7iq2jNFzy5go57xdxdWoLLpaEp4u238AE0=
 github.com/zclconf/go-cty-debug v0.0.0-20191215020915-b22d67c1ba0b/go.mod h1:ZRKQfBXbGkpdV6QMzT3rU1kSTAnfu1dO8dPKjYprgj8=
 go.opentelemetry.io/proto/otlp v0.7.0/go.mod h1:PqfVotwruBrMGOCsRd/89rSnXhoiJIqeYNgFYFoEGnI=
 go.starlark.net v0.0.0-20230128213706-3f75dec8e403 h1:jPeC7Exc+m8OBJUlWbBLh0O5UZPM7yU5W4adnhhbG4U=
