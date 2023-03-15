@@ -367,8 +367,7 @@ func (r *AkpClusterResource) Delete(ctx context.Context, req resource.DeleteRequ
 		diag = r.deleteManifests(ctx, state.Manifests.ValueString(), kcfg)
 	}
 	if diag.HasError() {
-		resp.Diagnostics.Append(diag...)
-		return
+		diag.AddWarning("Agent is not deleted",fmt.Sprintf("Cluster %s: Cannot delete the Akuity agent, please delete it manually", state.Name.ValueString()))
 	}
 	ctx = ctxutil.SetClientCredential(ctx, r.akpCli.Cred)
 	apiReq := &argocdv1.DeleteInstanceClusterRequest{
