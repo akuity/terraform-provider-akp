@@ -52,7 +52,7 @@ resource "akp_cluster" "test" {
   name = "new-cluster"
   size = %q
   description = %q
-  instance_id = "gnjajx9dkszyyp55"
+  instance_id = "jszoyttk16rocq66"
   namespace = "akuity"
   labels = {
 	label_1 = "test-label"

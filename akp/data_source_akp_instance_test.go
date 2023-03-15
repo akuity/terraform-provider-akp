@@ -15,11 +15,11 @@ func TestAccInstanceDataSource(t *testing.T) {
 			{
 				Config: providerConfig + testAccInstanceDataSourceConfig,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.akp_instance.test", "name", "existing-instance"),
-					resource.TestCheckResourceAttr("data.akp_instance.test", "id", "gnjajx9dkszyyp55"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "name", "nikita-acceptance-tst"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "id", "jszoyttk16rocq66"),
 					resource.TestCheckResourceAttr("data.akp_instance.test", "description", "Test description"),
-					resource.TestCheckResourceAttr("data.akp_instance.test", "hostname", "gnjajx9dkszyyp55.cd.akuity.cloud"),
-					resource.TestCheckResourceAttr("data.akp_instance.test", "version", "v2.5.3"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "hostname", "jszoyttk16rocq66.cd.akuity.cloud"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "version", "v2.6.4"),
 				),
 			},
 		},
@@ -28,6 +28,6 @@ func TestAccInstanceDataSource(t *testing.T) {
 
 const testAccInstanceDataSourceConfig = `
 data "akp_instance" "test" {
-	name = "existing-instance"
+	name = "nikita-acceptance-tst"
 }
 `

@@ -15,10 +15,10 @@ func TestAccClustersDataSource(t *testing.T) {
 			{
 				Config: providerConfig + testAccClustersDataSourceConfig,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.akp_clusters.test", "instance_id", "gnjajx9dkszyyp55"),
+					resource.TestCheckResourceAttr("data.akp_clusters.test", "instance_id", "jszoyttk16rocq66"),
 					resource.TestCheckResourceAttr("data.akp_clusters.test", "clusters.#", "1"),
-					resource.TestCheckResourceAttr("data.akp_clusters.test", "clusters.0.id", "k7up9v9cseynv3vc"),
-					resource.TestCheckResourceAttr("data.akp_clusters.test", "clusters.0.instance_id", "gnjajx9dkszyyp55"),
+					resource.TestCheckResourceAttr("data.akp_clusters.test", "clusters.0.id", "modizax44zfw3usr"),
+					resource.TestCheckResourceAttr("data.akp_clusters.test", "clusters.0.instance_id", "jszoyttk16rocq66"),
 					resource.TestCheckResourceAttr("data.akp_clusters.test", "clusters.0.name", "existing-cluster"),
 					resource.TestCheckResourceAttr("data.akp_clusters.test", "clusters.0.namespace", "akuity"),
 					resource.TestCheckResourceAttr("data.akp_clusters.test", "clusters.0.namespace_scoped", "false"),
@@ -36,6 +36,6 @@ func TestAccClustersDataSource(t *testing.T) {
 
 const testAccClustersDataSourceConfig = `
 data "akp_clusters" "test" {
-  instance_id = "gnjajx9dkszyyp55"
+  instance_id = "jszoyttk16rocq66"
 }
 `

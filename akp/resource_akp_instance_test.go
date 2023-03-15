@@ -18,7 +18,7 @@ func TestAccInstanceResource(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_instance.test", "name", "new-instance"),
 					resource.TestCheckResourceAttr("akp_instance.test", "description", "test one"),
-					resource.TestCheckResourceAttr("akp_instance.test", "version", "v2.5.3"),
+					resource.TestCheckResourceAttr("akp_instance.test", "version", "v2.6.4"),
 					resource.TestCheckResourceAttrSet("akp_instance.test", "hostname"),
 				),
 			},
@@ -39,7 +39,7 @@ func TestAccInstanceResource(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_instance.test", "name", "new-instance"),
 					resource.TestCheckResourceAttr("akp_instance.test", "description", "test two"),
-					resource.TestCheckResourceAttr("akp_instance.test", "version", "v2.5.3"),
+					resource.TestCheckResourceAttr("akp_instance.test", "version", "v2.6.4"),
 					resource.TestCheckResourceAttrSet("akp_instance.test", "hostname"),
 				),
 			},
@@ -52,7 +52,7 @@ func testAccInstanceResourceConfig(description string) string {
 	return fmt.Sprintf(`
 resource "akp_instance" "test" {
   name = "new-instance"
-  version = "v2.5.3"
+  version = "v2.6.4"
   description = %q
 }
 `, description)
