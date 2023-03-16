@@ -3,7 +3,7 @@ module github.com/akuity/terraform-provider-akp
 go 1.19
 
 require (
-	github.com/akuity/api-client-go v0.4.0
+	github.com/akuity/api-client-go v0.5.0
 	github.com/hashicorp/terraform-plugin-docs v0.13.0
 	github.com/hashicorp/terraform-plugin-framework v1.1.1
 	github.com/hashicorp/terraform-plugin-go v0.14.3
