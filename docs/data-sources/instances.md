@@ -195,12 +195,8 @@ Read-Only:
 
 Read-Only:
 
-- `control_plane` (Attributes) Redundant. Always `null` (see [below for nested schema](#nestedatt--instances--repo_server_delegate--control_plane))
-- `managed_cluster` (Attributes) Cluster (see [below for nested schema](#nestedatt--instances--repo_server_delegate--managed_cluster))
-
-<a id="nestedatt--instances--repo_server_delegate--control_plane"></a>
-### Nested Schema for `instances.repo_server_delegate.control_plane`
-
+- `control_plane` (Boolean) Use Control Plane
+- `managed_cluster` (Attributes) Use Managed Cluster (see [below for nested schema](#nestedatt--instances--repo_server_delegate--managed_cluster))
 
 <a id="nestedatt--instances--repo_server_delegate--managed_cluster"></a>
 ### Nested Schema for `instances.repo_server_delegate.managed_cluster`

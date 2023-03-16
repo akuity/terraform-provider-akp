@@ -8,7 +8,7 @@ import (
 )
 
 type AkpRepoServerDelegateManagedCluster struct {
-	ClusterName  types.String `tfsdk:"cluster_name"`
+	ClusterName types.String `tfsdk:"cluster_name"`
 }
 
 var (
@@ -32,7 +32,7 @@ func MergeRepoServerDelegateManagedCluster(state *AkpRepoServerDelegateManagedCl
 	return res, diags
 }
 
-func (x *AkpRepoServerDelegateManagedCluster) UpdateObject(p *argocdv1.RepoServerDelegateManagedCluster) diag.Diagnostics {
+func (x *AkpRepoServerDelegateManagedCluster) UpdateObject(p *argocdv1.ManagedCluster) diag.Diagnostics {
 	diags := diag.Diagnostics{}
 	if p == nil {
 		diags.AddError("Conversion Error", "*argocdv1.RepoServerDelegateManagedCluster is <nil>")
@@ -46,7 +46,7 @@ func (x *AkpRepoServerDelegateManagedCluster) UpdateObject(p *argocdv1.RepoServe
 	return diags
 }
 
-func (x *AkpRepoServerDelegateManagedCluster) As(target *argocdv1.RepoServerDelegateManagedCluster) diag.Diagnostics {
+func (x *AkpRepoServerDelegateManagedCluster) As(target *argocdv1.ManagedCluster) diag.Diagnostics {
 	diags := diag.Diagnostics{}
 	target.ClusterName = x.ClusterName.ValueString()
 	return diags
