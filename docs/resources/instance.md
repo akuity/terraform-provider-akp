@@ -233,13 +233,13 @@ Required:
 <a id="nestedatt--repo_server_delegate"></a>
 ### Nested Schema for `repo_server_delegate`
 
+Required:
+
+- `control_plane` (Boolean) Use Control Plane
+
 Optional:
 
-- `managed_cluster` (Attributes) Cluster (see [below for nested schema](#nestedatt--repo_server_delegate--managed_cluster))
-
-Read-Only:
-
-- `control_plane` (Attributes) Redundant. Always `null` (see [below for nested schema](#nestedatt--repo_server_delegate--control_plane))
+- `managed_cluster` (Attributes) Use Managed Cluster (see [below for nested schema](#nestedatt--repo_server_delegate--managed_cluster))
 
 <a id="nestedatt--repo_server_delegate--managed_cluster"></a>
 ### Nested Schema for `repo_server_delegate.managed_cluster`
@@ -247,10 +247,6 @@ Read-Only:
 Required:
 
 - `cluster_name` (String) Cluster Name
-
-
-<a id="nestedatt--repo_server_delegate--control_plane"></a>
-### Nested Schema for `repo_server_delegate.control_plane`
 
 
 

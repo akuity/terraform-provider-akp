@@ -8,7 +8,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -300,15 +299,12 @@ func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaReq
 				MarkdownDescription: "In case some clusters don't have network access to your private Git provider you can delegate these operations to one specific cluster.",
 				Optional:            true,
 				Attributes: map[string]schema.Attribute{
-					"control_plane": schema.SingleNestedAttribute{
-						MarkdownDescription: "Redundant. Always `null`",
-						Computed:            true,
-						PlanModifiers: []planmodifier.Object{
-							objectplanmodifier.UseStateForUnknown(),
-						},
+					"control_plane": schema.BoolAttribute{
+						MarkdownDescription: "Use Control Plane",
+						Required:            true,
 					},
 					"managed_cluster": schema.SingleNestedAttribute{
-						MarkdownDescription: "Cluster",
+						MarkdownDescription: "Use Managed Cluster",
 						Optional:            true,
 						Attributes: map[string]schema.Attribute{
 							"cluster_name": schema.StringAttribute{

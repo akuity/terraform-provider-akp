@@ -285,13 +285,12 @@ func (d *AkpInstancesDataSource) Schema(ctx context.Context, req datasource.Sche
 							MarkdownDescription: "In case some clusters don't have network access to your private Git provider you can delegate these operations to one specific cluster.",
 							Computed:            true,
 							Attributes: map[string]schema.Attribute{
-								"control_plane": schema.SingleNestedAttribute{
-									MarkdownDescription: "Redundant. Always `null`",
+								"control_plane": schema.BoolAttribute{
+									MarkdownDescription: "Use Control Plane",
 									Computed:            true,
-									Attributes:          map[string]schema.Attribute{},
 								},
 								"managed_cluster": schema.SingleNestedAttribute{
-									MarkdownDescription: "Cluster",
+									MarkdownDescription: "Use Managed Cluster",
 									Computed:            true,
 									Attributes: map[string]schema.Attribute{
 										"cluster_name": schema.StringAttribute{
