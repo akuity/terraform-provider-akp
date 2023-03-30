@@ -9,7 +9,7 @@ import (
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
 	healthv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/health/v1"
 	reconv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/reconciliation/v1"
-	ctxutil "github.com/akuity/api-client-go/pkg/utils/context"
+	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
 	akptypes "github.com/akuity/terraform-provider-akp/akp/types"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -279,7 +279,7 @@ func (r *AkpInstanceResource) Create(ctx context.Context, req resource.CreateReq
 		return
 	}
 
-	ctx = ctxutil.SetClientCredential(ctx, r.akpCli.Cred)
+	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 	ctx = tflog.MaskLogStrings(ctx, plan.GetSensitiveStrings()...)
 	description := plan.Description.ValueString()
 	apiReq := &argocdv1.CreateInstanceRequest{
@@ -355,7 +355,7 @@ func (r *AkpInstanceResource) Read(ctx context.Context, req resource.ReadRequest
 	}
 
 	akpState := &akptypes.AkpInstance{}
-	ctx = ctxutil.SetClientCredential(ctx, r.akpCli.Cred)
+	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 	err := akpState.Refresh(ctx, r.akpCli.Cli, r.akpCli.OrgId, tfState.Id.ValueString())
 	switch status.Code(err) {
 	case codes.OK:
@@ -381,7 +381,7 @@ func (r *AkpInstanceResource) Update(ctx context.Context, req resource.UpdateReq
 		return
 	}
 	instanceId := plan.Id.ValueString()
-	ctx = ctxutil.SetClientCredential(ctx, r.akpCli.Cred)
+	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 	ctx = tflog.MaskLogStrings(ctx, plan.GetSensitiveStrings()...)
 	desiredState, d := akptypes.MergeInstance(state, plan)
 	resp.Diagnostics.Append(d...)
@@ -411,7 +411,7 @@ func (r *AkpInstanceResource) Delete(ctx context.Context, req resource.DeleteReq
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	ctx = ctxutil.SetClientCredential(ctx, r.akpCli.Cred)
+	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 	_, err := r.akpCli.Cli.DeleteInstance(ctx, &argocdv1.DeleteInstanceRequest{
 		Id:             state.Id.ValueString(),
 		OrganizationId: r.akpCli.OrgId,
