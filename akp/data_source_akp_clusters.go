@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
-	ctxutil "github.com/akuity/api-client-go/pkg/utils/context"
 	akptypes "github.com/akuity/terraform-provider-akp/akp/types"
+	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -137,7 +137,7 @@ func (d *AkpClustersDataSource) Read(ctx context.Context, req datasource.ReadReq
 	}
 	tflog.Debug(ctx, "Reading an instance clusters")
 
-	ctx = ctxutil.SetClientCredential(ctx, d.akpCli.Cred)
+	ctx = httpctx.SetAuthorizationHeader(ctx, d.akpCli.Cred.Scheme(), d.akpCli.Cred.Credential())
 	apiReq := &argocdv1.ListInstanceClustersRequest{
 		OrganizationId: d.akpCli.OrgId,
 		InstanceId:     state.InstanceId.ValueString(),

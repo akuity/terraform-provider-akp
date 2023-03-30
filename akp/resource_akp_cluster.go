@@ -9,7 +9,7 @@ import (
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
 	healthv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/health/v1"
 	reconv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/reconciliation/v1"
-	ctxutil "github.com/akuity/api-client-go/pkg/utils/context"
+	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
 	"k8s.io/client-go/rest"
 
 	"github.com/akuity/terraform-provider-akp/akp/kube"
@@ -191,7 +191,7 @@ func (r *AkpClusterResource) Create(ctx context.Context, req resource.CreateRequ
 		return
 	}
 
-	ctx = ctxutil.SetClientCredential(ctx, r.akpCli.Cred)
+	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 	autoupgrade := plan.AutoUpgradeDisabled.ValueBool()
 	var labels map[string]string
 	var annotations map[string]string
@@ -264,7 +264,7 @@ func (r *AkpClusterResource) Read(ctx context.Context, req resource.ReadRequest,
 		return
 	}
 
-	ctx = ctxutil.SetClientCredential(ctx, r.akpCli.Cred)
+	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 	apiReq := &argocdv1.GetInstanceClusterRequest{
 		OrganizationId: r.akpCli.OrgId,
 		InstanceId:     state.InstanceId.ValueString(),
@@ -303,7 +303,7 @@ func (r *AkpClusterResource) Update(ctx context.Context, req resource.UpdateRequ
 		return
 	}
 
-	ctx = ctxutil.SetClientCredential(ctx, r.akpCli.Cred)
+	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 	autoupgrade := plan.AutoUpgradeDisabled.ValueBool()
 	var labels map[string]string
 	var annotations map[string]string
@@ -369,7 +369,7 @@ func (r *AkpClusterResource) Delete(ctx context.Context, req resource.DeleteRequ
 	if diag.HasError() {
 		diag.AddWarning("Agent is not deleted",fmt.Sprintf("Cluster %s: Cannot delete the Akuity agent, please delete it manually", state.Name.ValueString()))
 	}
-	ctx = ctxutil.SetClientCredential(ctx, r.akpCli.Cred)
+	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 	apiReq := &argocdv1.DeleteInstanceClusterRequest{
 		OrganizationId: r.akpCli.OrgId,
 		InstanceId:     state.InstanceId.ValueString(),
