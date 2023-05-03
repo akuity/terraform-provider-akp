@@ -55,9 +55,17 @@ func MergeInstance(state *AkpInstance, plan *AkpInstance) (*AkpInstance, diag.Di
 	diags := diag.Diagnostics{}
 	res := &AkpInstance{
 		Id:       state.Id,
-		Name:     state.Name,
-		Version:  state.Version,
 		Hostname: state.Hostname,
+	}
+	if plan.Name.IsUnknown() {
+		res.Name = state.Name
+	} else {
+		res.Name = plan.Name
+	}
+	if plan.Version.IsUnknown() {
+		res.Version = state.Version
+	} else {
+		res.Version = plan.Version
 	}
 	if plan.Description.IsUnknown() {
 		res.Description = state.Description
