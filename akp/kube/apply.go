@@ -9,9 +9,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
-	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/kubectl/pkg/cmd/apply"
 	"k8s.io/kubectl/pkg/cmd/delete"
@@ -57,11 +57,11 @@ func (k *Kubectl) ApplyResource(ctx context.Context, obj *unstructured.Unstructu
 }
 
 func (k *Kubectl) newApplyOptions(ioStreams genericclioptions.IOStreams, obj *unstructured.Unstructured, path string, applyOpts ApplyOpts) (*apply.ApplyOptions, error) {
-	flags := apply.NewApplyFlags(k.fact, ioStreams)
+	flags := apply.NewApplyFlags(ioStreams)
 	o := &apply.ApplyOptions{
 		IOStreams:         ioStreams,
-		VisitedUids:       sets.NewString(),
-		VisitedNamespaces: sets.NewString(),
+		VisitedUids:       sets.New[types.UID](),
+		VisitedNamespaces: sets.New[string](),
 		Recorder:          genericclioptions.NoopRecorder{},
 		PrintFlags:        flags.PrintFlags,
 		Overwrite:         true,
@@ -80,12 +80,12 @@ func (k *Kubectl) newApplyOptions(ioStreams genericclioptions.IOStreams, obj *un
 	if err != nil {
 		return nil, err
 	}
-	o.DryRunVerifier = resource.NewQueryParamVerifier(dynamicClient, k.fact.OpenAPIGetter(), resource.QueryParamFieldValidation)
+
 	validateDirective := metav1.FieldValidationIgnore
 	if applyOpts.Validate {
 		validateDirective = metav1.FieldValidationStrict
 	}
-	o.Validator, err = k.fact.Validator(validateDirective, o.DryRunVerifier)
+	o.Validator, err = k.fact.Validator(validateDirective)
 	if err != nil {
 		return nil, err
 	}
