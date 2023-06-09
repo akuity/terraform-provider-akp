@@ -3,7 +3,7 @@ module github.com/akuity/terraform-provider-akp
 go 1.19
 
 require (
-	github.com/akuity/api-client-go v0.6.1
+	github.com/akuity/api-client-go v0.8.0
 	github.com/akuity/grpc-gateway-client v0.0.0-20230321170839-38ca1b4b439c
 	github.com/hashicorp/terraform-plugin-docs v0.14.1
 	github.com/hashicorp/terraform-plugin-framework v1.2.0
@@ -17,7 +17,6 @@ require (
 )
 
 require (
-	github.com/rogpeppe/go-internal v1.10.0 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.3.5 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	golang.org/x/mod v0.10.0 // indirect
