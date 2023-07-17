@@ -6,10 +6,10 @@ import (
 	"os"
 
 	"github.com/akuity/api-client-go/pkg/api/gateway/accesscontrol"
+	gwoption "github.com/akuity/api-client-go/pkg/api/gateway/option"
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 	orgcv1 "github.com/akuity/api-client-go/pkg/api/gen/organization/v1"
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
-	gwoption "github.com/akuity/api-client-go/pkg/api/gateway/option"
 	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -166,16 +166,12 @@ func (p *AkpProvider) Configure(ctx context.Context, req provider.ConfigureReque
 func (p *AkpProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewAkpInstanceResource,
-		NewAkpClusterResource,
 	}
 }
 
 func (p *AkpProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
-		NewAkpInstancesDataSource,
 		NewAkpInstanceDataSource,
-		NewAkpClustersDataSource,
-		NewAkpClusterDataSource,
 	}
 }
 

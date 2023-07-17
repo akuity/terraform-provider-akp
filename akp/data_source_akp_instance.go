@@ -3,15 +3,21 @@ package akp
 import (
 	"context"
 	"fmt"
+	"time"
+
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"golang.org/x/exp/slices"
 
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
-	akptypes "github.com/akuity/terraform-provider-akp/akp/types"
+	reconv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/reconciliation/v1"
 	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
-	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"github.com/akuity/terraform-provider-akp/akp/apis/v1alpha1"
+	"github.com/akuity/terraform-provider-akp/akp/conversion"
+	"github.com/akuity/terraform-provider-akp/akp/types"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
@@ -26,387 +32,11 @@ type AkpInstanceDataSource struct {
 	akpCli *AkpCli
 }
 
-func (d *AkpInstanceDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+func (r *AkpInstanceDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_instance"
 }
 
-func (d *AkpInstanceDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		MarkdownDescription: "Find an Argo CD instance by its name",
-
-		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
-				MarkdownDescription: "Instance ID",
-				Computed:            true,
-			},
-			"name": schema.StringAttribute{
-				MarkdownDescription: "Instance Name",
-				Required:            true,
-			},
-			"description": schema.StringAttribute{
-				MarkdownDescription: "Instance Description",
-				Computed:            true,
-			},
-			"hostname": schema.StringAttribute{
-				MarkdownDescription: "Instance Hostname",
-				Computed:            true,
-			},
-			"version": schema.StringAttribute{
-				MarkdownDescription: "Argo CD Version",
-				Computed:            true,
-			},
-			"admin_enabled": schema.BoolAttribute{
-				MarkdownDescription: "Enable Admin Login",
-				Computed:            true,
-			},
-			"status_badge": schema.SingleNestedAttribute{
-				MarkdownDescription: "Status Badge Configuration",
-				Computed:            true,
-				Attributes: map[string]schema.Attribute{
-					"enabled": schema.BoolAttribute{
-						MarkdownDescription: "Enable Status Badge",
-						Computed:            true,
-					},
-					"url": schema.StringAttribute{
-						MarkdownDescription: "URL",
-						Computed:            true,
-					},
-				},
-			},
-			"google_analytics": schema.SingleNestedAttribute{
-				MarkdownDescription: "Google Analytics Configuration",
-				Computed:            true,
-				Attributes: map[string]schema.Attribute{
-					"tracking_id": schema.StringAttribute{
-						MarkdownDescription: "Google Tracking ID",
-						Computed:            true,
-					},
-					"anonymize_users": schema.BoolAttribute{
-						MarkdownDescription: "Anonymize Users",
-						Computed:            true,
-					},
-				},
-			},
-			"allow_anonymous": schema.BoolAttribute{
-				MarkdownDescription: "Allow Anonymous Access",
-				Computed:            true,
-			},
-			"banner": schema.SingleNestedAttribute{
-				MarkdownDescription: "Argo CD Banner Configuration",
-				Computed:            true,
-				Attributes: map[string]schema.Attribute{
-					"message": schema.StringAttribute{
-						MarkdownDescription: "Banner Message",
-						Computed:            true,
-					},
-					"url": schema.StringAttribute{
-						MarkdownDescription: "Banner Hyperlink URL",
-						Computed:            true,
-					},
-					"permanent": schema.BoolAttribute{
-						MarkdownDescription: "Disable hide button",
-						Computed:            true,
-					},
-				},
-			},
-			"chat": schema.SingleNestedAttribute{
-				MarkdownDescription: "Chat Configuration",
-				Computed:            true,
-				Attributes: map[string]schema.Attribute{
-					"message": schema.StringAttribute{
-						MarkdownDescription: "Alert Message",
-						Computed:            true,
-					},
-					"url": schema.StringAttribute{
-						MarkdownDescription: "Alert URL",
-						Computed:            true,
-					},
-				},
-			},
-			"instance_label_key": schema.StringAttribute{
-				MarkdownDescription: "Instance Label Key",
-				Computed:            true,
-			},
-			"kustomize_enabled": schema.BoolAttribute{
-				Computed:            true,
-				MarkdownDescription: "Enable Kustomize",
-			},
-			"kustomize": schema.SingleNestedAttribute{
-				MarkdownDescription: "Kustomize Settings",
-				Computed:            true,
-				Attributes: map[string]schema.Attribute{
-					"build_options": schema.StringAttribute{
-						MarkdownDescription: "Build options",
-						Computed:            true,
-					},
-				},
-			},
-			"helm_enabled": schema.BoolAttribute{
-				Computed:            true,
-				MarkdownDescription: "Enable Helm",
-			},
-			"helm": schema.SingleNestedAttribute{
-				MarkdownDescription: "Helm Configuration",
-				Computed:            true,
-				Attributes: map[string]schema.Attribute{
-					"value_file_schemas": schema.StringAttribute{
-						MarkdownDescription: "Value File Schemas",
-						Computed:            true,
-					},
-				},
-			},
-			"resource_settings": schema.SingleNestedAttribute{
-				MarkdownDescription: "Custom resource settings",
-				Computed:            true,
-				Attributes: map[string]schema.Attribute{
-					"inclusions": schema.StringAttribute{
-						MarkdownDescription: "Inclusions",
-						Computed:            true,
-					},
-					"exclusions": schema.StringAttribute{
-						MarkdownDescription: "Exclusions",
-						Computed:            true,
-					},
-					"compare_options": schema.StringAttribute{
-						MarkdownDescription: "Compare Options",
-						Computed:            true,
-					},
-				},
-			},
-			"users_session": schema.StringAttribute{
-				MarkdownDescription: "Users Session Duration",
-				Computed:            true,
-			},
-			"oidc": schema.StringAttribute{
-				MarkdownDescription: "OIDC Config YAML",
-				Computed:            true,
-			},
-			"dex": schema.StringAttribute{
-				MarkdownDescription: "Dex Config YAML",
-				Computed:            true,
-			},
-			"web_terminal": schema.SingleNestedAttribute{
-				MarkdownDescription: "Web Terminal Config",
-				Computed:            true,
-				Attributes: map[string]schema.Attribute{
-					"enabled": schema.BoolAttribute{
-						MarkdownDescription: "Enable Web Terminal",
-						Computed:            true,
-					},
-					"shells": schema.StringAttribute{
-						MarkdownDescription: "Shells",
-						Computed:            true,
-					},
-				},
-			},
-			"default_policy": schema.StringAttribute{
-				MarkdownDescription: "Value of `policy.default` in `argocd-rbac-cm` configmap",
-				Computed:            true,
-			},
-			"policy_csv": schema.StringAttribute{
-				MarkdownDescription: "Value of `policy.csv` in `argocd-rbac-cm` configmap",
-				Computed:            true,
-			},
-			"oidc_scopes": schema.ListAttribute{
-				MarkdownDescription: "List of OIDC scopes",
-				Computed:            true,
-				ElementType:         types.StringType,
-			},
-			"audit_extension_enabled": schema.BoolAttribute{
-				MarkdownDescription: "Enable Audit Extension",
-				Computed:            true,
-			},
-			"backend_ip_allow_list": schema.BoolAttribute{
-				MarkdownDescription: "Apply IP Allow List to Cluster Agents",
-				Computed:            true,
-			},
-			"cluster_customization_defaults": schema.SingleNestedAttribute{
-				MarkdownDescription: "Default Values For Cluster Agents",
-				Computed:            true,
-				Attributes: map[string]schema.Attribute{
-					"auto_upgrade_disabled": schema.BoolAttribute{
-						MarkdownDescription: "Disable Agent Auto-upgrade",
-						Computed:            true,
-					},
-				},
-			},
-			"declarative_management_enabled": schema.BoolAttribute{
-				MarkdownDescription: "Enable Declarative Management",
-				Computed:            true,
-			},
-			"extensions": schema.ListNestedAttribute{
-				MarkdownDescription: "Extensions",
-				Computed:            true,
-				NestedObject: schema.NestedAttributeObject{
-					Attributes: map[string]schema.Attribute{
-						"id": schema.StringAttribute{
-							MarkdownDescription: "Extension ID",
-							Computed:            true,
-						},
-						"version": schema.StringAttribute{
-							MarkdownDescription: "Extension version",
-							Computed:            true,
-						},
-					},
-				},
-			},
-			"image_updater_enabled": schema.BoolAttribute{
-				MarkdownDescription: "Enable Image Updater",
-				Computed:            true,
-			},
-			"ip_allow_list": schema.ListNestedAttribute{
-				MarkdownDescription: "IP Allow List",
-				Computed:            true,
-				NestedObject: schema.NestedAttributeObject{
-					Attributes: map[string]schema.Attribute{
-						"ip": schema.StringAttribute{
-							MarkdownDescription: "IP Address",
-							Computed:            true,
-						},
-						"description": schema.StringAttribute{
-							MarkdownDescription: "IP Description",
-							Computed:            true,
-						},
-					},
-				},
-			},
-			"repo_server_delegate": schema.SingleNestedAttribute{
-				MarkdownDescription: "In case some clusters don't have network access to your private Git provider you can delegate these operations to one specific cluster.",
-				Computed:            true,
-				Attributes: map[string]schema.Attribute{
-					"control_plane": schema.BoolAttribute{
-						MarkdownDescription: "Use Control Plane",
-						Computed:            true,
-					},
-					"managed_cluster": schema.SingleNestedAttribute{
-						MarkdownDescription: "Use Managed Cluster",
-						Computed:            true,
-						Attributes: map[string]schema.Attribute{
-							"cluster_name": schema.StringAttribute{
-								MarkdownDescription: "Cluster Name",
-								Computed:            true,
-							},
-						},
-					},
-				},
-			},
-			"subdomain": schema.StringAttribute{
-				MarkdownDescription: "Instance Subdomain",
-				Computed:            true,
-			},
-			"secrets": schema.MapNestedAttribute{
-				MarkdownDescription: "Map of secrets used in SSO Configuration (OIDC or DEX config YAML)",
-				Computed:            true,
-				NestedObject: schema.NestedAttributeObject{
-					Attributes: map[string]schema.Attribute{
-						"value": schema.StringAttribute{
-							MarkdownDescription: "Akuity API does not return secret values. In datasources this field is always null",
-							Sensitive:           true,
-							Computed:            true,
-						},
-					},
-				},
-			},
-			"notifications": schema.SingleNestedAttribute{
-				MarkdownDescription: "Notifications",
-				Computed:            true,
-				Attributes: map[string]schema.Attribute{
-					"secrets": schema.MapNestedAttribute{
-						MarkdownDescription: "Map of secrets used in Notification Settings",
-						Computed:            true,
-						NestedObject: schema.NestedAttributeObject{
-							Attributes: map[string]schema.Attribute{
-								"value": schema.StringAttribute{
-									Sensitive: true,
-									Computed:  true,
-								},
-							},
-						},
-					},
-					"config": schema.MapAttribute{
-						MarkdownDescription: "Notification configuration. Similar to `argocd-notifications-cm` configmap. Contains [triggers](https://argocd-notifications.readthedocs.io/en/stable/triggers/), [templates](https://argocd-notifications.readthedocs.io/en/stable/templates/) and [services](https://argocd-notifications.readthedocs.io/en/stable/services/overview/)",
-						Computed:            true,
-						ElementType:         types.StringType,
-					},
-				},
-			},
-			"image_updater": schema.SingleNestedAttribute{
-				MarkdownDescription: "Image Updater Settings",
-				Computed:            true,
-				Attributes: map[string]schema.Attribute{
-					"secrets": schema.MapNestedAttribute{
-						MarkdownDescription: "Map of secrets used in Image Updater Configuration",
-						Computed:            true,
-						NestedObject: schema.NestedAttributeObject{
-							Attributes: map[string]schema.Attribute{
-								"value": schema.StringAttribute{
-									MarkdownDescription: "Api server doesn't return secret values, so this field is always null in data sources",
-									Sensitive:           true,
-									Computed:            true,
-								},
-							},
-						},
-					},
-					"ssh_config": schema.StringAttribute{
-						MarkdownDescription: "SSH Client configuration (~/.ssh/config) in Image Updater",
-						Computed:            true,
-					},
-					"git_user": schema.StringAttribute{
-						MarkdownDescription: "User name used in git commit",
-						Computed:            true,
-					},
-					"git_email": schema.StringAttribute{
-						MarkdownDescription: "User email used in git commit",
-						Computed:            true,
-					},
-					"git_template": schema.StringAttribute{
-						MarkdownDescription: "Commit Message Template for `git` write-back method. Available variables are {{\"`{{AppName}}`\"}}, {{\"`{{AppChanges}}`\"}}. [More info](https://argocd-image-updater.readthedocs.io/en/stable/basics/update-methods/#changing-the-git-commit-message)",
-						Computed:            true,
-					},
-					"log_level": schema.StringAttribute{
-						MarkdownDescription: "Log level of Image Updater Controller. One of `error`, `warn`, `info`, `debug` or `trace`",
-						Computed:            true,
-					},
-					"registries": schema.MapNestedAttribute{
-						MarkdownDescription: "Custom container registries. Not required for most public registries. [More info](https://argocd-image-updater.readthedocs.io/en/stable/configuration/registries/#configuring-custom-registries)",
-						Computed:            true,
-						NestedObject: schema.NestedAttributeObject{
-							Attributes: map[string]schema.Attribute{
-								"prefix": schema.StringAttribute{
-									Computed: true,
-								},
-								"api_url": schema.StringAttribute{
-									Computed: true,
-								},
-								"defaultns": schema.StringAttribute{
-									Computed: true,
-								},
-								"credentials": schema.StringAttribute{
-									MarkdownDescription: "Link to the configured secret. Must be in format `secret:argocd/argocd-image-updater-secret#<secret-name>`",
-									Computed:            true,
-								},
-								"credsexpire": schema.StringAttribute{
-									Computed: true,
-								},
-								"limit": schema.StringAttribute{
-									Computed: true,
-								},
-								"default": schema.BoolAttribute{
-									Computed: true,
-								},
-								"insecure": schema.BoolAttribute{
-									Computed: true,
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-func (d *AkpInstanceDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+func (r *AkpInstanceDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
 	// Prevent panic if the provider has not been configured.
 	if req.ProviderData == nil {
 		return
@@ -421,38 +51,128 @@ func (d *AkpInstanceDataSource) Configure(ctx context.Context, req datasource.Co
 
 		return
 	}
-	d.akpCli = akpCli
+	r.akpCli = akpCli
 }
 
-func (d *AkpInstanceDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var state *akptypes.AkpInstance
+func (r *AkpInstanceDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	tflog.Info(ctx, "Reading an Argo CD Instance")
+
+	var state types.Instance
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	ctx = httpctx.SetAuthorizationHeader(ctx, d.akpCli.Cred.Scheme(), d.akpCli.Cred.Credential())
-
-	apiReq := &argocdv1.GetInstanceRequest{
-		OrganizationId: d.akpCli.OrgId,
-		IdType:         idv1.Type_NAME,
-		Id:             state.Name.ValueString(),
-	}
-
-	tflog.Debug(ctx, fmt.Sprintf("API Req: %s", apiReq))
-	apiResp, err := d.akpCli.Cli.GetInstance(ctx, apiReq)
-	tflog.Debug(ctx, fmt.Sprintf("API Resp: %s", apiResp))
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read Argo CD instance: %s", err))
-		return
-	}
-
-	err = state.Refresh(ctx, d.akpCli.Cli, d.akpCli.OrgId, apiResp.Instance.Id)
-	if err != nil {
-		resp.Diagnostics.AddError("Server Error", fmt.Sprintf("Cannot refresh instance state. %s", err))
-		return
-	}
+	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 
 	// Save data into Terraform state
+	r.refresh(ctx, resp.Diagnostics, &state)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+}
+
+func (r *AkpInstanceDataSource) refresh(ctx context.Context, diagnostics diag.Diagnostics, x *types.Instance) {
+
+	exportResp, err := r.akpCli.Cli.ExportInstance(ctx, &argocdv1.ExportInstanceRequest{
+		OrganizationId: r.akpCli.OrgId,
+		IdType:         idv1.Type_NAME,
+		Id:             x.ID.ValueString(),
+	})
+	tflog.Debug(ctx, fmt.Sprintf("Export Resp: %s", exportResp.String()))
+	if err != nil {
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get Argo CD instance. %s", err))
+		return
+	}
+	var argoCD *v1alpha1.ArgoCD
+	err = conversion.RemarshalTo(exportResp.Argocd.AsMap(), &argoCD)
+	if err != nil {
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get Argo CD instance. %s", err))
+		return
+	}
+
+	planClusters := map[string]types.Cluster{}
+	for _, c := range x.Clusters {
+		planClusters[c.Name.ValueString()] = c
+	}
+	var clusters []types.Cluster
+	for _, cluster := range exportResp.Clusters {
+		var c *v1alpha1.Cluster
+		err = conversion.RemarshalTo(cluster.AsMap(), &c)
+		if err != nil {
+			diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get Argo CD instance. %s", err))
+			return
+		}
+		cl := *conversion.ToClusterTFModel(ctx, diagnostics, c)
+		cl.Manifests = r.getManifests(ctx, diagnostics, r.akpCli.OrgId, x.ID.ValueString(), cl.Name.ValueString())
+		cl.KubeConfig = planClusters[cl.Name.ValueString()].KubeConfig
+
+		clusters = append(clusters, cl)
+	}
+
+	x.ArgoCD = *conversion.ToArgoCDTFModel(ctx, diagnostics, argoCD)
+	x.Clusters = clusters
+
+	x.ArgoCDConfigMap = buildTFConfigMap(ctx, diagnostics, x.ArgoCDConfigMap, exportResp.ArgocdConfigmap, "argocd-cm")
+	x.ArgoCDRBACConfigMap = buildTFConfigMap(ctx, diagnostics, x.ArgoCDRBACConfigMap, exportResp.ArgocdRbacConfigmap, "argocd-rbac-cm")
+	x.NotificationsConfigMap = buildTFConfigMap(ctx, diagnostics, x.NotificationsConfigMap, exportResp.NotificationsConfigmap, "argocd-notifications-cm")
+	x.ImageUpdaterConfigMap = buildTFConfigMap(ctx, diagnostics, x.ImageUpdaterConfigMap, exportResp.ImageUpdaterConfigmap, "argocd-image-updater-config")
+	x.ImageUpdaterSSHConfigMap = buildTFConfigMap(ctx, diagnostics, x.ImageUpdaterSSHConfigMap, exportResp.ImageUpdaterSshConfigmap, "argocd-image-updater-ssh-config")
+	x.ArgoCDTLSCertsConfigMap = buildTFConfigMap(ctx, diagnostics, x.ArgoCDTLSCertsConfigMap, exportResp.ArgocdTlsCertsConfigmap, "argocd-tls-certs-cm")
+	tflog.Debug(ctx, fmt.Sprintf("refreash---------%+v", x))
+
+}
+
+func (d *AkpInstanceDataSource) getManifests(ctx context.Context, diags diag.Diagnostics, orgId, instanceId, Id string) tftypes.String {
+	clusterReq := &argocdv1.GetInstanceClusterRequest{
+		OrganizationId: orgId,
+		InstanceId:     instanceId,
+		Id:             Id,
+		IdType:         idv1.Type_NAME,
+	}
+	tflog.Debug(ctx, fmt.Sprintf("Api Request: %s", clusterReq))
+	clusterResp, err := d.akpCli.Cli.GetInstanceCluster(ctx, clusterReq)
+	tflog.Debug(ctx, fmt.Sprintf("Api Response: %s", clusterResp))
+	if err != nil {
+		diags.AddError("Client Error", fmt.Sprintf("Unable to read instance clusters, got error: %s", err))
+		return tftypes.StringNull()
+	}
+	cluster, err := d.waitClusterReconStatus(ctx, clusterResp.GetCluster(), instanceId)
+	if err != nil {
+		diags.AddError("Client Error", fmt.Sprintf("Unable to check cluster reconciliation status. %s", err))
+		return tftypes.StringNull()
+	}
+	apiReq := &argocdv1.GetInstanceClusterManifestsRequest{
+		OrganizationId: orgId,
+		InstanceId:     instanceId,
+		Id:             cluster.Id,
+	}
+	tflog.Debug(ctx, fmt.Sprintf("------manifest apiReq: %s", apiReq))
+	apiResp, err := d.akpCli.Cli.GetInstanceClusterManifests(ctx, apiReq)
+	if err != nil {
+		tflog.Debug(ctx, fmt.Sprintf("------manifest apiReq err: %s", err.Error()))
+		diags.AddError("Akuity API error", fmt.Sprintf("Unable to download manifests: %s", err))
+		return tftypes.StringNull()
+	}
+	tflog.Debug(ctx, fmt.Sprintf("-------manifest apiResp: %s", apiResp))
+	return tftypes.StringValue(string(apiResp.GetData()))
+}
+
+func (d *AkpInstanceDataSource) waitClusterReconStatus(ctx context.Context, cluster *argocdv1.Cluster, instanceId string) (*argocdv1.Cluster, error) {
+	reconStatus := cluster.GetReconciliationStatus()
+	breakStatusesRecon := []reconv1.StatusCode{reconv1.StatusCode_STATUS_CODE_SUCCESSFUL, reconv1.StatusCode_STATUS_CODE_FAILED}
+
+	for !slices.Contains(breakStatusesRecon, reconStatus.GetCode()) {
+		time.Sleep(1 * time.Second)
+		apiResp, err := d.akpCli.Cli.GetInstanceCluster(ctx, &argocdv1.GetInstanceClusterRequest{
+			OrganizationId: d.akpCli.OrgId,
+			InstanceId:     instanceId,
+			Id:             cluster.Id,
+			IdType:         idv1.Type_ID,
+		})
+		if err != nil {
+			return nil, err
+		}
+		cluster = apiResp.GetCluster()
+		reconStatus = cluster.GetReconciliationStatus()
+		tflog.Debug(ctx, fmt.Sprintf("Cluster recon status: %s", reconStatus.String()))
+	}
+	return cluster, nil
 }
