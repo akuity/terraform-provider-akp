@@ -96,11 +96,6 @@ func getAKPInstanceAttributes() map[string]schema.Attribute {
 
 func getConfigMapAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
-		"metadata": schema.SingleNestedAttribute{
-			Optional:            true,
-			MarkdownDescription: "Metadata of ConfigMap",
-			Attributes:          getObjectMetaAttributes(),
-		},
 		"data": schema.MapAttribute{
 			ElementType: types.StringType,
 			Optional:    true,
@@ -113,10 +108,17 @@ func getConfigMapAttributes() map[string]schema.Attribute {
 
 func getSecretAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
-		"metadata": schema.SingleNestedAttribute{
-			Required:            true,
-			MarkdownDescription: "Metadata of Secret",
-			Attributes:          getSecretObjectMetaAttributes(),
+		"name": schema.StringAttribute{
+			Optional:            true,
+			MarkdownDescription: "Name",
+		},
+		"labels": schema.MapAttribute{
+			ElementType:         types.StringType,
+			MarkdownDescription: "Labels",
+			Optional:            true,
+			PlanModifiers: []planmodifier.Map{
+				mapplanmodifier.UseStateForUnknown(),
+			},
 		},
 		"data": schema.MapAttribute{
 			ElementType: types.StringType,
@@ -129,6 +131,7 @@ func getSecretAttributes() map[string]schema.Attribute {
 		"string_data": schema.MapAttribute{
 			ElementType: types.StringType,
 			Optional:    true,
+			Computed:    true,
 			Sensitive:   true,
 			PlanModifiers: []planmodifier.Map{
 				mapplanmodifier.UseStateForUnknown(),
@@ -142,10 +145,9 @@ func getSecretAttributes() map[string]schema.Attribute {
 
 func getArgoCDAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
-		"metadata": schema.SingleNestedAttribute{
+		"name": schema.StringAttribute{
 			Required:            true,
-			MarkdownDescription: "ArgoCD Instance Metadata",
-			Attributes:          getObjectMetaAttributes(),
+			MarkdownDescription: "Name",
 		},
 		"spec": schema.SingleNestedAttribute{
 			Required:   true,
@@ -156,10 +158,32 @@ func getArgoCDAttributes() map[string]schema.Attribute {
 
 func getClusterAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
-		"metadata": schema.SingleNestedAttribute{
+		"name": schema.StringAttribute{
 			Required:            true,
-			MarkdownDescription: "Cluster Metadata",
-			Attributes:          getClusterObjectMetaAttributes(),
+			MarkdownDescription: "Name",
+		},
+		"namespace": schema.StringAttribute{
+			MarkdownDescription: "Agent Installation Namespace",
+			Required:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"labels": schema.MapAttribute{
+			ElementType:         types.StringType,
+			MarkdownDescription: "Labels",
+			Optional:            true,
+			PlanModifiers: []planmodifier.Map{
+				mapplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"annotations": schema.MapAttribute{
+			ElementType:         types.StringType,
+			MarkdownDescription: "Annotations",
+			Optional:            true,
+			PlanModifiers: []planmodifier.Map{
+				mapplanmodifier.UseStateForUnknown(),
+			},
 		},
 		"spec": schema.SingleNestedAttribute{
 			Required:   true,
@@ -451,74 +475,6 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 			Computed: true,
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
-			},
-		},
-	}
-}
-
-func getClusterObjectMetaAttributes() map[string]schema.Attribute {
-	return map[string]schema.Attribute{
-		"name": schema.StringAttribute{
-			Required:            true,
-			MarkdownDescription: "Name",
-		},
-		"namespace": schema.StringAttribute{
-			MarkdownDescription: "Agent Installation Namespace",
-			Required:            true,
-			PlanModifiers: []planmodifier.String{
-				stringplanmodifier.UseStateForUnknown(),
-				stringplanmodifier.RequiresReplace(),
-			},
-		},
-		"labels": schema.MapAttribute{
-			ElementType:         types.StringType,
-			MarkdownDescription: "Labels",
-			Optional:            true,
-			PlanModifiers: []planmodifier.Map{
-				mapplanmodifier.UseStateForUnknown(),
-			},
-		},
-		"annotations": schema.MapAttribute{
-			ElementType:         types.StringType,
-			MarkdownDescription: "Annotations",
-			Optional:            true,
-			PlanModifiers: []planmodifier.Map{
-				mapplanmodifier.UseStateForUnknown(),
-			},
-		},
-	}
-}
-
-func getObjectMetaAttributes() map[string]schema.Attribute {
-	return map[string]schema.Attribute{
-		"name": schema.StringAttribute{
-			Required:            true,
-			MarkdownDescription: "Name",
-		},
-		//"labels": schema.MapAttribute{
-		//	ElementType:         types.StringType,
-		//	MarkdownDescription: "Labels",
-		//	Optional:            true,
-		//	Computed:            true,
-		//	PlanModifiers: []planmodifier.Map{
-		//		mapplanmodifier.UseStateForUnknown(),
-		//	},
-		//},
-	}
-}
-
-func getSecretObjectMetaAttributes() map[string]schema.Attribute {
-	return map[string]schema.Attribute{
-		"name": schema.StringAttribute{
-			Required:            true,
-			MarkdownDescription: "Name",
-		},
-		"labels": schema.MapAttribute{
-			ElementType:         types.StringType,
-			MarkdownDescription: "Labels",
-			Optional:            true,
-			PlanModifiers: []planmodifier.Map{
-				mapplanmodifier.UseStateForUnknown(),
 			},
 		},
 	}

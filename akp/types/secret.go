@@ -8,26 +8,27 @@ import (
 )
 
 type Secret struct {
-	SecretObjectMeta `json:"metadata" tfsdk:"metadata"`
-	Data             types.Map    `json:"data,omitempty" tfsdk:"data"`
-	StringData       types.Map    `json:"stringData,omitempty" tfsdk:"string_data"`
-	Type             types.String `json:"type,omitempty" tfsdk:"type"`
+	Name       types.String `json:"name,omitempty" tfsdk:"name"`
+	Labels     types.Map    `json:"labels,omitempty" tfsdk:"labels"`
+	Data       types.Map    `json:"data,omitempty" tfsdk:"data"`
+	StringData types.Map    `json:"stringData,omitempty" tfsdk:"string_data"`
+	Type       types.String `json:"type,omitempty" tfsdk:"type"`
 }
 
 func (s *Secret) GetSensitiveStrings() []string {
 	var res []string
-	secrets, _ := MapFromMapValue(s.Data)
+	secrets, _ := mapFromMapValue(s.Data)
 	for _, value := range secrets {
 		res = append(res, value)
 	}
-	secrets, _ = MapFromMapValue(s.StringData)
+	secrets, _ = mapFromMapValue(s.StringData)
 	for _, value := range secrets {
 		res = append(res, value)
 	}
 	return res
 }
 
-func MapFromMapValue(s types.Map) (map[string]string, diag.Diagnostics) {
+func mapFromMapValue(s types.Map) (map[string]string, diag.Diagnostics) {
 	var data map[string]string
 	var d diag.Diagnostics
 	if !s.IsNull() {

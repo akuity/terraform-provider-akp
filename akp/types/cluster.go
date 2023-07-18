@@ -11,10 +11,13 @@ import (
 
 // Cluster is the Schema for the cluster API
 type Cluster struct {
-	ClusterObjectMeta `json:"metadata" tfsdk:"metadata"`
-	Spec              ClusterSpec  `json:"spec" tfsdk:"spec"`
-	KubeConfig        types.Object `tfsdk:"kubeconfig"`
-	Manifests         types.String `tfsdk:"manifests"`
+	Name        types.String `json:"name,omitempty" tfsdk:"name"`
+	Namespace   types.String `json:"namespace,omitempty" tfsdk:"namespace"`
+	Labels      types.Map    `json:"labels,omitempty" tfsdk:"labels"`
+	Annotations types.Map    `json:"annotations,omitempty" tfsdk:"annotations"`
+	Spec        ClusterSpec  `json:"spec" tfsdk:"spec"`
+	Kubeconfig  types.Object `json:"kubeconfig,omitempty" tfsdk:"kubeconfig"`
+	Manifests   types.String `json:"manifests,omitempty" tfsdk:"manifests"`
 }
 
 type ClusterSpec struct {

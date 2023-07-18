@@ -49,9 +49,3 @@ func TestNoNewConfigMapFields(t *testing.T) {
 func TestNoNewSecretFields(t *testing.T) {
 	assert.Equal(t, reflect.TypeOf(types.Secret{}).NumField(), len(getSecretAttributes()))
 }
-
-// If this test fails, a field has been added/removed to the ObjectMeta type.
-// Update the schema attribute accordingly.
-func TestNoMetadataFields(t *testing.T) {
-	assert.Equal(t, reflect.TypeOf(types.ObjectMeta{}).NumField(), len(getObjectMetaAttributes()))
-}

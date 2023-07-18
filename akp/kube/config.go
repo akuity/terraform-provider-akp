@@ -3,34 +3,18 @@ package kube
 import (
 	"fmt"
 
-	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/mitchellh/go-homedir"
+	apimachineryschema "k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/discovery"
-	"k8s.io/kubectl/pkg/util/openapi"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
-	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	apimachineryschema "k8s.io/apimachinery/pkg/runtime/schema"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-)
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/util/openapi"
 
-type KubeConfig struct{
-	Host                  types.String     `tfsdk:"host"`
-	Username              types.String     `tfsdk:"username"`
-	Password              types.String     `tfsdk:"password"`
-	Insecure              types.Bool       `tfsdk:"insecure"`
-	ClientCertificate     types.String     `tfsdk:"client_certificate"`
-	ClientKey             types.String     `tfsdk:"client_key"`
-	ClusterCaCertificate  types.String     `tfsdk:"cluster_ca_certificate"`
-	ConfigPath            types.String     `tfsdk:"config_path"`
-	ConfigPaths           types.List       `tfsdk:"config_paths"`
-	ConfigContext         types.String     `tfsdk:"config_context"`
-	ConfigContextAuthInfo types.String     `tfsdk:"config_context_auth_info"`
-	ConfigContextCluster  types.String     `tfsdk:"config_context_cluster"`
-	Token                 types.String     `tfsdk:"token"`
-	ProxyUrl              types.String     `tfsdk:"proxy_url"`
-}
+	"github.com/akuity/terraform-provider-akp/akp/types"
+)
 
 type Kubectl struct {
 	config        *rest.Config
@@ -54,7 +38,7 @@ func NewKubectl(config *rest.Config) (*Kubectl, error) {
 
 // Adapted github.com/gavinbunney/terraform-provider-kubectl/kubernetes/provider.go functions
 
-func InitializeConfiguration(k *KubeConfig) (*rest.Config, error) {
+func InitializeConfiguration(k *types.Kubeconfig) (*rest.Config, error) {
 	overrides := &clientcmd.ConfigOverrides{}
 	loader := &clientcmd.ClientConfigLoadingRules{}
 	configPaths := []string{}
