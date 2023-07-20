@@ -166,12 +166,14 @@ func (p *AkpProvider) Configure(ctx context.Context, req provider.ConfigureReque
 func (p *AkpProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewAkpInstanceResource,
+		NewAkpClusterResource,
 	}
 }
 
 func (p *AkpProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewAkpInstanceDataSource,
+		NewAkpClusterDataSource,
 	}
 }
 

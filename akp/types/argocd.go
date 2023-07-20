@@ -11,8 +11,7 @@ import (
 
 // ArgoCD is the Schema for the argocd API
 type ArgoCD struct {
-	Name types.String `json:"name,omitempty" tfsdk:"name"`
-	Spec ArgoCDSpec   `json:"spec" tfsdk:"spec"`
+	Spec ArgoCDSpec `json:"spec" tfsdk:"spec"`
 }
 
 type ArgoCDSpec struct {

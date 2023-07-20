@@ -30,14 +30,6 @@ func TestNoNewArgoCDFields(t *testing.T) {
 	assert.Equal(t, reflect.TypeOf(types.ManagedCluster{}).NumField(), len(getManagedClusterAttributes()))
 }
 
-// If this test fails, a field has been added/removed to the Cluster related type.
-// Update the schema attribute accordingly.
-func TestNoNewClusterFields(t *testing.T) {
-	assert.Equal(t, reflect.TypeOf(types.Cluster{}).NumField(), len(getClusterAttributes()))
-	assert.Equal(t, reflect.TypeOf(types.ClusterSpec{}).NumField(), len(getClusterSpecAttributes()))
-	assert.Equal(t, reflect.TypeOf(types.ClusterData{}).NumField(), len(getClusterDataAttributes()))
-}
-
 // If this test fails, a field has been added/removed to the ConfigMap type.
 // Update the schema attribute accordingly.
 func TestNoNewConfigMapFields(t *testing.T) {

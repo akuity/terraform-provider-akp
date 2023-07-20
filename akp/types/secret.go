@@ -17,6 +17,9 @@ type Secret struct {
 
 func (s *Secret) GetSensitiveStrings() []string {
 	var res []string
+	if s == nil {
+		return res
+	}
 	secrets, _ := mapFromMapValue(s.Data)
 	for _, value := range secrets {
 		res = append(res, value)

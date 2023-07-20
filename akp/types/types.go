@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 
+	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 	"github.com/akuity/terraform-provider-akp/akp/apis/v1alpha1"
 )
 
@@ -22,6 +23,13 @@ var (
 		"kustomization":         tftypes.StringType,
 		"app_replication":       tftypes.BoolType,
 		"redis_tunneling":       tftypes.BoolType,
+	}
+
+	ClusterSizeString = map[argocdv1.ClusterSize]string{
+		argocdv1.ClusterSize_CLUSTER_SIZE_SMALL:       "small",
+		argocdv1.ClusterSize_CLUSTER_SIZE_MEDIUM:      "medium",
+		argocdv1.ClusterSize_CLUSTER_SIZE_LARGE:       "large",
+		argocdv1.ClusterSize_CLUSTER_SIZE_UNSPECIFIED: "unspecified",
 	}
 )
 
@@ -89,14 +97,14 @@ func ToClusterAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, clust
 	}
 }
 
-func ToArgoCDAPIModel(ctx context.Context, diag *diag.Diagnostics, cd *ArgoCD) *v1alpha1.ArgoCD {
+func ToArgoCDAPIModel(ctx context.Context, diag *diag.Diagnostics, cd *ArgoCD, name string) *v1alpha1.ArgoCD {
 	return &v1alpha1.ArgoCD{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ArgoCD",
 			APIVersion: "argocd.akuity.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: cd.Name.ValueString(),
+			Name: name,
 		},
 		Spec: v1alpha1.ArgoCDSpec{
 			Description: cd.Spec.Description.ValueString(),
@@ -209,35 +217,8 @@ func toExtensionsAPIModel(entries []*ArgoCDExtensionInstallEntry) []*v1alpha1.Ar
 	return extensions
 }
 
-func ToConfigMapTFModel(ctx context.Context, diagnostics *diag.Diagnostics, configMap *v1.ConfigMap) ConfigMap {
-	data, diag := tftypes.MapValueFrom(ctx, tftypes.StringType, &configMap.Data)
-	diagnostics.Append(diag...)
-	return ConfigMap{
-		Data: data,
-	}
-}
-
-func ToClusterTFModel(ctx context.Context, diagnostics *diag.Diagnostics, cluster *v1alpha1.Cluster) Cluster {
-	labels, diag := tftypes.MapValueFrom(ctx, tftypes.StringType, &cluster.Labels)
-	diagnostics.Append(diag...)
-	annotations, diag := tftypes.MapValueFrom(ctx, tftypes.StringType, &cluster.Annotations)
-	diagnostics.Append(diag...)
-	return Cluster{
-		Name:        tftypes.StringValue(cluster.Name),
-		Namespace:   tftypes.StringValue(cluster.Namespace),
-		Labels:      labels,
-		Annotations: annotations,
-		Spec: ClusterSpec{
-			Description:     tftypes.StringValue(cluster.Spec.Description),
-			NamespaceScoped: tftypes.BoolValue(cluster.Spec.NamespaceScoped),
-			Data:            toClusterDataTFModel(cluster.Spec.Data),
-		},
-	}
-}
-
-func ToArgoCDTFModel(ctx context.Context, diagnostics *diag.Diagnostics, cd *v1alpha1.ArgoCD) ArgoCD {
-	return ArgoCD{
-		Name: tftypes.StringValue(cd.Name),
+func ToArgoCDTFModel(ctx context.Context, diagnostics *diag.Diagnostics, cd *v1alpha1.ArgoCD) *ArgoCD {
+	return &ArgoCD{
 		Spec: ArgoCDSpec{
 			Description: tftypes.StringValue(cd.Spec.Description),
 			Version:     tftypes.StringValue(cd.Spec.Version),
