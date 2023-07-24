@@ -13,13 +13,25 @@ Find a cluster by its name and Argo CD instance ID
 ## Example Usage
 
 ```terraform
+terraform {
+  required_providers {
+    akp = {
+      source = "akuity/akp"
+    }
+  }
+}
+
+provider "akp" {
+  org_name = "test"
+}
+
 data "akp_instance" "example" {
-  name = "example-argocd-instance-name"
+  name = "test"
 }
 
 data "akp_cluster" "example" {
   instance_id = data.akp_instance.example.id
-  name        = "example-cluster-name"
+  name        = "test"
 }
 ```
 
@@ -29,19 +41,58 @@ data "akp_cluster" "example" {
 ### Required
 
 - `instance_id` (String) Argo CD Instance ID
-- `name` (String) Cluster Name
+- `name` (String) Name
 
 ### Read-Only
 
-- `agent_version` (String) Installed agent version
-- `annotations` (Map of String) Cluster Annotations
-- `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade
-- `description` (String) Cluster Description
+- `annotations` (Map of String) Annotations
 - `id` (String) Cluster ID
-- `labels` (Map of String) Cluster Labels
+- `kubeconfig` (Attributes) Kubernetes connection settings. If configured, terraform will try to connect to the cluster and install the agent (see [below for nested schema](#nestedatt--kubeconfig))
+- `labels` (Map of String) Labels
 - `manifests` (String, Sensitive) Agent Installation Manifests
 - `namespace` (String) Agent Installation Namespace
+- `spec` (Attributes) (see [below for nested schema](#nestedatt--spec))
+
+<a id="nestedatt--kubeconfig"></a>
+### Nested Schema for `kubeconfig`
+
+Read-Only:
+
+- `client_certificate` (String) PEM-encoded client certificate for TLS authentication.
+- `client_key` (String, Sensitive) PEM-encoded client certificate key for TLS authentication.
+- `cluster_ca_certificate` (String) PEM-encoded root certificates bundle for TLS authentication.
+- `config_context` (String) Context name to load from the kube config file.
+- `config_context_auth_info` (String)
+- `config_context_cluster` (String)
+- `config_path` (String) Path to the kube config file.
+- `config_paths` (List of String) A list of paths to kube config files.
+- `host` (String) The hostname (in form of URI) of Kubernetes master.
+- `insecure` (Boolean) Whether server should be accessed without verifying the TLS certificate.
+- `password` (String, Sensitive) The password to use for HTTP basic authentication when accessing the Kubernetes master endpoint.
+- `proxy_url` (String) URL to the proxy to be used for all API requests
+- `token` (String, Sensitive) Token to authenticate an service account
+- `username` (String) The username to use for HTTP basic authentication when accessing the Kubernetes master endpoint.
+
+
+<a id="nestedatt--spec"></a>
+### Nested Schema for `spec`
+
+Read-Only:
+
+- `data` (Attributes) (see [below for nested schema](#nestedatt--spec--data))
+- `description` (String) Cluster Description
 - `namespace_scoped` (Boolean) Agent Namespace Scoped
+
+<a id="nestedatt--spec--data"></a>
+### Nested Schema for `spec.data`
+
+Read-Only:
+
+- `app_replication` (Boolean)
+- `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
+- `kustomization` (String)
+- `redis_tunneling` (Boolean)
 - `size` (String) Cluster Size. One of `small`, `medium` or `large`
+- `target_version` (String) Installed agent version
 
 

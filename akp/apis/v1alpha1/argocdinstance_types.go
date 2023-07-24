@@ -65,7 +65,6 @@ type InstanceSpec struct {
 	SyncHistoryExtensionEnabled  *bool                          `json:"syncHistoryExtensionEnabled,omitempty"`
 	ImageUpdaterDelegate         *ImageUpdaterDelegate          `json:"imageUpdaterDelegate,omitempty"`
 	AppSetDelegate               *AppSetDelegate                `json:"appSetDelegate,omitempty"`
-	AssistantExtensionEnabled    *bool                          `json:"assistantExtensionEnabled,omitempty"`
 }
 
 type ManagedCluster struct {

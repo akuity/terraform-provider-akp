@@ -245,6 +245,7 @@ func addTerraformTag(field *ast.Field) error {
 	if err != nil {
 		return err
 	}
+	tags.Delete("json")
 	field.Tag.Value = fmt.Sprintf("`%s`", tags.String())
 	return nil
 }

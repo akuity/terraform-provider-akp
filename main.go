@@ -4,8 +4,9 @@ import (
 	"context"
 	"log"
 
-	"github.com/akuity/terraform-provider-akp/akp"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
+
+	"github.com/akuity/terraform-provider-akp/akp"
 )
 
 // Run "go generate" to format example terraform files and generate the docs for the registry/website

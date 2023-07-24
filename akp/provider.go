@@ -174,6 +174,7 @@ func (p *AkpProvider) DataSources(ctx context.Context) []func() datasource.DataS
 	return []func() datasource.DataSource{
 		NewAkpInstanceDataSource,
 		NewAkpClusterDataSource,
+		NewAkpClustersDataSource,
 	}
 }
 

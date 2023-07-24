@@ -46,6 +46,7 @@ func getAKPClusterAttributes() map[string]schema.Attribute {
 			Required:            true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
+				stringplanmodifier.RequiresReplace(),
 			},
 		},
 		"labels": schema.MapAttribute{
@@ -93,6 +94,7 @@ func getClusterSpecAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
+				boolplanmodifier.RequiresReplace(),
 			},
 		},
 		"data": schema.SingleNestedAttribute{

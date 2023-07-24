@@ -1,3 +1,11 @@
+terraform {
+  required_providers {
+    akp = {
+      source = "akuity/akp"
+    }
+  }
+}
+
 provider "akp" {
-  org_name = "organization-name"
+  org_name = "test"
 }

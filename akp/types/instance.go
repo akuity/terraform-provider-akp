@@ -6,7 +6,6 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 	"github.com/akuity/terraform-provider-akp/akp/apis/v1alpha1"
@@ -14,21 +13,21 @@ import (
 )
 
 type Instance struct {
-	ID                            types.String `json:"id,omitempty" tfsdk:"id"`
-	Name                          types.String `json:"name,omitempty" tfsdk:"name"`
-	ArgoCD                        *ArgoCD      `json:"argoCD,omitempty" tfsdk:"argocd"`
-	ArgoCDConfigMap               *ConfigMap   `json:"argoCDConfigMap,omitempty" tfsdk:"argocd_cm"`
-	ArgoCDRBACConfigMap           *ConfigMap   `json:"argoCDRBACConfigMap,omitempty" tfsdk:"argocd_rbac_cm"`
-	ArgoCDSecret                  *Secret      `json:"argoCDSecret,omitempty" tfsdk:"argocd_secret"`
-	NotificationsConfigMap        *ConfigMap   `json:"notificationsConfigMap,omitempty" tfsdk:"argocd_notifications_cm"`
-	NotificationsSecret           *Secret      `json:"notificationsSecret,omitempty" tfsdk:"argocd_notifications_secret"`
-	ImageUpdaterConfigMap         *ConfigMap   `json:"imageUpdaterConfigMap,omitempty" tfsdk:"argocd_image_updater_config"`
-	ImageUpdaterSSHConfigMap      *ConfigMap   `json:"imageUpdaterSSHConfigmap,omitempty" tfsdk:"argocd_image_updater_ssh_config"`
-	ImageUpdaterSecret            *Secret      `json:"imageUpdaterSecret,omitempty" tfsdk:"argocd_image_updater_secret"`
-	ArgoCDKnownHostsConfigMap     *ConfigMap   `json:"argoCDKnownHostsConfigMap,omitempty" tfsdk:"argocd_ssh_known_hosts_cm"`
-	ArgoCDTLSCertsConfigMap       *ConfigMap   `json:"argoCDTLSCertsConfigMap,omitempty" tfsdk:"argocd_tls_certs_cm"`
-	RepoCredentialSecrets         []Secret     `json:"repoCredentialSecrets,omitempty" tfsdk:"repo_credential_secrets"`
-	RepoTemplateCredentialSecrets []Secret     `json:"repoTemplateCredentialSecrets,omitempty" tfsdk:"repo_template_credential_secrets"`
+	ID                            types.String `tfsdk:"id"`
+	Name                          types.String `tfsdk:"name"`
+	ArgoCD                        *ArgoCD      `tfsdk:"argocd"`
+	ArgoCDConfigMap               *ConfigMap   `tfsdk:"argocd_cm"`
+	ArgoCDRBACConfigMap           *ConfigMap   `tfsdk:"argocd_rbac_cm"`
+	ArgoCDSecret                  *Secret      `tfsdk:"argocd_secret"`
+	NotificationsConfigMap        *ConfigMap   `tfsdk:"argocd_notifications_cm"`
+	NotificationsSecret           *Secret      `tfsdk:"argocd_notifications_secret"`
+	ImageUpdaterConfigMap         *ConfigMap   `tfsdk:"argocd_image_updater_config"`
+	ImageUpdaterSSHConfigMap      *ConfigMap   `tfsdk:"argocd_image_updater_ssh_config"`
+	ImageUpdaterSecret            *Secret      `tfsdk:"argocd_image_updater_secret"`
+	ArgoCDKnownHostsConfigMap     *ConfigMap   `tfsdk:"argocd_ssh_known_hosts_cm"`
+	ArgoCDTLSCertsConfigMap       *ConfigMap   `tfsdk:"argocd_tls_certs_cm"`
+	RepoCredentialSecrets         []Secret     `tfsdk:"repo_credential_secrets"`
+	RepoTemplateCredentialSecrets []Secret     `tfsdk:"repo_template_credential_secrets"`
 }
 
 func (i *Instance) GetSensitiveStrings() []string {
@@ -52,7 +51,6 @@ func (i *Instance) Update(ctx context.Context, diagnostics *diag.Diagnostics, ex
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get Argo CD instance. %s", err))
 		return
 	}
-	tflog.Info(ctx, fmt.Sprintf("---------export:%+v", argoCD))
 	if i.ArgoCD == nil {
 		i.ArgoCD = &ArgoCD{}
 	}

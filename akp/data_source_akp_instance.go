@@ -46,8 +46,6 @@ func (r *AkpInstanceDataSource) Configure(ctx context.Context, req datasource.Co
 }
 
 func (r *AkpInstanceDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	tflog.Debug(ctx, "Reading an AKP Argo CD Instance")
-
 	var data types.Instance
 	// Read Terraform prior state data into the model
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
@@ -59,6 +57,5 @@ func (r *AkpInstanceDataSource) Read(ctx context.Context, req datasource.ReadReq
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 
 	refreshState(ctx, &resp.Diagnostics, r.akpCli.Cli, &data, r.akpCli.OrgId)
-	tflog.Debug(ctx, fmt.Sprintf("-------------read:%s", data.ArgoCD))
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }

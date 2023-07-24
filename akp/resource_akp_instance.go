@@ -54,7 +54,6 @@ func (r *AkpInstanceResource) Configure(ctx context.Context, req resource.Config
 }
 
 func (r *AkpInstanceResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	tflog.Debug(ctx, "Creating an AKP ArgoCD Instance")
 	var plan types.Instance
 
 	// Read Terraform plan data into the model
@@ -68,8 +67,6 @@ func (r *AkpInstanceResource) Create(ctx context.Context, req resource.CreateReq
 }
 
 func (r *AkpInstanceResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	tflog.Debug(ctx, "Reading an AKP Argo CD Instance")
-
 	var data types.Instance
 	// Read Terraform prior state data into the model
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
@@ -81,12 +78,10 @@ func (r *AkpInstanceResource) Read(ctx context.Context, req resource.ReadRequest
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 
 	refreshState(ctx, &resp.Diagnostics, r.akpCli.Cli, &data, r.akpCli.OrgId)
-	tflog.Info(ctx, fmt.Sprintf("-------------read:%+v", data.ArgoCD))
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
 func (r *AkpInstanceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	tflog.Debug(ctx, "Updating an AKP ArgoCD Instance")
 	var plan types.Instance
 
 	// Read Terraform plan data into the model
@@ -96,12 +91,10 @@ func (r *AkpInstanceResource) Update(ctx context.Context, req resource.UpdateReq
 	}
 
 	r.upsert(ctx, &resp.Diagnostics, &plan)
-	tflog.Info(ctx, fmt.Sprintf("-------------update:%+v", plan))
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
 func (r *AkpInstanceResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	tflog.Debug(ctx, "Deleting an Argo CD Instance")
 	var state types.Instance
 
 	diags := req.State.Get(ctx, &state)
@@ -119,7 +112,6 @@ func (r *AkpInstanceResource) Delete(ctx context.Context, req resource.DeleteReq
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete Argo CD instance, got error: %s", err))
 		return
 	}
-	tflog.Info(ctx, "Instance deleted")
 }
 
 func (r *AkpInstanceResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
@@ -134,11 +126,9 @@ func (r *AkpInstanceResource) upsert(ctx context.Context, diagnostics *diag.Diag
 	apiReq := buildApplyRequest(ctx, diagnostics, plan, r.akpCli.OrgId)
 	_, err := r.akpCli.Cli.ApplyInstance(ctx, apiReq)
 	if err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Argo CD instance. %s", err))
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to upsert Argo CD instance. %s", err))
 		return
 	}
-	tflog.Info(ctx, fmt.Sprintf("------apireq:%+v", apiReq))
-	tflog.Info(ctx, fmt.Sprintf("------upsert:%+v", plan))
 
 	refreshState(ctx, diagnostics, r.akpCli.Cli, plan, r.akpCli.OrgId)
 	if diagnostics.HasError() {
@@ -176,7 +166,6 @@ func buildArgoCD(ctx context.Context, diag *diag.Diagnostics, instance *types.In
 	if err := marshal.RemarshalTo(apiArgoCD, &argocdMap); err != nil {
 		diag.AddError("Client Error", fmt.Sprintf("Unable to creat Argo CD instance. %s", err))
 	}
-	tflog.Info(ctx, fmt.Sprintf("------reflect:%+v", argocdMap))
 	s, err := structpb.NewStruct(argocdMap)
 	if err != nil {
 		diag.AddError("Client Error", fmt.Sprintf("Unable to create Argo CD instance. %s", err))
@@ -197,11 +186,11 @@ func buildConfigMap(ctx context.Context, diagnostics *diag.Diagnostics, cm *type
 	apiModel := cm.ToConfigMapAPIModel(ctx, diagnostics, name)
 	m := map[string]interface{}{}
 	if err := marshal.RemarshalTo(apiModel, &m); err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Argo CD instance. %s", err))
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create ConfigMap. %s", err))
 	}
 	configMap, err := structpb.NewStruct(m)
 	if err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Argo CD instance. %s", err))
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create ConfigMap. %s", err))
 		return nil
 	}
 	return configMap
@@ -211,11 +200,11 @@ func buildSecret(ctx context.Context, diagnostics *diag.Diagnostics, secret *typ
 	apiModel := secret.ToSecretAPIModel(ctx, diagnostics, name)
 	m := map[string]interface{}{}
 	if err := marshal.RemarshalTo(apiModel, &m); err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Argo CD instance. %s", err))
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Secret. %s", err))
 	}
 	s, err := structpb.NewStruct(m)
 	if err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Argo CD instance. %s", err))
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Secret. %s", err))
 		return nil
 	}
 	return s
@@ -228,7 +217,6 @@ func refreshState(ctx context.Context, diagnostics *diag.Diagnostics, client arg
 		Id:             instance.Name.ValueString(),
 	}
 	getInstanceResp, err := client.GetInstance(ctx, getInstanceReq)
-	tflog.Debug(ctx, fmt.Sprintf("API Resp: %s", getInstanceResp))
 	if err != nil {
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read Argo CD instance: %s", err))
 		return
@@ -240,9 +228,8 @@ func refreshState(ctx context.Context, diagnostics *diag.Diagnostics, client arg
 		Id:             instance.Name.ValueString(),
 	})
 	if err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get Argo CD instance. %s", err))
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to export Argo CD instance. %s", err))
 		return
 	}
 	instance.Update(ctx, diagnostics, exportResp)
-	tflog.Info(ctx, fmt.Sprintf("---------instance:%+v", instance))
 }

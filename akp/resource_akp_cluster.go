@@ -9,7 +9,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"golang.org/x/exp/slices"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -61,7 +60,6 @@ func (r *AkpClusterResource) Configure(ctx context.Context, req resource.Configu
 }
 
 func (r *AkpClusterResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	tflog.Debug(ctx, "Creating an AKP ArgoCD Instance")
 	var plan types.Cluster
 
 	// Read Terraform plan data into the model
@@ -70,13 +68,11 @@ func (r *AkpClusterResource) Create(ctx context.Context, req resource.CreateRequ
 		return
 	}
 
-	r.upsert(ctx, &resp.Diagnostics, &plan)
+	r.upsert(ctx, &resp.Diagnostics, &plan, true)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
 func (r *AkpClusterResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	tflog.Debug(ctx, "Reading an AKP Cluster")
-
 	var data types.Cluster
 	// Read Terraform prior state data into the model
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
@@ -98,8 +94,7 @@ func (r *AkpClusterResource) Update(ctx context.Context, req resource.UpdateRequ
 		return
 	}
 
-	r.upsert(ctx, &resp.Diagnostics, &plan)
-	tflog.Info(ctx, fmt.Sprintf("-------------update:%+v", plan))
+	r.upsert(ctx, &resp.Diagnostics, &plan, false)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -113,7 +108,7 @@ func (r *AkpClusterResource) Delete(ctx context.Context, req resource.DeleteRequ
 		return
 	}
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
-	kubeconfig, diag := getKubeconfig(ctx, plan.Kubeconfig)
+	kubeconfig, diag := getKubeconfig(plan.Kubeconfig)
 	resp.Diagnostics.Append(diag...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -121,7 +116,6 @@ func (r *AkpClusterResource) Delete(ctx context.Context, req resource.DeleteRequ
 
 	// Delete the manifests
 	if kubeconfig != nil {
-		tflog.Info(ctx, "Deleting the manifests...")
 		resp.Diagnostics.Append(deleteManifests(ctx, plan.Manifests.ValueString(), kubeconfig)...)
 		if resp.Diagnostics.HasError() {
 			return
@@ -132,9 +126,7 @@ func (r *AkpClusterResource) Delete(ctx context.Context, req resource.DeleteRequ
 		InstanceId:     plan.InstanceID.ValueString(),
 		Id:             plan.ID.ValueString(),
 	}
-	tflog.Debug(ctx, fmt.Sprintf("Api Request: %s", apiReq))
-	apiResp, err := r.akpCli.Cli.DeleteInstanceCluster(ctx, apiReq)
-	tflog.Debug(ctx, fmt.Sprintf("Api Response: %s", apiResp))
+	_, err := r.akpCli.Cli.DeleteInstanceCluster(ctx, apiReq)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete Akuity cluster. %s", err))
 		return
@@ -145,10 +137,9 @@ func (r *AkpClusterResource) ImportState(ctx context.Context, req resource.Impor
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
-func (r *AkpClusterResource) upsert(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.Cluster) {
+func (r *AkpClusterResource) upsert(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.Cluster, isCreate bool) {
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 	apiReq := buildClusterApplyRequest(ctx, diagnostics, plan, r.akpCli.OrgId)
-	tflog.Info(ctx, fmt.Sprintf("----------cluste api req:%+v", apiReq))
 	_, err := r.akpCli.Cli.ApplyInstance(ctx, apiReq)
 	if err != nil {
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Argo CD instance. %s", err))
@@ -160,15 +151,15 @@ func (r *AkpClusterResource) upsert(ctx context.Context, diagnostics *diag.Diagn
 	}
 
 	// Apply agent manifests to clusters if the kubeconfig is specified for cluster.
-	kubeconfig, diag := getKubeconfig(ctx, plan.Kubeconfig)
+	kubeconfig, diag := getKubeconfig(plan.Kubeconfig)
 	diagnostics.Append(diag...)
 	if diagnostics.HasError() {
 		return
 	}
 
 	// Apply the manifests
-	if kubeconfig != nil {
-		tflog.Info(ctx, "Applying the manifests...")
+	if kubeconfig != nil && isCreate {
+		tflog.Debug(ctx, fmt.Sprintf("------------applying"))
 		diagnostics.Append(applyManifests(ctx, plan.Manifests.ValueString(), kubeconfig)...)
 		if diagnostics.HasError() {
 			return
@@ -187,9 +178,7 @@ func refreshClusterState(ctx context.Context, diagnostics *diag.Diagnostics, cli
 		IdType:         idv1.Type_NAME,
 	}
 
-	tflog.Info(ctx, fmt.Sprintf("API Req: %s", clusterReq))
 	clusterResp, err := client.GetInstanceCluster(ctx, clusterReq)
-	tflog.Info(ctx, fmt.Sprintf("API Resp: %s", clusterResp))
 	if err != nil {
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read Argo CD cluster: %s", err))
 		return
@@ -213,34 +202,23 @@ func buildClusters(ctx context.Context, diagnostics *diag.Diagnostics, cluster *
 	apiCluster := cluster.ToClusterAPIModel(ctx, diagnostics)
 	m := map[string]interface{}{}
 	if err := marshal.RemarshalTo(apiCluster, &m); err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Argo CD instance. %s", err))
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Cluster. %s", err))
 	}
 	s, err := structpb.NewStruct(m)
 	if err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Argo CD instance. %s", err))
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Cluster. %s", err))
 		return nil
 	}
 	cs = append(cs, s)
 	return cs
 }
 
-func getKubeconfig(ctx context.Context, kubeConf tftypes.Object) (*rest.Config, diag.Diagnostics) {
-	var kubeConfig types.Kubeconfig
+func getKubeconfig(kubeConfig *types.Kubeconfig) (*rest.Config, diag.Diagnostics) {
 	var diag diag.Diagnostics
-	if kubeConf.IsNull() || kubeConf.IsUnknown() {
-		diag.AddWarning("Kubectl not configured", "Cannot update agent because kubectl configuration is missing")
+	if kubeConfig == nil {
 		return nil, diag
 	}
-	tflog.Debug(ctx, fmt.Sprintf("Kube config: %s", kubeConf))
-	diag = kubeConf.As(ctx, &kubeConfig, basetypes.ObjectAsOptions{
-		UnhandledNullAsEmpty:    true,
-		UnhandledUnknownAsEmpty: true,
-	})
-	if diag.HasError() {
-		return nil, diag
-	}
-	kcfg, err := kube.InitializeConfiguration(&kubeConfig)
-	tflog.Debug(ctx, fmt.Sprintf("Kcfg: %s", kcfg))
+	kcfg, err := kube.InitializeConfiguration(kubeConfig)
 	if err != nil {
 		diag.AddError("Kubectl error", fmt.Sprintf("Cannot insitialize Kubectl. Check kubernetes configuration. Error: %s", err))
 		return nil, diag
@@ -285,7 +263,6 @@ func applyManifests(ctx context.Context, manifests string, cfg *rest.Config) dia
 		diag.AddError("Kubernetes error", fmt.Sprintf("failed to create kubectl, error=%s", err))
 	}
 	resources, err := kube.SplitYAML([]byte(manifests))
-	tflog.Info(ctx, fmt.Sprintf("%d resources to create", len(resources)))
 	if err != nil {
 		diag.AddError("YAML error", fmt.Sprintf("failed to parse manifest, error=%s", err))
 	}

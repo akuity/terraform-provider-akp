@@ -14,7 +14,7 @@ import (
 )
 
 type ConfigMap struct {
-	Data tftypes.Map `json:"data,omitempty" tfsdk:"data"`
+	Data tftypes.Map `tfsdk:"data"`
 }
 
 func (c *ConfigMap) Update(ctx context.Context, diagnostics *diag.Diagnostics, data *structpb.Struct) {

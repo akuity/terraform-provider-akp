@@ -10,11 +10,11 @@ import (
 )
 
 type Secret struct {
-	Name       types.String `json:"name,omitempty" tfsdk:"name"`
-	Labels     types.Map    `json:"labels,omitempty" tfsdk:"labels"`
-	Data       types.Map    `json:"data,omitempty" tfsdk:"data"`
-	StringData types.Map    `json:"stringData,omitempty" tfsdk:"string_data"`
-	Type       types.String `json:"type,omitempty" tfsdk:"type"`
+	Name       types.String `tfsdk:"name"`
+	Labels     types.Map    `tfsdk:"labels"`
+	Data       types.Map    `tfsdk:"data"`
+	StringData types.Map    `tfsdk:"string_data"`
+	Type       types.String `tfsdk:"type"`
 }
 
 func (s *Secret) GetSensitiveStrings() []string {

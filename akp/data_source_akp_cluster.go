@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 
 	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
 	"github.com/akuity/terraform-provider-akp/akp/types"
@@ -52,10 +51,8 @@ func (d *AkpClusterDataSource) Read(ctx context.Context, req datasource.ReadRequ
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	tflog.Info(ctx, fmt.Sprintf("Reading an instance clusters: %+v", data))
 	ctx = httpctx.SetAuthorizationHeader(ctx, d.akpCli.Cred.Scheme(), d.akpCli.Cred.Credential())
 	refreshClusterState(ctx, &resp.Diagnostics, d.akpCli.Cli, &data, d.akpCli.OrgId)
-	tflog.Debug(ctx, fmt.Sprintf("-------------read:%s", data))
 	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
