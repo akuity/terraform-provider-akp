@@ -46,25 +46,26 @@ type ArgoCDExtensionInstallEntry struct {
 }
 
 type ClusterCustomization struct {
-	AutoUpgradeDisabled bool                 `json:"autoUpgradeDisabled,omitempty"`
+	AutoUpgradeDisabled *bool                `json:"autoUpgradeDisabled,omitempty"`
 	Kustomization       runtime.RawExtension `json:"kustomization,omitempty"`
-	AppReplication      bool                 `json:"appReplication,omitempty"`
-	RedisTunneling      bool                 `json:"redisTunneling,omitempty"`
+	AppReplication      *bool                `json:"appReplication,omitempty"`
+	RedisTunneling      *bool                `json:"redisTunneling,omitempty"`
 }
 
 type InstanceSpec struct {
 	IpAllowList                  []*IPAllowListEntry            `json:"ipAllowList,omitempty"`
 	Subdomain                    string                         `json:"subdomain,omitempty"`
-	DeclarativeManagementEnabled bool                           `json:"declarativeManagementEnabled,omitempty"`
+	DeclarativeManagementEnabled *bool                          `json:"declarativeManagementEnabled,omitempty"`
 	Extensions                   []*ArgoCDExtensionInstallEntry `json:"extensions,omitempty"`
 	ClusterCustomizationDefaults *ClusterCustomization          `json:"clusterCustomizationDefaults,omitempty"`
-	ImageUpdaterEnabled          bool                           `json:"imageUpdaterEnabled,omitempty"`
-	BackendIpAllowListEnabled    bool                           `json:"backendIpAllowListEnabled,omitempty"`
+	ImageUpdaterEnabled          *bool                          `json:"imageUpdaterEnabled,omitempty"`
+	BackendIpAllowListEnabled    *bool                          `json:"backendIpAllowListEnabled,omitempty"`
 	RepoServerDelegate           *RepoServerDelegate            `json:"repoServerDelegate,omitempty"`
-	AuditExtensionEnabled        bool                           `json:"auditExtensionEnabled,omitempty"`
-	SyncHistoryExtensionEnabled  bool                           `json:"syncHistoryExtensionEnabled,omitempty"`
+	AuditExtensionEnabled        *bool                          `json:"auditExtensionEnabled,omitempty"`
+	SyncHistoryExtensionEnabled  *bool                          `json:"syncHistoryExtensionEnabled,omitempty"`
 	ImageUpdaterDelegate         *ImageUpdaterDelegate          `json:"imageUpdaterDelegate,omitempty"`
 	AppSetDelegate               *AppSetDelegate                `json:"appSetDelegate,omitempty"`
+	AssistantExtensionEnabled    *bool                          `json:"assistantExtensionEnabled,omitempty"`
 }
 
 type ManagedCluster struct {
@@ -72,12 +73,12 @@ type ManagedCluster struct {
 }
 
 type RepoServerDelegate struct {
-	ControlPlane   bool            `json:"controlPlane,omitempty"`
+	ControlPlane   *bool           `json:"controlPlane,omitempty"`
 	ManagedCluster *ManagedCluster `json:"managedCluster,omitempty"`
 }
 
 type ImageUpdaterDelegate struct {
-	ControlPlane   bool            `json:"controlPlane,omitempty"`
+	ControlPlane   *bool           `json:"controlPlane,omitempty"`
 	ManagedCluster *ManagedCluster `json:"managedCluster,omitempty"`
 }
 

@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 
@@ -8,7 +9,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
@@ -33,71 +33,48 @@ var (
 	}
 )
 
-func ToConfigMapAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, configMap *ConfigMap, name string) *v1.ConfigMap {
-	var data map[string]string
-	diagnostics.Append(configMap.Data.ElementsAs(ctx, &data, true)...)
-	return &v1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "ConfigMap",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-		Data: data,
+func (a *ArgoCD) Update(ctx context.Context, diagnostics *diag.Diagnostics, cd *v1alpha1.ArgoCD) {
+	declarativeManagementEnabled := false
+	if cd.Spec.InstanceSpec.DeclarativeManagementEnabled != nil && *cd.Spec.InstanceSpec.DeclarativeManagementEnabled {
+		declarativeManagementEnabled = true
 	}
-}
-
-func ToSecretAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, secret *Secret, name string) *v1.Secret {
-	var labels map[string]string
-	var data map[string][]byte
-	var stringData map[string]string
-	diagnostics.Append(secret.Labels.ElementsAs(ctx, &labels, true)...)
-	diagnostics.Append(secret.Data.ElementsAs(ctx, &data, true)...)
-	diagnostics.Append(secret.StringData.ElementsAs(ctx, &stringData, true)...)
-	n := name
-	if !secret.Name.IsNull() && !secret.Name.IsUnknown() {
-		n = secret.Name.ValueString()
+	imageUpdaterEnabled := false
+	if cd.Spec.InstanceSpec.ImageUpdaterEnabled != nil && *cd.Spec.InstanceSpec.ImageUpdaterEnabled {
+		imageUpdaterEnabled = true
 	}
-	return &v1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Secret",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   n,
-			Labels: labels,
-		},
-		Data:       data,
-		StringData: stringData,
+	backendIpAllowListEnabled := false
+	if cd.Spec.InstanceSpec.BackendIpAllowListEnabled != nil && *cd.Spec.InstanceSpec.BackendIpAllowListEnabled {
+		backendIpAllowListEnabled = true
 	}
-}
-
-func ToClusterAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, cluster *Cluster) *v1alpha1.Cluster {
-	var labels map[string]string
-	var annotations map[string]string
-	diagnostics.Append(cluster.Labels.ElementsAs(ctx, &labels, true)...)
-	diagnostics.Append(cluster.Annotations.ElementsAs(ctx, &annotations, true)...)
-	return &v1alpha1.Cluster{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Cluster",
-			APIVersion: "argocd.akuity.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        cluster.Name.ValueString(),
-			Namespace:   cluster.Namespace.ValueString(),
-			Labels:      labels,
-			Annotations: annotations,
-		},
-		Spec: v1alpha1.ClusterSpec{
-			Description:     cluster.Spec.Description.ValueString(),
-			NamespaceScoped: cluster.Spec.NamespaceScoped.ValueBool(),
-			Data:            toClusterDataAPIModel(diagnostics, cluster.Spec.Data),
+	auditExtensionEnabled := false
+	if cd.Spec.InstanceSpec.AuditExtensionEnabled != nil && *cd.Spec.InstanceSpec.AuditExtensionEnabled {
+		auditExtensionEnabled = true
+	}
+	syncHistoryExtensionEnabled := false
+	if cd.Spec.InstanceSpec.SyncHistoryExtensionEnabled != nil && *cd.Spec.InstanceSpec.SyncHistoryExtensionEnabled {
+		syncHistoryExtensionEnabled = true
+	}
+	a.Spec = ArgoCDSpec{
+		Description: tftypes.StringValue(cd.Spec.Description),
+		Version:     tftypes.StringValue(cd.Spec.Version),
+		InstanceSpec: InstanceSpec{
+			IpAllowList:                  toIPAllowListTFModel(cd.Spec.InstanceSpec.IpAllowList),
+			Subdomain:                    tftypes.StringValue(cd.Spec.InstanceSpec.Subdomain),
+			DeclarativeManagementEnabled: tftypes.BoolValue(declarativeManagementEnabled),
+			Extensions:                   toExtensionsTFModel(cd.Spec.InstanceSpec.Extensions),
+			ClusterCustomizationDefaults: toClusterCustomizationTFModel(ctx, diagnostics, cd.Spec.InstanceSpec.ClusterCustomizationDefaults),
+			ImageUpdaterEnabled:          tftypes.BoolValue(imageUpdaterEnabled),
+			BackendIpAllowListEnabled:    tftypes.BoolValue(backendIpAllowListEnabled),
+			RepoServerDelegate:           toRepoServerDelegateTFModel(cd.Spec.InstanceSpec.RepoServerDelegate),
+			AuditExtensionEnabled:        tftypes.BoolValue(auditExtensionEnabled),
+			SyncHistoryExtensionEnabled:  tftypes.BoolValue(syncHistoryExtensionEnabled),
+			ImageUpdaterDelegate:         toImageUpdaterDelegateTFModel(cd.Spec.InstanceSpec.ImageUpdaterDelegate),
+			AppSetDelegate:               toAppSetDelegateTFModel(cd.Spec.InstanceSpec.AppSetDelegate),
 		},
 	}
 }
 
-func ToArgoCDAPIModel(ctx context.Context, diag *diag.Diagnostics, cd *ArgoCD, name string) *v1alpha1.ArgoCD {
+func (a *ArgoCD) ToArgoCDAPIModel(ctx context.Context, diag *diag.Diagnostics, name string) *v1alpha1.ArgoCD {
 	return &v1alpha1.ArgoCD{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ArgoCD",
@@ -107,22 +84,102 @@ func ToArgoCDAPIModel(ctx context.Context, diag *diag.Diagnostics, cd *ArgoCD, n
 			Name: name,
 		},
 		Spec: v1alpha1.ArgoCDSpec{
-			Description: cd.Spec.Description.ValueString(),
-			Version:     cd.Spec.Version.ValueString(),
+			Description: a.Spec.Description.ValueString(),
+			Version:     a.Spec.Version.ValueString(),
 			InstanceSpec: v1alpha1.InstanceSpec{
-				IpAllowList:                  toIPAllowListAPIModel(cd.Spec.InstanceSpec.IpAllowList),
-				Subdomain:                    cd.Spec.InstanceSpec.Subdomain.ValueString(),
-				DeclarativeManagementEnabled: cd.Spec.InstanceSpec.DeclarativeManagementEnabled.ValueBool(),
-				Extensions:                   toExtensionsAPIModel(cd.Spec.InstanceSpec.Extensions),
-				ClusterCustomizationDefaults: toClusterCustomizationAPIModel(ctx, diag, cd.Spec.InstanceSpec.ClusterCustomizationDefaults),
-				ImageUpdaterEnabled:          cd.Spec.InstanceSpec.ImageUpdaterEnabled.ValueBool(),
-				BackendIpAllowListEnabled:    cd.Spec.InstanceSpec.BackendIpAllowListEnabled.ValueBool(),
-				RepoServerDelegate:           toRepoServerDelegateAPIModel(cd.Spec.InstanceSpec.RepoServerDelegate),
-				AuditExtensionEnabled:        cd.Spec.InstanceSpec.AuditExtensionEnabled.ValueBool(),
-				SyncHistoryExtensionEnabled:  cd.Spec.InstanceSpec.SyncHistoryExtensionEnabled.ValueBool(),
-				ImageUpdaterDelegate:         toImageUpdaterDelegateAPIModel(cd.Spec.InstanceSpec.ImageUpdaterDelegate),
-				AppSetDelegate:               toAppSetDelegateAPIModel(cd.Spec.InstanceSpec.AppSetDelegate),
+				IpAllowList:                  toIPAllowListAPIModel(a.Spec.InstanceSpec.IpAllowList),
+				Subdomain:                    a.Spec.InstanceSpec.Subdomain.ValueString(),
+				DeclarativeManagementEnabled: a.Spec.InstanceSpec.DeclarativeManagementEnabled.ValueBoolPointer(),
+				Extensions:                   toExtensionsAPIModel(a.Spec.InstanceSpec.Extensions),
+				ClusterCustomizationDefaults: toClusterCustomizationAPIModel(ctx, diag, a.Spec.InstanceSpec.ClusterCustomizationDefaults),
+				ImageUpdaterEnabled:          a.Spec.InstanceSpec.ImageUpdaterEnabled.ValueBoolPointer(),
+				BackendIpAllowListEnabled:    a.Spec.InstanceSpec.BackendIpAllowListEnabled.ValueBoolPointer(),
+				RepoServerDelegate:           toRepoServerDelegateAPIModel(a.Spec.InstanceSpec.RepoServerDelegate),
+				AuditExtensionEnabled:        a.Spec.InstanceSpec.AuditExtensionEnabled.ValueBoolPointer(),
+				SyncHistoryExtensionEnabled:  a.Spec.InstanceSpec.SyncHistoryExtensionEnabled.ValueBoolPointer(),
+				ImageUpdaterDelegate:         toImageUpdaterDelegateAPIModel(a.Spec.InstanceSpec.ImageUpdaterDelegate),
+				AppSetDelegate:               toAppSetDelegateAPIModel(a.Spec.InstanceSpec.AppSetDelegate),
 			},
+		},
+	}
+}
+
+func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, apiCluster *argocdv1.Cluster) {
+	c.ID = tftypes.StringValue(apiCluster.GetId())
+	c.Name = tftypes.StringValue(apiCluster.GetName())
+	c.Namespace = tftypes.StringValue(apiCluster.GetNamespace())
+	labels, d := tftypes.MapValueFrom(ctx, tftypes.StringType, apiCluster.GetData().GetLabels())
+	if d.HasError() {
+		labels = tftypes.MapNull(tftypes.StringType)
+	}
+	diagnostics.Append(d...)
+	annotations, d := tftypes.MapValueFrom(ctx, tftypes.StringType, apiCluster.GetData().GetAnnotations())
+	if d.HasError() {
+		annotations = tftypes.MapNull(tftypes.StringType)
+	}
+	diagnostics.Append(d...)
+	jsonData, err := apiCluster.GetData().GetKustomization().MarshalJSON()
+	if err != nil {
+		diagnostics.AddError("getting cluster kustomization", fmt.Sprintf("%s", err.Error()))
+	}
+	yamlData, err := yaml.JSONToYAML(jsonData)
+	if err != nil {
+		diagnostics.AddError("getting cluster kustomization", fmt.Sprintf("%s", err.Error()))
+	}
+
+	kustomization := tftypes.StringValue(string(yamlData))
+	if c.Spec != nil {
+		rawPlan := runtime.RawExtension{}
+		old := c.Spec.Data.Kustomization
+		if err := yaml.Unmarshal([]byte(old.ValueString()), &rawPlan); err != nil {
+			diagnostics.AddError("failed unmarshal kustomization string to yaml", err.Error())
+		}
+
+		oldYamlData, err := yaml.Marshal(&rawPlan)
+		if err != nil {
+			diagnostics.AddError("failed to convert json to yaml data", err.Error())
+		}
+		if bytes.Equal(oldYamlData, yamlData) {
+			kustomization = old
+		}
+	}
+
+	c.Labels = labels
+	c.Annotations = annotations
+	c.Spec = &ClusterSpec{
+		Description:     tftypes.StringValue(apiCluster.GetDescription()),
+		NamespaceScoped: tftypes.BoolValue(apiCluster.GetNamespaceScoped()),
+		Data: ClusterData{
+			Size:                tftypes.StringValue(ClusterSizeString[apiCluster.GetData().GetSize()]),
+			AutoUpgradeDisabled: tftypes.BoolValue(apiCluster.GetData().GetAutoUpgradeDisabled()),
+			Kustomization:       kustomization,
+			AppReplication:      tftypes.BoolValue(apiCluster.GetData().GetAppReplication()),
+			TargetVersion:       tftypes.StringValue(apiCluster.GetData().GetTargetVersion()),
+			RedisTunneling:      tftypes.BoolValue(apiCluster.GetData().GetRedisTunneling()),
+		},
+	}
+}
+
+func (c *Cluster) ToClusterAPIModel(ctx context.Context, diagnostics *diag.Diagnostics) *v1alpha1.Cluster {
+	var labels map[string]string
+	var annotations map[string]string
+	diagnostics.Append(c.Labels.ElementsAs(ctx, &labels, true)...)
+	diagnostics.Append(c.Annotations.ElementsAs(ctx, &annotations, true)...)
+	return &v1alpha1.Cluster{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Cluster",
+			APIVersion: "argocd.akuity.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        c.Name.ValueString(),
+			Namespace:   c.Namespace.ValueString(),
+			Labels:      labels,
+			Annotations: annotations,
+		},
+		Spec: v1alpha1.ClusterSpec{
+			Description:     c.Spec.Description.ValueString(),
+			NamespaceScoped: c.Spec.NamespaceScoped.ValueBool(),
+			Data:            toClusterDataAPIModel(diagnostics, c.Spec.Data),
 		},
 	}
 }
@@ -147,7 +204,7 @@ func toRepoServerDelegateAPIModel(repoServerDelegate *RepoServerDelegate) *v1alp
 		return nil
 	}
 	return &v1alpha1.RepoServerDelegate{
-		ControlPlane:   repoServerDelegate.ControlPlane.ValueBool(),
+		ControlPlane:   repoServerDelegate.ControlPlane.ValueBoolPointer(),
 		ManagedCluster: toManagedClusterAPIModel(repoServerDelegate.ManagedCluster),
 	}
 }
@@ -157,7 +214,7 @@ func toImageUpdaterDelegateAPIModel(imageUpdaterDelegate *ImageUpdaterDelegate) 
 		return nil
 	}
 	return &v1alpha1.ImageUpdaterDelegate{
-		ControlPlane:   imageUpdaterDelegate.ControlPlane.ValueBool(),
+		ControlPlane:   imageUpdaterDelegate.ControlPlane.ValueBoolPointer(),
 		ManagedCluster: toManagedClusterAPIModel(imageUpdaterDelegate.ManagedCluster),
 	}
 }
@@ -188,10 +245,10 @@ func toClusterCustomizationAPIModel(ctx context.Context, diagnostics *diag.Diagn
 		diagnostics.AddError("failed unmarshal kustomization string to yaml", err.Error())
 	}
 	return &v1alpha1.ClusterCustomization{
-		AutoUpgradeDisabled: customization.AutoUpgradeDisabled.ValueBool(),
+		AutoUpgradeDisabled: customization.AutoUpgradeDisabled.ValueBoolPointer(),
 		Kustomization:       raw,
-		AppReplication:      customization.AppReplication.ValueBool(),
-		RedisTunneling:      customization.RedisTunneling.ValueBool(),
+		AppReplication:      customization.AppReplication.ValueBoolPointer(),
+		RedisTunneling:      customization.RedisTunneling.ValueBoolPointer(),
 	}
 }
 
@@ -217,50 +274,16 @@ func toExtensionsAPIModel(entries []*ArgoCDExtensionInstallEntry) []*v1alpha1.Ar
 	return extensions
 }
 
-func ToArgoCDTFModel(ctx context.Context, diagnostics *diag.Diagnostics, cd *v1alpha1.ArgoCD) *ArgoCD {
-	return &ArgoCD{
-		Spec: ArgoCDSpec{
-			Description: tftypes.StringValue(cd.Spec.Description),
-			Version:     tftypes.StringValue(cd.Spec.Version),
-			InstanceSpec: InstanceSpec{
-				IpAllowList:                  toIPAllowListTFModel(cd.Spec.InstanceSpec.IpAllowList),
-				Subdomain:                    tftypes.StringValue(cd.Spec.InstanceSpec.Subdomain),
-				DeclarativeManagementEnabled: tftypes.BoolValue(cd.Spec.InstanceSpec.DeclarativeManagementEnabled),
-				Extensions:                   toExtensionsTFModel(cd.Spec.InstanceSpec.Extensions),
-				ClusterCustomizationDefaults: toClusterCustomizationTFModel(ctx, diagnostics, cd.Spec.InstanceSpec.ClusterCustomizationDefaults),
-				ImageUpdaterEnabled:          tftypes.BoolValue(cd.Spec.InstanceSpec.ImageUpdaterEnabled),
-				BackendIpAllowListEnabled:    tftypes.BoolValue(cd.Spec.InstanceSpec.BackendIpAllowListEnabled),
-				RepoServerDelegate:           toRepoServerDelegateTFModel(cd.Spec.InstanceSpec.RepoServerDelegate),
-				AuditExtensionEnabled:        tftypes.BoolValue(cd.Spec.InstanceSpec.AuditExtensionEnabled),
-				SyncHistoryExtensionEnabled:  tftypes.BoolValue(cd.Spec.InstanceSpec.SyncHistoryExtensionEnabled),
-				ImageUpdaterDelegate:         toImageUpdaterDelegateTFModel(cd.Spec.InstanceSpec.ImageUpdaterDelegate),
-				AppSetDelegate:               toAppSetDelegateTFModel(cd.Spec.InstanceSpec.AppSetDelegate),
-			},
-		},
-	}
-}
-
-func toClusterDataTFModel(clusterData v1alpha1.ClusterData) ClusterData {
-	yamlData, err := yaml.JSONToYAML(clusterData.Kustomization.Raw)
-	if err != nil {
-		fmt.Printf("Error converting JSON to YAML: %v", err)
-	}
-	return ClusterData{
-		Size:                tftypes.StringValue(string(clusterData.Size)),
-		AutoUpgradeDisabled: tftypes.BoolPointerValue(clusterData.AutoUpgradeDisabled),
-		Kustomization:       tftypes.StringValue(string(yamlData)),
-		AppReplication:      tftypes.BoolPointerValue(clusterData.AppReplication),
-		TargetVersion:       tftypes.StringValue(clusterData.TargetVersion),
-		RedisTunneling:      tftypes.BoolValue(clusterData.RedisTunneling),
-	}
-}
-
 func toRepoServerDelegateTFModel(repoServerDelegate *v1alpha1.RepoServerDelegate) *RepoServerDelegate {
 	if repoServerDelegate == nil {
 		return nil
 	}
+	controlPlane := false
+	if repoServerDelegate.ControlPlane != nil && *repoServerDelegate.ControlPlane {
+		controlPlane = true
+	}
 	return &RepoServerDelegate{
-		ControlPlane:   tftypes.BoolValue(repoServerDelegate.ControlPlane),
+		ControlPlane:   tftypes.BoolValue(controlPlane),
 		ManagedCluster: toManagedClusterTFModel(repoServerDelegate.ManagedCluster),
 	}
 }
@@ -269,8 +292,12 @@ func toImageUpdaterDelegateTFModel(imageUpdaterDelegate *v1alpha1.ImageUpdaterDe
 	if imageUpdaterDelegate == nil {
 		return nil
 	}
+	controlPlane := false
+	if imageUpdaterDelegate.ControlPlane != nil && *imageUpdaterDelegate.ControlPlane {
+		controlPlane = true
+	}
 	return &ImageUpdaterDelegate{
-		ControlPlane:   tftypes.BoolValue(imageUpdaterDelegate.ControlPlane),
+		ControlPlane:   tftypes.BoolValue(controlPlane),
 		ManagedCluster: toManagedClusterTFModel(imageUpdaterDelegate.ManagedCluster),
 	}
 }
@@ -301,11 +328,24 @@ func toClusterCustomizationTFModel(ctx context.Context, diagnostics *diag.Diagno
 	if err != nil {
 		diagnostics.AddError("failed to convert json to yaml", err.Error())
 	}
+
+	autoUpgradeDisabled := false
+	if customization.AutoUpgradeDisabled != nil && *customization.AutoUpgradeDisabled {
+		autoUpgradeDisabled = true
+	}
+	appReplication := false
+	if customization.AppReplication != nil && *customization.AppReplication {
+		appReplication = true
+	}
+	redisTunneling := false
+	if customization.RedisTunneling != nil && *customization.RedisTunneling {
+		redisTunneling = true
+	}
 	c := ClusterCustomization{
-		AutoUpgradeDisabled: tftypes.BoolValue(customization.AutoUpgradeDisabled),
+		AutoUpgradeDisabled: tftypes.BoolValue(autoUpgradeDisabled),
 		Kustomization:       tftypes.StringValue(string(yamlData)),
-		AppReplication:      tftypes.BoolValue(customization.AppReplication),
-		RedisTunneling:      tftypes.BoolValue(customization.RedisTunneling),
+		AppReplication:      tftypes.BoolValue(appReplication),
+		RedisTunneling:      tftypes.BoolValue(redisTunneling),
 	}
 	clusterCustomization, d := tftypes.ObjectValueFrom(ctx, clusterCustomizationAttrTypes, c)
 	diagnostics.Append(d...)

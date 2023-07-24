@@ -5,6 +5,8 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Secret struct {
@@ -29,6 +31,31 @@ func (s *Secret) GetSensitiveStrings() []string {
 		res = append(res, value)
 	}
 	return res
+}
+
+func (s *Secret) ToSecretAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, name string) *v1.Secret {
+	var labels map[string]string
+	var data map[string][]byte
+	var stringData map[string]string
+	diagnostics.Append(s.Labels.ElementsAs(ctx, &labels, true)...)
+	diagnostics.Append(s.Data.ElementsAs(ctx, &data, true)...)
+	diagnostics.Append(s.StringData.ElementsAs(ctx, &stringData, true)...)
+	n := name
+	if !s.Name.IsNull() && !s.Name.IsUnknown() {
+		n = s.Name.ValueString()
+	}
+	return &v1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   n,
+			Labels: labels,
+		},
+		Data:       data,
+		StringData: stringData,
+	}
 }
 
 func mapFromMapValue(s types.Map) (map[string]string, diag.Diagnostics) {

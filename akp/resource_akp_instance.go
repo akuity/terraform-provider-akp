@@ -16,7 +16,6 @@ import (
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
 	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
-	"github.com/akuity/terraform-provider-akp/akp/apis/v1alpha1"
 	"github.com/akuity/terraform-provider-akp/akp/types"
 )
 
@@ -165,14 +164,14 @@ func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, insta
 		ArgocdTlsCertsConfigmap:       buildConfigMap(ctx, diagnostics, instance.ArgoCDTLSCertsConfigMap, "argocd-tls-certs-cm"),
 		RepoCredentialSecrets:         buildSecrets(ctx, diagnostics, instance.RepoCredentialSecrets),
 		RepoTemplateCredentialSecrets: buildSecrets(ctx, diagnostics, instance.RepoTemplateCredentialSecrets),
-		PruneRepoCredentialSecrets:    true,
-		PruneClusters:                 true,
+		PruneRepoCredentialSecrets:    false,
+		PruneClusters:                 false,
 	}
 	return applyReq
 }
 
 func buildArgoCD(ctx context.Context, diag *diag.Diagnostics, instance *types.Instance) *structpb.Struct {
-	apiArgoCD := types.ToArgoCDAPIModel(ctx, diag, instance.ArgoCD, instance.Name.ValueString())
+	apiArgoCD := instance.ArgoCD.ToArgoCDAPIModel(ctx, diag, instance.Name.ValueString())
 	argocdMap := map[string]interface{}{}
 	if err := marshal.RemarshalTo(apiArgoCD, &argocdMap); err != nil {
 		diag.AddError("Client Error", fmt.Sprintf("Unable to creat Argo CD instance. %s", err))
@@ -195,7 +194,7 @@ func buildSecrets(ctx context.Context, diagnostics *diag.Diagnostics, secrets []
 }
 
 func buildConfigMap(ctx context.Context, diagnostics *diag.Diagnostics, cm *types.ConfigMap, name string) *structpb.Struct {
-	apiModel := types.ToConfigMapAPIModel(ctx, diagnostics, cm, name)
+	apiModel := cm.ToConfigMapAPIModel(ctx, diagnostics, name)
 	m := map[string]interface{}{}
 	if err := marshal.RemarshalTo(apiModel, &m); err != nil {
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Argo CD instance. %s", err))
@@ -209,7 +208,7 @@ func buildConfigMap(ctx context.Context, diagnostics *diag.Diagnostics, cm *type
 }
 
 func buildSecret(ctx context.Context, diagnostics *diag.Diagnostics, secret *types.Secret, name string) *structpb.Struct {
-	apiModel := types.ToSecretAPIModel(ctx, diagnostics, secret, name)
+	apiModel := secret.ToSecretAPIModel(ctx, diagnostics, name)
 	m := map[string]interface{}{}
 	if err := marshal.RemarshalTo(apiModel, &m); err != nil {
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Argo CD instance. %s", err))
@@ -244,20 +243,6 @@ func refreshState(ctx context.Context, diagnostics *diag.Diagnostics, client arg
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get Argo CD instance. %s", err))
 		return
 	}
-	tflog.Info(ctx, fmt.Sprintf("---------export:%+v", exportResp))
-	var argoCD *v1alpha1.ArgoCD
-	err = marshal.RemarshalTo(exportResp.Argocd.AsMap(), &argoCD)
-	if err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get Argo CD instance. %s", err))
-		return
-	}
-	tflog.Info(ctx, fmt.Sprintf("---------export:%+v", argoCD))
-	instance.ArgoCD = types.ToArgoCDTFModel(ctx, diagnostics, argoCD)
-	instance.ArgoCDConfigMap = types.Update(ctx, diagnostics, instance.ArgoCDConfigMap, exportResp.ArgocdConfigmap)
-	instance.ArgoCDRBACConfigMap = types.Update(ctx, diagnostics, instance.ArgoCDRBACConfigMap, exportResp.ArgocdRbacConfigmap)
-	instance.NotificationsConfigMap = types.Update(ctx, diagnostics, instance.NotificationsConfigMap, exportResp.NotificationsConfigmap)
-	instance.ImageUpdaterConfigMap = types.Update(ctx, diagnostics, instance.ImageUpdaterConfigMap, exportResp.ImageUpdaterConfigmap)
-	instance.ImageUpdaterSSHConfigMap = types.Update(ctx, diagnostics, instance.ImageUpdaterSSHConfigMap, exportResp.ImageUpdaterSshConfigmap)
-	instance.ArgoCDTLSCertsConfigMap = types.Update(ctx, diagnostics, instance.ArgoCDTLSCertsConfigMap, exportResp.ArgocdTlsCertsConfigmap)
+	instance.Update(ctx, diagnostics, exportResp)
 	tflog.Info(ctx, fmt.Sprintf("---------instance:%+v", instance))
 }

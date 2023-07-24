@@ -1,7 +1,6 @@
 package akp
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"time"
@@ -14,9 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"golang.org/x/exp/slices"
 	"google.golang.org/protobuf/types/known/structpb"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
-	"sigs.k8s.io/yaml"
 
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
@@ -190,67 +187,14 @@ func refreshClusterState(ctx context.Context, diagnostics *diag.Diagnostics, cli
 		IdType:         idv1.Type_NAME,
 	}
 
-	tflog.Debug(ctx, fmt.Sprintf("API Req: %s", clusterReq))
+	tflog.Info(ctx, fmt.Sprintf("API Req: %s", clusterReq))
 	clusterResp, err := client.GetInstanceCluster(ctx, clusterReq)
-	tflog.Debug(ctx, fmt.Sprintf("API Resp: %s", clusterResp))
+	tflog.Info(ctx, fmt.Sprintf("API Resp: %s", clusterResp))
 	if err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read Argo CD instance: %s", err))
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read Argo CD cluster: %s", err))
 		return
 	}
-	apiCluster := clusterResp.GetCluster()
-	cluster.ID = tftypes.StringValue(apiCluster.GetId())
-	cluster.Name = tftypes.StringValue(apiCluster.GetName())
-	cluster.Namespace = tftypes.StringValue(apiCluster.GetNamespace())
-	labels, d := tftypes.MapValueFrom(ctx, tftypes.StringType, apiCluster.GetData().GetLabels())
-	if d.HasError() {
-		labels = tftypes.MapNull(tftypes.StringType)
-	}
-	diagnostics.Append(d...)
-	annotations, d := tftypes.MapValueFrom(ctx, tftypes.StringType, apiCluster.GetData().GetAnnotations())
-	if d.HasError() {
-		annotations = tftypes.MapNull(tftypes.StringType)
-	}
-	diagnostics.Append(d...)
-	jsonData, err := apiCluster.GetData().GetKustomization().MarshalJSON()
-	if err != nil {
-		diagnostics.AddError("getting cluster kustomization", fmt.Sprintf("%s", err.Error()))
-	}
-	yamlData, err := yaml.JSONToYAML(jsonData)
-	if err != nil {
-		diagnostics.AddError("getting cluster kustomization", fmt.Sprintf("%s", err.Error()))
-	}
-
-	kustomization := tftypes.StringValue(string(yamlData))
-	if cluster.Spec != nil {
-		rawPlan := runtime.RawExtension{}
-		old := cluster.Spec.Data.Kustomization
-		if err := yaml.Unmarshal([]byte(old.ValueString()), &rawPlan); err != nil {
-			diagnostics.AddError("failed unmarshal kustomization string to yaml", err.Error())
-		}
-
-		oldYamlData, err := yaml.Marshal(&rawPlan)
-		if err != nil {
-			diagnostics.AddError("failed to convert json to yaml data", err.Error())
-		}
-		if bytes.Equal(oldYamlData, yamlData) {
-			kustomization = old
-		}
-	}
-
-	cluster.Labels = labels
-	cluster.Annotations = annotations
-	cluster.Spec = &types.ClusterSpec{
-		Description:     tftypes.StringValue(apiCluster.GetDescription()),
-		NamespaceScoped: tftypes.BoolValue(apiCluster.GetNamespaceScoped()),
-		Data: types.ClusterData{
-			Size:                tftypes.StringValue(types.ClusterSizeString[apiCluster.GetData().GetSize()]),
-			AutoUpgradeDisabled: tftypes.BoolValue(apiCluster.GetData().GetAutoUpgradeDisabled()),
-			Kustomization:       kustomization,
-			AppReplication:      tftypes.BoolValue(apiCluster.GetData().GetAppReplication()),
-			TargetVersion:       tftypes.StringValue(apiCluster.GetData().GetTargetVersion()),
-			RedisTunneling:      tftypes.BoolValue(apiCluster.GetData().GetRedisTunneling()),
-		},
-	}
+	cluster.Update(ctx, diagnostics, clusterResp.GetCluster())
 	cluster.Manifests = getManifests(ctx, diagnostics, client, orgID, cluster)
 }
 
@@ -266,7 +210,7 @@ func buildClusterApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics
 
 func buildClusters(ctx context.Context, diagnostics *diag.Diagnostics, cluster *types.Cluster) []*structpb.Struct {
 	var cs []*structpb.Struct
-	apiCluster := types.ToClusterAPIModel(ctx, diagnostics, cluster)
+	apiCluster := cluster.ToClusterAPIModel(ctx, diagnostics)
 	m := map[string]interface{}{}
 	if err := marshal.RemarshalTo(apiCluster, &m); err != nil {
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Argo CD instance. %s", err))
