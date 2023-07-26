@@ -3,22 +3,20 @@ package akp
 import (
 	"context"
 	"fmt"
-	"time"
 
-	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
-	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
-	healthv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/health/v1"
-	reconv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/reconciliation/v1"
-	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
-	akptypes "github.com/akuity/terraform-provider-akp/akp/types"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
-	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"golang.org/x/exp/slices"
-	codes "google.golang.org/grpc/codes"
-	status "google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/structpb"
+
+	"github.com/akuity/terraform-provider-akp/akp/marshal"
+
+	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
+	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
+	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
+	"github.com/akuity/terraform-provider-akp/akp/types"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
@@ -29,221 +27,8 @@ func NewAkpInstanceResource() resource.Resource {
 	return &AkpInstanceResource{}
 }
 
-// AkpInstanceResource defines the resource implementation.
 type AkpInstanceResource struct {
 	akpCli *AkpCli
-}
-
-func (r *AkpInstanceResource) waitInstanceHealthStatus(ctx context.Context, instanceId string) (*argocdv1.Instance, error) {
-	healthStatus := &healthv1.Status{
-		Code: healthv1.StatusCode_STATUS_CODE_PROGRESSING,
-	}
-	breakStatusesHealth := []healthv1.StatusCode{healthv1.StatusCode_STATUS_CODE_HEALTHY, healthv1.StatusCode_STATUS_CODE_DEGRADED}
-
-	var res *argocdv1.Instance
-	for !slices.Contains(breakStatusesHealth, healthStatus.GetCode()) {
-		time.Sleep(2 * time.Second)
-		apiReq := &argocdv1.GetInstanceRequest{
-			OrganizationId: r.akpCli.OrgId,
-			Id:             instanceId,
-			IdType:         idv1.Type_ID,
-		}
-		tflog.Debug(ctx, fmt.Sprintf("Api Req: %s", apiReq.String()))
-		apiResp, err := r.akpCli.Cli.GetInstance(ctx, apiReq)
-		tflog.Debug(ctx, fmt.Sprintf("Api Resp: %s", apiResp.String()))
-		if err != nil {
-			return nil, err
-		}
-		res = apiResp.GetInstance()
-		healthStatus = res.GetHealthStatus()
-		tflog.Info(ctx, fmt.Sprintf("Instance health status: %s", healthStatus.String()))
-	}
-	return res, nil
-}
-
-func (r *AkpInstanceResource) waitInstanceReconStatus(ctx context.Context, instanceId string) (*argocdv1.Instance, error) {
-	reconStatus := &reconv1.Status{
-		Code: reconv1.StatusCode_STATUS_CODE_PROGRESSING,
-	}
-	breakStatusesRecon := []reconv1.StatusCode{reconv1.StatusCode_STATUS_CODE_SUCCESSFUL, reconv1.StatusCode_STATUS_CODE_FAILED}
-
-	var res *argocdv1.Instance
-	for !slices.Contains(breakStatusesRecon, reconStatus.GetCode()) {
-		time.Sleep(1 * time.Second)
-		apiReq := &argocdv1.GetInstanceRequest{
-			OrganizationId: r.akpCli.OrgId,
-			Id:             instanceId,
-			IdType:         idv1.Type_ID,
-		}
-		tflog.Debug(ctx, fmt.Sprintf("Api Req: %s", apiReq.String()))
-		apiResp, err := r.akpCli.Cli.GetInstance(ctx, apiReq)
-		tflog.Debug(ctx, fmt.Sprintf("Api Resp: %s", apiResp.String()))
-		if err != nil {
-			return nil, err
-		}
-		res = apiResp.GetInstance()
-		reconStatus = res.GetReconciliationStatus()
-		tflog.Info(ctx, fmt.Sprintf("Instance reconciliation status: %s", reconStatus.String()))
-	}
-	return res, nil
-}
-
-func (r *AkpInstanceResource) UpdateImageUpdater(ctx context.Context, instanceId string, to *akptypes.AkpImageUpdater) diag.Diagnostics {
-	var d diag.Diagnostics
-	diag := diag.Diagnostics{}
-
-	// ---------------- Secrets----------------
-	var imageUpdaterSecretsMap map[string]string
-	imageUpdaterSecrets := make(map[string]*argocdv1.PatchInstanceImageUpdaterSecretRequest_ValueField)
-	imageUpdaterSecretsMap, d = akptypes.MapFromMapValue(to.Secrets)
-	diag.Append(d...)
-	for name, value := range imageUpdaterSecretsMap {
-		var valueField *string
-		if value != "" {
-			valueField = &value
-		}
-		imageUpdaterSecrets[name] = &argocdv1.PatchInstanceImageUpdaterSecretRequest_ValueField{
-			Value: valueField, // populate <nil> when value is "", which deletes the secret on server
-		}
-	}
-	apiIUSecretReq := &argocdv1.PatchInstanceImageUpdaterSecretRequest{
-		OrganizationId: r.akpCli.OrgId,
-		Id:             instanceId,
-		Secret:         imageUpdaterSecrets,
-	}
-	tflog.Debug(ctx, fmt.Sprintf("Api Req: %s", apiIUSecretReq.String()))
-	apiIUSecretResp, err := r.akpCli.Cli.PatchInstanceImageUpdaterSecret(ctx, apiIUSecretReq)
-	tflog.Debug(ctx, fmt.Sprintf("Api Resp: %s", apiIUSecretResp.String()))
-	if err != nil {
-		diag.AddError("Client Error", fmt.Sprintf("Unable to update Argo CD Image Updater secrets: %s", err))
-	}
-
-	// ---------------- Image Updater Config ----------------
-	imageUpdaterConfigMap := to.ConfigAsMap()
-	apiIUReq := &argocdv1.UpdateInstanceImageUpdaterConfigRequest{
-		OrganizationId: r.akpCli.OrgId,
-		Id:             instanceId,
-		Config:         imageUpdaterConfigMap,
-	}
-	tflog.Debug(ctx, fmt.Sprintf("Api Req: %s", apiIUReq.String()))
-	apiIUResp, err := r.akpCli.Cli.UpdateInstanceImageUpdaterConfig(ctx, apiIUReq)
-	tflog.Debug(ctx, fmt.Sprintf("Api Resp: %s", apiIUResp.String()))
-
-	// ---------------- Image Updater Ssh Config ----------------
-	imageUpdaterSshConfigMap := to.SshConfigAsMap()
-	apiIUSshReq := &argocdv1.UpdateInstanceImageUpdaterSSHConfigRequest{
-		OrganizationId: r.akpCli.OrgId,
-		Id:             instanceId,
-		Config:         imageUpdaterSshConfigMap,
-	}
-	tflog.Debug(ctx, fmt.Sprintf("Api Req: %s", apiIUSshReq.String()))
-	apiIUSshResp, err := r.akpCli.Cli.UpdateInstanceImageUpdaterSSHConfig(ctx, apiIUSshReq)
-	tflog.Debug(ctx, fmt.Sprintf("Api Resp: %s", apiIUSshResp.String()))
-	return diag
-}
-
-func (r *AkpInstanceResource) UpdateNotifications(ctx context.Context, instanceId string, to *akptypes.AkpNotifications) diag.Diagnostics {
-	var d diag.Diagnostics
-	diag := diag.Diagnostics{}
-
-	// ---------------- Secrets----------------
-	notificationSecrets := make(map[string]*argocdv1.PatchInstanceNotificationSecretRequest_ValueField)
-	notificationSecretsMap, d := akptypes.MapFromMapValue(to.Secrets)
-	diag.Append(d...)
-	for name, value := range notificationSecretsMap {
-		var valueField *string
-		if value != "" {
-			valueField = &value
-		}
-		notificationSecrets[name] = &argocdv1.PatchInstanceNotificationSecretRequest_ValueField{
-			Value: valueField, // populate <nil> when value is "", which deletes the secret on server
-		}
-	}
-	apiNotificationSecretReq := &argocdv1.PatchInstanceNotificationSecretRequest{
-		OrganizationId: r.akpCli.OrgId,
-		Id:             instanceId,
-		Secret:         notificationSecrets,
-	}
-	tflog.Debug(ctx, fmt.Sprintf("Api Req: %s", apiNotificationSecretReq.String()))
-	apiNotificationSecretResp, err := r.akpCli.Cli.PatchInstanceNotificationSecret(ctx, apiNotificationSecretReq)
-	tflog.Debug(ctx, fmt.Sprintf("Api Resp: %s", apiNotificationSecretResp.String()))
-	if err != nil {
-		diag.AddError("Client Error", fmt.Sprintf("Unable to update Argo CD Notifications secrets: %s", err))
-	}
-
-	var notificationConfig map[string]string
-	diag.Append(to.Config.ElementsAs(ctx, &notificationConfig, true)...)
-	apiNotificationReq := &argocdv1.UpdateInstanceNotificationConfigRequest{
-		OrganizationId: r.akpCli.OrgId,
-		Id:             instanceId,
-		Config:         notificationConfig,
-	}
-	tflog.Debug(ctx, fmt.Sprintf("Api Req: %s", apiNotificationReq.String()))
-	apiNotificationResp, err := r.akpCli.Cli.UpdateInstanceNotificationConfig(ctx, apiNotificationReq)
-	tflog.Debug(ctx, fmt.Sprintf("Api Resp: %s", apiNotificationResp.String()))
-	if err != nil {
-		diag.AddError("Client Error", fmt.Sprintf("Unable to update Argo CD Notifications: %s", err))
-	}
-	return diag
-}
-
-func (r *AkpInstanceResource) UpdateInstance(ctx context.Context, to *akptypes.AkpInstance) diag.Diagnostics {
-	diag := diag.Diagnostics{}
-
-	if !to.ImageUpdater.IsNull() {
-		var iu akptypes.AkpImageUpdater
-		diag.Append(to.ImageUpdater.As(context.Background(), &iu, basetypes.ObjectAsOptions{})...)
-		diag.Append(r.UpdateImageUpdater(ctx, to.Id.ValueString(), &iu)...)
-	}
-
-	if !to.Notifications.IsNull() {
-		var notif akptypes.AkpNotifications
-		diag.Append(to.Notifications.As(context.Background(), &notif, basetypes.ObjectAsOptions{})...)
-		diag.Append(r.UpdateNotifications(ctx, to.Id.ValueString(), &notif)...)
-	}
-
-	// ---------------- Secrets ----------------
-	desiredInstance := argocdv1.Instance{
-		Id: to.Id.ValueString(),
-	}
-	diag.Append(to.As(&desiredInstance)...)
-	tflog.Debug(ctx, fmt.Sprintf("Updating Instance to %s", desiredInstance.String()))
-
-	secrets := make(map[string]*argocdv1.PatchInstanceSecretRequest_ValueField)
-	for name, value := range desiredInstance.Secrets {
-		var valueField *string
-		if value != "" {
-			valueField = &value
-		}
-		secrets[name] = &argocdv1.PatchInstanceSecretRequest_ValueField{
-			Value: valueField,
-		}
-	}
-	apiSecretReq := &argocdv1.PatchInstanceSecretRequest{
-		OrganizationId: r.akpCli.OrgId,
-		Id:             desiredInstance.Id,
-		Secret:         secrets,
-	}
-	tflog.Debug(ctx, fmt.Sprintf("Api Req: %s", apiSecretReq.String()))
-	apiSecretResp, err := r.akpCli.Cli.PatchInstanceSecret(ctx, apiSecretReq)
-	tflog.Debug(ctx, fmt.Sprintf("Api Resp: %s", apiSecretResp.String()))
-	if err != nil {
-		diag.AddError("Client Error", fmt.Sprintf("Unable to update Argo CD secrets: %s", err))
-	}
-
-	// ---------------- Instance ----------------
-	apiReq := &argocdv1.UpdateInstanceRequest{
-		OrganizationId: r.akpCli.OrgId,
-		Id:             desiredInstance.Id,
-		Instance:       &desiredInstance,
-	}
-	tflog.Debug(ctx, fmt.Sprintf("Api Req: %s", apiReq.String()))
-	apiResp, err := r.akpCli.Cli.UpdateInstance(ctx, apiReq)
-	tflog.Debug(ctx, fmt.Sprintf("Api Resp: %s", apiResp.String()))
-	if err != nil {
-		diag.AddError("Client Error", fmt.Sprintf("Unable to update Argo CD instance: %s", err))
-	}
-	return diag
 }
 
 func (r *AkpInstanceResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -269,142 +54,48 @@ func (r *AkpInstanceResource) Configure(ctx context.Context, req resource.Config
 }
 
 func (r *AkpInstanceResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	tflog.Debug(ctx, "Creating an Argo CD Instance")
-	var plan *akptypes.AkpInstance
+	var plan types.Instance
 
 	// Read Terraform plan data into the model
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
-	ctx = tflog.MaskLogStrings(ctx, plan.GetSensitiveStrings()...)
-	description := plan.Description.ValueString()
-	apiReq := &argocdv1.CreateInstanceRequest{
-		OrganizationId: r.akpCli.OrgId,
-		Name:           plan.Name.ValueString(),
-		Version:        plan.Version.ValueString(),
-		Description:    &description,
-	}
-	tflog.Debug(ctx, fmt.Sprintf("Api Req: %s", apiReq.String()))
-	apiResp, err := r.akpCli.Cli.CreateInstance(ctx, apiReq)
-	tflog.Debug(ctx, fmt.Sprintf("Api Resp: %s", apiResp.String()))
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Argo CD instance. %s", err))
-		return
-	}
-	instanceId := apiResp.Instance.Id
-	instance, err := r.waitInstanceHealthStatus(ctx, instanceId)
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to check instance health. %s", err))
-		return
-	}
-	tflog.Info(ctx, "Argo CD instance created")
-	if instance.GetHealthStatus().GetCode() != healthv1.StatusCode_STATUS_CODE_HEALTHY {
-		resp.Diagnostics.AddError("Server Error", fmt.Sprintf("Instance is not healthy. %s", err))
-		return
-	}
-
-	state := &akptypes.AkpInstance{}
-	err = state.Refresh(ctx, r.akpCli.Cli, r.akpCli.OrgId, instanceId)
-	if err != nil {
-		resp.Diagnostics.AddError("Server Error", fmt.Sprintf("Cannot refresh instance state. %s", err))
-		return
-	}
-
-	tflog.Debug(ctx, fmt.Sprintf("State: %s", state))
-	tflog.Debug(ctx, fmt.Sprintf("Plan: %s", plan))
-	desiredState, d := akptypes.MergeInstance(state, plan)
-	tflog.Debug(ctx, fmt.Sprintf("Desired State: %s", desiredState))
-	if d.HasError() {
-		resp.Diagnostics.Append(d...)
-		return
-	}
-	// Update the instance
-	resp.Diagnostics.Append(r.UpdateInstance(ctx, desiredState)...)
-	tflog.Info(ctx, "Argo CD instance updated")
-	instance, err = r.waitInstanceReconStatus(ctx, instanceId)
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to check instance reconciliation status. %s", err))
-		return
-	}
-	tflog.Debug(ctx, fmt.Sprintf("Updated Argo CD instance: %s", instance))
-	tflog.Debug(ctx, fmt.Sprintf("Desired State: %s", desiredState))
-
-	finalState := &akptypes.AkpInstance{}
-	err = finalState.Refresh(ctx, r.akpCli.Cli, r.akpCli.OrgId, instanceId)
-	if err != nil {
-		resp.Diagnostics.AddError("Server Error", fmt.Sprintf("Cannot refresh instance state. %s", err))
-		return
-	}
-	finalState.PopulateSecrets(plan)
-	tflog.Debug(ctx, fmt.Sprintf("Final State: %s", finalState))
-	resp.Diagnostics.Append(resp.State.Set(ctx, &finalState)...)
+	r.upsert(ctx, &resp.Diagnostics, &plan)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
 func (r *AkpInstanceResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	tflog.Debug(ctx, "Reading an Argo CD Instance")
-	var tfState *akptypes.AkpInstance
-
-	diags := req.State.Get(ctx, &tfState)
-	resp.Diagnostics.Append(diags...)
+	var data types.Instance
+	// Read Terraform prior state data into the model
+	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	akpState := &akptypes.AkpInstance{}
+	tflog.MaskLogStrings(ctx, data.GetSensitiveStrings()...)
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
-	err := akpState.Refresh(ctx, r.akpCli.Cli, r.akpCli.OrgId, tfState.Id.ValueString())
-	switch status.Code(err) {
-	case codes.OK:
-		tflog.Debug(ctx, "State Refreshed")
-	case codes.NotFound:
-		resp.State.RemoveResource(ctx)
-		return
-	default:
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read Argo CD instance. %s", err))
-		return
-	}
 
-	tflog.Debug(ctx, fmt.Sprintf("Updating State to %s", akpState))
-	resp.Diagnostics.Append(resp.State.Set(ctx, &akpState)...)
+	refreshState(ctx, &resp.Diagnostics, r.akpCli.Cli, &data, r.akpCli.OrgId)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
 func (r *AkpInstanceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan, state *akptypes.AkpInstance
+	var plan types.Instance
 
+	// Read Terraform plan data into the model
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	instanceId := plan.Id.ValueString()
-	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
-	ctx = tflog.MaskLogStrings(ctx, plan.GetSensitiveStrings()...)
-	desiredState, d := akptypes.MergeInstance(state, plan)
-	resp.Diagnostics.Append(d...)
-	resp.Diagnostics.Append(r.UpdateInstance(ctx, desiredState)...)
-	instance, err := r.waitInstanceReconStatus(ctx, instanceId)
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to check instance reconciliation status. %s", err))
-		return
-	}
-	tflog.Debug(ctx, fmt.Sprintf("Updated Argo CD instance: %s", instance))
-	err = state.Refresh(ctx, r.akpCli.Cli, r.akpCli.OrgId, instanceId)
-	if err != nil {
-		resp.Diagnostics.AddError("Server Error", fmt.Sprintf("Cannot refresh instance state. %s", err))
-		return
-	}
-	state.PopulateSecrets(plan)
-	tflog.Debug(ctx, fmt.Sprintf("Updating State to %s", state))
-	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+
+	r.upsert(ctx, &resp.Diagnostics, &plan)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
 func (r *AkpInstanceResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	tflog.Debug(ctx, "Deleting an Argo CD Instance")
-	var state *akptypes.AkpInstance
+	var state types.Instance
 
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -413,7 +104,7 @@ func (r *AkpInstanceResource) Delete(ctx context.Context, req resource.DeleteReq
 	}
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 	_, err := r.akpCli.Cli.DeleteInstance(ctx, &argocdv1.DeleteInstanceRequest{
-		Id:             state.Id.ValueString(),
+		Id:             state.ID.ValueString(),
 		OrganizationId: r.akpCli.OrgId,
 	})
 
@@ -421,9 +112,124 @@ func (r *AkpInstanceResource) Delete(ctx context.Context, req resource.DeleteReq
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete Argo CD instance, got error: %s", err))
 		return
 	}
-	tflog.Info(ctx, "Instance deleted")
 }
 
 func (r *AkpInstanceResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+}
+
+func (r *AkpInstanceResource) upsert(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.Instance) {
+	// Mark sensitive secret data
+	tflog.MaskLogStrings(ctx, plan.GetSensitiveStrings()...)
+
+	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
+	apiReq := buildApplyRequest(ctx, diagnostics, plan, r.akpCli.OrgId)
+	_, err := r.akpCli.Cli.ApplyInstance(ctx, apiReq)
+	if err != nil {
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to upsert Argo CD instance. %s", err))
+		return
+	}
+
+	refreshState(ctx, diagnostics, r.akpCli.Cli, plan, r.akpCli.OrgId)
+	if diagnostics.HasError() {
+		return
+	}
+}
+
+func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, instance *types.Instance, orgID string) *argocdv1.ApplyInstanceRequest {
+	applyReq := &argocdv1.ApplyInstanceRequest{
+		OrganizationId:                orgID,
+		IdType:                        idv1.Type_NAME,
+		Id:                            instance.Name.ValueString(),
+		Argocd:                        buildArgoCD(ctx, diagnostics, instance),
+		ArgocdConfigmap:               buildConfigMap(ctx, diagnostics, instance.ArgoCDConfigMap, "argocd-cm"),
+		ArgocdRbacConfigmap:           buildConfigMap(ctx, diagnostics, instance.ArgoCDRBACConfigMap, "argocd-rbac-cm"),
+		ArgocdSecret:                  buildSecret(ctx, diagnostics, instance.ArgoCDSecret, "argocd-secret"),
+		NotificationsConfigmap:        buildConfigMap(ctx, diagnostics, instance.NotificationsConfigMap, "argocd-notifications-cm"),
+		NotificationsSecret:           buildSecret(ctx, diagnostics, instance.NotificationsSecret, "argocd-notifications-secret"),
+		ImageUpdaterConfigmap:         buildConfigMap(ctx, diagnostics, instance.ImageUpdaterConfigMap, "argocd-image-updater-config"),
+		ImageUpdaterSshConfigmap:      buildConfigMap(ctx, diagnostics, instance.ImageUpdaterSSHConfigMap, "argocd-image-updater-ssh-config"),
+		ImageUpdaterSecret:            buildSecret(ctx, diagnostics, instance.ImageUpdaterSecret, "argocd-image-updater-secret"),
+		ArgocdKnownHostsConfigmap:     buildConfigMap(ctx, diagnostics, instance.ArgoCDKnownHostsConfigMap, "argocd-ssh-known-hosts-cm"),
+		ArgocdTlsCertsConfigmap:       buildConfigMap(ctx, diagnostics, instance.ArgoCDTLSCertsConfigMap, "argocd-tls-certs-cm"),
+		RepoCredentialSecrets:         buildSecrets(ctx, diagnostics, instance.RepoCredentialSecrets),
+		RepoTemplateCredentialSecrets: buildSecrets(ctx, diagnostics, instance.RepoTemplateCredentialSecrets),
+		PruneRepoCredentialSecrets:    false,
+		PruneClusters:                 false,
+	}
+	return applyReq
+}
+
+func buildArgoCD(ctx context.Context, diag *diag.Diagnostics, instance *types.Instance) *structpb.Struct {
+	apiArgoCD := instance.ArgoCD.ToArgoCDAPIModel(ctx, diag, instance.Name.ValueString())
+	argocdMap := map[string]interface{}{}
+	if err := marshal.RemarshalTo(apiArgoCD, &argocdMap); err != nil {
+		diag.AddError("Client Error", fmt.Sprintf("Unable to creat Argo CD instance. %s", err))
+	}
+	s, err := structpb.NewStruct(argocdMap)
+	if err != nil {
+		diag.AddError("Client Error", fmt.Sprintf("Unable to create Argo CD instance. %s", err))
+		return nil
+	}
+	return s
+}
+
+func buildSecrets(ctx context.Context, diagnostics *diag.Diagnostics, secrets []types.Secret) []*structpb.Struct {
+	var res []*structpb.Struct
+	for _, secret := range secrets {
+		res = append(res, buildSecret(ctx, diagnostics, &secret, secret.Name.ValueString()))
+	}
+	return res
+}
+
+func buildConfigMap(ctx context.Context, diagnostics *diag.Diagnostics, cm *types.ConfigMap, name string) *structpb.Struct {
+	apiModel := cm.ToConfigMapAPIModel(ctx, diagnostics, name)
+	m := map[string]interface{}{}
+	if err := marshal.RemarshalTo(apiModel, &m); err != nil {
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create ConfigMap. %s", err))
+	}
+	configMap, err := structpb.NewStruct(m)
+	if err != nil {
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create ConfigMap. %s", err))
+		return nil
+	}
+	return configMap
+}
+
+func buildSecret(ctx context.Context, diagnostics *diag.Diagnostics, secret *types.Secret, name string) *structpb.Struct {
+	apiModel := secret.ToSecretAPIModel(ctx, diagnostics, name)
+	m := map[string]interface{}{}
+	if err := marshal.RemarshalTo(apiModel, &m); err != nil {
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Secret. %s", err))
+	}
+	s, err := structpb.NewStruct(m)
+	if err != nil {
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Secret. %s", err))
+		return nil
+	}
+	return s
+}
+
+func refreshState(ctx context.Context, diagnostics *diag.Diagnostics, client argocdv1.ArgoCDServiceGatewayClient, instance *types.Instance, orgID string) {
+	getInstanceReq := &argocdv1.GetInstanceRequest{
+		OrganizationId: orgID,
+		IdType:         idv1.Type_NAME,
+		Id:             instance.Name.ValueString(),
+	}
+	getInstanceResp, err := client.GetInstance(ctx, getInstanceReq)
+	if err != nil {
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read Argo CD instance: %s", err))
+		return
+	}
+	instance.ID = tftypes.StringValue(getInstanceResp.Instance.Id)
+	exportResp, err := client.ExportInstance(ctx, &argocdv1.ExportInstanceRequest{
+		OrganizationId: orgID,
+		IdType:         idv1.Type_NAME,
+		Id:             instance.Name.ValueString(),
+	})
+	if err != nil {
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to export Argo CD instance. %s", err))
+		return
+	}
+	instance.Update(ctx, diagnostics, exportResp)
 }

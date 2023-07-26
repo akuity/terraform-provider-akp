@@ -13,20 +13,49 @@ Create a cluster attached to an Argo CD instance. Use `.manifests` attribute to 
 ## Example Usage
 
 ```terraform
+terraform {
+  required_providers {
+    akp = {
+      source = "akuity/akp"
+    }
+  }
+}
+
+provider "akp" {
+  org_name = "test"
+}
+
 data "akp_instance" "example" {
-  name = "example-argocd-instance-name"
+  name = "test"
 }
 
 resource "akp_cluster" "example" {
-  name        = "some-name"
-  namespace   = "akuity"
-  size        = "small"
   instance_id = data.akp_instance.example.id
+  kubeconfig = {
+    "config_path" = "test.kubeconfig"
+  }
+  name      = "test-cluster-create"
+  namespace = "test"
   labels = {
-    label_1 = "example-label"
+    test-label = "true"
   }
   annotations = {
-    ann_1 = "example-annotation"
+    test-annotation = "false"
+  }
+  spec = {
+    namespace_scoped = true
+    description      = "test-description"
+    data = {
+      size                  = "small"
+      auto_upgrade_disabled = true
+      target_version        = "0.4.0"
+      kustomization         = <<EOF
+  apiVersion: kustomize.config.k8s.io/v1beta1
+  kind: Kustomization
+  resources:
+  - test.yaml
+            EOF
+    }
   }
 }
 ```
@@ -37,27 +66,46 @@ resource "akp_cluster" "example" {
 ### Required
 
 - `instance_id` (String) Argo CD Instance ID
-- `name` (String) Cluster Name
+- `name` (String) Name
 - `namespace` (String) Agent Installation Namespace
-- `size` (String) Cluster Size. One of `small`, `medium` or `large`
+- `spec` (Attributes) (see [below for nested schema](#nestedatt--spec))
 
 ### Optional
 
-- `annotations` (Map of String) Cluster Annotations
-- `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
-- `description` (String) Cluster Description
-- `kube_config` (Attributes) Kubernetes connection setings. If configured, terraform will try to connect to the cluster and install the agent (see [below for nested schema](#nestedatt--kube_config))
-- `labels` (Map of String) Cluster Labels
-- `namespace_scoped` (Boolean) Agent Namespace Scoped
+- `annotations` (Map of String) Annotations
+- `kubeconfig` (Attributes) Kubernetes connection settings. If configured, terraform will try to connect to the cluster and install the agent (see [below for nested schema](#nestedatt--kubeconfig))
+- `labels` (Map of String) Labels
 
 ### Read-Only
 
-- `agent_version` (String) Installed agent version
 - `id` (String) Cluster ID
 - `manifests` (String, Sensitive) Agent Installation Manifests
 
-<a id="nestedatt--kube_config"></a>
-### Nested Schema for `kube_config`
+<a id="nestedatt--spec"></a>
+### Nested Schema for `spec`
+
+Optional:
+
+- `data` (Attributes) (see [below for nested schema](#nestedatt--spec--data))
+- `description` (String) Cluster Description
+- `namespace_scoped` (Boolean) Agent Namespace Scoped
+
+<a id="nestedatt--spec--data"></a>
+### Nested Schema for `spec.data`
+
+Optional:
+
+- `app_replication` (Boolean)
+- `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
+- `kustomization` (String)
+- `redis_tunneling` (Boolean)
+- `size` (String) Cluster Size. One of `small`, `medium` or `large`
+- `target_version` (String) Installed agent version
+
+
+
+<a id="nestedatt--kubeconfig"></a>
+### Nested Schema for `kubeconfig`
 
 Optional:
 

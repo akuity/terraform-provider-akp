@@ -13,8 +13,20 @@ Find an Argo CD instance by its name
 ## Example Usage
 
 ```terraform
+terraform {
+  required_providers {
+    akp = {
+      source = "akuity/akp"
+    }
+  }
+}
+
+provider "akp" {
+  org_name = "test"
+}
+
 data "akp_instance" "example" {
-  name = "example-argocd-instance-name"
+  name = "test"
 }
 ```
 
@@ -23,180 +35,68 @@ data "akp_instance" "example" {
 
 ### Required
 
-- `name` (String) Instance Name
+- `name` (String) Name
 
 ### Read-Only
 
-- `admin_enabled` (Boolean) Enable Admin Login
-- `allow_anonymous` (Boolean) Allow Anonymous Access
-- `audit_extension_enabled` (Boolean) Enable Audit Extension
-- `backend_ip_allow_list` (Boolean) Apply IP Allow List to Cluster Agents
-- `banner` (Attributes) Argo CD Banner Configuration (see [below for nested schema](#nestedatt--banner))
-- `chat` (Attributes) Chat Configuration (see [below for nested schema](#nestedatt--chat))
-- `cluster_customization_defaults` (Attributes) Default Values For Cluster Agents (see [below for nested schema](#nestedatt--cluster_customization_defaults))
-- `declarative_management_enabled` (Boolean) Enable Declarative Management
-- `default_policy` (String) Value of `policy.default` in `argocd-rbac-cm` configmap
-- `description` (String) Instance Description
-- `dex` (String) Dex Config YAML
-- `extensions` (Attributes List) Extensions (see [below for nested schema](#nestedatt--extensions))
-- `google_analytics` (Attributes) Google Analytics Configuration (see [below for nested schema](#nestedatt--google_analytics))
-- `helm` (Attributes) Helm Configuration (see [below for nested schema](#nestedatt--helm))
-- `helm_enabled` (Boolean) Enable Helm
-- `hostname` (String) Instance Hostname
+- `argocd` (Attributes) (see [below for nested schema](#nestedatt--argocd))
+- `argocd_cm` (Attributes) (see [below for nested schema](#nestedatt--argocd_cm))
+- `argocd_image_updater_config` (Attributes) (see [below for nested schema](#nestedatt--argocd_image_updater_config))
+- `argocd_image_updater_secret` (Attributes) (see [below for nested schema](#nestedatt--argocd_image_updater_secret))
+- `argocd_image_updater_ssh_config` (Attributes) (see [below for nested schema](#nestedatt--argocd_image_updater_ssh_config))
+- `argocd_notifications_cm` (Attributes) (see [below for nested schema](#nestedatt--argocd_notifications_cm))
+- `argocd_notifications_secret` (Attributes) (see [below for nested schema](#nestedatt--argocd_notifications_secret))
+- `argocd_rbac_cm` (Attributes) (see [below for nested schema](#nestedatt--argocd_rbac_cm))
+- `argocd_secret` (Attributes) (see [below for nested schema](#nestedatt--argocd_secret))
+- `argocd_ssh_known_hosts_cm` (Attributes) (see [below for nested schema](#nestedatt--argocd_ssh_known_hosts_cm))
+- `argocd_tls_certs_cm` (Attributes) (see [below for nested schema](#nestedatt--argocd_tls_certs_cm))
 - `id` (String) Instance ID
-- `image_updater` (Attributes) Image Updater Settings (see [below for nested schema](#nestedatt--image_updater))
+- `repo_credential_secrets` (Attributes List) (see [below for nested schema](#nestedatt--repo_credential_secrets))
+- `repo_template_credential_secrets` (Attributes List) (see [below for nested schema](#nestedatt--repo_template_credential_secrets))
+
+<a id="nestedatt--argocd"></a>
+### Nested Schema for `argocd`
+
+Read-Only:
+
+- `spec` (Attributes) (see [below for nested schema](#nestedatt--argocd--spec))
+
+<a id="nestedatt--argocd--spec"></a>
+### Nested Schema for `argocd.spec`
+
+Read-Only:
+
+- `description` (String)
+- `instance_spec` (Attributes) (see [below for nested schema](#nestedatt--argocd--spec--instance_spec))
+- `version` (String)
+
+<a id="nestedatt--argocd--spec--instance_spec"></a>
+### Nested Schema for `argocd.spec.instance_spec`
+
+Read-Only:
+
+- `app_set_delegate` (Attributes) (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--app_set_delegate))
+- `audit_extension_enabled` (Boolean) Enable Audit Extension. Set this to `true` to install Audit Extension to Argo CD instance. Do not use `spec.extensions` for that
+- `backend_ip_allow_list_enabled` (Boolean) Enable IP Allow List to Cluster Agents
+- `cluster_customization_defaults` (Attributes) Default Values For Cluster Agents (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--cluster_customization_defaults))
+- `declarative_management_enabled` (Boolean) Enable Declarative Management
+- `extensions` (Attributes List) Extensions (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--extensions))
+- `image_updater_delegate` (Attributes) (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--image_updater_delegate))
 - `image_updater_enabled` (Boolean) Enable Image Updater
-- `instance_label_key` (String) Instance Label Key
-- `ip_allow_list` (Attributes List) IP Allow List (see [below for nested schema](#nestedatt--ip_allow_list))
-- `kustomize` (Attributes) Kustomize Settings (see [below for nested schema](#nestedatt--kustomize))
-- `kustomize_enabled` (Boolean) Enable Kustomize
-- `notifications` (Attributes) Notifications (see [below for nested schema](#nestedatt--notifications))
-- `oidc` (String) OIDC Config YAML
-- `oidc_scopes` (List of String) List of OIDC scopes
-- `policy_csv` (String) Value of `policy.csv` in `argocd-rbac-cm` configmap
-- `repo_server_delegate` (Attributes) In case some clusters don't have network access to your private Git provider you can delegate these operations to one specific cluster. (see [below for nested schema](#nestedatt--repo_server_delegate))
-- `resource_settings` (Attributes) Custom resource settings (see [below for nested schema](#nestedatt--resource_settings))
-- `secrets` (Attributes Map) Map of secrets used in SSO Configuration (OIDC or DEX config YAML) (see [below for nested schema](#nestedatt--secrets))
-- `status_badge` (Attributes) Status Badge Configuration (see [below for nested schema](#nestedatt--status_badge))
-- `subdomain` (String) Instance Subdomain
-- `users_session` (String) Users Session Duration
-- `version` (String) Argo CD Version
-- `web_terminal` (Attributes) Web Terminal Config (see [below for nested schema](#nestedatt--web_terminal))
+- `ip_allow_list` (Attributes List) IP Allow List (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--ip_allow_list))
+- `repo_server_delegate` (Attributes) In case some clusters don't have network access to your private Git provider you can delegate these operations to one specific cluster. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--repo_server_delegate))
+- `subdomain` (String) Instance Subdomain. By default equals to instance id
+- `sync_history_extension_enabled` (Boolean)
 
-<a id="nestedatt--banner"></a>
-### Nested Schema for `banner`
+<a id="nestedatt--argocd--spec--instance_spec--app_set_delegate"></a>
+### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
 
 Read-Only:
 
-- `message` (String) Banner Message
-- `permanent` (Boolean) Disable hide button
-- `url` (String) Banner Hyperlink URL
+- `managed_cluster` (Attributes) Use Managed Cluster (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster))
 
-
-<a id="nestedatt--chat"></a>
-### Nested Schema for `chat`
-
-Read-Only:
-
-- `message` (String) Alert Message
-- `url` (String) Alert URL
-
-
-<a id="nestedatt--cluster_customization_defaults"></a>
-### Nested Schema for `cluster_customization_defaults`
-
-Read-Only:
-
-- `auto_upgrade_disabled` (Boolean) Disable Agent Auto-upgrade
-
-
-<a id="nestedatt--extensions"></a>
-### Nested Schema for `extensions`
-
-Read-Only:
-
-- `id` (String) Extension ID
-- `version` (String) Extension version
-
-
-<a id="nestedatt--google_analytics"></a>
-### Nested Schema for `google_analytics`
-
-Read-Only:
-
-- `anonymize_users` (Boolean) Anonymize Users
-- `tracking_id` (String) Google Tracking ID
-
-
-<a id="nestedatt--helm"></a>
-### Nested Schema for `helm`
-
-Read-Only:
-
-- `value_file_schemas` (String) Value File Schemas
-
-
-<a id="nestedatt--image_updater"></a>
-### Nested Schema for `image_updater`
-
-Read-Only:
-
-- `git_email` (String) User email used in git commit
-- `git_template` (String) Commit Message Template for `git` write-back method. Available variables are `{{AppName}}`, `{{AppChanges}}`. [More info](https://argocd-image-updater.readthedocs.io/en/stable/basics/update-methods/#changing-the-git-commit-message)
-- `git_user` (String) User name used in git commit
-- `log_level` (String) Log level of Image Updater Controller. One of `error`, `warn`, `info`, `debug` or `trace`
-- `registries` (Attributes Map) Custom container registries. Not required for most public registries. [More info](https://argocd-image-updater.readthedocs.io/en/stable/configuration/registries/#configuring-custom-registries) (see [below for nested schema](#nestedatt--image_updater--registries))
-- `secrets` (Attributes Map) Map of secrets used in Image Updater Configuration (see [below for nested schema](#nestedatt--image_updater--secrets))
-- `ssh_config` (String) SSH Client configuration (~/.ssh/config) in Image Updater
-
-<a id="nestedatt--image_updater--registries"></a>
-### Nested Schema for `image_updater.registries`
-
-Read-Only:
-
-- `api_url` (String)
-- `credentials` (String) Link to the configured secret. Must be in format `secret:argocd/argocd-image-updater-secret#<secret-name>`
-- `credsexpire` (String)
-- `default` (Boolean)
-- `defaultns` (String)
-- `insecure` (Boolean)
-- `limit` (String)
-- `prefix` (String)
-
-
-<a id="nestedatt--image_updater--secrets"></a>
-### Nested Schema for `image_updater.secrets`
-
-Read-Only:
-
-- `value` (String, Sensitive) Api server doesn't return secret values, so this field is always null in data sources
-
-
-
-<a id="nestedatt--ip_allow_list"></a>
-### Nested Schema for `ip_allow_list`
-
-Read-Only:
-
-- `description` (String) IP Description
-- `ip` (String) IP Address
-
-
-<a id="nestedatt--kustomize"></a>
-### Nested Schema for `kustomize`
-
-Read-Only:
-
-- `build_options` (String) Build options
-
-
-<a id="nestedatt--notifications"></a>
-### Nested Schema for `notifications`
-
-Read-Only:
-
-- `config` (Map of String) Notification configuration. Similar to `argocd-notifications-cm` configmap. Contains [triggers](https://argocd-notifications.readthedocs.io/en/stable/triggers/), [templates](https://argocd-notifications.readthedocs.io/en/stable/templates/) and [services](https://argocd-notifications.readthedocs.io/en/stable/services/overview/)
-- `secrets` (Attributes Map) Map of secrets used in Notification Settings (see [below for nested schema](#nestedatt--notifications--secrets))
-
-<a id="nestedatt--notifications--secrets"></a>
-### Nested Schema for `notifications.secrets`
-
-Read-Only:
-
-- `value` (String, Sensitive)
-
-
-
-<a id="nestedatt--repo_server_delegate"></a>
-### Nested Schema for `repo_server_delegate`
-
-Read-Only:
-
-- `control_plane` (Boolean) Use Control Plane
-- `managed_cluster` (Attributes) Use Managed Cluster (see [below for nested schema](#nestedatt--repo_server_delegate--managed_cluster))
-
-<a id="nestedatt--repo_server_delegate--managed_cluster"></a>
-### Nested Schema for `repo_server_delegate.managed_cluster`
+<a id="nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster"></a>
+### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled.managed_cluster`
 
 Read-Only:
 
@@ -204,39 +104,185 @@ Read-Only:
 
 
 
-<a id="nestedatt--resource_settings"></a>
-### Nested Schema for `resource_settings`
+<a id="nestedatt--argocd--spec--instance_spec--cluster_customization_defaults"></a>
+### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
 
 Read-Only:
 
-- `compare_options` (String) Compare Options
-- `exclusions` (String) Exclusions
-- `inclusions` (String) Inclusions
+- `app_replication` (Boolean)
+- `auto_upgrade_disabled` (Boolean) Disable Agent Auto-upgrade
+- `kustomization` (String)
+- `redis_tunneling` (Boolean)
 
 
-<a id="nestedatt--secrets"></a>
-### Nested Schema for `secrets`
-
-Read-Only:
-
-- `value` (String, Sensitive) Akuity API does not return secret values. In datasources this field is always null
-
-
-<a id="nestedatt--status_badge"></a>
-### Nested Schema for `status_badge`
+<a id="nestedatt--argocd--spec--instance_spec--extensions"></a>
+### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
 
 Read-Only:
 
-- `enabled` (Boolean) Enable Status Badge
-- `url` (String) URL
+- `id` (String) Extension ID
+- `version` (String) Extension version
 
 
-<a id="nestedatt--web_terminal"></a>
-### Nested Schema for `web_terminal`
+<a id="nestedatt--argocd--spec--instance_spec--image_updater_delegate"></a>
+### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
 
 Read-Only:
 
-- `enabled` (Boolean) Enable Web Terminal
-- `shells` (String) Shells
+- `control_plane` (Boolean) Use Control Plane
+- `managed_cluster` (Attributes) Use Managed Cluster (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster))
+
+<a id="nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster"></a>
+### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled.managed_cluster`
+
+Read-Only:
+
+- `cluster_name` (String) Cluster Name
+
+
+
+<a id="nestedatt--argocd--spec--instance_spec--ip_allow_list"></a>
+### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
+
+Read-Only:
+
+- `description` (String) IP Description
+- `ip` (String) IP Address
+
+
+<a id="nestedatt--argocd--spec--instance_spec--repo_server_delegate"></a>
+### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
+
+Read-Only:
+
+- `control_plane` (Boolean) Use Control Plane
+- `managed_cluster` (Attributes) Use Managed Cluster (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster))
+
+<a id="nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster"></a>
+### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled.managed_cluster`
+
+Read-Only:
+
+- `cluster_name` (String) Cluster Name
+
+
+
+
+
+
+<a id="nestedatt--argocd_cm"></a>
+### Nested Schema for `argocd_cm`
+
+Read-Only:
+
+- `data` (Map of String)
+
+
+<a id="nestedatt--argocd_image_updater_config"></a>
+### Nested Schema for `argocd_image_updater_config`
+
+Read-Only:
+
+- `data` (Map of String)
+
+
+<a id="nestedatt--argocd_image_updater_secret"></a>
+### Nested Schema for `argocd_image_updater_secret`
+
+Read-Only:
+
+- `data` (Map of String, Sensitive)
+- `labels` (Map of String) Labels
+- `name` (String) Name
+- `string_data` (Map of String, Sensitive)
+- `type` (String)
+
+
+<a id="nestedatt--argocd_image_updater_ssh_config"></a>
+### Nested Schema for `argocd_image_updater_ssh_config`
+
+Read-Only:
+
+- `data` (Map of String)
+
+
+<a id="nestedatt--argocd_notifications_cm"></a>
+### Nested Schema for `argocd_notifications_cm`
+
+Read-Only:
+
+- `data` (Map of String)
+
+
+<a id="nestedatt--argocd_notifications_secret"></a>
+### Nested Schema for `argocd_notifications_secret`
+
+Read-Only:
+
+- `data` (Map of String, Sensitive)
+- `labels` (Map of String) Labels
+- `name` (String) Name
+- `string_data` (Map of String, Sensitive)
+- `type` (String)
+
+
+<a id="nestedatt--argocd_rbac_cm"></a>
+### Nested Schema for `argocd_rbac_cm`
+
+Read-Only:
+
+- `data` (Map of String)
+
+
+<a id="nestedatt--argocd_secret"></a>
+### Nested Schema for `argocd_secret`
+
+Read-Only:
+
+- `data` (Map of String, Sensitive)
+- `labels` (Map of String) Labels
+- `name` (String) Name
+- `string_data` (Map of String, Sensitive)
+- `type` (String)
+
+
+<a id="nestedatt--argocd_ssh_known_hosts_cm"></a>
+### Nested Schema for `argocd_ssh_known_hosts_cm`
+
+Read-Only:
+
+- `data` (Map of String)
+
+
+<a id="nestedatt--argocd_tls_certs_cm"></a>
+### Nested Schema for `argocd_tls_certs_cm`
+
+Read-Only:
+
+- `data` (Map of String)
+
+
+<a id="nestedatt--repo_credential_secrets"></a>
+### Nested Schema for `repo_credential_secrets`
+
+Read-Only:
+
+- `data` (Map of String, Sensitive)
+- `labels` (Map of String) Labels
+- `name` (String) Name
+- `string_data` (Map of String, Sensitive)
+- `type` (String)
+
+
+<a id="nestedatt--repo_template_credential_secrets"></a>
+### Nested Schema for `repo_template_credential_secrets`
+
+Read-Only:
+
+- `data` (Map of String, Sensitive)
+- `labels` (Map of String) Labels
+- `name` (String) Name
+- `string_data` (Map of String, Sensitive)
+- `type` (String)
 
 

@@ -1,16 +1,45 @@
+terraform {
+  required_providers {
+    akp = {
+      source = "akuity/akp"
+    }
+  }
+}
+
+provider "akp" {
+  org_name = "test"
+}
+
 data "akp_instance" "example" {
-  name = "example-argocd-instance-name"
+  name = "test"
 }
 
 resource "akp_cluster" "example" {
-  name        = "some-name"
-  namespace   = "akuity"
-  size        = "small"
   instance_id = data.akp_instance.example.id
+  kubeconfig = {
+    "config_path" = "test.kubeconfig"
+  }
+  name      = "test-cluster-create"
+  namespace = "test"
   labels = {
-    label_1 = "example-label"
+    test-label = "true"
   }
   annotations = {
-    ann_1 = "example-annotation"
+    test-annotation = "false"
+  }
+  spec = {
+    namespace_scoped = true
+    description      = "test-description"
+    data = {
+      size                  = "small"
+      auto_upgrade_disabled = true
+      target_version        = "0.4.0"
+      kustomization         = <<EOF
+  apiVersion: kustomize.config.k8s.io/v1beta1
+  kind: Kustomization
+  resources:
+  - test.yaml
+            EOF
+    }
   }
 }
