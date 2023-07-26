@@ -292,7 +292,7 @@ Optional:
 - `ip_allow_list` (Attributes List) IP Allow List (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--ip_allow_list))
 - `repo_server_delegate` (Attributes) In case some clusters don't have network access to your private Git provider you can delegate these operations to one specific cluster. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--repo_server_delegate))
 - `subdomain` (String) Instance Subdomain. By default equals to instance id
-- `sync_history_extension_enabled` (Boolean)
+- `sync_history_extension_enabled` (Boolean) test
 
 <a id="nestedatt--argocd--spec--instance_spec--app_set_delegate"></a>
 ### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
@@ -499,5 +499,3 @@ Optional:
 - `name` (String) Name
 - `string_data` (Map of String, Sensitive)
 - `type` (String)
-
-

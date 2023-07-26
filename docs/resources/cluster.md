@@ -123,5 +123,3 @@ Optional:
 - `proxy_url` (String) URL to the proxy to be used for all API requests
 - `token` (String, Sensitive) Token to authenticate an service account
 - `username` (String) The username to use for HTTP basic authentication when accessing the Kubernetes master endpoint.
-
-

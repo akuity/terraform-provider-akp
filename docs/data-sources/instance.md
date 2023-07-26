@@ -284,5 +284,3 @@ Read-Only:
 - `name` (String) Name
 - `string_data` (Map of String, Sensitive)
 - `type` (String)
-
-

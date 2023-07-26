@@ -94,5 +94,3 @@ Read-Only:
 - `redis_tunneling` (Boolean)
 - `size` (String) Cluster Size. One of `small`, `medium` or `large`
 - `target_version` (String) Installed agent version
-
-
