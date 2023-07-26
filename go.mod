@@ -14,10 +14,10 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/stretchr/testify v1.8.4
 	golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1
-	k8s.io/api v0.27.3
-	k8s.io/apimachinery v0.27.3
-	k8s.io/cli-runtime v0.27.3
-	k8s.io/client-go v0.27.3
+	k8s.io/api v0.27.4
+	k8s.io/apimachinery v0.27.4
+	k8s.io/cli-runtime v0.27.4
+	k8s.io/client-go v0.27.4
 	k8s.io/kubectl v0.27.3
 	sigs.k8s.io/controller-runtime v0.15.0
 	sigs.k8s.io/yaml v1.3.0
