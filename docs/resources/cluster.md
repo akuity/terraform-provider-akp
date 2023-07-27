@@ -3,12 +3,12 @@
 page_title: "akp_cluster Resource - akp"
 subcategory: ""
 description: |-
-  Create a cluster attached to an Argo CD instance. Use .manifests attribute to get agent installation manifests
+  Manage a cluster attached to an Argo CD instance. Use .manifests attribute to get agent installation manifests
 ---
 
 # akp_cluster (Resource)
 
-Create a cluster attached to an Argo CD instance. Use `.manifests` attribute to get agent installation manifests
+Manage a cluster attached to an Argo CD instance. Use `.manifests` attribute to get agent installation manifests
 
 ## Example Usage
 
@@ -65,10 +65,10 @@ resource "akp_cluster" "example" {
 
 ### Required
 
-- `instance_id` (String) Argo CD Instance ID
-- `name` (String) Name
-- `namespace` (String) Agent Installation Namespace
-- `spec` (Attributes) (see [below for nested schema](#nestedatt--spec))
+- `instance_id` (String) Argo CD instance ID
+- `name` (String) Cluster name
+- `namespace` (String) Agent installation namespace
+- `spec` (Attributes) Cluster spec (see [below for nested schema](#nestedatt--spec))
 
 ### Optional
 
@@ -79,28 +79,28 @@ resource "akp_cluster" "example" {
 ### Read-Only
 
 - `id` (String) Cluster ID
-- `manifests` (String, Sensitive) Agent Installation Manifests
+- `manifests` (String, Sensitive) Agent installation manifests
 
 <a id="nestedatt--spec"></a>
 ### Nested Schema for `spec`
 
 Optional:
 
-- `data` (Attributes) (see [below for nested schema](#nestedatt--spec--data))
-- `description` (String) Cluster Description
-- `namespace_scoped` (Boolean) Agent Namespace Scoped
+- `data` (Attributes) Cluster data (see [below for nested schema](#nestedatt--spec--data))
+- `description` (String) Cluster description
+- `namespace_scoped` (Boolean) If the agent is namespace scoped
 
 <a id="nestedatt--spec--data"></a>
 ### Nested Schema for `spec.data`
 
 Optional:
 
-- `app_replication` (Boolean)
+- `app_replication` (Boolean) Enables Argo CD state replication to the managed cluster that allows disconnecting the cluster from Akuity Platform without losing core Argocd features
 - `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
-- `kustomization` (String)
-- `redis_tunneling` (Boolean)
+- `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
+- `redis_tunneling` (Boolean) Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy
 - `size` (String) Cluster Size. One of `small`, `medium` or `large`
-- `target_version` (String) Installed agent version
+- `target_version` (String) The version of the agent to install on your cluster
 
 
 
@@ -123,5 +123,3 @@ Optional:
 - `proxy_url` (String) URL to the proxy to be used for all API requests
 - `token` (String, Sensitive) Token to authenticate an service account
 - `username` (String) The username to use for HTTP basic authentication when accessing the Kubernetes master endpoint.
-
-

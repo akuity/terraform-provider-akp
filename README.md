@@ -96,3 +96,14 @@ resource "akp_instance" "example" {
 ```
 
 See more examples in [terraform-akp-example](https://github.com/akuity/terraform-akp-example) repo
+
+## Migration
+### Cluster
+| Previous Field          | Current Field                     |
+|-------------------------|-----------------------------------|
+| `agent_version`         | `spec.data.target_version`        |
+| `auto_upgrade_disabled` | `spec.data.auto_upgrade_disabled` |
+| `description`           | `spec.description`                |
+| `kube_config`           | `kubeconfig`                      |
+| `namespace_scoped`      | `spec.namespace_scoped`           |
+| `size`                  | `spec.data.size`                  |

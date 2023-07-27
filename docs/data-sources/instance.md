@@ -35,23 +35,23 @@ data "akp_instance" "example" {
 
 ### Required
 
-- `name` (String) Name
+- `name` (String) Instance name
 
 ### Read-Only
 
-- `argocd` (Attributes) (see [below for nested schema](#nestedatt--argocd))
-- `argocd_cm` (Attributes) (see [below for nested schema](#nestedatt--argocd_cm))
-- `argocd_image_updater_config` (Attributes) (see [below for nested schema](#nestedatt--argocd_image_updater_config))
-- `argocd_image_updater_secret` (Attributes) (see [below for nested schema](#nestedatt--argocd_image_updater_secret))
-- `argocd_image_updater_ssh_config` (Attributes) (see [below for nested schema](#nestedatt--argocd_image_updater_ssh_config))
-- `argocd_notifications_cm` (Attributes) (see [below for nested schema](#nestedatt--argocd_notifications_cm))
-- `argocd_notifications_secret` (Attributes) (see [below for nested schema](#nestedatt--argocd_notifications_secret))
-- `argocd_rbac_cm` (Attributes) (see [below for nested schema](#nestedatt--argocd_rbac_cm))
-- `argocd_secret` (Attributes) (see [below for nested schema](#nestedatt--argocd_secret))
-- `argocd_ssh_known_hosts_cm` (Attributes) (see [below for nested schema](#nestedatt--argocd_ssh_known_hosts_cm))
-- `argocd_tls_certs_cm` (Attributes) (see [below for nested schema](#nestedatt--argocd_tls_certs_cm))
+- `argocd` (Attributes) Argo CD configmap (see [below for nested schema](#nestedatt--argocd))
+- `argocd_cm` (Attributes) Argo CD configmap (see [below for nested schema](#nestedatt--argocd_cm))
+- `argocd_image_updater_config` (Attributes) Argo CD image updater configmap (see [below for nested schema](#nestedatt--argocd_image_updater_config))
+- `argocd_image_updater_secret` (Attributes) Argo CD image updater secret (see [below for nested schema](#nestedatt--argocd_image_updater_secret))
+- `argocd_image_updater_ssh_config` (Attributes) Argo CD image updater ssh configmap (see [below for nested schema](#nestedatt--argocd_image_updater_ssh_config))
+- `argocd_notifications_cm` (Attributes) Argo CD notifications configmap (see [below for nested schema](#nestedatt--argocd_notifications_cm))
+- `argocd_notifications_secret` (Attributes) Argo CD notifiations secret (see [below for nested schema](#nestedatt--argocd_notifications_secret))
+- `argocd_rbac_cm` (Attributes) Argo CD rbac configmap (see [below for nested schema](#nestedatt--argocd_rbac_cm))
+- `argocd_secret` (Attributes) Argo CD secret (see [below for nested schema](#nestedatt--argocd_secret))
+- `argocd_ssh_known_hosts_cm` (Attributes) Argo CD ssh known hosts configmap (see [below for nested schema](#nestedatt--argocd_ssh_known_hosts_cm))
+- `argocd_tls_certs_cm` (Attributes) Argo CD tls certs configmap (see [below for nested schema](#nestedatt--argocd_tls_certs_cm))
 - `id` (String) Instance ID
-- `repo_credential_secrets` (Attributes List) (see [below for nested schema](#nestedatt--repo_credential_secrets))
+- `repo_credential_secrets` (Attributes List) Argo CD repo credential secrets (see [below for nested schema](#nestedatt--repo_credential_secrets))
 - `repo_template_credential_secrets` (Attributes List) (see [below for nested schema](#nestedatt--repo_template_credential_secrets))
 
 <a id="nestedatt--argocd"></a>
@@ -59,48 +59,48 @@ data "akp_instance" "example" {
 
 Read-Only:
 
-- `spec` (Attributes) (see [below for nested schema](#nestedatt--argocd--spec))
+- `spec` (Attributes) Argo CD instance spec (see [below for nested schema](#nestedatt--argocd--spec))
 
 <a id="nestedatt--argocd--spec"></a>
 ### Nested Schema for `argocd.spec`
 
 Read-Only:
 
-- `description` (String)
-- `instance_spec` (Attributes) (see [below for nested schema](#nestedatt--argocd--spec--instance_spec))
-- `version` (String)
+- `description` (String) Instance description
+- `instance_spec` (Attributes) Argo CD instance spec (see [below for nested schema](#nestedatt--argocd--spec--instance_spec))
+- `version` (String) Argo CD version. Should be equal to any [argo cd image tag](https://quay.io/repository/argoproj/argocd?tab=tags).
 
 <a id="nestedatt--argocd--spec--instance_spec"></a>
 ### Nested Schema for `argocd.spec.instance_spec`
 
 Read-Only:
 
-- `app_set_delegate` (Attributes) (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--app_set_delegate))
-- `audit_extension_enabled` (Boolean) Enable Audit Extension. Set this to `true` to install Audit Extension to Argo CD instance. Do not use `spec.extensions` for that
-- `backend_ip_allow_list_enabled` (Boolean) Enable IP Allow List to Cluster Agents
-- `cluster_customization_defaults` (Attributes) Default Values For Cluster Agents (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--cluster_customization_defaults))
+- `app_set_delegate` (Attributes) Select cluster in which you want to Install Application Set controller (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--app_set_delegate))
+- `audit_extension_enabled` (Boolean) Enable Audit Extension. Set this to `true` to install Audit Extension to Argo CD instance.
+- `backend_ip_allow_list_enabled` (Boolean) Enable ip allow list for cluster agents
+- `cluster_customization_defaults` (Attributes) Default values for cluster agents (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--cluster_customization_defaults))
 - `declarative_management_enabled` (Boolean) Enable Declarative Management
 - `extensions` (Attributes List) Extensions (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--extensions))
-- `image_updater_delegate` (Attributes) (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--image_updater_delegate))
+- `image_updater_delegate` (Attributes) Select cluster in which you want to Install Image Updater (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--image_updater_delegate))
 - `image_updater_enabled` (Boolean) Enable Image Updater
-- `ip_allow_list` (Attributes List) IP Allow List (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--ip_allow_list))
+- `ip_allow_list` (Attributes List) IP allow list (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--ip_allow_list))
 - `repo_server_delegate` (Attributes) In case some clusters don't have network access to your private Git provider you can delegate these operations to one specific cluster. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--repo_server_delegate))
-- `subdomain` (String) Instance Subdomain. By default equals to instance id
-- `sync_history_extension_enabled` (Boolean)
+- `subdomain` (String) Instance subdomain. By default equals to instance id
+- `sync_history_extension_enabled` (Boolean) Enable Sync History Extension. Sync count and duration graphs as well as event details table on Argo CD application details page.
 
 <a id="nestedatt--argocd--spec--instance_spec--app_set_delegate"></a>
 ### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
 
 Read-Only:
 
-- `managed_cluster` (Attributes) Use Managed Cluster (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster))
+- `managed_cluster` (Attributes) Use managed cluster (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster))
 
 <a id="nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster"></a>
 ### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled.managed_cluster`
 
 Read-Only:
 
-- `cluster_name` (String) Cluster Name
+- `cluster_name` (String) Cluster name
 
 
 
@@ -109,10 +109,10 @@ Read-Only:
 
 Read-Only:
 
-- `app_replication` (Boolean)
-- `auto_upgrade_disabled` (Boolean) Disable Agent Auto-upgrade
-- `kustomization` (String)
-- `redis_tunneling` (Boolean)
+- `app_replication` (Boolean) Enables Argo CD state replication to the managed cluster that allows disconnecting the cluster from Akuity Platform without losing core Argocd features
+- `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
+- `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
+- `redis_tunneling` (Boolean) Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy
 
 
 <a id="nestedatt--argocd--spec--instance_spec--extensions"></a>
@@ -129,15 +129,15 @@ Read-Only:
 
 Read-Only:
 
-- `control_plane` (Boolean) Use Control Plane
-- `managed_cluster` (Attributes) Use Managed Cluster (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster))
+- `control_plane` (Boolean) If use control plane or not
+- `managed_cluster` (Attributes) If use managed cluster or not (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster))
 
 <a id="nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster"></a>
 ### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled.managed_cluster`
 
 Read-Only:
 
-- `cluster_name` (String) Cluster Name
+- `cluster_name` (String) Cluster name
 
 
 
@@ -146,8 +146,8 @@ Read-Only:
 
 Read-Only:
 
-- `description` (String) IP Description
-- `ip` (String) IP Address
+- `description` (String) IP description
+- `ip` (String) IP address
 
 
 <a id="nestedatt--argocd--spec--instance_spec--repo_server_delegate"></a>
@@ -155,15 +155,15 @@ Read-Only:
 
 Read-Only:
 
-- `control_plane` (Boolean) Use Control Plane
-- `managed_cluster` (Attributes) Use Managed Cluster (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster))
+- `control_plane` (Boolean) If use control plane or not
+- `managed_cluster` (Attributes) If use managed cluster or not (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster))
 
 <a id="nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster"></a>
 ### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled.managed_cluster`
 
 Read-Only:
 
-- `cluster_name` (String) Cluster Name
+- `cluster_name` (String) Cluster name
 
 
 
@@ -175,7 +175,7 @@ Read-Only:
 
 Read-Only:
 
-- `data` (Map of String)
+- `data` (Map of String) ConfigMap data
 
 
 <a id="nestedatt--argocd_image_updater_config"></a>
@@ -183,7 +183,7 @@ Read-Only:
 
 Read-Only:
 
-- `data` (Map of String)
+- `data` (Map of String) ConfigMap data
 
 
 <a id="nestedatt--argocd_image_updater_secret"></a>
@@ -191,11 +191,11 @@ Read-Only:
 
 Read-Only:
 
-- `data` (Map of String, Sensitive)
+- `data` (Map of String, Sensitive) Secret data
 - `labels` (Map of String) Labels
-- `name` (String) Name
-- `string_data` (Map of String, Sensitive)
-- `type` (String)
+- `name` (String) Secret name
+- `string_data` (Map of String, Sensitive) Secret string data
+- `type` (String) Secret type
 
 
 <a id="nestedatt--argocd_image_updater_ssh_config"></a>
@@ -203,7 +203,7 @@ Read-Only:
 
 Read-Only:
 
-- `data` (Map of String)
+- `data` (Map of String) ConfigMap data
 
 
 <a id="nestedatt--argocd_notifications_cm"></a>
@@ -211,7 +211,7 @@ Read-Only:
 
 Read-Only:
 
-- `data` (Map of String)
+- `data` (Map of String) ConfigMap data
 
 
 <a id="nestedatt--argocd_notifications_secret"></a>
@@ -219,11 +219,11 @@ Read-Only:
 
 Read-Only:
 
-- `data` (Map of String, Sensitive)
+- `data` (Map of String, Sensitive) Secret data
 - `labels` (Map of String) Labels
-- `name` (String) Name
-- `string_data` (Map of String, Sensitive)
-- `type` (String)
+- `name` (String) Secret name
+- `string_data` (Map of String, Sensitive) Secret string data
+- `type` (String) Secret type
 
 
 <a id="nestedatt--argocd_rbac_cm"></a>
@@ -231,7 +231,7 @@ Read-Only:
 
 Read-Only:
 
-- `data` (Map of String)
+- `data` (Map of String) ConfigMap data
 
 
 <a id="nestedatt--argocd_secret"></a>
@@ -239,11 +239,11 @@ Read-Only:
 
 Read-Only:
 
-- `data` (Map of String, Sensitive)
+- `data` (Map of String, Sensitive) Secret data
 - `labels` (Map of String) Labels
-- `name` (String) Name
-- `string_data` (Map of String, Sensitive)
-- `type` (String)
+- `name` (String) Secret name
+- `string_data` (Map of String, Sensitive) Secret string data
+- `type` (String) Secret type
 
 
 <a id="nestedatt--argocd_ssh_known_hosts_cm"></a>
@@ -251,7 +251,7 @@ Read-Only:
 
 Read-Only:
 
-- `data` (Map of String)
+- `data` (Map of String) ConfigMap data
 
 
 <a id="nestedatt--argocd_tls_certs_cm"></a>
@@ -259,7 +259,7 @@ Read-Only:
 
 Read-Only:
 
-- `data` (Map of String)
+- `data` (Map of String) ConfigMap data
 
 
 <a id="nestedatt--repo_credential_secrets"></a>
@@ -267,11 +267,11 @@ Read-Only:
 
 Read-Only:
 
-- `data` (Map of String, Sensitive)
+- `data` (Map of String, Sensitive) Secret data
 - `labels` (Map of String) Labels
-- `name` (String) Name
-- `string_data` (Map of String, Sensitive)
-- `type` (String)
+- `name` (String) Secret name
+- `string_data` (Map of String, Sensitive) Secret string data
+- `type` (String) Secret type
 
 
 <a id="nestedatt--repo_template_credential_secrets"></a>
@@ -279,10 +279,8 @@ Read-Only:
 
 Read-Only:
 
-- `data` (Map of String, Sensitive)
+- `data` (Map of String, Sensitive) Secret data
 - `labels` (Map of String) Labels
-- `name` (String) Name
-- `string_data` (Map of String, Sensitive)
-- `type` (String)
-
-
+- `name` (String) Secret name
+- `string_data` (Map of String, Sensitive) Secret string data
+- `type` (String) Secret type
