@@ -26,78 +26,59 @@ With this provider you can manage Argo CD instances and clusters on [Akuity Plat
   export AKUITY_API_KEY_SECRET=<key-secret>
   ```
 3. Use this or similar configuration:
-  ```hcl
-  terraform {
-    required_providers {
-      akp = {
-        source = "akuity/akp"
-        version = "~> 0.4"
+```hcl
+terraform {
+  required_providers {
+    akp = {
+      source = "akuity/akp"
+      version = "~> 0.4"
+    }
+  }
+}
+
+provider "akp" {
+  org_name = "<organization-name>"
+}
+
+# Read the existing Argo CD Instance
+data "akp_instance" "existing" {
+  name = "manualy-created"
+}
+
+# Add cluster to the existing instance and install the agent
+resource "akp_cluster" "example" {
+   instance_id = data.akp_instance.example.id
+   kubeconfig = {
+      "config_path" = "test.kubeconfig"
+   }
+   name      = "test-cluster-create"
+   namespace = "test"
+   labels = {
+      test-label = "true"
+   }
+   annotations = {
+      test-annotation = "false"
+   }
+   spec = {
+      namespace_scoped = true
+      description      = "test-description"
+      data = {
+         size                  = "small"
+         auto_upgrade_disabled = true
+         target_version        = "0.4.0"
+         kustomization         = <<EOF
+  apiVersion: kustomize.config.k8s.io/v1beta1
+  kind: Kustomization
+  resources:
+  - test.yaml
+            EOF
       }
-    }
-  }
-
-  provider "akp" {
-    org_name = "<organization-name>"
-  }
-
-  # Read the existing Argo CD Instance
-  data "akp_instance" "existing" {
-    name = "manualy-created"
-  }
-
-  # Add cluster to the existing instance and install the agent
-  resource "akp_cluster" "test" {
-    name             = "test-cluster"
-    description      = "Test Cluster 1"
-    size             = "small"
-    namespace        = "akuity"
-    instance_id      = data.akp_instance.existing.id
-    kube_config      = {
-        # Configuration similar to `kubernetes` provider
-    }
-  }
-  ```
-
-## Creating an Argo CD instance with Terraform
-
-``` hcl
-resource "akp_instance" "example" {
-  name        = "tf-example"
-  version     = "v2.6.0"
-  description = "An example of terraform automation for managing Akuity Platform resources"
-  web_terminal = {
-    enabled = true
-  }
-  kustomize = {
-    build_options = "--enable-helm"
-  }
-  secrets = {
-    sso_secret = {
-      value = "secret"
-    }
-  }
-  image_updater = {
-    secrets = {
-      docker_json = {
-        value = "secret"
-      }
-    }
-    registries = {
-      docker = {
-        prefix      = "docker.io"
-        api_url     = "https://registry-1.docker.io"
-        credentials = "secret:argocd/argocd-image-updater-secret#docker_json"
-      }
-    }
-  }
-  declarative_management_enabled = true
-  image_updater_enabled          = true
+   }
 }
 ```
+See more examples in [terraform-akp-example](https://github.com/akuity/terraform-provider-akp/tree/main/examples).
 
-See more examples in [terraform-akp-example](https://github.com/akuity/terraform-akp-example) repo
-
-## Migration
+## Migration from v0.4
 ### Cluster
 | Previous Field          | Current Field                     |
 |-------------------------|-----------------------------------|
