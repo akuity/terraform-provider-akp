@@ -39,7 +39,7 @@ data "akp_clusters" "example" {
 
 ### Required
 
-- `instance_id` (String) Argo CD Instance ID
+- `instance_id` (String) Argo CD instance ID
 
 ### Read-Only
 
@@ -50,8 +50,8 @@ data "akp_clusters" "example" {
 
 Required:
 
-- `instance_id` (String) Argo CD Instance ID
-- `name` (String) Name
+- `instance_id` (String) Argo CD instance ID
+- `name` (String) Cluster name
 
 Read-Only:
 
@@ -59,9 +59,9 @@ Read-Only:
 - `id` (String) Cluster ID
 - `kubeconfig` (Attributes) Kubernetes connection settings. If configured, terraform will try to connect to the cluster and install the agent (see [below for nested schema](#nestedatt--clusters--kubeconfig))
 - `labels` (Map of String) Labels
-- `manifests` (String, Sensitive) Agent Installation Manifests
-- `namespace` (String) Agent Installation Namespace
-- `spec` (Attributes) (see [below for nested schema](#nestedatt--clusters--spec))
+- `manifests` (String, Sensitive) Agent installation manifests
+- `namespace` (String) Agent installation namespace
+- `spec` (Attributes) Cluster spec (see [below for nested schema](#nestedatt--clusters--spec))
 
 <a id="nestedatt--clusters--kubeconfig"></a>
 ### Nested Schema for `clusters.kubeconfig`
@@ -89,18 +89,18 @@ Read-Only:
 
 Read-Only:
 
-- `data` (Attributes) (see [below for nested schema](#nestedatt--clusters--spec--data))
-- `description` (String) Cluster Description
-- `namespace_scoped` (Boolean) Agent Namespace Scoped
+- `data` (Attributes) Cluster data (see [below for nested schema](#nestedatt--clusters--spec--data))
+- `description` (String) Cluster description
+- `namespace_scoped` (Boolean) If the agent is namespace scoped
 
 <a id="nestedatt--clusters--spec--data"></a>
 ### Nested Schema for `clusters.spec.data`
 
 Read-Only:
 
-- `app_replication` (Boolean)
-- `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
-- `kustomization` (String)
-- `redis_tunneling` (Boolean)
+- `app_replication` (Boolean) Enables Argo CD state replication to the managed cluster that allows disconnecting the cluster from Akuity Platform without losing core Argocd features
+- `auto_upgrade_disabled` (Boolean) Disables agents auto upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
+- `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
+- `redis_tunneling` (Boolean) Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy
 - `size` (String) Cluster Size. One of `small`, `medium` or `large`
-- `target_version` (String) Installed agent version
+- `target_version` (String) The version of the agent to install on your cluster

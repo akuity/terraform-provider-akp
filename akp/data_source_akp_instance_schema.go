@@ -17,60 +17,72 @@ func (r *AkpInstanceDataSource) Schema(ctx context.Context, req datasource.Schem
 
 func getAKPInstanceDataSourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
-		"name": schema.StringAttribute{
-			Required:            true,
-			MarkdownDescription: "Name",
-		},
 		"id": schema.StringAttribute{
 			Computed:            true,
 			MarkdownDescription: "Instance ID",
 		},
+		"name": schema.StringAttribute{
+			Required:            true,
+			MarkdownDescription: "Instance name",
+		},
 		"argocd": schema.SingleNestedAttribute{
-			Computed:   true,
-			Attributes: getArgoCDDataSourceAttributes(),
+			MarkdownDescription: "Argo CD configmap",
+			Computed:            true,
+			Attributes:          getArgoCDDataSourceAttributes(),
 		},
 		"argocd_cm": schema.SingleNestedAttribute{
-			Computed:   true,
-			Attributes: getConfigMapDataSourceAttributes(),
+			MarkdownDescription: "Argo CD configmap",
+			Computed:            true,
+			Attributes:          getConfigMapDataSourceAttributes(),
 		},
 		"argocd_rbac_cm": schema.SingleNestedAttribute{
-			Computed:   true,
-			Attributes: getConfigMapDataSourceAttributes(),
+			MarkdownDescription: "Argo CD rbac configmap",
+			Computed:            true,
+			Attributes:          getConfigMapDataSourceAttributes(),
 		},
 		"argocd_secret": schema.SingleNestedAttribute{
-			Computed:   true,
-			Attributes: getSecretDataSourceAttributes(),
+			MarkdownDescription: "Argo CD secret",
+			Computed:            true,
+			Attributes:          getSecretDataSourceAttributes(),
 		},
 		"argocd_notifications_cm": schema.SingleNestedAttribute{
-			Computed:   true,
-			Attributes: getConfigMapDataSourceAttributes(),
+			MarkdownDescription: "Argo CD notifications configmap",
+			Computed:            true,
+			Attributes:          getConfigMapDataSourceAttributes(),
 		},
 		"argocd_notifications_secret": schema.SingleNestedAttribute{
-			Computed:   true,
-			Attributes: getSecretDataSourceAttributes(),
+			MarkdownDescription: "Argo CD notifiations secret",
+			Computed:            true,
+			Attributes:          getSecretDataSourceAttributes(),
 		},
 		"argocd_image_updater_config": schema.SingleNestedAttribute{
-			Computed:   true,
-			Attributes: getConfigMapDataSourceAttributes(),
+			MarkdownDescription: "Argo CD image updater configmap",
+			Computed:            true,
+			Attributes:          getConfigMapDataSourceAttributes(),
 		},
 		"argocd_image_updater_ssh_config": schema.SingleNestedAttribute{
-			Computed:   true,
-			Attributes: getConfigMapDataSourceAttributes(),
+			MarkdownDescription: "Argo CD image updater ssh configmap",
+			Computed:            true,
+			Attributes:          getConfigMapDataSourceAttributes(),
 		},
 		"argocd_image_updater_secret": schema.SingleNestedAttribute{
-			Computed:   true,
-			Attributes: getSecretDataSourceAttributes(),
+			MarkdownDescription: "Argo CD image updater secret",
+			Computed:            true,
+			Attributes:          getSecretDataSourceAttributes(),
 		},
 		"argocd_ssh_known_hosts_cm": schema.SingleNestedAttribute{
-			Computed:   true,
-			Attributes: getConfigMapDataSourceAttributes(),
+			MarkdownDescription: "Argo CD ssh known hosts configmap",
+			Computed:            true,
+			Attributes:          getConfigMapDataSourceAttributes(),
 		},
 		"argocd_tls_certs_cm": schema.SingleNestedAttribute{
-			Computed:   true,
-			Attributes: getConfigMapDataSourceAttributes(),
+			MarkdownDescription: "Argo CD tls certs configmap",
+			Computed:            true,
+			Attributes:          getConfigMapDataSourceAttributes(),
 		},
 		"repo_credential_secrets": schema.ListNestedAttribute{
-			Computed: true,
+			MarkdownDescription: "Argo CD repo credential secrets",
+			Computed:            true,
 			NestedObject: schema.NestedAttributeObject{
 				Attributes: getSecretDataSourceAttributes(),
 			},
@@ -87,8 +99,9 @@ func getAKPInstanceDataSourceAttributes() map[string]schema.Attribute {
 func getConfigMapDataSourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"data": schema.MapAttribute{
-			ElementType: types.StringType,
-			Computed:    true,
+			MarkdownDescription: "ConfigMap data",
+			ElementType:         types.StringType,
+			Computed:            true,
 		},
 	}
 }
@@ -97,7 +110,7 @@ func getSecretDataSourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"name": schema.StringAttribute{
 			Computed:            true,
-			MarkdownDescription: "Name",
+			MarkdownDescription: "Secret name",
 		},
 		"labels": schema.MapAttribute{
 			ElementType:         types.StringType,
@@ -105,17 +118,20 @@ func getSecretDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 		},
 		"data": schema.MapAttribute{
-			ElementType: types.StringType,
-			Computed:    true,
-			Sensitive:   true,
+			MarkdownDescription: "Secret data",
+			ElementType:         types.StringType,
+			Computed:            true,
+			Sensitive:           true,
 		},
 		"string_data": schema.MapAttribute{
-			ElementType: types.StringType,
-			Computed:    true,
-			Sensitive:   true,
+			MarkdownDescription: "Secret string data",
+			ElementType:         types.StringType,
+			Computed:            true,
+			Sensitive:           true,
 		},
 		"type": schema.StringAttribute{
-			Computed: true,
+			MarkdownDescription: "Secret type",
+			Computed:            true,
 		},
 	}
 }
@@ -123,8 +139,9 @@ func getSecretDataSourceAttributes() map[string]schema.Attribute {
 func getArgoCDDataSourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"spec": schema.SingleNestedAttribute{
-			Computed:   true,
-			Attributes: getArgoCDSpecDataSourceAttributes(),
+			MarkdownDescription: "Argo CD instance spec",
+			Computed:            true,
+			Attributes:          getArgoCDSpecDataSourceAttributes(),
 		},
 	}
 }
@@ -132,14 +149,17 @@ func getArgoCDDataSourceAttributes() map[string]schema.Attribute {
 func getArgoCDSpecDataSourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"description": schema.StringAttribute{
-			Computed: true,
+			MarkdownDescription: "Instance description",
+			Computed:            true,
 		},
 		"version": schema.StringAttribute{
-			Computed: true,
+			MarkdownDescription: "Argo CD version. Should be equal to any [argo cd image tag](https://quay.io/repository/argoproj/argocd?tab=tags).",
+			Computed:            true,
 		},
 		"instance_spec": schema.SingleNestedAttribute{
-			Computed:   true,
-			Attributes: getInstanceSpecDataSourceAttributes(),
+			MarkdownDescription: "Argo CD instance spec",
+			Computed:            true,
+			Attributes:          getInstanceSpecDataSourceAttributes(),
 		},
 	}
 }
@@ -147,14 +167,14 @@ func getArgoCDSpecDataSourceAttributes() map[string]schema.Attribute {
 func getInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"ip_allow_list": schema.ListNestedAttribute{
-			MarkdownDescription: "IP Allow List",
+			MarkdownDescription: "IP allow list",
 			Computed:            true,
 			NestedObject: schema.NestedAttributeObject{
 				Attributes: getIPAllowListEntryDataSourceAttributes(),
 			},
 		},
 		"subdomain": schema.StringAttribute{
-			MarkdownDescription: "Instance Subdomain. By default equals to instance id",
+			MarkdownDescription: "Instance subdomain. By default equals to instance id",
 			Computed:            true,
 		},
 		"declarative_management_enabled": schema.BoolAttribute{
@@ -169,7 +189,7 @@ func getInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 			},
 		},
 		"cluster_customization_defaults": schema.SingleNestedAttribute{
-			MarkdownDescription: "Default Values For Cluster Agents",
+			MarkdownDescription: "Default values for cluster agents",
 			Computed:            true,
 			Attributes:          getClusterCustomizationDataSourceAttributes(),
 		},
@@ -178,7 +198,7 @@ func getInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 		},
 		"backend_ip_allow_list_enabled": schema.BoolAttribute{
-			MarkdownDescription: "Enable IP Allow List to Cluster Agents",
+			MarkdownDescription: "Enable ip allow list for cluster agents",
 			Computed:            true,
 		},
 		"repo_server_delegate": schema.SingleNestedAttribute{
@@ -187,19 +207,22 @@ func getInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 			Attributes:          getRepoServerDelegateDataSourceAttributes(),
 		},
 		"audit_extension_enabled": schema.BoolAttribute{
-			MarkdownDescription: "Enable Audit Extension. Set this to `true` to install Audit Extension to Argo CD instance. Do not use `spec.extensions` for that",
+			MarkdownDescription: "Enable Audit Extension. Set this to `true` to install Audit Extension to Argo CD instance.",
 			Computed:            true,
 		},
 		"sync_history_extension_enabled": schema.BoolAttribute{
-			Computed: true,
+			MarkdownDescription: "Enable Sync History Extension. Sync count and duration graphs as well as event details table on Argo CD application details page.",
+			Computed:            true,
 		},
 		"image_updater_delegate": schema.SingleNestedAttribute{
-			Computed:   true,
-			Attributes: getImageUpdaterDelegateDataSourceAttributes(),
+			MarkdownDescription: "Select cluster in which you want to Install Image Updater",
+			Computed:            true,
+			Attributes:          getImageUpdaterDelegateDataSourceAttributes(),
 		},
 		"app_set_delegate": schema.SingleNestedAttribute{
-			Computed:   true,
-			Attributes: getAppSetDelegateDataSourceAttributes(),
+			MarkdownDescription: "Select cluster in which you want to Install Application Set controller",
+			Computed:            true,
+			Attributes:          getAppSetDelegateDataSourceAttributes(),
 		},
 	}
 }
@@ -207,11 +230,11 @@ func getInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 func getIPAllowListEntryDataSourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"ip": schema.StringAttribute{
-			MarkdownDescription: "IP Address",
+			MarkdownDescription: "IP address",
 			Computed:            true,
 		},
 		"description": schema.StringAttribute{
-			MarkdownDescription: "IP Description",
+			MarkdownDescription: "IP description",
 			Computed:            true,
 		},
 	}
@@ -233,17 +256,20 @@ func getArgoCDExtensionInstallEntryDataSourceAttributes() map[string]schema.Attr
 func getClusterCustomizationDataSourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"auto_upgrade_disabled": schema.BoolAttribute{
-			MarkdownDescription: "Disable Agent Auto-upgrade",
+			MarkdownDescription: "Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically",
 			Computed:            true,
 		},
 		"kustomization": schema.StringAttribute{
-			Computed: true,
+			MarkdownDescription: "Kustomize configuration that will be applied to generated agent installation manifests",
+			Computed:            true,
 		},
 		"app_replication": schema.BoolAttribute{
-			Computed: true,
+			MarkdownDescription: "Enables Argo CD state replication to the managed cluster that allows disconnecting the cluster from Akuity Platform without losing core Argocd features",
+			Computed:            true,
 		},
 		"redis_tunneling": schema.BoolAttribute{
-			Computed: true,
+			MarkdownDescription: "Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy",
+			Computed:            true,
 		},
 	}
 }
@@ -251,11 +277,11 @@ func getClusterCustomizationDataSourceAttributes() map[string]schema.Attribute {
 func getRepoServerDelegateDataSourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"control_plane": schema.BoolAttribute{
-			MarkdownDescription: "Use Control Plane",
+			MarkdownDescription: "If use control plane or not",
 			Computed:            true,
 		},
 		"managed_cluster": schema.SingleNestedAttribute{
-			MarkdownDescription: "Use Managed Cluster",
+			MarkdownDescription: "If use managed cluster or not",
 			Computed:            true,
 			Attributes:          getManagedClusterDataSourceAttributes(),
 		},
@@ -265,11 +291,11 @@ func getRepoServerDelegateDataSourceAttributes() map[string]schema.Attribute {
 func getImageUpdaterDelegateDataSourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"control_plane": schema.BoolAttribute{
-			MarkdownDescription: "Use Control Plane",
+			MarkdownDescription: "If use control plane or not",
 			Computed:            true,
 		},
 		"managed_cluster": schema.SingleNestedAttribute{
-			MarkdownDescription: "Use Managed Cluster",
+			MarkdownDescription: "If use managed cluster or not",
 			Computed:            true,
 			Attributes:          getManagedClusterDataSourceAttributes(),
 		},
@@ -279,7 +305,7 @@ func getImageUpdaterDelegateDataSourceAttributes() map[string]schema.Attribute {
 func getAppSetDelegateDataSourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"managed_cluster": schema.SingleNestedAttribute{
-			MarkdownDescription: "Use Managed Cluster",
+			MarkdownDescription: "Use managed cluster",
 			Computed:            true,
 			Attributes:          getManagedClusterDataSourceAttributes(),
 		},
@@ -289,7 +315,7 @@ func getAppSetDelegateDataSourceAttributes() map[string]schema.Attribute {
 func getManagedClusterDataSourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"cluster_name": schema.StringAttribute{
-			MarkdownDescription: "Cluster Name",
+			MarkdownDescription: "Cluster name",
 			Computed:            true,
 		},
 	}

@@ -107,16 +107,3 @@ See more examples in [terraform-akp-example](https://github.com/akuity/terraform
 | `kube_config`           | `kubeconfig`                      |
 | `namespace_scoped`      | `spec.namespace_scoped`           |
 | `size`                  | `spec.data.size`                  |
-
-### Instance
-| Previous Field            | Current Field                                       |
-|---------------------------|-----------------------------------------------------|
-| `version`                 | `argocd.spec.version`                               |
-| `admin_enabled`           | `argocd_cm.data."admin.enabled"`                    |
-| `allow_anonymous`         | `argocd_cm.data."users.anonymous.enabled"`          |
-| `audit_extension_enabled` | `argocd.spec.instance_spec.audit_extension_enabled` |
-| `banner.message`          | `argocd_cm.data."ui.bannercontent"`                 |
-| `banner.url`              | `argocd_cm.data."ui.bannerurl"`                     |
-| `banner.permanent`        | `argocd_cm.data."bannerpermanent"`                  |
-| `chat.message`            | `argocd_cm.data."help.chatText"`                    |
-| `chat.url`                | `argocd_cm.data."help.chatUrl"`                     |

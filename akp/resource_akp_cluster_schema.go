@@ -15,9 +15,8 @@ import (
 
 func (r *AkpClusterResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Create a cluster attached to an Argo CD instance. Use `.manifests` attribute to get agent installation manifests",
-
-		Attributes: getAKPClusterAttributes(),
+		MarkdownDescription: "Manage a cluster attached to an Argo CD instance. Use `.manifests` attribute to get agent installation manifests",
+		Attributes:          getAKPClusterAttributes(),
 	}
 }
 
@@ -31,7 +30,7 @@ func getAKPClusterAttributes() map[string]schema.Attribute {
 			},
 		},
 		"instance_id": schema.StringAttribute{
-			MarkdownDescription: "Argo CD Instance ID",
+			MarkdownDescription: "Argo CD instance ID",
 			Required:            true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.RequiresReplace(),
@@ -39,10 +38,13 @@ func getAKPClusterAttributes() map[string]schema.Attribute {
 		},
 		"name": schema.StringAttribute{
 			Required:            true,
-			MarkdownDescription: "Name",
+			MarkdownDescription: "Cluster name",
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.RequiresReplace(),
+			},
 		},
 		"namespace": schema.StringAttribute{
-			MarkdownDescription: "Agent Installation Namespace",
+			MarkdownDescription: "Agent installation namespace",
 			Required:            true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
@@ -53,6 +55,7 @@ func getAKPClusterAttributes() map[string]schema.Attribute {
 			ElementType:         types.StringType,
 			MarkdownDescription: "Labels",
 			Optional:            true,
+			Computed:            true,
 			PlanModifiers: []planmodifier.Map{
 				mapplanmodifier.UseStateForUnknown(),
 			},
@@ -61,13 +64,15 @@ func getAKPClusterAttributes() map[string]schema.Attribute {
 			ElementType:         types.StringType,
 			MarkdownDescription: "Annotations",
 			Optional:            true,
+			Computed:            true,
 			PlanModifiers: []planmodifier.Map{
 				mapplanmodifier.UseStateForUnknown(),
 			},
 		},
 		"spec": schema.SingleNestedAttribute{
-			Required:   true,
-			Attributes: getClusterSpecAttributes(),
+			MarkdownDescription: "Cluster spec",
+			Required:            true,
+			Attributes:          getClusterSpecAttributes(),
 		},
 		"kubeconfig": schema.SingleNestedAttribute{
 			MarkdownDescription: "Kubernetes connection settings. If configured, terraform will try to connect to the cluster and install the agent",
@@ -75,7 +80,7 @@ func getAKPClusterAttributes() map[string]schema.Attribute {
 			Attributes:          getKubeconfigAttributes(),
 		},
 		"manifests": schema.StringAttribute{
-			MarkdownDescription: "Agent Installation Manifests",
+			MarkdownDescription: "Agent installation manifests",
 			Computed:            true,
 			Sensitive:           true,
 		},
@@ -85,11 +90,15 @@ func getAKPClusterAttributes() map[string]schema.Attribute {
 func getClusterSpecAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"description": schema.StringAttribute{
-			MarkdownDescription: "Cluster Description",
+			MarkdownDescription: "Cluster description",
 			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
 		},
 		"namespace_scoped": schema.BoolAttribute{
-			MarkdownDescription: "Agent Namespace Scoped",
+			MarkdownDescription: "If the agent is namespace scoped",
 			Optional:            true,
 			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
@@ -98,8 +107,9 @@ func getClusterSpecAttributes() map[string]schema.Attribute {
 			},
 		},
 		"data": schema.SingleNestedAttribute{
-			Optional:   true,
-			Attributes: getClusterDataAttributes(),
+			MarkdownDescription: "Cluster data",
+			Optional:            true,
+			Attributes:          getClusterDataAttributes(),
 		},
 	}
 }
@@ -123,21 +133,23 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 			},
 		},
 		"kustomization": schema.StringAttribute{
-			Optional: true,
-			Computed: true,
+			MarkdownDescription: "Kustomize configuration that will be applied to generated agent installation manifests",
+			Optional:            true,
+			Computed:            true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
 			},
 		},
 		"app_replication": schema.BoolAttribute{
-			Optional: true,
-			Computed: true,
+			MarkdownDescription: "Enables Argo CD state replication to the managed cluster that allows disconnecting the cluster from Akuity Platform without losing core Argocd features",
+			Optional:            true,
+			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
 			},
 		},
 		"target_version": schema.StringAttribute{
-			MarkdownDescription: "Installed agent version",
+			MarkdownDescription: "The version of the agent to install on your cluster",
 			Optional:            true,
 			Computed:            true,
 			PlanModifiers: []planmodifier.String{
@@ -145,8 +157,9 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 			},
 		},
 		"redis_tunneling": schema.BoolAttribute{
-			Optional: true,
-			Computed: true,
+			MarkdownDescription: "Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy",
+			Optional:            true,
+			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
 			},

@@ -18,19 +18,19 @@ func (d *AkpClusterDataSource) Schema(ctx context.Context, req datasource.Schema
 func getAKPClusterDataSourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"id": schema.StringAttribute{
-			Computed:            true,
 			MarkdownDescription: "Cluster ID",
+			Computed:            true,
 		},
 		"instance_id": schema.StringAttribute{
-			MarkdownDescription: "Argo CD Instance ID",
+			MarkdownDescription: "Argo CD instance ID",
 			Required:            true,
 		},
 		"name": schema.StringAttribute{
 			Required:            true,
-			MarkdownDescription: "Name",
+			MarkdownDescription: "Cluster name",
 		},
 		"namespace": schema.StringAttribute{
-			MarkdownDescription: "Agent Installation Namespace",
+			MarkdownDescription: "Agent installation namespace",
 			Computed:            true,
 		},
 		"labels": schema.MapAttribute{
@@ -44,8 +44,9 @@ func getAKPClusterDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 		},
 		"spec": schema.SingleNestedAttribute{
-			Computed:   true,
-			Attributes: getClusterSpecDataSourceAttributes(),
+			MarkdownDescription: "Cluster spec",
+			Computed:            true,
+			Attributes:          getClusterSpecDataSourceAttributes(),
 		},
 		"kubeconfig": schema.SingleNestedAttribute{
 			MarkdownDescription: "Kubernetes connection settings. If configured, terraform will try to connect to the cluster and install the agent",
@@ -53,7 +54,7 @@ func getAKPClusterDataSourceAttributes() map[string]schema.Attribute {
 			Attributes:          getKubeconfigDataSourceAttributes(),
 		},
 		"manifests": schema.StringAttribute{
-			MarkdownDescription: "Agent Installation Manifests",
+			MarkdownDescription: "Agent installation manifests",
 			Computed:            true,
 			Sensitive:           true,
 		},
@@ -63,16 +64,17 @@ func getAKPClusterDataSourceAttributes() map[string]schema.Attribute {
 func getClusterSpecDataSourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"description": schema.StringAttribute{
-			MarkdownDescription: "Cluster Description",
+			MarkdownDescription: "Cluster description",
 			Computed:            true,
 		},
 		"namespace_scoped": schema.BoolAttribute{
-			MarkdownDescription: "Agent Namespace Scoped",
+			MarkdownDescription: "If the agent is namespace scoped",
 			Computed:            true,
 		},
 		"data": schema.SingleNestedAttribute{
-			Computed:   true,
-			Attributes: getClusterDataDataSourceAttributes(),
+			MarkdownDescription: "Cluster data",
+			Computed:            true,
+			Attributes:          getClusterDataDataSourceAttributes(),
 		},
 	}
 }
@@ -84,21 +86,24 @@ func getClusterDataDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 		},
 		"auto_upgrade_disabled": schema.BoolAttribute{
-			MarkdownDescription: "Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically",
+			MarkdownDescription: "Disables agents auto upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically",
 			Computed:            true,
 		},
 		"kustomization": schema.StringAttribute{
-			Computed: true,
+			MarkdownDescription: "Kustomize configuration that will be applied to generated agent installation manifests",
+			Computed:            true,
 		},
 		"app_replication": schema.BoolAttribute{
-			Computed: true,
+			MarkdownDescription: "Enables Argo CD state replication to the managed cluster that allows disconnecting the cluster from Akuity Platform without losing core Argocd features",
+			Computed:            true,
 		},
 		"target_version": schema.StringAttribute{
-			MarkdownDescription: "Installed agent version",
+			MarkdownDescription: "The version of the agent to install on your cluster",
 			Computed:            true,
 		},
 		"redis_tunneling": schema.BoolAttribute{
-			Computed: true,
+			MarkdownDescription: "Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy",
+			Computed:            true,
 		},
 	}
 }
