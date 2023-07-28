@@ -224,6 +224,10 @@ func getInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			Attributes:          getAppSetDelegateDataSourceAttributes(),
 		},
+		"assistant_extension_enabled": schema.BoolAttribute{
+			MarkdownDescription: "Enable Powerful AI-powered assistant Extension. It helps analyze Kubernetes resources behavior and provides suggestions about resolving issues.",
+			Computed:            true,
+		},
 	}
 }
 

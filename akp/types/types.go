@@ -54,6 +54,10 @@ func (a *ArgoCD) Update(ctx context.Context, diagnostics *diag.Diagnostics, cd *
 	if cd.Spec.InstanceSpec.SyncHistoryExtensionEnabled != nil && *cd.Spec.InstanceSpec.SyncHistoryExtensionEnabled {
 		syncHistoryExtensionEnabled = true
 	}
+	assistantExtensionEnabled := false
+	if cd.Spec.InstanceSpec.AssistantExtensionEnabled != nil && *cd.Spec.InstanceSpec.AssistantExtensionEnabled {
+		assistantExtensionEnabled = true
+	}
 	a.Spec = ArgoCDSpec{
 		Description: tftypes.StringValue(cd.Spec.Description),
 		Version:     tftypes.StringValue(cd.Spec.Version),
@@ -70,6 +74,7 @@ func (a *ArgoCD) Update(ctx context.Context, diagnostics *diag.Diagnostics, cd *
 			SyncHistoryExtensionEnabled:  tftypes.BoolValue(syncHistoryExtensionEnabled),
 			ImageUpdaterDelegate:         toImageUpdaterDelegateTFModel(cd.Spec.InstanceSpec.ImageUpdaterDelegate),
 			AppSetDelegate:               toAppSetDelegateTFModel(cd.Spec.InstanceSpec.AppSetDelegate),
+			AssistantExtensionEnabled:    tftypes.BoolValue(assistantExtensionEnabled),
 		},
 	}
 }
@@ -99,6 +104,7 @@ func (a *ArgoCD) ToArgoCDAPIModel(ctx context.Context, diag *diag.Diagnostics, n
 				SyncHistoryExtensionEnabled:  a.Spec.InstanceSpec.SyncHistoryExtensionEnabled.ValueBoolPointer(),
 				ImageUpdaterDelegate:         toImageUpdaterDelegateAPIModel(a.Spec.InstanceSpec.ImageUpdaterDelegate),
 				AppSetDelegate:               toAppSetDelegateAPIModel(a.Spec.InstanceSpec.AppSetDelegate),
+				AssistantExtensionEnabled:    a.Spec.InstanceSpec.AssistantExtensionEnabled.ValueBoolPointer(),
 			},
 		},
 	}

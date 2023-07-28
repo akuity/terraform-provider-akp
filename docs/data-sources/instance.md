@@ -76,6 +76,7 @@ Read-Only:
 Read-Only:
 
 - `app_set_delegate` (Attributes) Select cluster in which you want to Install Application Set controller (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--app_set_delegate))
+- `assistant_extension_enabled` (Boolean) Enable Powerful AI-powered assistant Extension. It helps analyze Kubernetes resources behavior and provides suggestions about resolving issues.
 - `audit_extension_enabled` (Boolean) Enable Audit Extension. Set this to `true` to install Audit Extension to Argo CD instance.
 - `backend_ip_allow_list_enabled` (Boolean) Enable ip allow list for cluster agents
 - `cluster_customization_defaults` (Attributes) Default values for cluster agents (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--cluster_customization_defaults))
