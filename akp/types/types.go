@@ -195,7 +195,7 @@ func toClusterDataAPIModel(diagnostics *diag.Diagnostics, clusterData ClusterDat
 		Kustomization:       raw,
 		AppReplication:      clusterData.AppReplication.ValueBoolPointer(),
 		TargetVersion:       clusterData.TargetVersion.ValueString(),
-		RedisTunneling:      clusterData.RedisTunneling.ValueBool(),
+		RedisTunneling:      clusterData.RedisTunneling.ValueBoolPointer(),
 	}
 }
 
