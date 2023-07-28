@@ -3,6 +3,7 @@ package akp
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -112,6 +113,8 @@ func (r *AkpInstanceResource) Delete(ctx context.Context, req resource.DeleteReq
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete Argo CD instance, got error: %s", err))
 		return
 	}
+	// Give it some time to remove the instance. This is useful when the terraform provider is performing a replace operation, to give it enough time to destroy the previous instance.
+	time.Sleep(2 * time.Second)
 }
 
 func (r *AkpInstanceResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
