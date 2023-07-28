@@ -131,6 +131,8 @@ func (r *AkpClusterResource) Delete(ctx context.Context, req resource.DeleteRequ
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete Akuity cluster. %s", err))
 		return
 	}
+	// Give it some time to remove the cluster. This is useful when the terraform provider is performing a replace operation, to give it enough time to destroy the previous cluster.
+	time.Sleep(2 * time.Second)
 }
 
 func (r *AkpClusterResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
