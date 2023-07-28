@@ -3,7 +3,7 @@ module github.com/akuity/terraform-provider-akp
 go 1.19
 
 require (
-	github.com/akuity/api-client-go v0.8.4
+	github.com/akuity/api-client-go v0.8.5
 	github.com/akuity/grpc-gateway-client v0.0.0-20230321170839-38ca1b4b439c
 	github.com/fatih/structtag v1.2.0
 	github.com/go-logr/logr v1.2.4
