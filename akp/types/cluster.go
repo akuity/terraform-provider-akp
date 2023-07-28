@@ -11,7 +11,7 @@ import (
 
 // Cluster is the Schema for the cluster API
 type Cluster struct {
-	ID          types.String `json:"id,omitempty" tfsdk:"id"`
+	ID          types.String `tfsdk:"id"`
 	InstanceID  types.String `tfsdk:"instance_id"`
 	Name        types.String `tfsdk:"name"`
 	Namespace   types.String `tfsdk:"namespace"`
