@@ -5,11 +5,9 @@ go 1.19
 require (
 	github.com/akuity/api-client-go v0.8.5
 	github.com/akuity/grpc-gateway-client v0.0.0-20230321170839-38ca1b4b439c
-	github.com/fatih/structtag v1.2.0
-	github.com/go-logr/logr v1.2.4
 	github.com/hashicorp/terraform-plugin-docs v0.16.0
-	github.com/hashicorp/terraform-plugin-framework v1.2.0
-	github.com/hashicorp/terraform-plugin-go v0.16.0
+	github.com/hashicorp/terraform-plugin-framework v1.3.3
+	github.com/hashicorp/terraform-plugin-go v0.18.0
 	github.com/hashicorp/terraform-plugin-log v0.9.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/stretchr/testify v1.8.4
@@ -19,7 +17,6 @@ require (
 	k8s.io/cli-runtime v0.27.4
 	k8s.io/client-go v0.27.4
 	k8s.io/kubectl v0.27.4
-	sigs.k8s.io/controller-runtime v0.15.0
 	sigs.k8s.io/yaml v1.3.0
 )
 
@@ -42,6 +39,7 @@ require (
 	github.com/fatih/camelcase v1.0.0 // indirect
 	github.com/fvbommel/sortorder v1.0.1 // indirect
 	github.com/go-errors/errors v1.4.2 // indirect
+	github.com/go-logr/logr v1.2.4 // indirect
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect
 	github.com/go-openapi/jsonreference v0.20.1 // indirect
 	github.com/go-openapi/swag v0.22.3 // indirect
@@ -65,6 +63,8 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+	github.com/onsi/ginkgo/v2 v2.9.5 // indirect
+	github.com/onsi/gomega v1.27.7 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
