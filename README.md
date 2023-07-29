@@ -31,7 +31,7 @@ terraform {
   required_providers {
     akp = {
       source = "akuity/akp"
-      version = "~> 0.4"
+      version = "~> 0.5"
     }
   }
 }
@@ -51,7 +51,7 @@ resource "akp_cluster" "example" {
    kubeconfig = {
       "config_path" = "test.kubeconfig"
    }
-   name      = "test-cluster-create"
+   name      = "test-cluster"
    namespace = "test"
    labels = {
       test-label = "true"
