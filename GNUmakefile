@@ -14,4 +14,6 @@ unit-test:
 # Generate Documentation
 .PHONY: generate
 generate:
+	cp -r ./docs/guides .
 	go generate ./...
+	mv guides ./docs

@@ -78,13 +78,5 @@ resource "akp_cluster" "example" {
 ```
 See more examples in [terraform-akp-example](https://github.com/akuity/terraform-provider-akp/tree/main/examples).
 
-## Migration from v0.4
-### Cluster
-| Previous Field          | Current Field                     |
-|-------------------------|-----------------------------------|
-| `agent_version`         | `spec.data.target_version`        |
-| `auto_upgrade_disabled` | `spec.data.auto_upgrade_disabled` |
-| `description`           | `spec.description`                |
-| `kube_config`           | `kubeconfig`                      |
-| `namespace_scoped`      | `spec.namespace_scoped`           |
-| `size`                  | `spec.data.size`                  |
+## Upgrading
+- [Upgrading to v5.0](./docs/guides/v0.5-upgrading.md)
