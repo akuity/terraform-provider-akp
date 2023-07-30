@@ -29,7 +29,7 @@ func TestAccInstanceDataSource(t *testing.T) {
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.image_updater_enabled", "false"),
 
 					// argocd_cm
-					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd_cm.data.%", "false"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd_cm.data.%", "3"),
 				),
 			},
 		},
