@@ -39,6 +39,7 @@ func getAKPInstanceAttributes() map[string]schema.Attribute {
 		"argocd_cm": schema.SingleNestedAttribute{
 			MarkdownDescription: "Argo CD configmap",
 			Optional:            true,
+			Computed:            true,
 			Attributes:          getConfigMapAttributes(),
 		},
 		"argocd_rbac_cm": schema.SingleNestedAttribute{

@@ -46,8 +46,18 @@ jobs:
           git diff --compact-summary --exit-code || \
             (echo; echo "Unexpected difference in directories after code generation. Run 'go generate ./...' command and commit."; exit 1)
 
+  unit-test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: '1.19'
+      - run: make unit-test
+
   # Run acceptance tests in a matrix with Terraform CLI versions
-  test:
+  acceptance-test:
     name: Terraform Provider Acceptance Tests
     needs: build
     runs-on: ubuntu-latest
@@ -76,5 +86,5 @@ jobs:
           TF_ACC: "1"
           AKUITY_API_KEY_ID: "${{ secrets.AKUITY_API_KEY_ID }}"
           AKUITY_API_KEY_SECRET: "${{ secrets.AKUITY_API_KEY_SECRET }}"
-        run: go test -v -cover ./akp/
+        run: make acc-test
         timeout-minutes: 10

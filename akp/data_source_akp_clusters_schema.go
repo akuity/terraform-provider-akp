@@ -20,6 +20,10 @@ func getAKPClustersDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Argo CD instance ID",
 			Required:            true,
 		},
+		"id": schema.StringAttribute{
+			MarkdownDescription: "Argo CD instance ID",
+			Computed:            true,
+		},
 		"clusters": schema.ListNestedAttribute{
 			MarkdownDescription: "List of clusters",
 			Computed:            true,

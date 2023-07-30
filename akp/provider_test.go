@@ -1,6 +1,7 @@
 package akp
 
 import (
+	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
@@ -10,10 +11,11 @@ import (
 const (
 	providerConfig = `
 provider "akp" {
-	org_name = "terraform-provider-test"
+	org_name = "terraform-provider-acceptance-test"
 }
 `
 )
+
 // testAccProtoV6ProviderFactories are used to instantiate a provider during
 // acceptance testing. The factory function will be invoked for every Terraform
 // CLI command executed to create a provider server to which the CLI can
@@ -23,5 +25,10 @@ var testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServe
 }
 
 func testAccPreCheck(t *testing.T) {
-
+	if v := os.Getenv("AKUITY_API_KEY_ID"); v == "" {
+		t.Fatal("AKUITY_API_KEY_ID must be set for acceptance tests")
+	}
+	if v := os.Getenv("AKUITY_API_KEY_SECRET"); v == "" {
+		t.Fatal("AKUITY_API_KEY_SECRET must be set for acceptance tests")
+	}
 }

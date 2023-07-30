@@ -17,13 +17,13 @@ func (d *AkpClusterDataSource) Schema(ctx context.Context, req datasource.Schema
 
 func getAKPClusterDataSourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
-		"id": schema.StringAttribute{
-			MarkdownDescription: "Cluster ID",
-			Computed:            true,
-		},
 		"instance_id": schema.StringAttribute{
 			MarkdownDescription: "Argo CD instance ID",
 			Required:            true,
+		},
+		"id": schema.StringAttribute{
+			MarkdownDescription: "Cluster ID",
+			Computed:            true,
 		},
 		"name": schema.StringAttribute{
 			Required:            true,
