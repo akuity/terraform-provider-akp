@@ -65,6 +65,7 @@ func (d *AkpClustersDataSource) Read(ctx context.Context, req datasource.ReadReq
 		return
 	}
 
+	data.ID = data.InstanceID
 	clusters := apiResp.GetClusters()
 	for _, cluster := range clusters {
 		stateCluster := types.Cluster{

@@ -23,6 +23,7 @@ type Cluster struct {
 }
 
 type Clusters struct {
+	ID         types.String `tfsdk:"id"`
 	InstanceID types.String `tfsdk:"instance_id"`
 	Clusters   []Cluster    `tfsdk:"clusters"`
 }

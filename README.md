@@ -13,7 +13,7 @@ With this provider you can manage Argo CD instances and clusters on [Akuity Plat
 
 ## Requirements
 
-- [Terraform](https://www.terraform.io/downloads.html) >= 1.0
+- [Terraform](https://www.terraform.io/downloads.html) >= 1.2
 
 ## Typical use case
  Add a new cluster `test-cluster` to the existing Argo CD instance `manualy-created` and install [the agent](https://docs.akuity.io/akuity-platform/agent) to the configured cluster.
@@ -78,13 +78,5 @@ resource "akp_cluster" "example" {
 ```
 See more examples in [terraform-akp-example](https://github.com/akuity/terraform-provider-akp/tree/main/examples).
 
-## Migration from v0.4
-### Cluster
-| Previous Field          | Current Field                     |
-|-------------------------|-----------------------------------|
-| `agent_version`         | `spec.data.target_version`        |
-| `auto_upgrade_disabled` | `spec.data.auto_upgrade_disabled` |
-| `description`           | `spec.description`                |
-| `kube_config`           | `kubeconfig`                      |
-| `namespace_scoped`      | `spec.namespace_scoped`           |
-| `size`                  | `spec.data.size`                  |
+## Upgrading
+- [Upgrading to v5.0](./docs/guides/v0.5-upgrading.md)

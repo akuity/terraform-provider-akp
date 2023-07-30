@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -16,6 +17,14 @@ import (
 type ConfigMap struct {
 	Data tftypes.Map `tfsdk:"data"`
 }
+
+var (
+	configMapAttrTypes = map[string]attr.Type{
+		"data": tftypes.MapType{
+			ElemType: tftypes.StringType,
+		},
+	}
+)
 
 func (c *ConfigMap) Update(ctx context.Context, diagnostics *diag.Diagnostics, data *structpb.Struct) {
 	m := map[string]string{}

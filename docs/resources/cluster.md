@@ -84,14 +84,21 @@ resource "akp_cluster" "example" {
 <a id="nestedatt--spec"></a>
 ### Nested Schema for `spec`
 
-Optional:
+Required:
 
 - `data` (Attributes) Cluster data (see [below for nested schema](#nestedatt--spec--data))
+
+Optional:
+
 - `description` (String) Cluster description
 - `namespace_scoped` (Boolean) If the agent is namespace scoped
 
 <a id="nestedatt--spec--data"></a>
 ### Nested Schema for `spec.data`
+
+Required:
+
+- `size` (String) Cluster Size. One of `small`, `medium` or `large`
 
 Optional:
 
@@ -99,7 +106,6 @@ Optional:
 - `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
 - `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
 - `redis_tunneling` (Boolean) Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy
-- `size` (String) Cluster Size. One of `small`, `medium` or `large`
 - `target_version` (String) The version of the agent to install on your cluster
 
 

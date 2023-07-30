@@ -44,6 +44,7 @@ data "akp_clusters" "example" {
 ### Read-Only
 
 - `clusters` (Attributes List) List of clusters (see [below for nested schema](#nestedatt--clusters))
+- `id` (String) Argo CD instance ID
 
 <a id="nestedatt--clusters"></a>
 ### Nested Schema for `clusters`

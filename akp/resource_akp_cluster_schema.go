@@ -108,7 +108,7 @@ func getClusterSpecAttributes() map[string]schema.Attribute {
 		},
 		"data": schema.SingleNestedAttribute{
 			MarkdownDescription: "Cluster data",
-			Optional:            true,
+			Required:            true,
 			Attributes:          getClusterDataAttributes(),
 		},
 	}
@@ -118,8 +118,7 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"size": schema.StringAttribute{
 			MarkdownDescription: "Cluster Size. One of `small`, `medium` or `large`",
-			Optional:            true,
-			Computed:            true,
+			Required:            true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
 			},
@@ -146,6 +145,7 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
+				boolplanmodifier.RequiresReplace(),
 			},
 		},
 		"target_version": schema.StringAttribute{
