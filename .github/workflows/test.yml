@@ -59,7 +59,7 @@ jobs:
   # Run acceptance tests in a matrix with Terraform CLI versions
   acceptance-test:
     name: Terraform Provider Acceptance Tests
-    needs: build
+    needs: unit-test
     runs-on: ubuntu-latest
     timeout-minutes: 45
     concurrency:

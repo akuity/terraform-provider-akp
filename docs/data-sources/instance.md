@@ -39,7 +39,7 @@ data "akp_instance" "example" {
 
 ### Read-Only
 
-- `argocd` (Attributes) Argo CD configmap (see [below for nested schema](#nestedatt--argocd))
+- `argocd` (Attributes) Argo CD instance (see [below for nested schema](#nestedatt--argocd))
 - `argocd_cm` (Attributes) Argo CD configmap (see [below for nested schema](#nestedatt--argocd_cm))
 - `argocd_image_updater_config` (Attributes) Argo CD image updater configmap (see [below for nested schema](#nestedatt--argocd_image_updater_config))
 - `argocd_image_updater_secret` (Attributes) Argo CD image updater secret (see [below for nested schema](#nestedatt--argocd_image_updater_secret))
@@ -90,14 +90,14 @@ Read-Only:
 - `sync_history_extension_enabled` (Boolean) Enable Sync History Extension. Sync count and duration graphs as well as event details table on Argo CD application details page.
 
 <a id="nestedatt--argocd--spec--instance_spec--app_set_delegate"></a>
-### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
+### Nested Schema for `argocd.spec.instance_spec.app_set_delegate`
 
 Read-Only:
 
-- `managed_cluster` (Attributes) Use managed cluster (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster))
+- `managed_cluster` (Attributes) Use managed cluster (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--app_set_delegate--managed_cluster))
 
-<a id="nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster"></a>
-### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled.managed_cluster`
+<a id="nestedatt--argocd--spec--instance_spec--app_set_delegate--managed_cluster"></a>
+### Nested Schema for `argocd.spec.instance_spec.app_set_delegate.managed_cluster`
 
 Read-Only:
 
@@ -106,7 +106,7 @@ Read-Only:
 
 
 <a id="nestedatt--argocd--spec--instance_spec--cluster_customization_defaults"></a>
-### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
+### Nested Schema for `argocd.spec.instance_spec.cluster_customization_defaults`
 
 Read-Only:
 
@@ -117,7 +117,7 @@ Read-Only:
 
 
 <a id="nestedatt--argocd--spec--instance_spec--extensions"></a>
-### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
+### Nested Schema for `argocd.spec.instance_spec.extensions`
 
 Read-Only:
 
@@ -126,15 +126,15 @@ Read-Only:
 
 
 <a id="nestedatt--argocd--spec--instance_spec--image_updater_delegate"></a>
-### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
+### Nested Schema for `argocd.spec.instance_spec.image_updater_delegate`
 
 Read-Only:
 
 - `control_plane` (Boolean) If use control plane or not
-- `managed_cluster` (Attributes) If use managed cluster or not (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster))
+- `managed_cluster` (Attributes) If use managed cluster or not (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--image_updater_delegate--managed_cluster))
 
-<a id="nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster"></a>
-### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled.managed_cluster`
+<a id="nestedatt--argocd--spec--instance_spec--image_updater_delegate--managed_cluster"></a>
+### Nested Schema for `argocd.spec.instance_spec.image_updater_delegate.managed_cluster`
 
 Read-Only:
 
@@ -143,7 +143,7 @@ Read-Only:
 
 
 <a id="nestedatt--argocd--spec--instance_spec--ip_allow_list"></a>
-### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
+### Nested Schema for `argocd.spec.instance_spec.ip_allow_list`
 
 Read-Only:
 
@@ -152,15 +152,15 @@ Read-Only:
 
 
 <a id="nestedatt--argocd--spec--instance_spec--repo_server_delegate"></a>
-### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
+### Nested Schema for `argocd.spec.instance_spec.repo_server_delegate`
 
 Read-Only:
 
 - `control_plane` (Boolean) If use control plane or not
-- `managed_cluster` (Attributes) If use managed cluster or not (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster))
+- `managed_cluster` (Attributes) If use managed cluster or not (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--repo_server_delegate--managed_cluster))
 
-<a id="nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster"></a>
-### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled.managed_cluster`
+<a id="nestedatt--argocd--spec--instance_spec--repo_server_delegate--managed_cluster"></a>
+### Nested Schema for `argocd.spec.instance_spec.repo_server_delegate.managed_cluster`
 
 Read-Only:
 

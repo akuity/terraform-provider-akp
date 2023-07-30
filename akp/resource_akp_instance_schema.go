@@ -45,6 +45,7 @@ func getAKPInstanceAttributes() map[string]schema.Attribute {
 		"argocd_rbac_cm": schema.SingleNestedAttribute{
 			MarkdownDescription: "Argo CD rbac configmap",
 			Optional:            true,
+			Computed:            true,
 			Attributes:          getConfigMapAttributes(),
 		},
 		"argocd_secret": schema.SingleNestedAttribute{
@@ -55,6 +56,7 @@ func getAKPInstanceAttributes() map[string]schema.Attribute {
 		"argocd_notifications_cm": schema.SingleNestedAttribute{
 			MarkdownDescription: "Argo CD notifications configmap",
 			Optional:            true,
+			Computed:            true,
 			Attributes:          getConfigMapAttributes(),
 		},
 		"argocd_notifications_secret": schema.SingleNestedAttribute{
@@ -65,11 +67,13 @@ func getAKPInstanceAttributes() map[string]schema.Attribute {
 		"argocd_image_updater_config": schema.SingleNestedAttribute{
 			MarkdownDescription: "Argo CD image updater configmap",
 			Optional:            true,
+			Computed:            true,
 			Attributes:          getConfigMapAttributes(),
 		},
 		"argocd_image_updater_ssh_config": schema.SingleNestedAttribute{
 			MarkdownDescription: "Argo CD image updater ssh configmap",
 			Optional:            true,
+			Computed:            true,
 			Attributes:          getConfigMapAttributes(),
 		},
 		"argocd_image_updater_secret": schema.SingleNestedAttribute{
@@ -80,11 +84,13 @@ func getAKPInstanceAttributes() map[string]schema.Attribute {
 		"argocd_ssh_known_hosts_cm": schema.SingleNestedAttribute{
 			MarkdownDescription: "Argo CD ssh known hosts configmap",
 			Optional:            true,
+			Computed:            true,
 			Attributes:          getConfigMapAttributes(),
 		},
 		"argocd_tls_certs_cm": schema.SingleNestedAttribute{
 			MarkdownDescription: "Argo CD tls certs configmap",
 			Optional:            true,
+			Computed:            true,
 			Attributes:          getConfigMapAttributes(),
 		},
 		"repo_credential_secrets": schema.ListNestedAttribute{
@@ -109,7 +115,7 @@ func getConfigMapAttributes() map[string]schema.Attribute {
 		"data": schema.MapAttribute{
 			MarkdownDescription: "ConfigMap data",
 			ElementType:         types.StringType,
-			Optional:            true,
+			Required:            true,
 			PlanModifiers: []planmodifier.Map{
 				mapplanmodifier.UseStateForUnknown(),
 			},
@@ -144,7 +150,6 @@ func getSecretAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Secret string data",
 			ElementType:         types.StringType,
 			Optional:            true,
-			Computed:            true,
 			Sensitive:           true,
 			PlanModifiers: []planmodifier.Map{
 				mapplanmodifier.UseStateForUnknown(),
@@ -179,7 +184,7 @@ func getArgoCDSpecAttributes() map[string]schema.Attribute {
 		},
 		"instance_spec": schema.SingleNestedAttribute{
 			MarkdownDescription: "Argo CD instance spec",
-			Optional:            true,
+			Required:            true,
 			Attributes:          getInstanceSpecAttributes(),
 		},
 	}

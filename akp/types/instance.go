@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 	"github.com/akuity/terraform-provider-akp/akp/apis/v1alpha1"
@@ -16,16 +17,16 @@ type Instance struct {
 	ID                            types.String `tfsdk:"id"`
 	Name                          types.String `tfsdk:"name"`
 	ArgoCD                        *ArgoCD      `tfsdk:"argocd"`
-	ArgoCDConfigMap               *ConfigMap   `tfsdk:"argocd_cm"`
-	ArgoCDRBACConfigMap           *ConfigMap   `tfsdk:"argocd_rbac_cm"`
+	ArgoCDConfigMap               types.Object `tfsdk:"argocd_cm"`
+	ArgoCDRBACConfigMap           types.Object `tfsdk:"argocd_rbac_cm"`
 	ArgoCDSecret                  *Secret      `tfsdk:"argocd_secret"`
-	NotificationsConfigMap        *ConfigMap   `tfsdk:"argocd_notifications_cm"`
+	NotificationsConfigMap        types.Object `tfsdk:"argocd_notifications_cm"`
 	NotificationsSecret           *Secret      `tfsdk:"argocd_notifications_secret"`
-	ImageUpdaterConfigMap         *ConfigMap   `tfsdk:"argocd_image_updater_config"`
-	ImageUpdaterSSHConfigMap      *ConfigMap   `tfsdk:"argocd_image_updater_ssh_config"`
+	ImageUpdaterConfigMap         types.Object `tfsdk:"argocd_image_updater_config"`
+	ImageUpdaterSSHConfigMap      types.Object `tfsdk:"argocd_image_updater_ssh_config"`
 	ImageUpdaterSecret            *Secret      `tfsdk:"argocd_image_updater_secret"`
-	ArgoCDKnownHostsConfigMap     *ConfigMap   `tfsdk:"argocd_ssh_known_hosts_cm"`
-	ArgoCDTLSCertsConfigMap       *ConfigMap   `tfsdk:"argocd_tls_certs_cm"`
+	ArgoCDKnownHostsConfigMap     types.Object `tfsdk:"argocd_ssh_known_hosts_cm"`
+	ArgoCDTLSCertsConfigMap       types.Object `tfsdk:"argocd_tls_certs_cm"`
 	RepoCredentialSecrets         []Secret     `tfsdk:"repo_credential_secrets"`
 	RepoTemplateCredentialSecrets []Secret     `tfsdk:"repo_template_credential_secrets"`
 }
@@ -55,32 +56,25 @@ func (i *Instance) Update(ctx context.Context, diagnostics *diag.Diagnostics, ex
 		i.ArgoCD = &ArgoCD{}
 	}
 	i.ArgoCD.Update(ctx, diagnostics, argoCD)
-	if i.ArgoCDConfigMap == nil {
-		i.ArgoCDConfigMap = &ConfigMap{}
+	i.ArgoCDConfigMap = i.UpdateConfigMapObj(ctx, diagnostics, exportResp.ArgocdConfigmap)
+	i.ArgoCDRBACConfigMap = i.UpdateConfigMapObj(ctx, diagnostics, exportResp.ArgocdRbacConfigmap)
+	i.NotificationsConfigMap = i.UpdateConfigMapObj(ctx, diagnostics, exportResp.NotificationsConfigmap)
+	i.ImageUpdaterConfigMap = i.UpdateConfigMapObj(ctx, diagnostics, exportResp.ImageUpdaterConfigmap)
+	i.ImageUpdaterSSHConfigMap = i.UpdateConfigMapObj(ctx, diagnostics, exportResp.ImageUpdaterSshConfigmap)
+	i.ArgoCDTLSCertsConfigMap = i.UpdateConfigMapObj(ctx, diagnostics, exportResp.ArgocdTlsCertsConfigmap)
+	i.ArgoCDKnownHostsConfigMap = i.UpdateConfigMapObj(ctx, diagnostics, exportResp.ArgocdKnownHostsConfigmap)
+}
+
+func (i *Instance) UpdateConfigMapObj(ctx context.Context, diagnostics *diag.Diagnostics, data *structpb.Struct) types.Object {
+	if data == nil || len(data.AsMap()) == 0 {
+		return types.ObjectNull(configMapAttrTypes)
 	}
-	i.ArgoCDConfigMap.Update(ctx, diagnostics, exportResp.ArgocdConfigmap)
-	if i.ArgoCDRBACConfigMap == nil {
-		i.ArgoCDRBACConfigMap = &ConfigMap{}
+	cm := &ConfigMap{}
+	cm.Update(ctx, diagnostics, data)
+	cmObject, diag := types.ObjectValueFrom(ctx, configMapAttrTypes, cm)
+	diagnostics.Append(diag...)
+	if diagnostics.HasError() {
+		return types.ObjectNull(configMapAttrTypes)
 	}
-	i.ArgoCDRBACConfigMap.Update(ctx, diagnostics, exportResp.ArgocdRbacConfigmap)
-	if i.NotificationsConfigMap == nil {
-		i.NotificationsConfigMap = &ConfigMap{}
-	}
-	i.NotificationsConfigMap.Update(ctx, diagnostics, exportResp.NotificationsConfigmap)
-	if i.ImageUpdaterConfigMap == nil {
-		i.ImageUpdaterConfigMap = &ConfigMap{}
-	}
-	i.ImageUpdaterConfigMap.Update(ctx, diagnostics, exportResp.ImageUpdaterConfigmap)
-	if i.ImageUpdaterSSHConfigMap == nil {
-		i.ImageUpdaterSSHConfigMap = &ConfigMap{}
-	}
-	i.ImageUpdaterSSHConfigMap.Update(ctx, diagnostics, exportResp.ImageUpdaterSshConfigmap)
-	if i.ArgoCDTLSCertsConfigMap == nil {
-		i.ArgoCDTLSCertsConfigMap = &ConfigMap{}
-	}
-	i.ArgoCDTLSCertsConfigMap.Update(ctx, diagnostics, exportResp.ArgocdTlsCertsConfigmap)
-	if i.ArgoCDKnownHostsConfigMap == nil {
-		i.ArgoCDKnownHostsConfigMap = &ConfigMap{}
-	}
-	i.ArgoCDKnownHostsConfigMap.Update(ctx, diagnostics, exportResp.ArgocdKnownHostsConfigmap)
+	return cmObject
 }

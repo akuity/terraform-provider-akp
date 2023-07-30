@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"google.golang.org/protobuf/types/known/structpb"
 
@@ -185,7 +186,18 @@ func buildSecrets(ctx context.Context, diagnostics *diag.Diagnostics, secrets []
 	return res
 }
 
-func buildConfigMap(ctx context.Context, diagnostics *diag.Diagnostics, cm *types.ConfigMap, name string) *structpb.Struct {
+func buildConfigMap(ctx context.Context, diagnostics *diag.Diagnostics, cmObj tftypes.Object, name string) *structpb.Struct {
+	cm := &types.ConfigMap{}
+	diagnostics.Append(cmObj.As(ctx, cm, basetypes.ObjectAsOptions{
+		UnhandledNullAsEmpty:    true,
+		UnhandledUnknownAsEmpty: true,
+	})...)
+	if diagnostics.HasError() {
+		return nil
+	}
+	if cm == nil || cm.Data.IsNull() {
+		return nil
+	}
 	apiModel := cm.ToConfigMapAPIModel(ctx, diagnostics, name)
 	m := map[string]interface{}{}
 	if err := marshal.RemarshalTo(apiModel, &m); err != nil {
@@ -200,6 +212,9 @@ func buildConfigMap(ctx context.Context, diagnostics *diag.Diagnostics, cm *type
 }
 
 func buildSecret(ctx context.Context, diagnostics *diag.Diagnostics, secret *types.Secret, name string) *structpb.Struct {
+	if secret == nil {
+		return nil
+	}
 	apiModel := secret.ToSecretAPIModel(ctx, diagnostics, name)
 	m := map[string]interface{}{}
 	if err := marshal.RemarshalTo(apiModel, &m); err != nil {

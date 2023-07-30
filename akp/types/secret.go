@@ -35,7 +35,7 @@ func (s *Secret) GetSensitiveStrings() []string {
 
 func (s *Secret) ToSecretAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, name string) *v1.Secret {
 	var labels map[string]string
-	var data map[string][]byte
+	var data map[string]string
 	var stringData map[string]string
 	diagnostics.Append(s.Labels.ElementsAs(ctx, &labels, true)...)
 	diagnostics.Append(s.Data.ElementsAs(ctx, &data, true)...)
@@ -43,6 +43,13 @@ func (s *Secret) ToSecretAPIModel(ctx context.Context, diagnostics *diag.Diagnos
 	n := name
 	if !s.Name.IsNull() && !s.Name.IsUnknown() {
 		n = s.Name.ValueString()
+	}
+	var dataM map[string][]byte
+	if len(data) != 0 {
+		dataM = make(map[string][]byte)
+		for k, v := range data {
+			dataM[k] = []byte(v)
+		}
 	}
 	return &v1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -53,7 +60,7 @@ func (s *Secret) ToSecretAPIModel(ctx context.Context, diagnostics *diag.Diagnos
 			Name:   n,
 			Labels: labels,
 		},
-		Data:       data,
+		Data:       dataM,
 		StringData: stringData,
 	}
 }
