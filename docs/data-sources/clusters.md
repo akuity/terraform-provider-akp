@@ -58,14 +58,14 @@ Read-Only:
 
 - `annotations` (Map of String) Annotations
 - `id` (String) Cluster ID
-- `kubeconfig` (Attributes) Kubernetes connection settings. If configured, terraform will try to connect to the cluster and install the agent (see [below for nested schema](#nestedatt--clusters--kubeconfig))
+- `kube_config` (Attributes) Kubernetes connection settings. If configured, terraform will try to connect to the cluster and install the agent (see [below for nested schema](#nestedatt--clusters--kube_config))
 - `labels` (Map of String) Labels
 - `manifests` (String, Sensitive) Agent installation manifests
 - `namespace` (String) Agent installation namespace
 - `spec` (Attributes) Cluster spec (see [below for nested schema](#nestedatt--clusters--spec))
 
-<a id="nestedatt--clusters--kubeconfig"></a>
-### Nested Schema for `clusters.kubeconfig`
+<a id="nestedatt--clusters--kube_config"></a>
+### Nested Schema for `clusters.kube_config`
 
 Read-Only:
 

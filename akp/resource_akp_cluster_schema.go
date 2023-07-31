@@ -74,7 +74,7 @@ func getAKPClusterAttributes() map[string]schema.Attribute {
 			Required:            true,
 			Attributes:          getClusterSpecAttributes(),
 		},
-		"kubeconfig": schema.SingleNestedAttribute{
+		"kube_config": schema.SingleNestedAttribute{
 			MarkdownDescription: "Kubernetes connection settings. If configured, terraform will try to connect to the cluster and install the agent",
 			Optional:            true,
 			Attributes:          getKubeconfigAttributes(),

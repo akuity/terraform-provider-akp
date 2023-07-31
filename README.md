@@ -48,7 +48,7 @@ data "akp_instance" "existing" {
 # Add cluster to the existing instance and install the agent
 resource "akp_cluster" "example" {
    instance_id = data.akp_instance.example.id
-   kubeconfig = {
+   kube_config = {
       "config_path" = "test.kubeconfig"
    }
    name      = "test-cluster"

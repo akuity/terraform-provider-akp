@@ -47,14 +47,14 @@ data "akp_cluster" "example" {
 
 - `annotations` (Map of String) Annotations
 - `id` (String) Cluster ID
-- `kubeconfig` (Attributes) Kubernetes connection settings. If configured, terraform will try to connect to the cluster and install the agent (see [below for nested schema](#nestedatt--kubeconfig))
+- `kube_config` (Attributes) Kubernetes connection settings. If configured, terraform will try to connect to the cluster and install the agent (see [below for nested schema](#nestedatt--kube_config))
 - `labels` (Map of String) Labels
 - `manifests` (String, Sensitive) Agent installation manifests
 - `namespace` (String) Agent installation namespace
 - `spec` (Attributes) Cluster spec (see [below for nested schema](#nestedatt--spec))
 
-<a id="nestedatt--kubeconfig"></a>
-### Nested Schema for `kubeconfig`
+<a id="nestedatt--kube_config"></a>
+### Nested Schema for `kube_config`
 
 Read-Only:
 

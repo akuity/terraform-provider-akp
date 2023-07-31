@@ -18,7 +18,7 @@ type Cluster struct {
 	Labels      types.Map    `tfsdk:"labels"`
 	Annotations types.Map    `tfsdk:"annotations"`
 	Spec        *ClusterSpec `tfsdk:"spec"`
-	Kubeconfig  *Kubeconfig  `tfsdk:"kubeconfig"`
+	Kubeconfig  *Kubeconfig  `tfsdk:"kube_config"`
 	Manifests   types.String `tfsdk:"manifests"`
 }
 
