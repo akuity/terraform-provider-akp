@@ -56,6 +56,7 @@ func (r *AkpInstanceResource) Configure(ctx context.Context, req resource.Config
 }
 
 func (r *AkpInstanceResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	tflog.Debug(ctx, "Creating an instance")
 	var plan types.Instance
 
 	// Read Terraform plan data into the model
@@ -69,6 +70,7 @@ func (r *AkpInstanceResource) Create(ctx context.Context, req resource.CreateReq
 }
 
 func (r *AkpInstanceResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	tflog.Debug(ctx, "Reading an instance")
 	var data types.Instance
 	// Read Terraform prior state data into the model
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
@@ -84,6 +86,7 @@ func (r *AkpInstanceResource) Read(ctx context.Context, req resource.ReadRequest
 }
 
 func (r *AkpInstanceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	tflog.Debug(ctx, "Updating an instance")
 	var plan types.Instance
 
 	// Read Terraform plan data into the model
@@ -97,6 +100,7 @@ func (r *AkpInstanceResource) Update(ctx context.Context, req resource.UpdateReq
 }
 
 func (r *AkpInstanceResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	tflog.Debug(ctx, "Deleting an instance")
 	var state types.Instance
 
 	diags := req.State.Get(ctx, &state)
@@ -128,6 +132,7 @@ func (r *AkpInstanceResource) upsert(ctx context.Context, diagnostics *diag.Diag
 
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 	apiReq := buildApplyRequest(ctx, diagnostics, plan, r.akpCli.OrgId)
+	tflog.Debug(ctx, fmt.Sprintf("Apply instance request: %s", apiReq.Argocd))
 	_, err := r.akpCli.Cli.ApplyInstance(ctx, apiReq)
 	if err != nil {
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to upsert Argo CD instance. %s", err))
@@ -234,20 +239,25 @@ func refreshState(ctx context.Context, diagnostics *diag.Diagnostics, client arg
 		IdType:         idv1.Type_NAME,
 		Id:             instance.Name.ValueString(),
 	}
+	tflog.Debug(ctx, fmt.Sprintf("Get instance request: %s", getInstanceReq))
 	getInstanceResp, err := client.GetInstance(ctx, getInstanceReq)
 	if err != nil {
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read Argo CD instance: %s", err))
 		return
 	}
+	tflog.Debug(ctx, fmt.Sprintf("Get instance response: %s", getInstanceResp))
 	instance.ID = tftypes.StringValue(getInstanceResp.Instance.Id)
-	exportResp, err := client.ExportInstance(ctx, &argocdv1.ExportInstanceRequest{
+	exportReq := &argocdv1.ExportInstanceRequest{
 		OrganizationId: orgID,
 		IdType:         idv1.Type_NAME,
 		Id:             instance.Name.ValueString(),
-	})
+	}
+	tflog.Debug(ctx, fmt.Sprintf("Export instance request: %s", exportReq))
+	exportResp, err := client.ExportInstance(ctx, exportReq)
 	if err != nil {
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to export Argo CD instance. %s", err))
 		return
 	}
+	tflog.Debug(ctx, fmt.Sprintf("Export instance response: %s", exportResp))
 	instance.Update(ctx, diagnostics, exportResp)
 }

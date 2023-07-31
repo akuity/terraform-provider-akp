@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
@@ -45,6 +46,7 @@ func (d *AkpClustersDataSource) Configure(ctx context.Context, req datasource.Co
 }
 
 func (d *AkpClustersDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	tflog.Debug(ctx, "Reading a Clusters Datasource")
 	var data types.Clusters
 
 	// Read Terraform configuration data into the model
@@ -59,11 +61,13 @@ func (d *AkpClustersDataSource) Read(ctx context.Context, req datasource.ReadReq
 		OrganizationId: d.akpCli.OrgId,
 		InstanceId:     data.InstanceID.ValueString(),
 	}
+	tflog.Debug(ctx, fmt.Sprintf("List cluster request: %s", apiReq))
 	apiResp, err := d.akpCli.Cli.ListInstanceClusters(ctx, apiReq)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read instance clusters, got error: %s", err))
 		return
 	}
+	tflog.Debug(ctx, fmt.Sprintf("List cluster response: %s", apiResp))
 
 	data.ID = data.InstanceID
 	clusters := apiResp.GetClusters()

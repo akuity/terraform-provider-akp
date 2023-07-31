@@ -60,6 +60,7 @@ func (r *AkpClusterResource) Configure(ctx context.Context, req resource.Configu
 }
 
 func (r *AkpClusterResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	tflog.Debug(ctx, "Creating a Cluster")
 	var plan types.Cluster
 
 	// Read Terraform plan data into the model
@@ -73,6 +74,7 @@ func (r *AkpClusterResource) Create(ctx context.Context, req resource.CreateRequ
 }
 
 func (r *AkpClusterResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	tflog.Debug(ctx, "Reading a Cluster")
 	var data types.Cluster
 	// Read Terraform prior state data into the model
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
@@ -86,6 +88,7 @@ func (r *AkpClusterResource) Read(ctx context.Context, req resource.ReadRequest,
 }
 
 func (r *AkpClusterResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	tflog.Debug(ctx, "Updating a Cluster")
 	var plan types.Cluster
 
 	// Read Terraform plan data into the model
@@ -99,7 +102,7 @@ func (r *AkpClusterResource) Update(ctx context.Context, req resource.UpdateRequ
 }
 
 func (r *AkpClusterResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	tflog.Debug(ctx, "Deleting an Cluster")
+	tflog.Debug(ctx, "Deleting a Cluster")
 	var plan types.Cluster
 	// Read Terraform prior state data into the model
 	resp.Diagnostics.Append(req.State.Get(ctx, &plan)...)
@@ -142,6 +145,7 @@ func (r *AkpClusterResource) ImportState(ctx context.Context, req resource.Impor
 func (r *AkpClusterResource) upsert(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.Cluster, isCreate bool) {
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 	apiReq := buildClusterApplyRequest(ctx, diagnostics, plan, r.akpCli.OrgId)
+	tflog.Debug(ctx, fmt.Sprintf("Apply cluster request: %s", apiReq))
 	_, err := r.akpCli.Cli.ApplyInstance(ctx, apiReq)
 	if err != nil {
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Argo CD instance. %s", err))
@@ -179,21 +183,25 @@ func refreshClusterState(ctx context.Context, diagnostics *diag.Diagnostics, cli
 		IdType:         idv1.Type_NAME,
 	}
 
+	tflog.Debug(ctx, fmt.Sprintf("Get cluster request: %s", clusterReq))
 	clusterResp, err := client.GetInstanceCluster(ctx, clusterReq)
 	if err != nil {
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read Argo CD cluster: %s", err))
 		return
 	}
+	tflog.Debug(ctx, fmt.Sprintf("Get cluster response: %s", clusterResp))
 	cluster.Update(ctx, diagnostics, clusterResp.GetCluster())
 	cluster.Manifests = getManifests(ctx, diagnostics, client, orgID, cluster)
 }
 
 func buildClusterApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, cluster *types.Cluster, orgId string) *argocdv1.ApplyInstanceRequest {
 	applyReq := &argocdv1.ApplyInstanceRequest{
-		OrganizationId: orgId,
-		IdType:         idv1.Type_ID,
-		Id:             cluster.InstanceID.ValueString(),
-		Clusters:       buildClusters(ctx, diagnostics, cluster),
+		OrganizationId:             orgId,
+		IdType:                     idv1.Type_ID,
+		Id:                         cluster.InstanceID.ValueString(),
+		Clusters:                   buildClusters(ctx, diagnostics, cluster),
+		PruneClusters:              false,
+		PruneRepoCredentialSecrets: false,
 	}
 	return applyReq
 }

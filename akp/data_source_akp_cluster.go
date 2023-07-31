@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 
 	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
 	"github.com/akuity/terraform-provider-akp/akp/types"
@@ -44,6 +45,7 @@ func (d *AkpClusterDataSource) Configure(ctx context.Context, req datasource.Con
 }
 
 func (d *AkpClusterDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	tflog.Debug(ctx, "Reading a Cluster Datasource")
 	var data types.Cluster
 
 	// Read Terraform configuration data into the model
