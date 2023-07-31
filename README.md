@@ -79,4 +79,4 @@ resource "akp_cluster" "example" {
 See more examples in [terraform-akp-example](https://github.com/akuity/terraform-provider-akp/tree/main/examples).
 
 ## Upgrading
-- [Upgrading to v5.0](./docs/guides/v0.5-upgrading.md)
+- [Upgrading to v0.5](./docs/guides/v0.5-upgrading.md)
