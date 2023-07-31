@@ -31,10 +31,10 @@ data "akp_instance" "example" {
 
 resource "akp_cluster" "example" {
   instance_id = data.akp_instance.example.id
-  kubeconfig = {
+  kube_config = {
     "config_path" = "test.kubeconfig"
   }
-  name      = "test-cluster-create"
+  name      = "test-cluster"
   namespace = "test"
   labels = {
     test-label = "true"
@@ -73,7 +73,7 @@ resource "akp_cluster" "example" {
 ### Optional
 
 - `annotations` (Map of String) Annotations
-- `kubeconfig` (Attributes) Kubernetes connection settings. If configured, terraform will try to connect to the cluster and install the agent (see [below for nested schema](#nestedatt--kubeconfig))
+- `kube_config` (Attributes) Kubernetes connection settings. If configured, terraform will try to connect to the cluster and install the agent (see [below for nested schema](#nestedatt--kube_config))
 - `labels` (Map of String) Labels
 
 ### Read-Only
@@ -110,8 +110,8 @@ Optional:
 
 
 
-<a id="nestedatt--kubeconfig"></a>
-### Nested Schema for `kubeconfig`
+<a id="nestedatt--kube_config"></a>
+### Nested Schema for `kube_config`
 
 Optional:
 

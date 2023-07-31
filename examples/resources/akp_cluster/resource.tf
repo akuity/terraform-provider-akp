@@ -16,10 +16,10 @@ data "akp_instance" "example" {
 
 resource "akp_cluster" "example" {
   instance_id = data.akp_instance.example.id
-  kubeconfig = {
+  kube_config = {
     "config_path" = "test.kubeconfig"
   }
-  name      = "test-cluster-create"
+  name      = "test-cluster"
   namespace = "test"
   labels = {
     test-label = "true"

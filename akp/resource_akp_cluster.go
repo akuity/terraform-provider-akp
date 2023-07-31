@@ -161,7 +161,6 @@ func (r *AkpClusterResource) upsert(ctx context.Context, diagnostics *diag.Diagn
 
 	// Apply the manifests
 	if kubeconfig != nil && isCreate {
-		tflog.Debug(ctx, fmt.Sprintf("------------applying"))
 		diagnostics.Append(applyManifests(ctx, plan.Manifests.ValueString(), kubeconfig)...)
 		if diagnostics.HasError() {
 			return
