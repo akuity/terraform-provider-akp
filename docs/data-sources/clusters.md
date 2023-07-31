@@ -13,18 +13,6 @@ Find all clusters attached to an Argo CD instance
 ## Example Usage
 
 ```terraform
-terraform {
-  required_providers {
-    akp = {
-      source = "akuity/akp"
-    }
-  }
-}
-
-provider "akp" {
-  org_name = "test"
-}
-
 data "akp_instance" "example" {
   name = "test"
 }

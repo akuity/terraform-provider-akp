@@ -13,16 +13,8 @@ description: |-
 ## Example Usage
 
 ```terraform
-terraform {
-  required_providers {
-    akp = {
-      source = "akuity/akp"
-    }
-  }
-}
-
 provider "akp" {
-  org_name = "test"
+  org_name = "organization-name"
 }
 ```
 
