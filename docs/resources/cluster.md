@@ -3,12 +3,12 @@
 page_title: "akp_cluster Resource - akp"
 subcategory: ""
 description: |-
-  Manage a cluster attached to an Argo CD instance. Use .manifests attribute to get agent installation manifests
+  Manages a cluster attached to an Argo CD instance.
 ---
 
 # akp_cluster (Resource)
 
-Manage a cluster attached to an Argo CD instance. Use `.manifests` attribute to get agent installation manifests
+Manages a cluster attached to an Argo CD instance.
 
 ## Example Usage
 

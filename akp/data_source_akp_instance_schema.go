@@ -10,7 +10,7 @@ import (
 
 func (r *AkpInstanceDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Find an Argo CD instance by its name",
+		MarkdownDescription: "Gets information about an Argo CD instance by its name",
 		Attributes:          getAKPInstanceDataSourceAttributes(),
 	}
 }

@@ -3,12 +3,12 @@
 page_title: "akp_instance Data Source - akp"
 subcategory: ""
 description: |-
-  Find an Argo CD instance by its name
+  Gets information about an Argo CD instance by its name
 ---
 
 # akp_instance (Data Source)
 
-Find an Argo CD instance by its name
+Gets information about an Argo CD instance by its name
 
 ## Example Usage
 

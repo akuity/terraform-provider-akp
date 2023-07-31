@@ -3,12 +3,12 @@
 page_title: "akp_instance Resource - akp"
 subcategory: ""
 description: |-
-  
+  Manages an Argo CD instance
 ---
 
 # akp_instance (Resource)
 
-
+Manages an Argo CD instance
 
 ## Example Usage
 

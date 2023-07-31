@@ -10,7 +10,7 @@ import (
 
 func (d *AkpClusterDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Find a cluster by its name and Argo CD instance ID",
+		MarkdownDescription: "Gets information about a cluster by its name and Argo CD instance ID",
 		Attributes:          getAKPClusterDataSourceAttributes(),
 	}
 }

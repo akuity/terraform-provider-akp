@@ -3,12 +3,12 @@
 page_title: "akp_clusters Data Source - akp"
 subcategory: ""
 description: |-
-  Find all clusters attached to an Argo CD instance
+  Gets information about all clusters attached to an Argo CD instance
 ---
 
 # akp_clusters (Data Source)
 
-Find all clusters attached to an Argo CD instance
+Gets information about all clusters attached to an Argo CD instance
 
 ## Example Usage
 

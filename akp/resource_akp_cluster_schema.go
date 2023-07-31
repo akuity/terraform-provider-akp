@@ -15,7 +15,7 @@ import (
 
 func (r *AkpClusterResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Manage a cluster attached to an Argo CD instance. Use `.manifests` attribute to get agent installation manifests",
+		MarkdownDescription: "Manages a cluster attached to an Argo CD instance.",
 		Attributes:          getAKPClusterAttributes(),
 	}
 }

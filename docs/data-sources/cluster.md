@@ -3,12 +3,12 @@
 page_title: "akp_cluster Data Source - akp"
 subcategory: ""
 description: |-
-  Find a cluster by its name and Argo CD instance ID
+  Gets information about a cluster by its name and Argo CD instance ID
 ---
 
 # akp_cluster (Data Source)
 
-Find a cluster by its name and Argo CD instance ID
+Gets information about a cluster by its name and Argo CD instance ID
 
 ## Example Usage
 
