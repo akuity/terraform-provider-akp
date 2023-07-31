@@ -46,6 +46,7 @@ func (r *AkpInstanceDataSource) Configure(ctx context.Context, req datasource.Co
 }
 
 func (r *AkpInstanceDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	tflog.Debug(ctx, "Reading an Instance Datasource")
 	var data types.Instance
 	// Read Terraform prior state data into the model
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
