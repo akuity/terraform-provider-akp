@@ -178,6 +178,10 @@ func getArgoCDSpecAttributes() map[string]schema.Attribute {
 		"description": schema.StringAttribute{
 			MarkdownDescription: "Instance description",
 			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
 		},
 		"version": schema.StringAttribute{
 			MarkdownDescription: "Argo CD version. Should be equal to any [argo cd image tag](https://quay.io/repository/argoproj/argocd?tab=tags).",
