@@ -245,7 +245,13 @@ func toManagedClusterAPIModel(cluster *ManagedCluster) *v1alpha1.ManagedCluster 
 
 func toClusterCustomizationAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, clusterCustomization tftypes.Object) *v1alpha1.ClusterCustomization {
 	var customization ClusterCustomization
-	diagnostics.Append(clusterCustomization.As(ctx, &customization, basetypes.ObjectAsOptions{})...)
+	diagnostics.Append(clusterCustomization.As(ctx, &customization, basetypes.ObjectAsOptions{
+		UnhandledNullAsEmpty:    true,
+		UnhandledUnknownAsEmpty: true,
+	})...)
+	if diagnostics.HasError() {
+		return nil
+	}
 	raw := runtime.RawExtension{}
 	if err := yaml.Unmarshal([]byte(customization.Kustomization.ValueString()), &raw); err != nil {
 		diagnostics.AddError("failed unmarshal kustomization string to yaml", err.Error())
@@ -347,7 +353,7 @@ func toClusterCustomizationTFModel(ctx context.Context, diagnostics *diag.Diagno
 	if customization.RedisTunneling != nil && *customization.RedisTunneling {
 		redisTunneling = true
 	}
-	c := ClusterCustomization{
+	c := &ClusterCustomization{
 		AutoUpgradeDisabled: tftypes.BoolValue(autoUpgradeDisabled),
 		Kustomization:       tftypes.StringValue(string(yamlData)),
 		AppReplication:      tftypes.BoolValue(appReplication),
@@ -355,6 +361,9 @@ func toClusterCustomizationTFModel(ctx context.Context, diagnostics *diag.Diagno
 	}
 	clusterCustomization, d := tftypes.ObjectValueFrom(ctx, clusterCustomizationAttrTypes, c)
 	diagnostics.Append(d...)
+	if diagnostics.HasError() {
+		return tftypes.ObjectNull(clusterCustomizationAttrTypes)
+	}
 	return clusterCustomization
 }
 
