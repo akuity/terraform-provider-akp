@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -42,12 +43,18 @@ func getAKPInstanceAttributes() map[string]schema.Attribute {
 			Optional:            true,
 			Computed:            true,
 			Attributes:          getConfigMapAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier.UseStateForUnknown(),
+			},
 		},
 		"argocd_rbac_cm": schema.SingleNestedAttribute{
 			MarkdownDescription: "Argo CD rbac configmap",
 			Optional:            true,
 			Computed:            true,
 			Attributes:          getConfigMapAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier.UseStateForUnknown(),
+			},
 		},
 		"argocd_secret": schema.SingleNestedAttribute{
 			MarkdownDescription: "Argo CD secret",
@@ -59,6 +66,9 @@ func getAKPInstanceAttributes() map[string]schema.Attribute {
 			Optional:            true,
 			Computed:            true,
 			Attributes:          getConfigMapAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier.UseStateForUnknown(),
+			},
 		},
 		"argocd_notifications_secret": schema.SingleNestedAttribute{
 			MarkdownDescription: "Argo CD notifiations secret",
@@ -70,12 +80,18 @@ func getAKPInstanceAttributes() map[string]schema.Attribute {
 			Optional:            true,
 			Computed:            true,
 			Attributes:          getConfigMapAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier.UseStateForUnknown(),
+			},
 		},
 		"argocd_image_updater_ssh_config": schema.SingleNestedAttribute{
 			MarkdownDescription: "Argo CD image updater ssh configmap",
 			Optional:            true,
 			Computed:            true,
 			Attributes:          getConfigMapAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier.UseStateForUnknown(),
+			},
 		},
 		"argocd_image_updater_secret": schema.SingleNestedAttribute{
 			MarkdownDescription: "Argo CD image updater secret",
@@ -87,12 +103,18 @@ func getAKPInstanceAttributes() map[string]schema.Attribute {
 			Optional:            true,
 			Computed:            true,
 			Attributes:          getConfigMapAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier.UseStateForUnknown(),
+			},
 		},
 		"argocd_tls_certs_cm": schema.SingleNestedAttribute{
 			MarkdownDescription: "Argo CD tls certs configmap",
 			Optional:            true,
 			Computed:            true,
 			Attributes:          getConfigMapAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier.UseStateForUnknown(),
+			},
 		},
 		"repo_credential_secrets": schema.ListNestedAttribute{
 			MarkdownDescription: "Argo CD repo credential secrets",
@@ -232,6 +254,9 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 			Optional:            true,
 			Computed:            true,
 			Attributes:          getClusterCustomizationAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier.UseStateForUnknown(),
+			},
 		},
 		"image_updater_enabled": schema.BoolAttribute{
 			MarkdownDescription: "Enable Image Updater",

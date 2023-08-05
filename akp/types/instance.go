@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
@@ -56,18 +57,28 @@ func (i *Instance) Update(ctx context.Context, diagnostics *diag.Diagnostics, ex
 		i.ArgoCD = &ArgoCD{}
 	}
 	i.ArgoCD.Update(ctx, diagnostics, argoCD)
-	i.ArgoCDConfigMap = i.UpdateConfigMapObj(ctx, diagnostics, exportResp.ArgocdConfigmap)
-	i.ArgoCDRBACConfigMap = i.UpdateConfigMapObj(ctx, diagnostics, exportResp.ArgocdRbacConfigmap)
-	i.NotificationsConfigMap = i.UpdateConfigMapObj(ctx, diagnostics, exportResp.NotificationsConfigmap)
-	i.ImageUpdaterConfigMap = i.UpdateConfigMapObj(ctx, diagnostics, exportResp.ImageUpdaterConfigmap)
-	i.ImageUpdaterSSHConfigMap = i.UpdateConfigMapObj(ctx, diagnostics, exportResp.ImageUpdaterSshConfigmap)
-	i.ArgoCDTLSCertsConfigMap = i.UpdateConfigMapObj(ctx, diagnostics, exportResp.ArgocdTlsCertsConfigmap)
-	i.ArgoCDKnownHostsConfigMap = i.UpdateConfigMapObj(ctx, diagnostics, exportResp.ArgocdKnownHostsConfigmap)
+	i.ArgoCDConfigMap = i.UpdateConfigMapObj(ctx, diagnostics, exportResp.ArgocdConfigmap, i.ArgoCDConfigMap)
+	i.ArgoCDRBACConfigMap = i.UpdateConfigMapObj(ctx, diagnostics, exportResp.ArgocdRbacConfigmap, i.ArgoCDRBACConfigMap)
+	i.NotificationsConfigMap = i.UpdateConfigMapObj(ctx, diagnostics, exportResp.NotificationsConfigmap, i.NotificationsConfigMap)
+	i.ImageUpdaterConfigMap = i.UpdateConfigMapObj(ctx, diagnostics, exportResp.ImageUpdaterConfigmap, i.ImageUpdaterConfigMap)
+	i.ImageUpdaterSSHConfigMap = i.UpdateConfigMapObj(ctx, diagnostics, exportResp.ImageUpdaterSshConfigmap, i.ImageUpdaterSSHConfigMap)
+	i.ArgoCDTLSCertsConfigMap = i.UpdateConfigMapObj(ctx, diagnostics, exportResp.ArgocdTlsCertsConfigmap, i.ArgoCDTLSCertsConfigMap)
+	i.ArgoCDKnownHostsConfigMap = i.UpdateConfigMapObj(ctx, diagnostics, exportResp.ArgocdKnownHostsConfigmap, i.ArgoCDKnownHostsConfigMap)
 }
 
-func (i *Instance) UpdateConfigMapObj(ctx context.Context, diagnostics *diag.Diagnostics, data *structpb.Struct) types.Object {
+func (i *Instance) UpdateConfigMapObj(ctx context.Context, diagnostics *diag.Diagnostics, data *structpb.Struct, oldObj types.Object) types.Object {
 	if data == nil || len(data.AsMap()) == 0 {
-		return types.ObjectNull(configMapAttrTypes)
+		if oldObj.IsNull() {
+			return oldObj
+		}
+		cm := &ConfigMap{}
+		oldObj.As(ctx, cm, basetypes.ObjectAsOptions{
+			UnhandledNullAsEmpty:    true,
+			UnhandledUnknownAsEmpty: true,
+		})
+		if !oldObj.IsUnknown() && (cm.Data.IsNull() || len(cm.Data.Elements()) == 0) {
+			return oldObj
+		}
 	}
 	cm := &ConfigMap{}
 	cm.Update(ctx, diagnostics, data)
