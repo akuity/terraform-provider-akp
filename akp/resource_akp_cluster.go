@@ -196,12 +196,10 @@ func refreshClusterState(ctx context.Context, diagnostics *diag.Diagnostics, cli
 
 func buildClusterApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, cluster *types.Cluster, orgId string) *argocdv1.ApplyInstanceRequest {
 	applyReq := &argocdv1.ApplyInstanceRequest{
-		OrganizationId:             orgId,
-		IdType:                     idv1.Type_ID,
-		Id:                         cluster.InstanceID.ValueString(),
-		Clusters:                   buildClusters(ctx, diagnostics, cluster),
-		PruneClusters:              false,
-		PruneRepoCredentialSecrets: false,
+		OrganizationId: orgId,
+		IdType:         idv1.Type_ID,
+		Id:             cluster.InstanceID.ValueString(),
+		Clusters:       buildClusters(ctx, diagnostics, cluster),
 	}
 	return applyReq
 }
