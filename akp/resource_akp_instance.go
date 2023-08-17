@@ -163,8 +163,6 @@ func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, insta
 		ArgocdTlsCertsConfigmap:       buildConfigMap(ctx, diagnostics, instance.ArgoCDTLSCertsConfigMap, "argocd-tls-certs-cm"),
 		RepoCredentialSecrets:         buildSecrets(ctx, diagnostics, instance.RepoCredentialSecrets),
 		RepoTemplateCredentialSecrets: buildSecrets(ctx, diagnostics, instance.RepoTemplateCredentialSecrets),
-		PruneRepoCredentialSecrets:    false,
-		PruneClusters:                 false,
 	}
 	return applyReq
 }
