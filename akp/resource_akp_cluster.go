@@ -118,7 +118,7 @@ func (r *AkpClusterResource) Delete(ctx context.Context, req resource.DeleteRequ
 	}
 
 	// Delete the manifests
-	if kubeconfig != nil {
+	if kubeconfig != nil && plan.RemoveAgentResourcesOnDestroy.ValueBool() {
 		resp.Diagnostics.Append(deleteManifests(ctx, plan.Manifests.ValueString(), kubeconfig)...)
 		if resp.Diagnostics.HasError() {
 			return

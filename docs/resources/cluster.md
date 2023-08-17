@@ -75,6 +75,7 @@ resource "akp_cluster" "example" {
 - `annotations` (Map of String) Annotations
 - `kube_config` (Attributes) Kubernetes connection settings. If configured, terraform will try to connect to the cluster and install the agent (see [below for nested schema](#nestedatt--kube_config))
 - `labels` (Map of String) Labels
+- `remove_agent_resources_on_destroy` (Boolean) Remove agent Kubernetes resources from the managed cluster when destroying cluster
 
 ### Read-Only
 
