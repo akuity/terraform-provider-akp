@@ -38,6 +38,7 @@ func TestAccClusterResource(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.app_replication", "false"),
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.target_version", "0.4.0"),
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.redis_tunneling", "false"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "remove_agent_resources_on_destroy", "true"),
 				),
 			},
 			// Update and Read testing

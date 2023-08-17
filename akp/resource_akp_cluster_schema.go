@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
@@ -83,6 +84,12 @@ func getAKPClusterAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Agent installation manifests",
 			Computed:            true,
 			Sensitive:           true,
+		},
+		"remove_agent_resources_on_destroy": schema.BoolAttribute{
+			MarkdownDescription: "Remove agent Kubernetes resources from the managed cluster when destroying cluster",
+			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(true),
 		},
 	}
 }

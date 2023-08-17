@@ -39,6 +39,7 @@ data "akp_cluster" "example" {
 - `labels` (Map of String) Labels
 - `manifests` (String, Sensitive) Agent installation manifests
 - `namespace` (String) Agent installation namespace
+- `remove_agent_resources_on_destroy` (Boolean) Remove agent Kubernetes resources from the managed cluster when destroying cluster
 - `spec` (Attributes) Cluster spec (see [below for nested schema](#nestedatt--spec))
 
 <a id="nestedatt--kube_config"></a>
