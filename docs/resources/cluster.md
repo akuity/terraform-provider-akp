@@ -19,11 +19,8 @@ data "akp_instance" "example" {
 
 resource "akp_cluster" "example" {
   instance_id = data.akp_instance.example.id
-  kube_config = {
-    "config_path" = "test.kubeconfig"
-  }
-  name      = "test-cluster"
-  namespace = "test"
+  name        = "test-cluster"
+  namespace   = "test"
   labels = {
     test-label = "true"
   }
@@ -44,6 +41,21 @@ resource "akp_cluster" "example" {
   - test.yaml
             EOF
     }
+  }
+
+  kube_config = {
+    "config_path" = "test.kubeconfig"
+    "token"       = "YOUR TOKEN"
+  }
+
+  # When using a Kubernetes token retrieved from a Terraform provider (e.g. aws_eks_cluster_auth or google_client_config) in the above `kube_config`,
+  # the token value may change over time. This will cause Terraform to detect a diff in the `token` on each plan and apply.
+  # To prevent constant changes, you can add the `token` field path to the `lifecycle` block's `ignore_changes` list:
+  #  https://developer.hashicorp.com/terraform/language/meta-arguments/lifecycle#ignore_changes
+  lifecycle {
+    ignore_changes = [
+      kube_config.token,
+    ]
   }
 }
 ```
