@@ -66,7 +66,7 @@ jobs:
     concurrency:
       group: test
     strategy:
-      fail-fast: false
+      fail-fast: true
       max-parallel: 1
       matrix:
         # list whatever Terraform versions here you would like to support
