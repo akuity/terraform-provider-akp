@@ -18,7 +18,7 @@ func TestAccClusterDataSource(t *testing.T) {
 				Config: providerConfig + testAccClusterDataSourceConfig,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("data.akp_cluster.test", "instance_id", "6pzhawvy4echbd8x"),
-					resource.TestCheckResourceAttr("data.akp_cluster.test", "id", "t6swktevq53gtpu4"),
+					resource.TestCheckResourceAttr("data.akp_cluster.test", "id", "nyc6s87mrlh4s2af"),
 					resource.TestCheckResourceAttr("data.akp_cluster.test", "name", "data-source-cluster"),
 					resource.TestCheckResourceAttr("data.akp_cluster.test", "namespace", "akuity"),
 					resource.TestCheckResourceAttr("data.akp_cluster.test", "labels.test-label", "test"),
@@ -28,7 +28,7 @@ func TestAccClusterDataSource(t *testing.T) {
 					resource.TestCheckResourceAttr("data.akp_cluster.test", "spec.namespace_scoped", "false"),
 					// spec.data
 					resource.TestCheckResourceAttr("data.akp_cluster.test", "spec.data.size", "small"),
-					resource.TestCheckResourceAttr("data.akp_cluster.test", "spec.data.auto_upgrade_disabled", "false"),
+					resource.TestCheckResourceAttr("data.akp_cluster.test", "spec.data.auto_upgrade_disabled", "true"),
 					resource.TestCheckResourceAttr("data.akp_cluster.test", "spec.data.kustomization", `apiVersion: kustomize.config.k8s.io/v1beta1
 images:
 - name: quay.io/akuityio/agent
@@ -36,7 +36,7 @@ images:
 kind: Kustomization
 `),
 					resource.TestCheckResourceAttr("data.akp_cluster.test", "spec.data.app_replication", "false"),
-					resource.TestCheckResourceAttr("data.akp_cluster.test", "spec.data.target_version", "0.4.1"),
+					resource.TestCheckResourceAttr("data.akp_cluster.test", "spec.data.target_version", "0.4.3"),
 					resource.TestCheckResourceAttr("data.akp_cluster.test", "spec.data.redis_tunneling", "true"),
 				),
 			},
