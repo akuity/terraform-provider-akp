@@ -17,14 +17,14 @@ func TestAccInstanceDataSource(t *testing.T) {
 			{
 				Config: providerConfig + testAccInstanceDataSourceConfig,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.akp_instance.test", "id", "kgw15g3hg4ist8vl"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "id", "6pzhawvy4echbd8x"),
 					resource.TestCheckResourceAttr("data.akp_instance.test", "name", "test-cluster"),
 
 					// argocd
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.description", "This is used by the terraform provider to test managing clusters."),
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.version", "v2.7.9"),
 					// argocd.instance_spec
-					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.subdomain", "kgw15g3hg4ist8vl"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.subdomain", "6pzhawvy4echbd8x"),
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.declarative_management_enabled", "false"),
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.image_updater_enabled", "false"),
 

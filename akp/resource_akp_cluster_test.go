@@ -56,7 +56,7 @@ func TestAccClusterResource(t *testing.T) {
 func testAccClusterResourceConfig(size string, description string) string {
 	return fmt.Sprintf(`
 resource "akp_cluster" "test" {
-  instance_id = "kgw15g3hg4ist8vl"
+  instance_id = "6pzhawvy4echbd8x"
   name      = "test"
   namespace = "test"
   labels = {
