@@ -19,7 +19,6 @@ type Cluster struct {
 	Annotations                   types.Map    `tfsdk:"annotations"`
 	Spec                          *ClusterSpec `tfsdk:"spec"`
 	Kubeconfig                    *Kubeconfig  `tfsdk:"kube_config"`
-	Manifests                     types.String `tfsdk:"manifests"`
 	RemoveAgentResourcesOnDestroy types.Bool   `tfsdk:"remove_agent_resources_on_destroy"`
 }
 

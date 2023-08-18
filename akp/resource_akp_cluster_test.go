@@ -23,7 +23,6 @@ func TestAccClusterResource(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_cluster.test", "namespace", "test"),
 					resource.TestCheckResourceAttr("akp_cluster.test", "labels.test-label", "true"),
 					resource.TestCheckResourceAttr("akp_cluster.test", "annotations.test-annotation", "false"),
-					resource.TestCheckResourceAttrSet("akp_cluster.test", "manifests"),
 					// spec
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.description", "test one"),
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.namespace_scoped", "true"),
@@ -47,7 +46,6 @@ func TestAccClusterResource(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.description", "test two"),
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.size", "medium"),
-					resource.TestCheckResourceAttrSet("akp_cluster.test", "manifests"),
 				),
 			},
 			// Delete testing automatically occurs in TestCase

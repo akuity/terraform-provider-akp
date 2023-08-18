@@ -26,7 +26,6 @@ func TestAccClustersDataSource(t *testing.T) {
 					resource.TestCheckResourceAttr("data.akp_clusters.test", "clusters.0.namespace", "akuity"),
 					resource.TestCheckResourceAttr("data.akp_clusters.test", "clusters.0.labels.test-label", "test"),
 					resource.TestCheckResourceAttr("data.akp_clusters.test", "clusters.0.annotations.test-annotation", "false"),
-					resource.TestCheckResourceAttrSet("data.akp_clusters.test", "clusters.0.manifests"),
 					// spec
 					resource.TestCheckResourceAttr("data.akp_clusters.test", "clusters.0.spec.description", "Cluster Description"),
 					resource.TestCheckResourceAttr("data.akp_clusters.test", "clusters.0.spec.namespace_scoped", "false"),

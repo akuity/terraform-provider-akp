@@ -80,11 +80,6 @@ func getAKPClusterAttributes() map[string]schema.Attribute {
 			Optional:            true,
 			Attributes:          getKubeconfigAttributes(),
 		},
-		"manifests": schema.StringAttribute{
-			MarkdownDescription: "Agent installation manifests",
-			Computed:            true,
-			Sensitive:           true,
-		},
 		"remove_agent_resources_on_destroy": schema.BoolAttribute{
 			MarkdownDescription: "Remove agent Kubernetes resources from the managed cluster when destroying cluster",
 			Optional:            true,
