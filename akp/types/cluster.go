@@ -9,21 +9,19 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-// Cluster is the Schema for the cluster API
 type Cluster struct {
-	ID                            types.String `tfsdk:"id"`
-	InstanceID                    types.String `tfsdk:"instance_id"`
-	Name                          types.String `tfsdk:"name"`
-	Namespace                     types.String `tfsdk:"namespace"`
-	Labels                        types.Map    `tfsdk:"labels"`
-	Annotations                   types.Map    `tfsdk:"annotations"`
-	Spec                          *ClusterSpec `tfsdk:"spec"`
-	Kubeconfig                    *Kubeconfig  `tfsdk:"kube_config"`
-	RemoveAgentResourcesOnDestroy types.Bool   `tfsdk:"remove_agent_resources_on_destroy"`
+	ID          types.String `tfsdk:"id"`
+	InstanceID  types.String `tfsdk:"instance_id"`
+	Name        types.String `tfsdk:"name"`
+	Namespace   types.String `tfsdk:"namespace"`
+	Labels      types.Map    `tfsdk:"labels"`
+	Annotations types.Map    `tfsdk:"annotations"`
+	Spec        *ClusterSpec `tfsdk:"spec"`
+	Kubeconfig  *Kubeconfig  `tfsdk:"kubeconfig"`
+	Manifests   types.String `tfsdk:"manifests"`
 }
 
 type Clusters struct {
-	ID         types.String `tfsdk:"id"`
 	InstanceID types.String `tfsdk:"instance_id"`
 	Clusters   []Cluster    `tfsdk:"clusters"`
 }

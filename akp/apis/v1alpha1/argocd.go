@@ -20,6 +20,7 @@ type ArgoCD struct {
 type ArgoCDSpec struct {
 	Description  string       `json:"description"`
 	Version      string       `json:"version"`
+	Shard        string       `json:"shard"`
 	InstanceSpec InstanceSpec `json:"instanceSpec,omitempty"`
 }
 
@@ -33,6 +34,11 @@ type ClusterCustomization struct {
 	Kustomization       runtime.RawExtension `json:"kustomization,omitempty"`
 	AppReplication      *bool                `json:"appReplication,omitempty"`
 	RedisTunneling      *bool                `json:"redisTunneling,omitempty"`
+}
+
+type AppsetPolicy struct {
+	Policy         string `json:"policy,omitempty"`
+	OverridePolicy *bool  `json:"overridePolicy,omitempty"`
 }
 
 type InstanceSpec struct {
@@ -49,6 +55,7 @@ type InstanceSpec struct {
 	ImageUpdaterDelegate         *ImageUpdaterDelegate          `json:"imageUpdaterDelegate,omitempty"`
 	AppSetDelegate               *AppSetDelegate                `json:"appSetDelegate,omitempty"`
 	AssistantExtensionEnabled    *bool                          `json:"assistantExtensionEnabled,omitempty"`
+	AppsetPolicy                 *AppsetPolicy                  `json:"appsetPolicy,omitempty"`
 }
 
 type ManagedCluster struct {
