@@ -8,7 +8,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
-	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"golang.org/x/exp/slices"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -119,7 +118,7 @@ func (r *AkpClusterResource) Delete(ctx context.Context, req resource.DeleteRequ
 
 	// Delete the manifests
 	if kubeconfig != nil && plan.RemoveAgentResourcesOnDestroy.ValueBool() {
-		resp.Diagnostics.Append(deleteManifests(ctx, plan.Manifests.ValueString(), kubeconfig)...)
+		resp.Diagnostics.Append(deleteManifests(ctx, getManifests(ctx, &resp.Diagnostics, r.akpCli.Cli, r.akpCli.OrgId, &plan), kubeconfig)...)
 		if resp.Diagnostics.HasError() {
 			return
 		}
@@ -165,7 +164,7 @@ func (r *AkpClusterResource) upsert(ctx context.Context, diagnostics *diag.Diagn
 
 	// Apply the manifests
 	if kubeconfig != nil && isCreate {
-		diagnostics.Append(applyManifests(ctx, plan.Manifests.ValueString(), kubeconfig)...)
+		diagnostics.Append(applyManifests(ctx, getManifests(ctx, diagnostics, r.akpCli.Cli, r.akpCli.OrgId, plan), kubeconfig)...)
 		if diagnostics.HasError() {
 			return
 		}
@@ -191,7 +190,6 @@ func refreshClusterState(ctx context.Context, diagnostics *diag.Diagnostics, cli
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Get cluster response: %s", clusterResp))
 	cluster.Update(ctx, diagnostics, clusterResp.GetCluster())
-	cluster.Manifests = getManifests(ctx, diagnostics, client, orgID, cluster)
 }
 
 func buildClusterApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, cluster *types.Cluster, orgId string) *argocdv1.ApplyInstanceRequest {
@@ -233,7 +231,7 @@ func getKubeconfig(kubeConfig *types.Kubeconfig) (*rest.Config, diag.Diagnostics
 	return kcfg, diag
 }
 
-func getManifests(ctx context.Context, diagnostics *diag.Diagnostics, client argocdv1.ArgoCDServiceGatewayClient, orgId string, cluster *types.Cluster) tftypes.String {
+func getManifests(ctx context.Context, diagnostics *diag.Diagnostics, client argocdv1.ArgoCDServiceGatewayClient, orgId string, cluster *types.Cluster) string {
 	clusterReq := &argocdv1.GetInstanceClusterRequest{
 		OrganizationId: orgId,
 		InstanceId:     cluster.InstanceID.ValueString(),
@@ -243,12 +241,12 @@ func getManifests(ctx context.Context, diagnostics *diag.Diagnostics, client arg
 	clusterResp, err := client.GetInstanceCluster(ctx, clusterReq)
 	if err != nil {
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read instance clusters, got error: %s", err))
-		return tftypes.StringNull()
+		return ""
 	}
 	c, err := waitClusterReconStatus(ctx, client, clusterResp.GetCluster(), orgId, cluster.ID.ValueString())
 	if err != nil {
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to check cluster reconciliation status. %s", err))
-		return tftypes.StringNull()
+		return ""
 	}
 	apiReq := &argocdv1.GetInstanceClusterManifestsRequest{
 		OrganizationId: orgId,
@@ -258,9 +256,9 @@ func getManifests(ctx context.Context, diagnostics *diag.Diagnostics, client arg
 	apiResp, err := client.GetInstanceClusterManifests(ctx, apiReq)
 	if err != nil {
 		diagnostics.AddError("Akuity API error", fmt.Sprintf("Unable to download manifests: %s", err))
-		return tftypes.StringNull()
+		return ""
 	}
-	return tftypes.StringValue(string(apiResp.GetData()))
+	return string(apiResp.GetData())
 }
 
 func applyManifests(ctx context.Context, manifests string, cfg *rest.Config) diag.Diagnostics {

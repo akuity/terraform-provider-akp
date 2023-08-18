@@ -76,7 +76,6 @@ func (d *AkpClustersDataSource) Read(ctx context.Context, req datasource.ReadReq
 			InstanceID: data.InstanceID,
 		}
 		stateCluster.Update(ctx, &resp.Diagnostics, cluster)
-		stateCluster.Manifests = getManifests(ctx, &resp.Diagnostics, d.akpCli.Cli, d.akpCli.OrgId, &stateCluster)
 		data.Clusters = append(data.Clusters, stateCluster)
 	}
 	// Save data into Terraform state

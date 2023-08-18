@@ -80,7 +80,6 @@ resource "akp_cluster" "example" {
 ### Read-Only
 
 - `id` (String) Cluster ID
-- `manifests` (String, Sensitive) Agent installation manifests
 
 <a id="nestedatt--spec"></a>
 ### Nested Schema for `spec`
