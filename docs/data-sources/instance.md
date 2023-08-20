@@ -64,6 +64,7 @@ Read-Only:
 Read-Only:
 
 - `app_set_delegate` (Attributes) Select cluster in which you want to Install Application Set controller (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--app_set_delegate))
+- `appset_policy` (Attributes) Configures Application Set policy settings. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--appset_policy))
 - `assistant_extension_enabled` (Boolean) Enable Powerful AI-powered assistant Extension. It helps analyze Kubernetes resources behavior and provides suggestions about resolving issues.
 - `audit_extension_enabled` (Boolean) Enable Audit Extension. Set this to `true` to install Audit Extension to Argo CD instance.
 - `backend_ip_allow_list_enabled` (Boolean) Enable ip allow list for cluster agents
@@ -91,6 +92,20 @@ Read-Only:
 
 - `cluster_name` (String) Cluster name
 
+
+
+<a id="nestedatt--argocd--spec--instance_spec--appset_policy"></a>
+### Nested Schema for `argocd.spec.instance_spec.appset_policy`
+
+Read-Only:
+
+- `override_policy` (Boolean) Allows per `ApplicationSet` sync policy.
+- `policy` (String) Policy restricts what types of modifications will be made to managed Argo CD `Application` resources.
+Available options: `sync`, `create-only`, `create-delete`, and `create-update`.
+  - Policy `sync`(default): Update and delete are allowed.
+  - Policy `create-only`: Prevents ApplicationSet controller from modifying or deleting Applications.
+  - Policy `create-update`: Prevents ApplicationSet controller from deleting Applications. Update is allowed.
+  - Policy `create-delete`: Prevents ApplicationSet controller from modifying Applications, Delete is allowed.
 
 
 <a id="nestedatt--argocd--spec--instance_spec--cluster_customization_defaults"></a>

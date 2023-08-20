@@ -16,6 +16,10 @@ resource "akp_instance" "example" {
         cluster_customization_defaults = {
           auto_upgrade_disabled = true
         }
+        "appset_policy" = {
+          "policy"          = "create-only"
+          "override_policy" = true
+        }
       }
       "version" = "v2.6.4"
     }

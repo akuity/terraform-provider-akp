@@ -30,6 +30,8 @@ func TestNoNewArgoCDDataSourceFields(t *testing.T) {
 	assert.Equal(t, reflect.TypeOf(types.ImageUpdaterDelegate{}).NumField(), len(getImageUpdaterDelegateDataSourceAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.AppSetDelegate{}).NumField(), len(getAppSetDelegateDataSourceAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.ManagedCluster{}).NumField(), len(getManagedClusterDataSourceAttributes()))
+	assert.Equal(t, reflect.TypeOf(types.AppsetPolicy{}).NumField(), len(getAppsetPolicyDataSourceAttributes()))
+
 }
 
 // If this test fails, a field has been added/removed to the ConfigMap type.

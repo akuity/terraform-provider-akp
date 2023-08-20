@@ -228,6 +228,24 @@ func getInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Enable Powerful AI-powered assistant Extension. It helps analyze Kubernetes resources behavior and provides suggestions about resolving issues.",
 			Computed:            true,
 		},
+		"appset_policy": schema.SingleNestedAttribute{
+			MarkdownDescription: "Configures Application Set policy settings.",
+			Computed:            true,
+			Attributes:          getAppsetPolicyDataSourceAttributes(),
+		},
+	}
+}
+
+func getAppsetPolicyDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"policy": schema.StringAttribute{
+			MarkdownDescription: "Policy restricts what types of modifications will be made to managed Argo CD `Application` resources.\nAvailable options: `sync`, `create-only`, `create-delete`, and `create-update`.\n  - Policy `sync`(default): Update and delete are allowed.\n  - Policy `create-only`: Prevents ApplicationSet controller from modifying or deleting Applications.\n  - Policy `create-update`: Prevents ApplicationSet controller from deleting Applications. Update is allowed.\n  - Policy `create-delete`: Prevents ApplicationSet controller from modifying Applications, Delete is allowed.",
+			Computed:            true,
+		},
+		"override_policy": schema.BoolAttribute{
+			MarkdownDescription: "Allows per `ApplicationSet` sync policy.",
+			Computed:            true,
+		},
 	}
 }
 

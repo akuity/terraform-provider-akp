@@ -16,7 +16,6 @@ type ArgoCD struct {
 type ArgoCDSpec struct {
 	Description  types.String `tfsdk:"description"`
 	Version      types.String `tfsdk:"version"`
-	Shard        types.String `tfsdk:"shard"`
 	InstanceSpec InstanceSpec `tfsdk:"instance_spec"`
 }
 
