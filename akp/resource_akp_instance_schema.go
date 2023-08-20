@@ -3,6 +3,7 @@ package akp
 import (
 	"context"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
@@ -10,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -307,6 +309,39 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 		},
 		"assistant_extension_enabled": schema.BoolAttribute{
 			MarkdownDescription: "Enable Powerful AI-powered assistant Extension. It helps analyze Kubernetes resources behavior and provides suggestions about resolving issues.",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Bool{
+				boolplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"appset_policy": schema.SingleNestedAttribute{
+			MarkdownDescription: "Configures Application Set policy settings.",
+			Optional:            true,
+			Computed:            true,
+			Attributes:          getAppsetPolicyAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier.UseStateForUnknown(),
+			},
+		},
+	}
+}
+
+func getAppsetPolicyAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"policy": schema.StringAttribute{
+			MarkdownDescription: "Policy restricts what types of modifications will be made to managed Argo CD `Application` resources.\nAvailable options: `sync`, `create-only`, `create-delete`, and `create-update`.\n  - Policy `sync`(default): Update and delete are allowed.\n  - Policy `create-only`: Prevents ApplicationSet controller from modifying or deleting Applications.\n  - Policy `create-update`: Prevents ApplicationSet controller from deleting Applications. Update is allowed.\n  - Policy `create-delete`: Prevents ApplicationSet controller from modifying Applications, Delete is allowed.",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+			Validators: []validator.String{
+				stringvalidator.OneOf("sync", "create-only", "create-update", "create-delete"),
+			},
+		},
+		"override_policy": schema.BoolAttribute{
+			MarkdownDescription: "Allows per `ApplicationSet` sync policy.",
 			Optional:            true,
 			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{

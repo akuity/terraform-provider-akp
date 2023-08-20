@@ -75,6 +75,7 @@ func (a *ArgoCD) Update(ctx context.Context, diagnostics *diag.Diagnostics, cd *
 			ImageUpdaterDelegate:         toImageUpdaterDelegateTFModel(cd.Spec.InstanceSpec.ImageUpdaterDelegate),
 			AppSetDelegate:               toAppSetDelegateTFModel(cd.Spec.InstanceSpec.AppSetDelegate),
 			AssistantExtensionEnabled:    tftypes.BoolValue(assistantExtensionEnabled),
+			AppsetPolicy:                 toAppsetPolicyTFModel(cd.Spec.InstanceSpec.AppsetPolicy),
 		},
 	}
 }
@@ -105,6 +106,7 @@ func (a *ArgoCD) ToArgoCDAPIModel(ctx context.Context, diag *diag.Diagnostics, n
 				ImageUpdaterDelegate:         toImageUpdaterDelegateAPIModel(a.Spec.InstanceSpec.ImageUpdaterDelegate),
 				AppSetDelegate:               toAppSetDelegateAPIModel(a.Spec.InstanceSpec.AppSetDelegate),
 				AssistantExtensionEnabled:    a.Spec.InstanceSpec.AssistantExtensionEnabled.ValueBoolPointer(),
+				AppsetPolicy:                 toAppsetPolicyAPIModel(a.Spec.InstanceSpec.AppsetPolicy),
 			},
 		},
 	}
@@ -286,6 +288,16 @@ func toExtensionsAPIModel(entries []*ArgoCDExtensionInstallEntry) []*v1alpha1.Ar
 	return extensions
 }
 
+func toAppsetPolicyAPIModel(appsetPolicy *AppsetPolicy) *v1alpha1.AppsetPolicy {
+	if appsetPolicy == nil {
+		return nil
+	}
+	return &v1alpha1.AppsetPolicy{
+		Policy:         appsetPolicy.Policy.ValueString(),
+		OverridePolicy: appsetPolicy.OverridePolicy.ValueBoolPointer(),
+	}
+}
+
 func toRepoServerDelegateTFModel(repoServerDelegate *v1alpha1.RepoServerDelegate) *RepoServerDelegate {
 	if repoServerDelegate == nil {
 		return nil
@@ -387,4 +399,19 @@ func toExtensionsTFModel(entries []*v1alpha1.ArgoCDExtensionInstallEntry) []*Arg
 		})
 	}
 	return extensions
+}
+
+func toAppsetPolicyTFModel(appsetPolicy *v1alpha1.AppsetPolicy) *AppsetPolicy {
+	if appsetPolicy == nil {
+		return nil
+	}
+
+	overridePolicy := false
+	if appsetPolicy.OverridePolicy != nil && *appsetPolicy.OverridePolicy {
+		overridePolicy = true
+	}
+	return &AppsetPolicy{
+		Policy:         tftypes.StringValue(appsetPolicy.Policy),
+		OverridePolicy: tftypes.BoolValue(overridePolicy),
+	}
 }
