@@ -9,7 +9,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-// Cluster is the Schema for the cluster API
 type Cluster struct {
 	ID                            types.String `tfsdk:"id"`
 	InstanceID                    types.String `tfsdk:"instance_id"`

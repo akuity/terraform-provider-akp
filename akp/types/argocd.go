@@ -9,7 +9,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-// ArgoCD is the Schema for the argocd API
 type ArgoCD struct {
 	Spec ArgoCDSpec `tfsdk:"spec"`
 }
@@ -17,6 +16,7 @@ type ArgoCD struct {
 type ArgoCDSpec struct {
 	Description  types.String `tfsdk:"description"`
 	Version      types.String `tfsdk:"version"`
+	Shard        types.String `tfsdk:"shard"`
 	InstanceSpec InstanceSpec `tfsdk:"instance_spec"`
 }
 
@@ -30,6 +30,11 @@ type ClusterCustomization struct {
 	Kustomization       types.String `tfsdk:"kustomization"`
 	AppReplication      types.Bool   `tfsdk:"app_replication"`
 	RedisTunneling      types.Bool   `tfsdk:"redis_tunneling"`
+}
+
+type AppsetPolicy struct {
+	Policy         types.String `tfsdk:"policy"`
+	OverridePolicy types.Bool   `tfsdk:"override_policy"`
 }
 
 type InstanceSpec struct {
@@ -46,6 +51,7 @@ type InstanceSpec struct {
 	ImageUpdaterDelegate         *ImageUpdaterDelegate          `tfsdk:"image_updater_delegate"`
 	AppSetDelegate               *AppSetDelegate                `tfsdk:"app_set_delegate"`
 	AssistantExtensionEnabled    types.Bool                     `tfsdk:"assistant_extension_enabled"`
+	AppsetPolicy                 *AppsetPolicy                  `tfsdk:"appset_policy"`
 }
 
 type ManagedCluster struct {
