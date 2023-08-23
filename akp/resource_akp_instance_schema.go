@@ -2,7 +2,9 @@ package akp
 
 import (
 	"context"
+	"regexp"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/mapvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -13,6 +15,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+
+	mapplanmodifier2 "github.com/akuity/terraform-provider-akp/akp/modifiers/map"
 )
 
 func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
@@ -40,149 +44,104 @@ func getAKPInstanceAttributes() map[string]schema.Attribute {
 			Required:            true,
 			Attributes:          getArgoCDAttributes(),
 		},
-		"argocd_cm": schema.SingleNestedAttribute{
+		"argocd_cm": schema.MapAttribute{
 			MarkdownDescription: "Argo CD configmap",
+			ElementType:         types.StringType,
 			Optional:            true,
 			Computed:            true,
-			Attributes:          getConfigMapAttributes(),
-			PlanModifiers: []planmodifier.Object{
-				objectplanmodifier.UseStateForUnknown(),
+			PlanModifiers: []planmodifier.Map{
+				mapplanmodifier.UseStateForUnknown(),
 			},
 		},
-		"argocd_rbac_cm": schema.SingleNestedAttribute{
+		"argocd_rbac_cm": schema.MapAttribute{
 			MarkdownDescription: "Argo CD rbac configmap",
+			ElementType:         types.StringType,
 			Optional:            true,
 			Computed:            true,
-			Attributes:          getConfigMapAttributes(),
-			PlanModifiers: []planmodifier.Object{
-				objectplanmodifier.UseStateForUnknown(),
+			PlanModifiers: []planmodifier.Map{
+				mapplanmodifier.UseStateForUnknown(),
 			},
 		},
-		"argocd_secret": schema.SingleNestedAttribute{
+		"argocd_secret": schema.MapAttribute{
 			MarkdownDescription: "Argo CD secret",
 			Optional:            true,
-			Attributes:          getSecretAttributes(),
+			Sensitive:           true,
+			ElementType:         types.StringType,
 		},
-		"argocd_notifications_cm": schema.SingleNestedAttribute{
+		"argocd_notifications_cm": schema.MapAttribute{
 			MarkdownDescription: "Argo CD notifications configmap",
+			ElementType:         types.StringType,
 			Optional:            true,
 			Computed:            true,
-			Attributes:          getConfigMapAttributes(),
-			PlanModifiers: []planmodifier.Object{
-				objectplanmodifier.UseStateForUnknown(),
+			PlanModifiers: []planmodifier.Map{
+				mapplanmodifier2.UseStateForNullUnknown(),
 			},
 		},
-		"argocd_notifications_secret": schema.SingleNestedAttribute{
+		"argocd_notifications_secret": schema.MapAttribute{
 			MarkdownDescription: "Argo CD notifiations secret",
 			Optional:            true,
-			Attributes:          getSecretAttributes(),
+			Sensitive:           true,
+			ElementType:         types.StringType,
 		},
-		"argocd_image_updater_config": schema.SingleNestedAttribute{
+		"argocd_image_updater_config": schema.MapAttribute{
 			MarkdownDescription: "Argo CD image updater configmap",
+			ElementType:         types.StringType,
 			Optional:            true,
 			Computed:            true,
-			Attributes:          getConfigMapAttributes(),
-			PlanModifiers: []planmodifier.Object{
-				objectplanmodifier.UseStateForUnknown(),
+			PlanModifiers: []planmodifier.Map{
+				mapplanmodifier2.UseStateForNullUnknown(),
 			},
 		},
-		"argocd_image_updater_ssh_config": schema.SingleNestedAttribute{
+		"argocd_image_updater_ssh_config": schema.MapAttribute{
 			MarkdownDescription: "Argo CD image updater ssh configmap",
+			ElementType:         types.StringType,
 			Optional:            true,
 			Computed:            true,
-			Attributes:          getConfigMapAttributes(),
-			PlanModifiers: []planmodifier.Object{
-				objectplanmodifier.UseStateForUnknown(),
+			PlanModifiers: []planmodifier.Map{
+				mapplanmodifier2.UseStateForNullUnknown(),
 			},
 		},
-		"argocd_image_updater_secret": schema.SingleNestedAttribute{
+		"argocd_image_updater_secret": schema.MapAttribute{
 			MarkdownDescription: "Argo CD image updater secret",
 			Optional:            true,
-			Attributes:          getSecretAttributes(),
+			Sensitive:           true,
+			ElementType:         types.StringType,
 		},
-		"argocd_ssh_known_hosts_cm": schema.SingleNestedAttribute{
+		"argocd_ssh_known_hosts_cm": schema.MapAttribute{
 			MarkdownDescription: "Argo CD ssh known hosts configmap",
+			ElementType:         types.StringType,
 			Optional:            true,
 			Computed:            true,
-			Attributes:          getConfigMapAttributes(),
-			PlanModifiers: []planmodifier.Object{
-				objectplanmodifier.UseStateForUnknown(),
+			PlanModifiers: []planmodifier.Map{
+				mapplanmodifier.UseStateForUnknown(),
 			},
 		},
-		"argocd_tls_certs_cm": schema.SingleNestedAttribute{
+		"argocd_tls_certs_cm": schema.MapAttribute{
 			MarkdownDescription: "Argo CD tls certs configmap",
+			ElementType:         types.StringType,
 			Optional:            true,
 			Computed:            true,
-			Attributes:          getConfigMapAttributes(),
-			PlanModifiers: []planmodifier.Object{
-				objectplanmodifier.UseStateForUnknown(),
+			PlanModifiers: []planmodifier.Map{
+				mapplanmodifier.UseStateForUnknown(),
 			},
 		},
-		"repo_credential_secrets": schema.ListNestedAttribute{
+		"repo_credential_secrets": schema.MapAttribute{
 			MarkdownDescription: "Argo CD repo credential secrets",
 			Optional:            true,
-			NestedObject: schema.NestedAttributeObject{
-				Attributes: getSecretAttributes(),
+			Sensitive:           true,
+			ElementType:         types.MapType{ElemType: types.StringType},
+			Validators: []validator.Map{
+				mapvalidator.KeysAre(stringvalidator.RegexMatches(regexp.MustCompile("repo-.+"), "invalid secret name, repo credential secret name should start with 'repo-'")),
 			},
 		},
-		"repo_template_credential_secrets": schema.ListNestedAttribute{
+		"repo_template_credential_secrets": schema.MapAttribute{
 			MarkdownDescription: "Argo CD repo templates credential secrets",
 			Optional:            true,
-			NestedObject: schema.NestedAttributeObject{
-				Attributes: getSecretAttributes(),
-			},
-		},
-	}
-}
-
-func getConfigMapAttributes() map[string]schema.Attribute {
-	return map[string]schema.Attribute{
-		"data": schema.MapAttribute{
-			MarkdownDescription: "ConfigMap data",
-			ElementType:         types.StringType,
-			Required:            true,
-			PlanModifiers: []planmodifier.Map{
-				mapplanmodifier.UseStateForUnknown(),
-			},
-		},
-	}
-}
-
-func getSecretAttributes() map[string]schema.Attribute {
-	return map[string]schema.Attribute{
-		"name": schema.StringAttribute{
-			Optional:            true,
-			MarkdownDescription: "Secret name",
-		},
-		"labels": schema.MapAttribute{
-			ElementType:         types.StringType,
-			MarkdownDescription: "Labels",
-			Optional:            true,
-			PlanModifiers: []planmodifier.Map{
-				mapplanmodifier.UseStateForUnknown(),
-			},
-		},
-		"data": schema.MapAttribute{
-			MarkdownDescription: "Secret data",
-			ElementType:         types.StringType,
-			Optional:            true,
 			Sensitive:           true,
-			PlanModifiers: []planmodifier.Map{
-				mapplanmodifier.UseStateForUnknown(),
+			ElementType:         types.MapType{ElemType: types.StringType},
+			Validators: []validator.Map{
+				mapvalidator.KeysAre(stringvalidator.RegexMatches(regexp.MustCompile("repo-.+"), "invalid secret name, repo template credential secret name should start with 'repo-'")),
 			},
-		},
-		"string_data": schema.MapAttribute{
-			MarkdownDescription: "Secret string data",
-			ElementType:         types.StringType,
-			Optional:            true,
-			Sensitive:           true,
-			PlanModifiers: []planmodifier.Map{
-				mapplanmodifier.UseStateForUnknown(),
-			},
-		},
-		"type": schema.StringAttribute{
-			MarkdownDescription: "Secret type",
-			Optional:            true,
 		},
 	}
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"google.golang.org/protobuf/types/known/structpb"
 
@@ -78,7 +77,7 @@ func (r *AkpInstanceResource) Read(ctx context.Context, req resource.ReadRequest
 		return
 	}
 
-	tflog.MaskLogStrings(ctx, data.GetSensitiveStrings()...)
+	tflog.MaskLogStrings(ctx, data.GetSensitiveStrings(ctx, &resp.Diagnostics)...)
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 
 	refreshState(ctx, &resp.Diagnostics, r.akpCli.Cli, &data, r.akpCli.OrgId)
@@ -128,7 +127,7 @@ func (r *AkpInstanceResource) ImportState(ctx context.Context, req resource.Impo
 
 func (r *AkpInstanceResource) upsert(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.Instance) {
 	// Mark sensitive secret data
-	tflog.MaskLogStrings(ctx, plan.GetSensitiveStrings()...)
+	tflog.MaskLogStrings(ctx, plan.GetSensitiveStrings(ctx, diagnostics)...)
 
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 	apiReq := buildApplyRequest(ctx, diagnostics, plan, r.akpCli.OrgId)
@@ -153,16 +152,16 @@ func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, insta
 		Argocd:                        buildArgoCD(ctx, diagnostics, instance),
 		ArgocdConfigmap:               buildConfigMap(ctx, diagnostics, instance.ArgoCDConfigMap, "argocd-cm"),
 		ArgocdRbacConfigmap:           buildConfigMap(ctx, diagnostics, instance.ArgoCDRBACConfigMap, "argocd-rbac-cm"),
-		ArgocdSecret:                  buildSecret(ctx, diagnostics, instance.ArgoCDSecret, "argocd-secret"),
+		ArgocdSecret:                  buildSecret(ctx, diagnostics, instance.ArgoCDSecret, "argocd-secret", nil),
 		NotificationsConfigmap:        buildConfigMap(ctx, diagnostics, instance.NotificationsConfigMap, "argocd-notifications-cm"),
-		NotificationsSecret:           buildSecret(ctx, diagnostics, instance.NotificationsSecret, "argocd-notifications-secret"),
+		NotificationsSecret:           buildSecret(ctx, diagnostics, instance.NotificationsSecret, "argocd-notifications-secret", nil),
 		ImageUpdaterConfigmap:         buildConfigMap(ctx, diagnostics, instance.ImageUpdaterConfigMap, "argocd-image-updater-config"),
 		ImageUpdaterSshConfigmap:      buildConfigMap(ctx, diagnostics, instance.ImageUpdaterSSHConfigMap, "argocd-image-updater-ssh-config"),
-		ImageUpdaterSecret:            buildSecret(ctx, diagnostics, instance.ImageUpdaterSecret, "argocd-image-updater-secret"),
+		ImageUpdaterSecret:            buildSecret(ctx, diagnostics, instance.ImageUpdaterSecret, "argocd-image-updater-secret", nil),
 		ArgocdKnownHostsConfigmap:     buildConfigMap(ctx, diagnostics, instance.ArgoCDKnownHostsConfigMap, "argocd-ssh-known-hosts-cm"),
 		ArgocdTlsCertsConfigmap:       buildConfigMap(ctx, diagnostics, instance.ArgoCDTLSCertsConfigMap, "argocd-tls-certs-cm"),
-		RepoCredentialSecrets:         buildSecrets(ctx, diagnostics, instance.RepoCredentialSecrets),
-		RepoTemplateCredentialSecrets: buildSecrets(ctx, diagnostics, instance.RepoTemplateCredentialSecrets),
+		RepoCredentialSecrets:         buildSecrets(ctx, diagnostics, instance.RepoCredentialSecrets, map[string]string{"argocd.argoproj.io/secret-type": "repository"}),
+		RepoTemplateCredentialSecrets: buildSecrets(ctx, diagnostics, instance.RepoTemplateCredentialSecrets, map[string]string{"argocd.argoproj.io/secret-type": "repo-creds"}),
 	}
 	return applyReq
 }
@@ -181,27 +180,24 @@ func buildArgoCD(ctx context.Context, diag *diag.Diagnostics, instance *types.In
 	return s
 }
 
-func buildSecrets(ctx context.Context, diagnostics *diag.Diagnostics, secrets []types.Secret) []*structpb.Struct {
+func buildSecrets(ctx context.Context, diagnostics *diag.Diagnostics, secrets tftypes.Map, labels map[string]string) []*structpb.Struct {
 	var res []*structpb.Struct
-	for _, secret := range secrets {
-		res = append(res, buildSecret(ctx, diagnostics, &secret, secret.Name.ValueString()))
+	var sMap map[string]tftypes.Map
+	if secrets.IsNull() {
+		return res
+	}
+	diagnostics.Append(secrets.ElementsAs(ctx, &sMap, true)...)
+	for name, secret := range sMap {
+		res = append(res, buildSecret(ctx, diagnostics, secret, name, labels))
 	}
 	return res
 }
 
-func buildConfigMap(ctx context.Context, diagnostics *diag.Diagnostics, cmObj tftypes.Object, name string) *structpb.Struct {
-	cm := &types.ConfigMap{}
-	diagnostics.Append(cmObj.As(ctx, cm, basetypes.ObjectAsOptions{
-		UnhandledNullAsEmpty:    true,
-		UnhandledUnknownAsEmpty: true,
-	})...)
-	if diagnostics.HasError() {
+func buildConfigMap(ctx context.Context, diagnostics *diag.Diagnostics, cm tftypes.Map, name string) *structpb.Struct {
+	if cm.IsNull() {
 		return nil
 	}
-	if cm == nil || cm.Data.IsNull() {
-		return nil
-	}
-	apiModel := cm.ToConfigMapAPIModel(ctx, diagnostics, name)
+	apiModel := types.ToConfigMapAPIModel(ctx, diagnostics, name, cm)
 	m := map[string]interface{}{}
 	if err := marshal.RemarshalTo(apiModel, &m); err != nil {
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create ConfigMap. %s", err))
@@ -214,11 +210,11 @@ func buildConfigMap(ctx context.Context, diagnostics *diag.Diagnostics, cmObj tf
 	return configMap
 }
 
-func buildSecret(ctx context.Context, diagnostics *diag.Diagnostics, secret *types.Secret, name string) *structpb.Struct {
-	if secret == nil {
+func buildSecret(ctx context.Context, diagnostics *diag.Diagnostics, secret tftypes.Map, name string, labels map[string]string) *structpb.Struct {
+	if secret.IsNull() {
 		return nil
 	}
-	apiModel := secret.ToSecretAPIModel(ctx, diagnostics, name)
+	apiModel := types.ToSecretAPIModel(ctx, diagnostics, name, labels, secret)
 	m := map[string]interface{}{}
 	if err := marshal.RemarshalTo(apiModel, &m); err != nil {
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Secret. %s", err))

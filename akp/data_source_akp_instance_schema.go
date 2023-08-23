@@ -30,108 +30,65 @@ func getAKPInstanceDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			Attributes:          getArgoCDDataSourceAttributes(),
 		},
-		"argocd_cm": schema.SingleNestedAttribute{
+		"argocd_cm": schema.MapAttribute{
 			MarkdownDescription: "Argo CD configmap",
 			Computed:            true,
-			Attributes:          getConfigMapDataSourceAttributes(),
+			ElementType:         types.StringType,
 		},
-		"argocd_rbac_cm": schema.SingleNestedAttribute{
+		"argocd_rbac_cm": schema.MapAttribute{
 			MarkdownDescription: "Argo CD rbac configmap",
 			Computed:            true,
-			Attributes:          getConfigMapDataSourceAttributes(),
+			ElementType:         types.StringType,
 		},
-		"argocd_secret": schema.SingleNestedAttribute{
+		"argocd_secret": schema.MapAttribute{
 			MarkdownDescription: "Argo CD secret",
 			Computed:            true,
-			Attributes:          getSecretDataSourceAttributes(),
+			ElementType:         types.StringType,
 		},
-		"argocd_notifications_cm": schema.SingleNestedAttribute{
+		"argocd_notifications_cm": schema.MapAttribute{
 			MarkdownDescription: "Argo CD notifications configmap",
 			Computed:            true,
-			Attributes:          getConfigMapDataSourceAttributes(),
+			ElementType:         types.StringType,
 		},
-		"argocd_notifications_secret": schema.SingleNestedAttribute{
+		"argocd_notifications_secret": schema.MapAttribute{
 			MarkdownDescription: "Argo CD notifiations secret",
 			Computed:            true,
-			Attributes:          getSecretDataSourceAttributes(),
+			ElementType:         types.StringType,
 		},
-		"argocd_image_updater_config": schema.SingleNestedAttribute{
+		"argocd_image_updater_config": schema.MapAttribute{
 			MarkdownDescription: "Argo CD image updater configmap",
 			Computed:            true,
-			Attributes:          getConfigMapDataSourceAttributes(),
+			ElementType:         types.StringType,
 		},
-		"argocd_image_updater_ssh_config": schema.SingleNestedAttribute{
+		"argocd_image_updater_ssh_config": schema.MapAttribute{
 			MarkdownDescription: "Argo CD image updater ssh configmap",
 			Computed:            true,
-			Attributes:          getConfigMapDataSourceAttributes(),
+			ElementType:         types.StringType,
 		},
-		"argocd_image_updater_secret": schema.SingleNestedAttribute{
+		"argocd_image_updater_secret": schema.MapAttribute{
 			MarkdownDescription: "Argo CD image updater secret",
 			Computed:            true,
-			Attributes:          getSecretDataSourceAttributes(),
+			ElementType:         types.StringType,
 		},
-		"argocd_ssh_known_hosts_cm": schema.SingleNestedAttribute{
+		"argocd_ssh_known_hosts_cm": schema.MapAttribute{
 			MarkdownDescription: "Argo CD ssh known hosts configmap",
 			Computed:            true,
-			Attributes:          getConfigMapDataSourceAttributes(),
+			ElementType:         types.StringType,
 		},
-		"argocd_tls_certs_cm": schema.SingleNestedAttribute{
+		"argocd_tls_certs_cm": schema.MapAttribute{
 			MarkdownDescription: "Argo CD tls certs configmap",
 			Computed:            true,
-			Attributes:          getConfigMapDataSourceAttributes(),
+			ElementType:         types.StringType,
 		},
-		"repo_credential_secrets": schema.ListNestedAttribute{
+		"repo_credential_secrets": schema.MapAttribute{
 			MarkdownDescription: "Argo CD repo credential secrets",
 			Computed:            true,
-			NestedObject: schema.NestedAttributeObject{
-				Attributes: getSecretDataSourceAttributes(),
-			},
+			ElementType:         types.MapType{ElemType: types.StringType},
 		},
-		"repo_template_credential_secrets": schema.ListNestedAttribute{
-			Computed: true,
-			NestedObject: schema.NestedAttributeObject{
-				Attributes: getSecretDataSourceAttributes(),
-			},
-		},
-	}
-}
-
-func getConfigMapDataSourceAttributes() map[string]schema.Attribute {
-	return map[string]schema.Attribute{
-		"data": schema.MapAttribute{
-			MarkdownDescription: "ConfigMap data",
-			ElementType:         types.StringType,
+		"repo_template_credential_secrets": schema.MapAttribute{
+			MarkdownDescription: "Argo CD repo templates credential secrets",
 			Computed:            true,
-		},
-	}
-}
-
-func getSecretDataSourceAttributes() map[string]schema.Attribute {
-	return map[string]schema.Attribute{
-		"name": schema.StringAttribute{
-			Computed:            true,
-			MarkdownDescription: "Secret name",
-		},
-		"labels": schema.MapAttribute{
-			ElementType:         types.StringType,
-			MarkdownDescription: "Labels",
-			Computed:            true,
-		},
-		"data": schema.MapAttribute{
-			MarkdownDescription: "Secret data",
-			ElementType:         types.StringType,
-			Computed:            true,
-			Sensitive:           true,
-		},
-		"string_data": schema.MapAttribute{
-			MarkdownDescription: "Secret string data",
-			ElementType:         types.StringType,
-			Computed:            true,
-			Sensitive:           true,
-		},
-		"type": schema.StringAttribute{
-			MarkdownDescription: "Secret type",
-			Computed:            true,
+			ElementType:         types.MapType{ElemType: types.StringType},
 		},
 	}
 }

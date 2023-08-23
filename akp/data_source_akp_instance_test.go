@@ -31,7 +31,7 @@ func TestAccInstanceDataSource(t *testing.T) {
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.appset_policy.override_policy", "false"),
 
 					// argocd_cm
-					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd_cm.data.%", "9"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd_cm.%", "9"),
 				),
 			},
 		},

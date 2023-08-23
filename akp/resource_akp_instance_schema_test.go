@@ -32,15 +32,3 @@ func TestNoNewArgoCDFields(t *testing.T) {
 	assert.Equal(t, reflect.TypeOf(types.ManagedCluster{}).NumField(), len(getManagedClusterAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.AppsetPolicy{}).NumField(), len(getAppsetPolicyAttributes()))
 }
-
-// If this test fails, a field has been added/removed to the ConfigMap type.
-// Update the schema attribute accordingly.
-func TestNoNewConfigMapFields(t *testing.T) {
-	assert.Equal(t, reflect.TypeOf(types.ConfigMap{}).NumField(), len(getConfigMapAttributes()))
-}
-
-// If this test fails, a field has been added/removed to the Secret type.
-// Update the schema attribute accordingly.
-func TestNoNewSecretFields(t *testing.T) {
-	assert.Equal(t, reflect.TypeOf(types.Secret{}).NumField(), len(getSecretAttributes()))
-}

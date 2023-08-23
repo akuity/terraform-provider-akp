@@ -54,7 +54,7 @@ func (r *AkpInstanceDataSource) Read(ctx context.Context, req datasource.ReadReq
 		return
 	}
 
-	tflog.MaskLogStrings(ctx, data.GetSensitiveStrings()...)
+	tflog.MaskLogStrings(ctx, data.GetSensitiveStrings(ctx, &resp.Diagnostics)...)
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 
 	refreshState(ctx, &resp.Diagnostics, r.akpCli.Cli, &data, r.akpCli.OrgId)
