@@ -511,3 +511,20 @@ Optional:
 - `name` (String) Secret name
 - `string_data` (Map of String, Sensitive) Secret string data
 - `type` (String) Secret type
+
+## Import
+
+In Terraform v1.5.0 and later, use an [`import` block](https://developer.hashicorp.com/terraform/language/import) to import the AKP Instance using its `name`. For example:
+
+```terraform
+import {
+  to = akp_instance.example
+  id = "test"
+}
+```
+
+Using `terraform import`, import AKP instance using its `name`. For example:
+
+```shell
+terraform import akp_instance.example test
+```
