@@ -514,7 +514,7 @@ Optional:
 
 ## Import
 
-In Terraform v1.5.0 and later, use an [`import` block](https://developer.hashicorp.com/terraform/language/import) to import the AKP Instance using its `name`. For example:
+In Terraform v1.5.0 and later, use an [`import` block](https://developer.hashicorp.com/terraform/language/import) to import the AKP instance using its `name`. For example:
 
 ```terraform
 import {

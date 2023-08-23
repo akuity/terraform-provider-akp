@@ -132,7 +132,7 @@ Optional:
 
 ## Import
 
-In Terraform v1.5.0 and later, use an [`import` block](https://developer.hashicorp.com/terraform/language/import) to import the AKP Cluster using `instance_id` and `name` separated by a forward slash (`/`). For example:
+In Terraform v1.5.0 and later, use an [`import` block](https://developer.hashicorp.com/terraform/language/import) to import the AKP cluster using `instance_id` and `name` separated by a forward slash (`/`). For example:
 
 ```terraform
 import {
@@ -141,7 +141,7 @@ import {
 }
 ```
 
-Using `terraform import`, import AKP Cluster using `instance_id` and `name` separated by a forward slash (`/`). For example:
+Using `terraform import`, import AKP cluster using `instance_id` and `name` separated by a forward slash (`/`). For example:
 
 ```shell
 terraform import akp_cluster.example 6pzhawvy4echbd8x/test-cluster
