@@ -22,10 +22,10 @@ resource "akp_cluster" "example" {
   name        = "test-cluster"
   namespace   = "test"
   labels = {
-    test-label = "true"
+    test-label = true
   }
   annotations = {
-    test-annotation = "false"
+    test-annotation = false
   }
   spec = {
     namespace_scoped = true
@@ -44,8 +44,8 @@ resource "akp_cluster" "example" {
   }
 
   kube_config = {
-    "config_path" = "test.kubeconfig"
-    "token"       = "YOUR TOKEN"
+    config_path = "test.kubeconfig"
+    token       = "YOUR TOKEN"
   }
 
   # When using a Kubernetes token retrieved from a Terraform provider (e.g. aws_eks_cluster_auth or google_client_config) in the above `kube_config`,

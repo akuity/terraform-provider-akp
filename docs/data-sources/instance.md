@@ -28,19 +28,19 @@ data "akp_instance" "example" {
 ### Read-Only
 
 - `argocd` (Attributes) Argo CD instance (see [below for nested schema](#nestedatt--argocd))
-- `argocd_cm` (Attributes) Argo CD configmap (see [below for nested schema](#nestedatt--argocd_cm))
-- `argocd_image_updater_config` (Attributes) Argo CD image updater configmap (see [below for nested schema](#nestedatt--argocd_image_updater_config))
-- `argocd_image_updater_secret` (Attributes) Argo CD image updater secret (see [below for nested schema](#nestedatt--argocd_image_updater_secret))
-- `argocd_image_updater_ssh_config` (Attributes) Argo CD image updater ssh configmap (see [below for nested schema](#nestedatt--argocd_image_updater_ssh_config))
-- `argocd_notifications_cm` (Attributes) Argo CD notifications configmap (see [below for nested schema](#nestedatt--argocd_notifications_cm))
-- `argocd_notifications_secret` (Attributes) Argo CD notifiations secret (see [below for nested schema](#nestedatt--argocd_notifications_secret))
-- `argocd_rbac_cm` (Attributes) Argo CD rbac configmap (see [below for nested schema](#nestedatt--argocd_rbac_cm))
-- `argocd_secret` (Attributes) Argo CD secret (see [below for nested schema](#nestedatt--argocd_secret))
-- `argocd_ssh_known_hosts_cm` (Attributes) Argo CD ssh known hosts configmap (see [below for nested schema](#nestedatt--argocd_ssh_known_hosts_cm))
-- `argocd_tls_certs_cm` (Attributes) Argo CD tls certs configmap (see [below for nested schema](#nestedatt--argocd_tls_certs_cm))
+- `argocd_cm` (Map of String) Argo CD configmap
+- `argocd_image_updater_config` (Map of String) Argo CD image updater configmap
+- `argocd_image_updater_secret` (Map of String) Argo CD image updater secret
+- `argocd_image_updater_ssh_config` (Map of String) Argo CD image updater ssh configmap
+- `argocd_notifications_cm` (Map of String) Argo CD notifications configmap
+- `argocd_notifications_secret` (Map of String) Argo CD notifiations secret
+- `argocd_rbac_cm` (Map of String) Argo CD rbac configmap
+- `argocd_secret` (Map of String) Argo CD secret
+- `argocd_ssh_known_hosts_cm` (Map of String) Argo CD ssh known hosts configmap
+- `argocd_tls_certs_cm` (Map of String) Argo CD tls certs configmap
 - `id` (String) Instance ID
-- `repo_credential_secrets` (Attributes List) Argo CD repo credential secrets (see [below for nested schema](#nestedatt--repo_credential_secrets))
-- `repo_template_credential_secrets` (Attributes List) (see [below for nested schema](#nestedatt--repo_template_credential_secrets))
+- `repo_credential_secrets` (Map of Map of String) Argo CD repo credential secrets
+- `repo_template_credential_secrets` (Map of Map of String) Argo CD repo templates credential secrets
 
 <a id="nestedatt--argocd"></a>
 ### Nested Schema for `argocd`
@@ -168,123 +168,3 @@ Read-Only:
 Read-Only:
 
 - `cluster_name` (String) Cluster name
-
-
-
-
-
-
-<a id="nestedatt--argocd_cm"></a>
-### Nested Schema for `argocd_cm`
-
-Read-Only:
-
-- `data` (Map of String) ConfigMap data
-
-
-<a id="nestedatt--argocd_image_updater_config"></a>
-### Nested Schema for `argocd_image_updater_config`
-
-Read-Only:
-
-- `data` (Map of String) ConfigMap data
-
-
-<a id="nestedatt--argocd_image_updater_secret"></a>
-### Nested Schema for `argocd_image_updater_secret`
-
-Read-Only:
-
-- `data` (Map of String, Sensitive) Secret data
-- `labels` (Map of String) Labels
-- `name` (String) Secret name
-- `string_data` (Map of String, Sensitive) Secret string data
-- `type` (String) Secret type
-
-
-<a id="nestedatt--argocd_image_updater_ssh_config"></a>
-### Nested Schema for `argocd_image_updater_ssh_config`
-
-Read-Only:
-
-- `data` (Map of String) ConfigMap data
-
-
-<a id="nestedatt--argocd_notifications_cm"></a>
-### Nested Schema for `argocd_notifications_cm`
-
-Read-Only:
-
-- `data` (Map of String) ConfigMap data
-
-
-<a id="nestedatt--argocd_notifications_secret"></a>
-### Nested Schema for `argocd_notifications_secret`
-
-Read-Only:
-
-- `data` (Map of String, Sensitive) Secret data
-- `labels` (Map of String) Labels
-- `name` (String) Secret name
-- `string_data` (Map of String, Sensitive) Secret string data
-- `type` (String) Secret type
-
-
-<a id="nestedatt--argocd_rbac_cm"></a>
-### Nested Schema for `argocd_rbac_cm`
-
-Read-Only:
-
-- `data` (Map of String) ConfigMap data
-
-
-<a id="nestedatt--argocd_secret"></a>
-### Nested Schema for `argocd_secret`
-
-Read-Only:
-
-- `data` (Map of String, Sensitive) Secret data
-- `labels` (Map of String) Labels
-- `name` (String) Secret name
-- `string_data` (Map of String, Sensitive) Secret string data
-- `type` (String) Secret type
-
-
-<a id="nestedatt--argocd_ssh_known_hosts_cm"></a>
-### Nested Schema for `argocd_ssh_known_hosts_cm`
-
-Read-Only:
-
-- `data` (Map of String) ConfigMap data
-
-
-<a id="nestedatt--argocd_tls_certs_cm"></a>
-### Nested Schema for `argocd_tls_certs_cm`
-
-Read-Only:
-
-- `data` (Map of String) ConfigMap data
-
-
-<a id="nestedatt--repo_credential_secrets"></a>
-### Nested Schema for `repo_credential_secrets`
-
-Read-Only:
-
-- `data` (Map of String, Sensitive) Secret data
-- `labels` (Map of String) Labels
-- `name` (String) Secret name
-- `string_data` (Map of String, Sensitive) Secret string data
-- `type` (String) Secret type
-
-
-<a id="nestedatt--repo_template_credential_secrets"></a>
-### Nested Schema for `repo_template_credential_secrets`
-
-Read-Only:
-
-- `data` (Map of String, Sensitive) Secret data
-- `labels` (Map of String) Labels
-- `name` (String) Secret name
-- `string_data` (Map of String, Sensitive) Secret string data
-- `type` (String) Secret type
