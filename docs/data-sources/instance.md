@@ -28,19 +28,19 @@ data "akp_instance" "example" {
 ### Read-Only
 
 - `argocd` (Attributes) Argo CD instance (see [below for nested schema](#nestedatt--argocd))
-- `argocd_cm` (Attributes) Argo CD configmap (see [below for nested schema](#nestedatt--argocd_cm))
-- `argocd_image_updater_config` (Attributes) Argo CD image updater configmap (see [below for nested schema](#nestedatt--argocd_image_updater_config))
-- `argocd_image_updater_secret` (Attributes) Argo CD image updater secret (see [below for nested schema](#nestedatt--argocd_image_updater_secret))
-- `argocd_image_updater_ssh_config` (Attributes) Argo CD image updater ssh configmap (see [below for nested schema](#nestedatt--argocd_image_updater_ssh_config))
-- `argocd_notifications_cm` (Attributes) Argo CD notifications configmap (see [below for nested schema](#nestedatt--argocd_notifications_cm))
-- `argocd_notifications_secret` (Attributes) Argo CD notifiations secret (see [below for nested schema](#nestedatt--argocd_notifications_secret))
-- `argocd_rbac_cm` (Attributes) Argo CD rbac configmap (see [below for nested schema](#nestedatt--argocd_rbac_cm))
-- `argocd_secret` (Attributes) Argo CD secret (see [below for nested schema](#nestedatt--argocd_secret))
-- `argocd_ssh_known_hosts_cm` (Attributes) Argo CD ssh known hosts configmap (see [below for nested schema](#nestedatt--argocd_ssh_known_hosts_cm))
-- `argocd_tls_certs_cm` (Attributes) Argo CD tls certs configmap (see [below for nested schema](#nestedatt--argocd_tls_certs_cm))
+- `argocd_cm` (Map of String) is aligned with the options in `argocd-cm` ConfigMap as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-cm-yaml/).
+- `argocd_image_updater_config` (Map of String) configures Argo CD image updater, and it is aligned with `argocd-image-updater-config` ConfigMap of Argo CD, for available options and examples, refer to [this documentation](https://argocd-image-updater.readthedocs.io/en/stable/).
+- `argocd_image_updater_secret` (Map of String) contains sensitive data (e.g., credentials for image updater to access registries) of Argo CD image updater, for available options and examples, refer to [this documentation](https://argocd-image-updater.readthedocs.io/en/stable/).
+- `argocd_image_updater_ssh_config` (Map of String) contains the ssh configuration for Argo CD image updater, and it is aligned with `argocd-image-updater-ssh-config` ConfigMap of Argo CD, for available options and examples, refer to [this documentation](https://argocd-image-updater.readthedocs.io/en/stable/).
+- `argocd_notifications_cm` (Map of String) configures Argo CD notifications, and it is aligned with `argocd-notifications-cm` ConfigMap of Argo CD, for more details and examples, refer to [this documentation](https://argocd-notifications.readthedocs.io/en/stable/)
+- `argocd_notifications_secret` (Map of String) contains sensitive data of Argo CD notifications, and it is aligned with `argocd-notifications-secret` Secret of Argo CD, for more details and examples, refer to [this documentation](https://argocd-notifications.readthedocs.io/en/stable/services/overview/#sensitive-data)
+- `argocd_rbac_cm` (Map of String) is aligned with the options in `argocd-rbac-cm` ConfigMap as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-rbac-cm-yaml/).
+- `argocd_secret` (Map of String) is aligned with the options in `argocd-secret` Secret as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-secret-yaml/).
+- `argocd_ssh_known_hosts_cm` (Map of String) is aligned with the options in `argocd-ssh-known-hosts-cm` ConfigMap as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-ssh-known-hosts-cm-yaml/).
+- `argocd_tls_certs_cm` (Map of String) is aligned with the options in `argocd-tls-certs-cm` ConfigMap as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-tls-certs-cm-yaml/).
 - `id` (String) Instance ID
-- `repo_credential_secrets` (Attributes List) Argo CD repo credential secrets (see [below for nested schema](#nestedatt--repo_credential_secrets))
-- `repo_template_credential_secrets` (Attributes List) (see [below for nested schema](#nestedatt--repo_template_credential_secrets))
+- `repo_credential_secrets` (Map of Map of String) is a map of repo credential secrets, the key of map entry is the `name` of the secret, and the value is the aligned with options in `argocd-repositories.yaml.data` as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-repositories-yaml/).
+- `repo_template_credential_secrets` (Map of Map of String) is a map of repository credential templates secrets, the key of map entry is the `name` of the secret, and the value is the aligned with options in `argocd-repo-creds.yaml.data` as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-repo-creds.yaml/).
 
 <a id="nestedatt--argocd"></a>
 ### Nested Schema for `argocd`
@@ -168,123 +168,3 @@ Read-Only:
 Read-Only:
 
 - `cluster_name` (String) Cluster name
-
-
-
-
-
-
-<a id="nestedatt--argocd_cm"></a>
-### Nested Schema for `argocd_cm`
-
-Read-Only:
-
-- `data` (Map of String) ConfigMap data
-
-
-<a id="nestedatt--argocd_image_updater_config"></a>
-### Nested Schema for `argocd_image_updater_config`
-
-Read-Only:
-
-- `data` (Map of String) ConfigMap data
-
-
-<a id="nestedatt--argocd_image_updater_secret"></a>
-### Nested Schema for `argocd_image_updater_secret`
-
-Read-Only:
-
-- `data` (Map of String, Sensitive) Secret data
-- `labels` (Map of String) Labels
-- `name` (String) Secret name
-- `string_data` (Map of String, Sensitive) Secret string data
-- `type` (String) Secret type
-
-
-<a id="nestedatt--argocd_image_updater_ssh_config"></a>
-### Nested Schema for `argocd_image_updater_ssh_config`
-
-Read-Only:
-
-- `data` (Map of String) ConfigMap data
-
-
-<a id="nestedatt--argocd_notifications_cm"></a>
-### Nested Schema for `argocd_notifications_cm`
-
-Read-Only:
-
-- `data` (Map of String) ConfigMap data
-
-
-<a id="nestedatt--argocd_notifications_secret"></a>
-### Nested Schema for `argocd_notifications_secret`
-
-Read-Only:
-
-- `data` (Map of String, Sensitive) Secret data
-- `labels` (Map of String) Labels
-- `name` (String) Secret name
-- `string_data` (Map of String, Sensitive) Secret string data
-- `type` (String) Secret type
-
-
-<a id="nestedatt--argocd_rbac_cm"></a>
-### Nested Schema for `argocd_rbac_cm`
-
-Read-Only:
-
-- `data` (Map of String) ConfigMap data
-
-
-<a id="nestedatt--argocd_secret"></a>
-### Nested Schema for `argocd_secret`
-
-Read-Only:
-
-- `data` (Map of String, Sensitive) Secret data
-- `labels` (Map of String) Labels
-- `name` (String) Secret name
-- `string_data` (Map of String, Sensitive) Secret string data
-- `type` (String) Secret type
-
-
-<a id="nestedatt--argocd_ssh_known_hosts_cm"></a>
-### Nested Schema for `argocd_ssh_known_hosts_cm`
-
-Read-Only:
-
-- `data` (Map of String) ConfigMap data
-
-
-<a id="nestedatt--argocd_tls_certs_cm"></a>
-### Nested Schema for `argocd_tls_certs_cm`
-
-Read-Only:
-
-- `data` (Map of String) ConfigMap data
-
-
-<a id="nestedatt--repo_credential_secrets"></a>
-### Nested Schema for `repo_credential_secrets`
-
-Read-Only:
-
-- `data` (Map of String, Sensitive) Secret data
-- `labels` (Map of String) Labels
-- `name` (String) Secret name
-- `string_data` (Map of String, Sensitive) Secret string data
-- `type` (String) Secret type
-
-
-<a id="nestedatt--repo_template_credential_secrets"></a>
-### Nested Schema for `repo_template_credential_secrets`
-
-Read-Only:
-
-- `data` (Map of String, Sensitive) Secret data
-- `labels` (Map of String) Labels
-- `name` (String) Secret name
-- `string_data` (Map of String, Sensitive) Secret string data
-- `type` (String) Secret type

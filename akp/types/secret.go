@@ -5,63 +5,36 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type Secret struct {
-	Name       types.String `tfsdk:"name"`
-	Labels     types.Map    `tfsdk:"labels"`
-	Data       types.Map    `tfsdk:"data"`
-	StringData types.Map    `tfsdk:"string_data"`
-	Type       types.String `tfsdk:"type"`
-}
-
-func (s *Secret) GetSensitiveStrings() []string {
+func GetSensitiveStrings(data types.Map) []string {
 	var res []string
-	if s == nil {
+	if data.IsNull() || data.IsUnknown() {
 		return res
 	}
-	secrets, _ := mapFromMapValue(s.Data)
-	for _, value := range secrets {
-		res = append(res, value)
-	}
-	secrets, _ = mapFromMapValue(s.StringData)
+	secrets, _ := mapFromMapValue(data)
 	for _, value := range secrets {
 		res = append(res, value)
 	}
 	return res
 }
 
-func (s *Secret) ToSecretAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, name string) *v1.Secret {
-	var labels map[string]string
+func ToSecretAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, name string, labels map[string]string, m tftypes.Map) *v1.Secret {
 	var data map[string]string
-	var stringData map[string]string
-	diagnostics.Append(s.Labels.ElementsAs(ctx, &labels, true)...)
-	diagnostics.Append(s.Data.ElementsAs(ctx, &data, true)...)
-	diagnostics.Append(s.StringData.ElementsAs(ctx, &stringData, true)...)
-	n := name
-	if !s.Name.IsNull() && !s.Name.IsUnknown() {
-		n = s.Name.ValueString()
-	}
-	var dataM map[string][]byte
-	if len(data) != 0 {
-		dataM = make(map[string][]byte)
-		for k, v := range data {
-			dataM[k] = []byte(v)
-		}
-	}
+	diagnostics.Append(m.ElementsAs(ctx, &data, true)...)
 	return &v1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   n,
+			Name:   name,
 			Labels: labels,
 		},
-		Data:       dataM,
-		StringData: stringData,
+		StringData: data,
 	}
 }
 

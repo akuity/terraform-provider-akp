@@ -30,108 +30,65 @@ func getAKPInstanceDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			Attributes:          getArgoCDDataSourceAttributes(),
 		},
-		"argocd_cm": schema.SingleNestedAttribute{
-			MarkdownDescription: "Argo CD configmap",
+		"argocd_cm": schema.MapAttribute{
+			MarkdownDescription: "is aligned with the options in `argocd-cm` ConfigMap as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-cm-yaml/).",
 			Computed:            true,
-			Attributes:          getConfigMapDataSourceAttributes(),
-		},
-		"argocd_rbac_cm": schema.SingleNestedAttribute{
-			MarkdownDescription: "Argo CD rbac configmap",
-			Computed:            true,
-			Attributes:          getConfigMapDataSourceAttributes(),
-		},
-		"argocd_secret": schema.SingleNestedAttribute{
-			MarkdownDescription: "Argo CD secret",
-			Computed:            true,
-			Attributes:          getSecretDataSourceAttributes(),
-		},
-		"argocd_notifications_cm": schema.SingleNestedAttribute{
-			MarkdownDescription: "Argo CD notifications configmap",
-			Computed:            true,
-			Attributes:          getConfigMapDataSourceAttributes(),
-		},
-		"argocd_notifications_secret": schema.SingleNestedAttribute{
-			MarkdownDescription: "Argo CD notifiations secret",
-			Computed:            true,
-			Attributes:          getSecretDataSourceAttributes(),
-		},
-		"argocd_image_updater_config": schema.SingleNestedAttribute{
-			MarkdownDescription: "Argo CD image updater configmap",
-			Computed:            true,
-			Attributes:          getConfigMapDataSourceAttributes(),
-		},
-		"argocd_image_updater_ssh_config": schema.SingleNestedAttribute{
-			MarkdownDescription: "Argo CD image updater ssh configmap",
-			Computed:            true,
-			Attributes:          getConfigMapDataSourceAttributes(),
-		},
-		"argocd_image_updater_secret": schema.SingleNestedAttribute{
-			MarkdownDescription: "Argo CD image updater secret",
-			Computed:            true,
-			Attributes:          getSecretDataSourceAttributes(),
-		},
-		"argocd_ssh_known_hosts_cm": schema.SingleNestedAttribute{
-			MarkdownDescription: "Argo CD ssh known hosts configmap",
-			Computed:            true,
-			Attributes:          getConfigMapDataSourceAttributes(),
-		},
-		"argocd_tls_certs_cm": schema.SingleNestedAttribute{
-			MarkdownDescription: "Argo CD tls certs configmap",
-			Computed:            true,
-			Attributes:          getConfigMapDataSourceAttributes(),
-		},
-		"repo_credential_secrets": schema.ListNestedAttribute{
-			MarkdownDescription: "Argo CD repo credential secrets",
-			Computed:            true,
-			NestedObject: schema.NestedAttributeObject{
-				Attributes: getSecretDataSourceAttributes(),
-			},
-		},
-		"repo_template_credential_secrets": schema.ListNestedAttribute{
-			Computed: true,
-			NestedObject: schema.NestedAttributeObject{
-				Attributes: getSecretDataSourceAttributes(),
-			},
-		},
-	}
-}
-
-func getConfigMapDataSourceAttributes() map[string]schema.Attribute {
-	return map[string]schema.Attribute{
-		"data": schema.MapAttribute{
-			MarkdownDescription: "ConfigMap data",
 			ElementType:         types.StringType,
-			Computed:            true,
 		},
-	}
-}
-
-func getSecretDataSourceAttributes() map[string]schema.Attribute {
-	return map[string]schema.Attribute{
-		"name": schema.StringAttribute{
+		"argocd_rbac_cm": schema.MapAttribute{
+			MarkdownDescription: "is aligned with the options in `argocd-rbac-cm` ConfigMap as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-rbac-cm-yaml/).",
 			Computed:            true,
-			MarkdownDescription: "Secret name",
-		},
-		"labels": schema.MapAttribute{
 			ElementType:         types.StringType,
-			MarkdownDescription: "Labels",
-			Computed:            true,
 		},
-		"data": schema.MapAttribute{
-			MarkdownDescription: "Secret data",
+		"argocd_secret": schema.MapAttribute{
+			MarkdownDescription: "is aligned with the options in `argocd-secret` Secret as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-secret-yaml/).",
+			Computed:            true,
 			ElementType:         types.StringType,
-			Computed:            true,
-			Sensitive:           true,
 		},
-		"string_data": schema.MapAttribute{
-			MarkdownDescription: "Secret string data",
+		"argocd_notifications_cm": schema.MapAttribute{
+			MarkdownDescription: "configures Argo CD notifications, and it is aligned with `argocd-notifications-cm` ConfigMap of Argo CD, for more details and examples, refer to [this documentation](https://argocd-notifications.readthedocs.io/en/stable/)",
+			Computed:            true,
 			ElementType:         types.StringType,
-			Computed:            true,
-			Sensitive:           true,
 		},
-		"type": schema.StringAttribute{
-			MarkdownDescription: "Secret type",
+		"argocd_notifications_secret": schema.MapAttribute{
+			MarkdownDescription: "contains sensitive data of Argo CD notifications, and it is aligned with `argocd-notifications-secret` Secret of Argo CD, for more details and examples, refer to [this documentation](https://argocd-notifications.readthedocs.io/en/stable/services/overview/#sensitive-data)",
 			Computed:            true,
+			ElementType:         types.StringType,
+		},
+		"argocd_image_updater_config": schema.MapAttribute{
+			MarkdownDescription: "configures Argo CD image updater, and it is aligned with `argocd-image-updater-config` ConfigMap of Argo CD, for available options and examples, refer to [this documentation](https://argocd-image-updater.readthedocs.io/en/stable/).",
+			Computed:            true,
+			ElementType:         types.StringType,
+		},
+		"argocd_image_updater_ssh_config": schema.MapAttribute{
+			MarkdownDescription: "contains the ssh configuration for Argo CD image updater, and it is aligned with `argocd-image-updater-ssh-config` ConfigMap of Argo CD, for available options and examples, refer to [this documentation](https://argocd-image-updater.readthedocs.io/en/stable/).",
+			Computed:            true,
+			ElementType:         types.StringType,
+		},
+		"argocd_image_updater_secret": schema.MapAttribute{
+			MarkdownDescription: "contains sensitive data (e.g., credentials for image updater to access registries) of Argo CD image updater, for available options and examples, refer to [this documentation](https://argocd-image-updater.readthedocs.io/en/stable/).",
+			Computed:            true,
+			ElementType:         types.StringType,
+		},
+		"argocd_ssh_known_hosts_cm": schema.MapAttribute{
+			MarkdownDescription: "is aligned with the options in `argocd-ssh-known-hosts-cm` ConfigMap as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-ssh-known-hosts-cm-yaml/).",
+			Computed:            true,
+			ElementType:         types.StringType,
+		},
+		"argocd_tls_certs_cm": schema.MapAttribute{
+			MarkdownDescription: "is aligned with the options in `argocd-tls-certs-cm` ConfigMap as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-tls-certs-cm-yaml/).",
+			Computed:            true,
+			ElementType:         types.StringType,
+		},
+		"repo_credential_secrets": schema.MapAttribute{
+			MarkdownDescription: "is a map of repo credential secrets, the key of map entry is the `name` of the secret, and the value is the aligned with options in `argocd-repositories.yaml.data` as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-repositories-yaml/).",
+			Computed:            true,
+			ElementType:         types.MapType{ElemType: types.StringType},
+		},
+		"repo_template_credential_secrets": schema.MapAttribute{
+			MarkdownDescription: "is a map of repository credential templates secrets, the key of map entry is the `name` of the secret, and the value is the aligned with options in `argocd-repo-creds.yaml.data` as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-repo-creds.yaml/).",
+			Computed:            true,
+			ElementType:         types.MapType{ElemType: types.StringType},
 		},
 	}
 }

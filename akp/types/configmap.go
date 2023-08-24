@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"google.golang.org/protobuf/types/known/structpb"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,32 +14,28 @@ import (
 	"github.com/akuity/terraform-provider-akp/akp/marshal"
 )
 
-type ConfigMap struct {
-	Data tftypes.Map `tfsdk:"data"`
-}
-
-var (
-	configMapAttrTypes = map[string]attr.Type{
-		"data": tftypes.MapType{
-			ElemType: tftypes.StringType,
-		},
+func ToConfigMapTFModel(ctx context.Context, diagnostics *diag.Diagnostics, data *structpb.Struct, oldCM tftypes.Map) tftypes.Map {
+	tflog.Debug(ctx, fmt.Sprintf("--------------data: %+v", data))
+	if data == nil || len(data.AsMap()) == 0 {
+		if !oldCM.IsUnknown() && (oldCM.IsNull() || len(oldCM.Elements()) == 0) {
+			return oldCM
+		}
 	}
-)
-
-func (c *ConfigMap) Update(ctx context.Context, diagnostics *diag.Diagnostics, data *structpb.Struct) {
 	m := map[string]string{}
 	err := marshal.RemarshalTo(data, &m)
 	if err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get Argo CD instance. %s", err))
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get ConfigMap data. %s", err))
+		return tftypes.MapNull(tftypes.StringType)
 	}
 	newData, diag := tftypes.MapValueFrom(ctx, tftypes.StringType, &m)
 	diagnostics.Append(diag...)
-	c.Data = newData
+	return newData
 }
 
-func (c *ConfigMap) ToConfigMapAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, name string) *v1.ConfigMap {
+func ToConfigMapAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, name string, m tftypes.Map) *v1.ConfigMap {
 	var data map[string]string
-	diagnostics.Append(c.Data.ElementsAs(ctx, &data, true)...)
+	diagnostics.Append(m.ElementsAs(ctx, &data, true)...)
+	tflog.Debug(ctx, fmt.Sprintf("----------data: %+v\n", data))
 	return &v1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ConfigMap",
