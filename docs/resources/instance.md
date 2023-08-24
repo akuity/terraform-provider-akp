@@ -340,3 +340,140 @@ Optional:
 Required:
 
 - `cluster_name` (String) Cluster name
+
+
+
+
+
+
+<a id="nestedatt--argocd_cm"></a>
+### Nested Schema for `argocd_cm`
+
+Required:
+
+- `data` (Map of String) ConfigMap data
+
+
+<a id="nestedatt--argocd_image_updater_config"></a>
+### Nested Schema for `argocd_image_updater_config`
+
+Required:
+
+- `data` (Map of String) ConfigMap data
+
+
+<a id="nestedatt--argocd_image_updater_secret"></a>
+### Nested Schema for `argocd_image_updater_secret`
+
+Optional:
+
+- `data` (Map of String, Sensitive) Secret data
+- `labels` (Map of String) Labels
+- `name` (String) Secret name
+- `string_data` (Map of String, Sensitive) Secret string data
+- `type` (String) Secret type
+
+
+<a id="nestedatt--argocd_image_updater_ssh_config"></a>
+### Nested Schema for `argocd_image_updater_ssh_config`
+
+Required:
+
+- `data` (Map of String) ConfigMap data
+
+
+<a id="nestedatt--argocd_notifications_cm"></a>
+### Nested Schema for `argocd_notifications_cm`
+
+Required:
+
+- `data` (Map of String) ConfigMap data
+
+
+<a id="nestedatt--argocd_notifications_secret"></a>
+### Nested Schema for `argocd_notifications_secret`
+
+Optional:
+
+- `data` (Map of String, Sensitive) Secret data
+- `labels` (Map of String) Labels
+- `name` (String) Secret name
+- `string_data` (Map of String, Sensitive) Secret string data
+- `type` (String) Secret type
+
+
+<a id="nestedatt--argocd_rbac_cm"></a>
+### Nested Schema for `argocd_rbac_cm`
+
+Required:
+
+- `data` (Map of String) ConfigMap data
+
+
+<a id="nestedatt--argocd_secret"></a>
+### Nested Schema for `argocd_secret`
+
+Optional:
+
+- `data` (Map of String, Sensitive) Secret data
+- `labels` (Map of String) Labels
+- `name` (String) Secret name
+- `string_data` (Map of String, Sensitive) Secret string data
+- `type` (String) Secret type
+
+
+<a id="nestedatt--argocd_ssh_known_hosts_cm"></a>
+### Nested Schema for `argocd_ssh_known_hosts_cm`
+
+Required:
+
+- `data` (Map of String) ConfigMap data
+
+
+<a id="nestedatt--argocd_tls_certs_cm"></a>
+### Nested Schema for `argocd_tls_certs_cm`
+
+Required:
+
+- `data` (Map of String) ConfigMap data
+
+
+<a id="nestedatt--repo_credential_secrets"></a>
+### Nested Schema for `repo_credential_secrets`
+
+Optional:
+
+- `data` (Map of String, Sensitive) Secret data
+- `labels` (Map of String) Labels
+- `name` (String) Secret name
+- `string_data` (Map of String, Sensitive) Secret string data
+- `type` (String) Secret type
+
+
+<a id="nestedatt--repo_template_credential_secrets"></a>
+### Nested Schema for `repo_template_credential_secrets`
+
+Optional:
+
+- `data` (Map of String, Sensitive) Secret data
+- `labels` (Map of String) Labels
+- `name` (String) Secret name
+- `string_data` (Map of String, Sensitive) Secret string data
+- `type` (String) Secret type
+
+## Import
+
+In Terraform v1.5.0 and later, use an [`import` block](https://developer.hashicorp.com/terraform/language/import) to import the AKP instance using its `name`. For example:
+
+```terraform
+import {
+  to = akp_instance.example
+  id = "test"
+}
+```
+
+Using `terraform import`, import AKP instance using its `name`. For example:
+
+```shell
+terraform import akp_instance.example test
+```

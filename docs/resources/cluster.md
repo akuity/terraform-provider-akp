@@ -129,3 +129,20 @@ Optional:
 - `proxy_url` (String) URL to the proxy to be used for all API requests
 - `token` (String, Sensitive) Token to authenticate an service account
 - `username` (String) The username to use for HTTP basic authentication when accessing the Kubernetes master endpoint.
+
+## Import
+
+In Terraform v1.5.0 and later, use an [`import` block](https://developer.hashicorp.com/terraform/language/import) to import the AKP cluster using `instance_id` and `name` separated by a forward slash (`/`). For example:
+
+```terraform
+import {
+  to = akp_cluster.example
+  id = "6pzhawvy4echbd8x/test-cluster"
+}
+```
+
+Using `terraform import`, import AKP cluster using `instance_id` and `name` separated by a forward slash (`/`). For example:
+
+```shell
+terraform import akp_cluster.example 6pzhawvy4echbd8x/test-cluster
+```
