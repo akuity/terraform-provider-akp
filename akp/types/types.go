@@ -116,6 +116,9 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 	c.ID = tftypes.StringValue(apiCluster.GetId())
 	c.Name = tftypes.StringValue(apiCluster.GetName())
 	c.Namespace = tftypes.StringValue(apiCluster.GetNamespace())
+	if c.RemoveAgentResourcesOnDestroy.IsUnknown() || c.RemoveAgentResourcesOnDestroy.IsNull() {
+		c.RemoveAgentResourcesOnDestroy = tftypes.BoolValue(true)
+	}
 	labels, d := tftypes.MapValueFrom(ctx, tftypes.StringType, apiCluster.GetData().GetLabels())
 	if d.HasError() {
 		labels = tftypes.MapNull(tftypes.StringType)
