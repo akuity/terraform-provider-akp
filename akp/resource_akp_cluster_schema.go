@@ -81,7 +81,7 @@ func getAKPClusterAttributes() map[string]schema.Attribute {
 			Attributes:          getKubeconfigAttributes(),
 		},
 		"remove_agent_resources_on_destroy": schema.BoolAttribute{
-			MarkdownDescription: "Remove agent Kubernetes resources from the managed cluster when destroying cluster",
+			MarkdownDescription: "Remove agent Kubernetes resources from the managed cluster when destroying cluster, default to `true`",
 			Optional:            true,
 			Computed:            true,
 			Default:             booldefault.StaticBool(true),
