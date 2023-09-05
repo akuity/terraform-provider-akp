@@ -25,6 +25,11 @@ var (
 		"redis_tunneling":       tftypes.BoolType,
 	}
 
+	appsetPolicyAttrTypes = map[string]attr.Type{
+		"policy":          tftypes.StringType,
+		"override_policy": tftypes.BoolType,
+	}
+
 	ClusterSizeString = map[argocdv1.ClusterSize]string{
 		argocdv1.ClusterSize_CLUSTER_SIZE_SMALL:       "small",
 		argocdv1.ClusterSize_CLUSTER_SIZE_MEDIUM:      "medium",
@@ -75,7 +80,7 @@ func (a *ArgoCD) Update(ctx context.Context, diagnostics *diag.Diagnostics, cd *
 			ImageUpdaterDelegate:         toImageUpdaterDelegateTFModel(cd.Spec.InstanceSpec.ImageUpdaterDelegate),
 			AppSetDelegate:               toAppSetDelegateTFModel(cd.Spec.InstanceSpec.AppSetDelegate),
 			AssistantExtensionEnabled:    tftypes.BoolValue(assistantExtensionEnabled),
-			AppsetPolicy:                 toAppsetPolicyTFModel(cd.Spec.InstanceSpec.AppsetPolicy),
+			AppsetPolicy:                 toAppsetPolicyTFModel(ctx, diagnostics, cd.Spec.InstanceSpec.AppsetPolicy),
 		},
 	}
 }
@@ -106,7 +111,7 @@ func (a *ArgoCD) ToArgoCDAPIModel(ctx context.Context, diag *diag.Diagnostics, n
 				ImageUpdaterDelegate:         toImageUpdaterDelegateAPIModel(a.Spec.InstanceSpec.ImageUpdaterDelegate),
 				AppSetDelegate:               toAppSetDelegateAPIModel(a.Spec.InstanceSpec.AppSetDelegate),
 				AssistantExtensionEnabled:    a.Spec.InstanceSpec.AssistantExtensionEnabled.ValueBoolPointer(),
-				AppsetPolicy:                 toAppsetPolicyAPIModel(a.Spec.InstanceSpec.AppsetPolicy),
+				AppsetPolicy:                 toAppsetPolicyAPIModel(ctx, diag, a.Spec.InstanceSpec.AppsetPolicy),
 			},
 		},
 	}
@@ -291,13 +296,18 @@ func toExtensionsAPIModel(entries []*ArgoCDExtensionInstallEntry) []*v1alpha1.Ar
 	return extensions
 }
 
-func toAppsetPolicyAPIModel(appsetPolicy *AppsetPolicy) *v1alpha1.AppsetPolicy {
-	if appsetPolicy == nil {
+func toAppsetPolicyAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, appsetPolicy tftypes.Object) *v1alpha1.AppsetPolicy {
+	var policy AppsetPolicy
+	diagnostics.Append(appsetPolicy.As(ctx, &policy, basetypes.ObjectAsOptions{
+		UnhandledNullAsEmpty:    true,
+		UnhandledUnknownAsEmpty: true,
+	})...)
+	if diagnostics.HasError() {
 		return nil
 	}
 	return &v1alpha1.AppsetPolicy{
-		Policy:         appsetPolicy.Policy.ValueString(),
-		OverridePolicy: appsetPolicy.OverridePolicy.ValueBoolPointer(),
+		Policy:         policy.Policy.ValueString(),
+		OverridePolicy: policy.OverridePolicy.ValueBoolPointer(),
 	}
 }
 
@@ -404,17 +414,23 @@ func toExtensionsTFModel(entries []*v1alpha1.ArgoCDExtensionInstallEntry) []*Arg
 	return extensions
 }
 
-func toAppsetPolicyTFModel(appsetPolicy *v1alpha1.AppsetPolicy) *AppsetPolicy {
+func toAppsetPolicyTFModel(ctx context.Context, diagnostics *diag.Diagnostics, appsetPolicy *v1alpha1.AppsetPolicy) tftypes.Object {
 	if appsetPolicy == nil {
-		return nil
+		return tftypes.ObjectNull(appsetPolicyAttrTypes)
 	}
 
 	overridePolicy := false
 	if appsetPolicy.OverridePolicy != nil && *appsetPolicy.OverridePolicy {
 		overridePolicy = true
 	}
-	return &AppsetPolicy{
+	a := &AppsetPolicy{
 		Policy:         tftypes.StringValue(appsetPolicy.Policy),
 		OverridePolicy: tftypes.BoolValue(overridePolicy),
 	}
+	policy, d := tftypes.ObjectValueFrom(ctx, appsetPolicyAttrTypes, a)
+	diagnostics.Append(d...)
+	if diagnostics.HasError() {
+		return tftypes.ObjectNull(appsetPolicyAttrTypes)
+	}
+	return policy
 }

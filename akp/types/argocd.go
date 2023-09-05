@@ -50,7 +50,7 @@ type InstanceSpec struct {
 	ImageUpdaterDelegate         *ImageUpdaterDelegate          `tfsdk:"image_updater_delegate"`
 	AppSetDelegate               *AppSetDelegate                `tfsdk:"app_set_delegate"`
 	AssistantExtensionEnabled    types.Bool                     `tfsdk:"assistant_extension_enabled"`
-	AppsetPolicy                 *AppsetPolicy                  `tfsdk:"appset_policy"`
+	AppsetPolicy                 types.Object                   `tfsdk:"appset_policy"`
 }
 
 type ManagedCluster struct {
