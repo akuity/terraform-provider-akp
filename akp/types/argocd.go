@@ -16,7 +16,6 @@ type ArgoCD struct {
 type ArgoCDSpec struct {
 	Description  types.String `tfsdk:"description"`
 	Version      types.String `tfsdk:"version"`
-	Shard        types.String `tfsdk:"shard"`
 	InstanceSpec InstanceSpec `tfsdk:"instance_spec"`
 }
 
@@ -51,7 +50,7 @@ type InstanceSpec struct {
 	ImageUpdaterDelegate         *ImageUpdaterDelegate          `tfsdk:"image_updater_delegate"`
 	AppSetDelegate               *AppSetDelegate                `tfsdk:"app_set_delegate"`
 	AssistantExtensionEnabled    types.Bool                     `tfsdk:"assistant_extension_enabled"`
-	AppsetPolicy                 *AppsetPolicy                  `tfsdk:"appset_policy"`
+	AppsetPolicy                 types.Object                   `tfsdk:"appset_policy"`
 	HostAliases                  []*HostAliases                 `tfsdk:"host_aliases"`
 }
 
