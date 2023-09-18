@@ -10,8 +10,22 @@ description: |-
 
 Manages an Argo CD instance
 
-## Example Usage
+## Example Usage (Basic)
+```terraform
+resource "akp_instance" "argocd" {
+  name = "argocd"
+  argocd = {
+    "spec" = {
+      "instance_spec" = {
+        "declarative_management_enabled" = true
+      }
+      "version" = "v2.8.3-ak.2"
+    }
+  }
+}
+```
 
+## Example Usage (Exhaustive)
 ```terraform
 resource "akp_instance" "example" {
   name = "test"
