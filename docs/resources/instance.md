@@ -215,7 +215,7 @@ Required:
 Required:
 
 - `instance_spec` (Attributes) Argo CD instance spec (see [below for nested schema](#nestedatt--argocd--spec--instance_spec))
-- `version` (String) Argo CD version. Should be equal to any [argo cd image tag](https://quay.io/repository/argoproj/argocd?tab=tags).
+- `version` (String) Argo CD version. Should be equal to any Akuity [`argocd` image tag](https://quay.io/repository/akuity/argocd?tab=tags).
 
 Optional:
 
