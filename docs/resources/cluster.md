@@ -12,18 +12,29 @@ Manages a cluster attached to an Argo CD instance.
 
 ## Example Usage (Basic)
 ```terraform
-resource "akp_instance" "argocd" {
-  name = "argocd"
-  argocd = {
-    "spec" = {
-      "instance_spec" = {
-        "declarative_management_enabled" = true
-      }
-      "version" = "v2.8.3-ak.2"
+resource "akp_cluster" "my-cluster" {
+  instance_id = akp_instance.argocd.id
+  kube_config = {
+    host                   = "https://${cluster.my-cluster.endpoint}"
+    token                  = var.my_token
+    client_certificate     = "${base64decode(cluster.my-cluster.master_auth.0.client_certificate)}"
+    client_key             = "${base64decode(cluster.my-cluster.master_auth.0.client_key)}"
+    cluster_ca_certificate = "${base64decode(cluster.my-cluster.master_auth.0.cluster_ca_certificate)}"
+  }
+  name      = "my-cluster"
+  namespace = "akuity"
+  spec = {
+    data = {
+      size = "small"
     }
   }
 }
 ```
+
+- The `instance_id` assumes you have an `akp_instance` resource named `argocd`.
+- The `kube_config` assumes you have a resource named `cluster.my-cluster` that provides the `host`, `token`, `client_certificate`, `client_key`, `cluster_ca_certificate` of the Kubernetes cluster to deploy the agent into.
+
+For a complete working example using a GKE cluster, see [akuity/examples](https://github.com/akuity/examples/tree/main/terraform/akuity).
 
 ## Example Usage (Exhaustive)
 ```terraform
