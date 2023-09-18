@@ -81,6 +81,7 @@ func (a *ArgoCD) Update(ctx context.Context, diagnostics *diag.Diagnostics, cd *
 			AppSetDelegate:               toAppSetDelegateTFModel(cd.Spec.InstanceSpec.AppSetDelegate),
 			AssistantExtensionEnabled:    tftypes.BoolValue(assistantExtensionEnabled),
 			AppsetPolicy:                 toAppsetPolicyTFModel(ctx, diagnostics, cd.Spec.InstanceSpec.AppsetPolicy),
+			HostAliases:                  toHostAliasesTFModel(cd.Spec.InstanceSpec.HostAliases),
 		},
 	}
 }
@@ -112,6 +113,7 @@ func (a *ArgoCD) ToArgoCDAPIModel(ctx context.Context, diag *diag.Diagnostics, n
 				AppSetDelegate:               toAppSetDelegateAPIModel(a.Spec.InstanceSpec.AppSetDelegate),
 				AssistantExtensionEnabled:    a.Spec.InstanceSpec.AssistantExtensionEnabled.ValueBoolPointer(),
 				AppsetPolicy:                 toAppsetPolicyAPIModel(ctx, diag, a.Spec.InstanceSpec.AppsetPolicy),
+				HostAliases:                  toHostAliasesAPIModel(a.Spec.InstanceSpec.HostAliases),
 			},
 		},
 	}
@@ -311,6 +313,21 @@ func toAppsetPolicyAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, 
 	}
 }
 
+func toHostAliasesAPIModel(hostAliases []*HostAliases) []*v1alpha1.HostAliases {
+	var hostAliasesAPI []*v1alpha1.HostAliases
+	for _, entry := range hostAliases {
+		var hostnames []string
+		for _, hostname := range entry.Hostnames {
+			hostnames = append(hostnames, hostname.ValueString())
+		}
+		hostAliasesAPI = append(hostAliasesAPI, &v1alpha1.HostAliases{
+			Ip:        entry.Ip.ValueString(),
+			Hostnames: hostnames,
+		})
+	}
+	return hostAliasesAPI
+}
+
 func toRepoServerDelegateTFModel(repoServerDelegate *v1alpha1.RepoServerDelegate) *RepoServerDelegate {
 	if repoServerDelegate == nil {
 		return nil
@@ -433,4 +450,19 @@ func toAppsetPolicyTFModel(ctx context.Context, diagnostics *diag.Diagnostics, a
 		return tftypes.ObjectNull(appsetPolicyAttrTypes)
 	}
 	return policy
+}
+
+func toHostAliasesTFModel(entries []*v1alpha1.HostAliases) []*HostAliases {
+	var hostAliases []*HostAliases
+	for _, entry := range entries {
+		var hostnames []tftypes.String
+		for _, hostname := range entry.Hostnames {
+			hostnames = append(hostnames, tftypes.StringValue(hostname))
+		}
+		hostAliases = append(hostAliases, &HostAliases{
+			Ip:        tftypes.StringValue(entry.Ip),
+			Hostnames: hostnames,
+		})
+	}
+	return hostAliases
 }
