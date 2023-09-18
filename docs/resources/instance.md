@@ -101,6 +101,9 @@ resource "akp_instance" "example" {
     "dex.github.clientSecret" = "my-github-oidc-secret"
     "webhook.github.secret"   = "shhhh! it'   s a github secret"
   }
+  application_set_secret = {
+    "my-appset-secret" = "xyz456"
+  }
   argocd_notifications_cm = {
     "trigger.on-sync-status-unknown" = <<-EOF
         - when: app.status.sync.status == 'Unknown'
@@ -205,6 +208,7 @@ vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOf
 
 ### Optional
 
+- `application_set_secret` (Map of String, Sensitive) stores secret key-value that will be used by `ApplicationSet`. For an example of how to use this in your ApplicationSet's pull request generator, see [here](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/applicationset/Generators-Pull-Request.md#github). In this example, `tokenRef.secretName` would be application-set-secret.
 - `argocd_cm` (Map of String) is aligned with the options in `argocd-cm` ConfigMap as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-cm-yaml/).
 - `argocd_image_updater_config` (Map of String) configures Argo CD image updater, and it is aligned with `argocd-image-updater-config` ConfigMap of Argo CD, for available options and examples, refer to [this documentation](https://argocd-image-updater.readthedocs.io/en/stable/).
 - `argocd_image_updater_secret` (Map of String, Sensitive) contains sensitive data (e.g., credentials for image updater to access registries) of Argo CD image updater, for available options and examples, refer to [this documentation](https://argocd-image-updater.readthedocs.io/en/stable/).

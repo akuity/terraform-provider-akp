@@ -68,6 +68,12 @@ func getAKPInstanceAttributes() map[string]schema.Attribute {
 			Sensitive:           true,
 			ElementType:         types.StringType,
 		},
+		"application_set_secret": schema.MapAttribute{
+			MarkdownDescription: "stores secret key-value that will be used by `ApplicationSet`. For an example of how to use this in your ApplicationSet's pull request generator, see [here](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/applicationset/Generators-Pull-Request.md#github). In this example, `tokenRef.secretName` would be application-set-secret.",
+			Optional:            true,
+			Sensitive:           true,
+			ElementType:         types.StringType,
+		},
 		"argocd_notifications_cm": schema.MapAttribute{
 			MarkdownDescription: "configures Argo CD notifications, and it is aligned with `argocd-notifications-cm` ConfigMap of Argo CD, for more details and examples, refer to [this documentation](https://argocd-notifications.readthedocs.io/en/stable/).",
 			ElementType:         types.StringType,

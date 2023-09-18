@@ -72,6 +72,9 @@ resource "akp_instance" "example" {
     "dex.github.clientSecret" = "my-github-oidc-secret"
     "webhook.github.secret"   = "shhhh! it'   s a github secret"
   }
+  application_set_secret = {
+    "my-appset-secret" = "xyz456"
+  }
   argocd_notifications_cm = {
     "trigger.on-sync-status-unknown" = <<-EOF
         - when: app.status.sync.status == 'Unknown'

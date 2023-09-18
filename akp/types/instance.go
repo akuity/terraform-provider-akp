@@ -19,6 +19,7 @@ type Instance struct {
 	ArgoCDConfigMap               types.Map    `tfsdk:"argocd_cm"`
 	ArgoCDRBACConfigMap           types.Map    `tfsdk:"argocd_rbac_cm"`
 	ArgoCDSecret                  types.Map    `tfsdk:"argocd_secret"`
+	ApplicationSetSecret          types.Map    `tfsdk:"application_set_secret"`
 	NotificationsConfigMap        types.Map    `tfsdk:"argocd_notifications_cm"`
 	NotificationsSecret           types.Map    `tfsdk:"argocd_notifications_secret"`
 	ImageUpdaterConfigMap         types.Map    `tfsdk:"argocd_image_updater_config"`
@@ -35,6 +36,7 @@ func (i *Instance) GetSensitiveStrings(ctx context.Context, diagnostics *diag.Di
 	res = append(res, GetSensitiveStrings(i.ArgoCDSecret)...)
 	res = append(res, GetSensitiveStrings(i.NotificationsSecret)...)
 	res = append(res, GetSensitiveStrings(i.ImageUpdaterSecret)...)
+	res = append(res, GetSensitiveStrings(i.ApplicationSetSecret)...)
 	var repoCredentialSecrets map[string]types.Map
 	if !i.RepoCredentialSecrets.IsNull() {
 		diagnostics.Append(i.RepoCredentialSecrets.ElementsAs(ctx, &repoCredentialSecrets, true)...)
