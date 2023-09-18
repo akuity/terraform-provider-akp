@@ -55,6 +55,7 @@ type InstanceSpec struct {
 	AppSetDelegate               *AppSetDelegate                `json:"appSetDelegate,omitempty"`
 	AssistantExtensionEnabled    *bool                          `json:"assistantExtensionEnabled,omitempty"`
 	AppsetPolicy                 *AppsetPolicy                  `json:"appsetPolicy,omitempty"`
+	HostAliases                  []*HostAliases                 `json:"hostAliases,omitempty"`
 }
 
 type ManagedCluster struct {
@@ -78,4 +79,9 @@ type AppSetDelegate struct {
 type IPAllowListEntry struct {
 	Ip          string `json:"ip,omitempty"`
 	Description string `json:"description,omitempty"`
+}
+
+type HostAliases struct {
+	Ip        string   `json:"ip,omitempty"`
+	Hostnames []string `json:"hostnames,omitempty"`
 }

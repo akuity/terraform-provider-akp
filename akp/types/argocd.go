@@ -51,6 +51,7 @@ type InstanceSpec struct {
 	AppSetDelegate               *AppSetDelegate                `tfsdk:"app_set_delegate"`
 	AssistantExtensionEnabled    types.Bool                     `tfsdk:"assistant_extension_enabled"`
 	AppsetPolicy                 types.Object                   `tfsdk:"appset_policy"`
+	HostAliases                  []*HostAliases                 `tfsdk:"host_aliases"`
 }
 
 type ManagedCluster struct {
@@ -74,4 +75,9 @@ type AppSetDelegate struct {
 type IPAllowListEntry struct {
 	Ip          types.String `tfsdk:"ip"`
 	Description types.String `tfsdk:"description"`
+}
+
+type HostAliases struct {
+	Ip        types.String   `tfsdk:"ip"`
+	Hostnames []types.String `tfsdk:"hostnames"`
 }
