@@ -153,6 +153,7 @@ func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, insta
 		ArgocdConfigmap:               buildConfigMap(ctx, diagnostics, instance.ArgoCDConfigMap, "argocd-cm"),
 		ArgocdRbacConfigmap:           buildConfigMap(ctx, diagnostics, instance.ArgoCDRBACConfigMap, "argocd-rbac-cm"),
 		ArgocdSecret:                  buildSecret(ctx, diagnostics, instance.ArgoCDSecret, "argocd-secret", nil),
+		ApplicationSetSecret:          buildSecret(ctx, diagnostics, instance.ApplicationSetSecret, "argocd-application-set-secret", nil),
 		NotificationsConfigmap:        buildConfigMap(ctx, diagnostics, instance.NotificationsConfigMap, "argocd-notifications-cm"),
 		NotificationsSecret:           buildSecret(ctx, diagnostics, instance.NotificationsSecret, "argocd-notifications-secret", nil),
 		ImageUpdaterConfigmap:         buildConfigMap(ctx, diagnostics, instance.ImageUpdaterConfigMap, "argocd-image-updater-config"),
