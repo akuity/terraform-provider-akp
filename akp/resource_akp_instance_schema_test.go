@@ -31,4 +31,5 @@ func TestNoNewArgoCDFields(t *testing.T) {
 	assert.Equal(t, reflect.TypeOf(types.AppSetDelegate{}).NumField(), len(getAppSetDelegateAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.ManagedCluster{}).NumField(), len(getManagedClusterAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.AppsetPolicy{}).NumField(), len(getAppsetPolicyAttributes()))
+	assert.Equal(t, reflect.TypeOf(types.HostAliases{}).NumField(), len(getAppsetPolicyAttributes()))
 }

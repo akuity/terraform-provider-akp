@@ -20,6 +20,12 @@ resource "akp_instance" "example" {
           policy          = "create-only"
           override_policy = true
         }
+        host_aliases = [
+          {
+            hostnames = ["test.example.com"]
+            ip        = "1.2.3.4"
+          },
+        ]
       }
       version = "v2.6.4"
     }

@@ -110,7 +110,7 @@ func getArgoCDSpecDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 		},
 		"version": schema.StringAttribute{
-			MarkdownDescription: "Argo CD version. Should be equal to any [argo cd image tag](https://quay.io/repository/argoproj/argocd?tab=tags).",
+			MarkdownDescription: "Argo CD version. Should be equal to any Akuity [`argocd` image tag](https://quay.io/repository/akuity/argocd?tab=tags).",
 			Computed:            true,
 		},
 		"instance_spec": schema.SingleNestedAttribute{
@@ -189,6 +189,27 @@ func getInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Configures Application Set policy settings.",
 			Computed:            true,
 			Attributes:          getAppsetPolicyDataSourceAttributes(),
+		},
+		"host_aliases": schema.ListNestedAttribute{
+			MarkdownDescription: "Host Aliases that override the DNS entries for control plane Argo CD components such as API Server and Dex.",
+			Computed:            true,
+			NestedObject: schema.NestedAttributeObject{
+				Attributes: getHostAliasesDataSourceAttributes(),
+			},
+		},
+	}
+}
+
+func getHostAliasesDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"ip": schema.StringAttribute{
+			MarkdownDescription: "IP address",
+			Computed:            true,
+		},
+		"hostnames": schema.ListAttribute{
+			MarkdownDescription: "Hostnames",
+			Computed:            true,
+			ElementType:         types.StringType,
 		},
 	}
 }

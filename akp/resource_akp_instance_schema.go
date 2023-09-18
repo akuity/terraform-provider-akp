@@ -167,7 +167,7 @@ func getArgoCDSpecAttributes() map[string]schema.Attribute {
 			},
 		},
 		"version": schema.StringAttribute{
-			MarkdownDescription: "Argo CD version. Should be equal to any [argo cd image tag](https://quay.io/repository/argoproj/argocd?tab=tags).",
+			MarkdownDescription: "Argo CD version. Should be equal to any Akuity [`argocd` image tag](https://quay.io/repository/akuity/argocd?tab=tags).",
 			Required:            true,
 		},
 		"instance_spec": schema.SingleNestedAttribute{
@@ -282,6 +282,27 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 			PlanModifiers: []planmodifier.Object{
 				objectplanmodifier.UseStateForUnknown(),
 			},
+		},
+		"host_aliases": schema.ListNestedAttribute{
+			MarkdownDescription: "Host Aliases that override the DNS entries for control plane Argo CD components such as API Server and Dex.",
+			Optional:            true,
+			NestedObject: schema.NestedAttributeObject{
+				Attributes: getHostAliasAttributes(),
+			},
+		},
+	}
+}
+
+func getHostAliasAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"hostnames": schema.ListAttribute{
+			MarkdownDescription: "List of hostnames",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
+		"ip": schema.StringAttribute{
+			MarkdownDescription: "IP address",
+			Required:            true,
 		},
 	}
 }

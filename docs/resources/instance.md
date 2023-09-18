@@ -35,6 +35,12 @@ resource "akp_instance" "example" {
           policy          = "create-only"
           override_policy = true
         }
+        host_aliases = [
+          {
+            hostnames = ["test.example.com"]
+            ip        = "1.2.3.4"
+          },
+        ]
       }
       version = "v2.6.4"
     }
@@ -234,6 +240,7 @@ Optional:
 - `cluster_customization_defaults` (Attributes) Default values for cluster agents (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--cluster_customization_defaults))
 - `declarative_management_enabled` (Boolean) Enable Declarative Management
 - `extensions` (Attributes List) Extensions (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--extensions))
+- `host_aliases` (Attributes List) Host Aliases that override the DNS entries for control plane Argo CD components such as API Server and Dex. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--host_aliases))
 - `image_updater_delegate` (Attributes) Select cluster in which you want to Install Image Updater (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--image_updater_delegate))
 - `image_updater_enabled` (Boolean) Enable Image Updater
 - `ip_allow_list` (Attributes List) IP allow list (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--ip_allow_list))
@@ -289,6 +296,18 @@ Required:
 
 - `id` (String) Extension ID
 - `version` (String) Extension version
+
+
+<a id="nestedatt--argocd--spec--instance_spec--host_aliases"></a>
+### Nested Schema for `argocd.spec.instance_spec.host_aliases`
+
+Required:
+
+- `ip` (String) IP address
+
+Optional:
+
+- `hostnames` (List of String) List of hostnames
 
 
 <a id="nestedatt--argocd--spec--instance_spec--image_updater_delegate"></a>

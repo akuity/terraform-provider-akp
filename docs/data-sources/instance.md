@@ -56,7 +56,7 @@ Read-Only:
 
 - `description` (String) Instance description
 - `instance_spec` (Attributes) Argo CD instance spec (see [below for nested schema](#nestedatt--argocd--spec--instance_spec))
-- `version` (String) Argo CD version. Should be equal to any [argo cd image tag](https://quay.io/repository/argoproj/argocd?tab=tags).
+- `version` (String) Argo CD version. Should be equal to any Akuity [`argocd` image tag](https://quay.io/repository/akuity/argocd?tab=tags).
 
 <a id="nestedatt--argocd--spec--instance_spec"></a>
 ### Nested Schema for `argocd.spec.instance_spec`
@@ -71,6 +71,7 @@ Read-Only:
 - `cluster_customization_defaults` (Attributes) Default values for cluster agents (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--cluster_customization_defaults))
 - `declarative_management_enabled` (Boolean) Enable Declarative Management
 - `extensions` (Attributes List) Extensions (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--extensions))
+- `host_aliases` (Attributes List) Host Aliases that override the DNS entries for control plane Argo CD components such as API Server and Dex. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--host_aliases))
 - `image_updater_delegate` (Attributes) Select cluster in which you want to Install Image Updater (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--image_updater_delegate))
 - `image_updater_enabled` (Boolean) Enable Image Updater
 - `ip_allow_list` (Attributes List) IP allow list (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--ip_allow_list))
@@ -126,6 +127,15 @@ Read-Only:
 
 - `id` (String) Extension ID
 - `version` (String) Extension version
+
+
+<a id="nestedatt--argocd--spec--instance_spec--host_aliases"></a>
+### Nested Schema for `argocd.spec.instance_spec.host_aliases`
+
+Read-Only:
+
+- `hostnames` (List of String) Hostnames
+- `ip` (String) IP address
 
 
 <a id="nestedatt--argocd--spec--instance_spec--image_updater_delegate"></a>
