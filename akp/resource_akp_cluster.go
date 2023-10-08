@@ -216,11 +216,7 @@ func buildClusterApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics
 func buildClusters(ctx context.Context, diagnostics *diag.Diagnostics, cluster *types.Cluster) []*structpb.Struct {
 	var cs []*structpb.Struct
 	apiCluster := cluster.ToClusterAPIModel(ctx, diagnostics)
-	m := map[string]interface{}{}
-	if err := marshal.RemarshalTo(apiCluster, &m); err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Cluster. %s", err))
-	}
-	s, err := structpb.NewStruct(m)
+	s, err := marshal.ApiModelToPBStruct(apiCluster)
 	if err != nil {
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Cluster. %s", err))
 		return nil

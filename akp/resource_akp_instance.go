@@ -169,11 +169,7 @@ func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, insta
 
 func buildArgoCD(ctx context.Context, diag *diag.Diagnostics, instance *types.Instance) *structpb.Struct {
 	apiArgoCD := instance.ArgoCD.ToArgoCDAPIModel(ctx, diag, instance.Name.ValueString())
-	argocdMap := map[string]interface{}{}
-	if err := marshal.RemarshalTo(apiArgoCD, &argocdMap); err != nil {
-		diag.AddError("Client Error", fmt.Sprintf("Unable to creat Argo CD instance. %s", err))
-	}
-	s, err := structpb.NewStruct(argocdMap)
+	s, err := marshal.ApiModelToPBStruct(apiArgoCD)
 	if err != nil {
 		diag.AddError("Client Error", fmt.Sprintf("Unable to create Argo CD instance. %s", err))
 		return nil
@@ -199,11 +195,7 @@ func buildConfigMap(ctx context.Context, diagnostics *diag.Diagnostics, cm tftyp
 		return nil
 	}
 	apiModel := types.ToConfigMapAPIModel(ctx, diagnostics, name, cm)
-	m := map[string]interface{}{}
-	if err := marshal.RemarshalTo(apiModel, &m); err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create ConfigMap. %s", err))
-	}
-	configMap, err := structpb.NewStruct(m)
+	configMap, err := marshal.ApiModelToPBStruct(apiModel)
 	if err != nil {
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create ConfigMap. %s", err))
 		return nil
@@ -216,11 +208,7 @@ func buildSecret(ctx context.Context, diagnostics *diag.Diagnostics, secret tfty
 		return nil
 	}
 	apiModel := types.ToSecretAPIModel(ctx, diagnostics, name, labels, secret)
-	m := map[string]interface{}{}
-	if err := marshal.RemarshalTo(apiModel, &m); err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Secret. %s", err))
-	}
-	s, err := structpb.NewStruct(m)
+	s, err := marshal.ApiModelToPBStruct(apiModel)
 	if err != nil {
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Secret. %s", err))
 		return nil

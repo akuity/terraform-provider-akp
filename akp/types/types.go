@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,7 +16,8 @@ import (
 	"sigs.k8s.io/yaml"
 
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
-	"github.com/akuity/terraform-provider-akp/akp/apis/v1alpha1"
+	"github.com/akuity/terraform-provider-akp/akp/apis/akuity/v1alpha1"
+	argocdv1alpha1 "github.com/akuity/terraform-provider-akp/akp/apis/argocd/v1alpha1"
 )
 
 var (
@@ -202,6 +205,48 @@ func (c *Cluster) ToClusterAPIModel(ctx context.Context, diagnostics *diag.Diagn
 	}
 }
 
+func (c *ConfigManagementPlugin) Update(ctx context.Context, diagnostics *diag.Diagnostics, cmp *argocdv1alpha1.ConfigManagementPlugin) {
+	version := tftypes.StringNull()
+	if cmp.Spec.Version != "" {
+		version = tftypes.StringValue(cmp.Spec.Version)
+	}
+	c.Name = tftypes.StringValue(cmp.Name)
+	c.Enabled = tftypes.BoolValue(cmp.Annotations[argocdv1alpha1.AnnotationCMPEnabled] == "true")
+	c.Image = types.StringValue(cmp.Annotations[argocdv1alpha1.AnnotationCMPImage])
+	c.Spec = &PluginSpec{
+		Version:          version,
+		Init:             toCommandTFModel(cmp.Spec.Init),
+		Generate:         toCommandTFModel(cmp.Spec.Generate),
+		Discover:         toDiscoverTFModel(cmp.Spec.Discover),
+		Parameters:       toParametersTFModel(ctx, diagnostics, cmp.Spec.Parameters),
+		PreserveFileMode: tftypes.BoolValue(cmp.Spec.PreserveFileMode),
+	}
+}
+
+func (c *ConfigManagementPlugin) ToConfigManagementPluginAPIModel(ctx context.Context, diagnostics *diag.Diagnostics) *argocdv1alpha1.ConfigManagementPlugin {
+	return &argocdv1alpha1.ConfigManagementPlugin{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ConfigManagementPlugin",
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: c.Name.ValueString(),
+			Annotations: map[string]string{
+				argocdv1alpha1.AnnotationCMPImage:   c.Image.ValueString(),
+				argocdv1alpha1.AnnotationCMPEnabled: strconv.FormatBool(c.Enabled.ValueBool()),
+			},
+		},
+		Spec: argocdv1alpha1.PluginSpec{
+			Version:          c.Spec.Version.ValueString(),
+			Init:             toCommandAPIModel(c.Spec.Init),
+			Generate:         toCommandAPIModel(c.Spec.Generate),
+			Discover:         toDiscoverAPIModel(c.Spec.Discover),
+			Parameters:       toParametersAPIModel(ctx, diagnostics, c.Spec.Parameters),
+			PreserveFileMode: c.Spec.PreserveFileMode.ValueBool(),
+		},
+	}
+}
+
 func toClusterDataAPIModel(diagnostics *diag.Diagnostics, clusterData ClusterData) v1alpha1.ClusterData {
 	raw := runtime.RawExtension{}
 	if err := yaml.Unmarshal([]byte(clusterData.Kustomization.ValueString()), &raw); err != nil {
@@ -326,6 +371,102 @@ func toHostAliasesAPIModel(hostAliases []*HostAliases) []*v1alpha1.HostAliases {
 		})
 	}
 	return hostAliasesAPI
+}
+
+func toParametersAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, parameters *Parameters) *argocdv1alpha1.Parameters {
+	if parameters == nil {
+		return nil
+	}
+	var static []*argocdv1alpha1.ParameterAnnouncement
+	for _, s := range parameters.Static {
+		var array []string
+		for _, a := range s.Array {
+			array = append(array, a.ValueString())
+		}
+		var m map[string]string
+		diagnostics.Append(s.Map.ElementsAs(ctx, &m, true)...)
+
+		static = append(static, &argocdv1alpha1.ParameterAnnouncement{
+			Name:           s.Name.ValueString(),
+			Title:          s.Title.ValueString(),
+			Tooltip:        s.Tooltip.ValueString(),
+			Required:       s.Required.ValueBool(),
+			ItemType:       s.ItemType.ValueString(),
+			CollectionType: s.CollectionType.ValueString(),
+			String_:        s.String_.ValueString(),
+			Array:          array,
+			Map:            m,
+		})
+	}
+	return &argocdv1alpha1.Parameters{
+		Static:  static,
+		Dynamic: toDynamicAPIModel(parameters.Dynamic),
+	}
+}
+
+func toDynamicAPIModel(dynamic *Dynamic) *argocdv1alpha1.Dynamic {
+	if dynamic == nil {
+		return nil
+	}
+	var commands []string
+	for _, c := range dynamic.Command {
+		commands = append(commands, c.ValueString())
+	}
+	var args []string
+	for _, a := range dynamic.Args {
+		args = append(args, a.ValueString())
+	}
+	return &argocdv1alpha1.Dynamic{
+		Command: commands,
+		Args:    args,
+	}
+}
+
+func toDiscoverAPIModel(discover *Discover) *argocdv1alpha1.Discover {
+	if discover == nil {
+		return nil
+	}
+	return &argocdv1alpha1.Discover{
+		Find:     toFindAPIModel(discover.Find),
+		FileName: discover.FileName.ValueString(),
+	}
+}
+
+func toFindAPIModel(find *Find) *argocdv1alpha1.Find {
+	if find == nil {
+		return nil
+	}
+	var commands []string
+	for _, c := range find.Command {
+		commands = append(commands, c.ValueString())
+	}
+	var args []string
+	for _, a := range find.Args {
+		args = append(args, a.ValueString())
+	}
+	return &argocdv1alpha1.Find{
+		Command: commands,
+		Args:    args,
+		Glob:    find.Glob.ValueString(),
+	}
+}
+
+func toCommandAPIModel(command *Command) *argocdv1alpha1.Command {
+	if command == nil {
+		return nil
+	}
+	var commands []string
+	for _, c := range command.Command {
+		commands = append(commands, c.ValueString())
+	}
+	var args []string
+	for _, a := range command.Args {
+		args = append(args, a.ValueString())
+	}
+	return &argocdv1alpha1.Command{
+		Command: commands,
+		Args:    args,
+	}
 }
 
 func toRepoServerDelegateTFModel(repoServerDelegate *v1alpha1.RepoServerDelegate) *RepoServerDelegate {
@@ -465,4 +606,106 @@ func toHostAliasesTFModel(entries []*v1alpha1.HostAliases) []*HostAliases {
 		})
 	}
 	return hostAliases
+}
+
+func toParametersTFModel(ctx context.Context, diagnostics *diag.Diagnostics, parameters *argocdv1alpha1.Parameters) *Parameters {
+	if parameters == nil {
+		return nil
+	}
+	var static []*ParameterAnnouncement
+	for _, s := range parameters.Static {
+		static = append(static, toParameterAnnouncementTFModel(ctx, diagnostics, s))
+	}
+	return &Parameters{
+		Static:  static,
+		Dynamic: toDynamicTFModel(parameters.Dynamic),
+	}
+}
+
+func toDynamicTFModel(dynamic *argocdv1alpha1.Dynamic) *Dynamic {
+	if dynamic == nil {
+		return nil
+	}
+	var commands []tftypes.String
+	for _, c := range dynamic.Command {
+		commands = append(commands, tftypes.StringValue(c))
+	}
+	var args []tftypes.String
+	for _, a := range dynamic.Args {
+		args = append(args, tftypes.StringValue(a))
+	}
+	return &Dynamic{
+		Command: commands,
+		Args:    args,
+	}
+}
+
+func toParameterAnnouncementTFModel(ctx context.Context, diagnostics *diag.Diagnostics, parameter *argocdv1alpha1.ParameterAnnouncement) *ParameterAnnouncement {
+	if parameter == nil {
+		return nil
+	}
+	var array []tftypes.String
+	for _, a := range parameter.Array {
+		array = append(array, tftypes.StringValue(a))
+	}
+	m, diag := tftypes.MapValueFrom(ctx, tftypes.StringType, &parameter.Map)
+	diagnostics.Append(diag...)
+	return &ParameterAnnouncement{
+		Name:           tftypes.StringValue(parameter.Name),
+		Title:          tftypes.StringValue(parameter.Title),
+		Tooltip:        tftypes.StringValue(parameter.Tooltip),
+		Required:       tftypes.BoolValue(parameter.Required),
+		ItemType:       tftypes.StringValue(parameter.ItemType),
+		CollectionType: tftypes.StringValue(parameter.CollectionType),
+		String_:        tftypes.StringValue(parameter.String_),
+		Array:          array,
+		Map:            m,
+	}
+}
+
+func toDiscoverTFModel(discover *argocdv1alpha1.Discover) *Discover {
+	if discover == nil {
+		return nil
+	}
+	return &Discover{
+		Find:     toFindTFModel(discover.Find),
+		FileName: tftypes.StringValue(discover.FileName),
+	}
+}
+
+func toFindTFModel(find *argocdv1alpha1.Find) *Find {
+	if find == nil {
+		return nil
+	}
+	var commands []tftypes.String
+	for _, c := range find.Command {
+		commands = append(commands, tftypes.StringValue(c))
+	}
+	var args []tftypes.String
+	for _, a := range find.Args {
+		args = append(args, tftypes.StringValue(a))
+	}
+	return &Find{
+		Command: commands,
+		Args:    args,
+		Glob:    tftypes.StringValue(find.Glob),
+	}
+}
+
+func toCommandTFModel(command *argocdv1alpha1.Command) *Command {
+	if command == nil {
+		return nil
+	}
+	var commands []tftypes.String
+	for _, c := range command.Command {
+		commands = append(commands, tftypes.StringValue(c))
+	}
+	var args []tftypes.String
+	for _, a := range command.Args {
+		args = append(args, tftypes.StringValue(a))
+	}
+	return &Command{
+		Command: commands,
+		Args:    args,
+	}
 }

@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
-	"github.com/akuity/terraform-provider-akp/akp/apis/v1alpha1"
+	"github.com/akuity/terraform-provider-akp/akp/apis/akuity/v1alpha1"
 	"github.com/akuity/terraform-provider-akp/akp/marshal"
 )
 
