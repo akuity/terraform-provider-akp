@@ -21,12 +21,6 @@ type ConfigManagementPlugin struct {
 	Spec PluginSpec `json:"spec,omitempty"`
 }
 
-type ConfigManagementPluginList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []ConfigManagementPlugin `json:"items"`
-}
-
 type PluginSpec struct {
 	Version          string      `json:"version,omitempty"`
 	Init             *Command    `json:"init,omitempty"`
