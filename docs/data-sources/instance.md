@@ -191,7 +191,7 @@ Read-Only:
 
 Read-Only:
 
-- `enabled` (Boolean) Whether this plugin is enabled or not
+- `enabled` (Boolean) Whether this plugin is enabled or not. Default to false.
 - `image` (String) Image to use for the plugin
 - `spec` (Attributes) Plugin spec (see [below for nested schema](#nestedatt--config_management_plugins--spec))
 
@@ -271,7 +271,7 @@ Read-Only:
 - `item_type` (String) Item type tells the UI how to present the parameter's value (or, for arrays and maps, values). Default is `string`. Examples of other types which may be supported in the future are `boolean` or `number`. Even if the itemType is not `string`, the parameter value from the Application spec will be sent to the plugin as a string. It's up to the plugin to do the appropriate conversion.
 - `map` (Map of String) This field communicates the parameter's default value to the UI if the parameter is a `map`.
 - `name` (String) Parameter name
-- `required` (Boolean) Whether the Parameter is required or not. If this field is set to true, the UI will indicate to the user that they must set the value.
+- `required` (Boolean) Whether the Parameter is required or not. If this field is set to true, the UI will indicate to the user that they must set the value. Default to false.
 - `string` (String) This field communicates the parameter's default value to the UI if the parameter is a `string`.
 - `title` (String) Title and description of the parameter
 - `tooltip` (String) Tooltip of the Parameter, will be shown when hovering over the title
