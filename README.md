@@ -52,7 +52,6 @@ resource "akp_instance" "argocd" {
    }
 }
 
-# Add cluster to the existing instance and install the agent
 resource "akp_cluster" "example" {
    instance_id = akp_instance.argocd.id
    kube_config = {
