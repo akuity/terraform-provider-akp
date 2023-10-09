@@ -8,8 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
-	"github.com/akuity/terraform-provider-akp/akp/apis/akuity/v1alpha1"
-	argocdv1alpha1 "github.com/akuity/terraform-provider-akp/akp/apis/argocd/v1alpha1"
+	"github.com/akuity/terraform-provider-akp/akp/apis/v1alpha1"
 	"github.com/akuity/terraform-provider-akp/akp/marshal"
 )
 
@@ -78,7 +77,7 @@ func (i *Instance) Update(ctx context.Context, diagnostics *diag.Diagnostics, ex
 	} else {
 		i.ConfigManagementPlugins = make(map[string]*ConfigManagementPlugin)
 		for _, plugin := range exportResp.ConfigManagementPlugins {
-			var apiCMP *argocdv1alpha1.ConfigManagementPlugin
+			var apiCMP *v1alpha1.ConfigManagementPlugin
 			err = marshal.RemarshalTo(plugin.AsMap(), &apiCMP)
 			if err != nil {
 				diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get ConfigManagementPlugin. %s", err))

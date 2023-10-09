@@ -16,8 +16,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
-	"github.com/akuity/terraform-provider-akp/akp/apis/akuity/v1alpha1"
-	argocdv1alpha1 "github.com/akuity/terraform-provider-akp/akp/apis/argocd/v1alpha1"
+	"github.com/akuity/terraform-provider-akp/akp/apis/v1alpha1"
 )
 
 var (
@@ -205,13 +204,13 @@ func (c *Cluster) ToClusterAPIModel(ctx context.Context, diagnostics *diag.Diagn
 	}
 }
 
-func (c *ConfigManagementPlugin) Update(ctx context.Context, diagnostics *diag.Diagnostics, cmp *argocdv1alpha1.ConfigManagementPlugin) {
+func (c *ConfigManagementPlugin) Update(ctx context.Context, diagnostics *diag.Diagnostics, cmp *v1alpha1.ConfigManagementPlugin) {
 	version := tftypes.StringNull()
 	if cmp.Spec.Version != "" {
 		version = tftypes.StringValue(cmp.Spec.Version)
 	}
-	c.Enabled = tftypes.BoolValue(cmp.Annotations[argocdv1alpha1.AnnotationCMPEnabled] == "true")
-	c.Image = types.StringValue(cmp.Annotations[argocdv1alpha1.AnnotationCMPImage])
+	c.Enabled = tftypes.BoolValue(cmp.Annotations[v1alpha1.AnnotationCMPEnabled] == "true")
+	c.Image = types.StringValue(cmp.Annotations[v1alpha1.AnnotationCMPImage])
 	c.Spec = &PluginSpec{
 		Version:          version,
 		Init:             toCommandTFModel(cmp.Spec.Init),
@@ -222,8 +221,8 @@ func (c *ConfigManagementPlugin) Update(ctx context.Context, diagnostics *diag.D
 	}
 }
 
-func (c *ConfigManagementPlugin) ToConfigManagementPluginAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, name string) *argocdv1alpha1.ConfigManagementPlugin {
-	return &argocdv1alpha1.ConfigManagementPlugin{
+func (c *ConfigManagementPlugin) ToConfigManagementPluginAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, name string) *v1alpha1.ConfigManagementPlugin {
+	return &v1alpha1.ConfigManagementPlugin{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ConfigManagementPlugin",
 			APIVersion: "argoproj.io/v1alpha1",
@@ -231,11 +230,11 @@ func (c *ConfigManagementPlugin) ToConfigManagementPluginAPIModel(ctx context.Co
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 			Annotations: map[string]string{
-				argocdv1alpha1.AnnotationCMPImage:   c.Image.ValueString(),
-				argocdv1alpha1.AnnotationCMPEnabled: strconv.FormatBool(c.Enabled.ValueBool()),
+				v1alpha1.AnnotationCMPImage:   c.Image.ValueString(),
+				v1alpha1.AnnotationCMPEnabled: strconv.FormatBool(c.Enabled.ValueBool()),
 			},
 		},
-		Spec: argocdv1alpha1.PluginSpec{
+		Spec: v1alpha1.PluginSpec{
 			Version:          c.Spec.Version.ValueString(),
 			Init:             toCommandAPIModel(c.Spec.Init),
 			Generate:         toCommandAPIModel(c.Spec.Generate),
@@ -372,11 +371,11 @@ func toHostAliasesAPIModel(hostAliases []*HostAliases) []*v1alpha1.HostAliases {
 	return hostAliasesAPI
 }
 
-func toParametersAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, parameters *Parameters) *argocdv1alpha1.Parameters {
+func toParametersAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, parameters *Parameters) *v1alpha1.Parameters {
 	if parameters == nil {
 		return nil
 	}
-	var static []*argocdv1alpha1.ParameterAnnouncement
+	var static []*v1alpha1.ParameterAnnouncement
 	for _, s := range parameters.Static {
 		var array []string
 		for _, a := range s.Array {
@@ -385,7 +384,7 @@ func toParametersAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, pa
 		var m map[string]string
 		diagnostics.Append(s.Map.ElementsAs(ctx, &m, true)...)
 
-		static = append(static, &argocdv1alpha1.ParameterAnnouncement{
+		static = append(static, &v1alpha1.ParameterAnnouncement{
 			Name:           s.Name.ValueString(),
 			Title:          s.Title.ValueString(),
 			Tooltip:        s.Tooltip.ValueString(),
@@ -397,13 +396,13 @@ func toParametersAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, pa
 			Map:            m,
 		})
 	}
-	return &argocdv1alpha1.Parameters{
+	return &v1alpha1.Parameters{
 		Static:  static,
 		Dynamic: toDynamicAPIModel(parameters.Dynamic),
 	}
 }
 
-func toDynamicAPIModel(dynamic *Dynamic) *argocdv1alpha1.Dynamic {
+func toDynamicAPIModel(dynamic *Dynamic) *v1alpha1.Dynamic {
 	if dynamic == nil {
 		return nil
 	}
@@ -415,23 +414,23 @@ func toDynamicAPIModel(dynamic *Dynamic) *argocdv1alpha1.Dynamic {
 	for _, a := range dynamic.Args {
 		args = append(args, a.ValueString())
 	}
-	return &argocdv1alpha1.Dynamic{
+	return &v1alpha1.Dynamic{
 		Command: commands,
 		Args:    args,
 	}
 }
 
-func toDiscoverAPIModel(discover *Discover) *argocdv1alpha1.Discover {
+func toDiscoverAPIModel(discover *Discover) *v1alpha1.Discover {
 	if discover == nil {
 		return nil
 	}
-	return &argocdv1alpha1.Discover{
+	return &v1alpha1.Discover{
 		Find:     toFindAPIModel(discover.Find),
 		FileName: discover.FileName.ValueString(),
 	}
 }
 
-func toFindAPIModel(find *Find) *argocdv1alpha1.Find {
+func toFindAPIModel(find *Find) *v1alpha1.Find {
 	if find == nil {
 		return nil
 	}
@@ -443,14 +442,14 @@ func toFindAPIModel(find *Find) *argocdv1alpha1.Find {
 	for _, a := range find.Args {
 		args = append(args, a.ValueString())
 	}
-	return &argocdv1alpha1.Find{
+	return &v1alpha1.Find{
 		Command: commands,
 		Args:    args,
 		Glob:    find.Glob.ValueString(),
 	}
 }
 
-func toCommandAPIModel(command *Command) *argocdv1alpha1.Command {
+func toCommandAPIModel(command *Command) *v1alpha1.Command {
 	if command == nil {
 		return nil
 	}
@@ -462,7 +461,7 @@ func toCommandAPIModel(command *Command) *argocdv1alpha1.Command {
 	for _, a := range command.Args {
 		args = append(args, a.ValueString())
 	}
-	return &argocdv1alpha1.Command{
+	return &v1alpha1.Command{
 		Command: commands,
 		Args:    args,
 	}
@@ -607,7 +606,7 @@ func toHostAliasesTFModel(entries []*v1alpha1.HostAliases) []*HostAliases {
 	return hostAliases
 }
 
-func toParametersTFModel(ctx context.Context, diagnostics *diag.Diagnostics, parameters *argocdv1alpha1.Parameters) *Parameters {
+func toParametersTFModel(ctx context.Context, diagnostics *diag.Diagnostics, parameters *v1alpha1.Parameters) *Parameters {
 	if parameters == nil {
 		return nil
 	}
@@ -621,7 +620,7 @@ func toParametersTFModel(ctx context.Context, diagnostics *diag.Diagnostics, par
 	}
 }
 
-func toDynamicTFModel(dynamic *argocdv1alpha1.Dynamic) *Dynamic {
+func toDynamicTFModel(dynamic *v1alpha1.Dynamic) *Dynamic {
 	if dynamic == nil {
 		return nil
 	}
@@ -639,7 +638,7 @@ func toDynamicTFModel(dynamic *argocdv1alpha1.Dynamic) *Dynamic {
 	}
 }
 
-func toParameterAnnouncementTFModel(ctx context.Context, diagnostics *diag.Diagnostics, parameter *argocdv1alpha1.ParameterAnnouncement) *ParameterAnnouncement {
+func toParameterAnnouncementTFModel(ctx context.Context, diagnostics *diag.Diagnostics, parameter *v1alpha1.ParameterAnnouncement) *ParameterAnnouncement {
 	if parameter == nil {
 		return nil
 	}
@@ -662,7 +661,7 @@ func toParameterAnnouncementTFModel(ctx context.Context, diagnostics *diag.Diagn
 	}
 }
 
-func toDiscoverTFModel(discover *argocdv1alpha1.Discover) *Discover {
+func toDiscoverTFModel(discover *v1alpha1.Discover) *Discover {
 	if discover == nil {
 		return nil
 	}
@@ -672,7 +671,7 @@ func toDiscoverTFModel(discover *argocdv1alpha1.Discover) *Discover {
 	}
 }
 
-func toFindTFModel(find *argocdv1alpha1.Find) *Find {
+func toFindTFModel(find *v1alpha1.Find) *Find {
 	if find == nil {
 		return nil
 	}
@@ -691,7 +690,7 @@ func toFindTFModel(find *argocdv1alpha1.Find) *Find {
 	}
 }
 
-func toCommandTFModel(command *argocdv1alpha1.Command) *Command {
+func toCommandTFModel(command *v1alpha1.Command) *Command {
 	if command == nil {
 		return nil
 	}
