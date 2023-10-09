@@ -10,16 +10,9 @@ import (
 )
 
 type ConfigManagementPlugin struct {
-	Name       types.String `tfsdk:"name"`
-	InstanceID types.String `tfsdk:"instance_id"`
-	Enabled    types.Bool   `tfsdk:"enabled"`
-	Image      types.String `tfsdk:"image"`
-	Spec       *PluginSpec  `tfsdk:"spec"`
-}
-
-type ConfigManagementPlugins struct {
-	InstanceID types.String             `tfsdk:"instance_id"`
-	Plugins    []ConfigManagementPlugin `tfsdk:"plugins"`
+	Enabled types.Bool   `tfsdk:"enabled"`
+	Image   types.String `tfsdk:"image"`
+	Spec    *PluginSpec  `tfsdk:"spec"`
 }
 
 type PluginSpec struct {

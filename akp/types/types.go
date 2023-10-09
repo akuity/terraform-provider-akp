@@ -210,7 +210,6 @@ func (c *ConfigManagementPlugin) Update(ctx context.Context, diagnostics *diag.D
 	if cmp.Spec.Version != "" {
 		version = tftypes.StringValue(cmp.Spec.Version)
 	}
-	c.Name = tftypes.StringValue(cmp.Name)
 	c.Enabled = tftypes.BoolValue(cmp.Annotations[argocdv1alpha1.AnnotationCMPEnabled] == "true")
 	c.Image = types.StringValue(cmp.Annotations[argocdv1alpha1.AnnotationCMPImage])
 	c.Spec = &PluginSpec{
@@ -223,14 +222,14 @@ func (c *ConfigManagementPlugin) Update(ctx context.Context, diagnostics *diag.D
 	}
 }
 
-func (c *ConfigManagementPlugin) ToConfigManagementPluginAPIModel(ctx context.Context, diagnostics *diag.Diagnostics) *argocdv1alpha1.ConfigManagementPlugin {
+func (c *ConfigManagementPlugin) ToConfigManagementPluginAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, name string) *argocdv1alpha1.ConfigManagementPlugin {
 	return &argocdv1alpha1.ConfigManagementPlugin{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ConfigManagementPlugin",
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: c.Name.ValueString(),
+			Name: name,
 			Annotations: map[string]string{
 				argocdv1alpha1.AnnotationCMPImage:   c.Image.ValueString(),
 				argocdv1alpha1.AnnotationCMPEnabled: strconv.FormatBool(c.Enabled.ValueBool()),

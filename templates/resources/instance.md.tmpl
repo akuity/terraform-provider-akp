@@ -11,8 +11,13 @@ description: |-
 {{ .Description | trimspace }}
 
 {{ if .HasExample -}}
-## Example Usage
+## Example Usage (Basic)
+{{ tffile "./examples/resources/akp_instance/basic.tf" }}
 
+## Example Usage (Config Management Plugins)
+{{ tffile "./examples/resources/akp_instance/cmp.tf" }}
+
+## Example Usage (Exhaustive)
 {{ tffile "./examples/resources/akp_instance/resource.tf" }}
 {{- end }}
 

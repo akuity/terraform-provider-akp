@@ -6,7 +6,6 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"google.golang.org/protobuf/types/known/structpb"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,7 +14,6 @@ import (
 )
 
 func ToConfigMapTFModel(ctx context.Context, diagnostics *diag.Diagnostics, data *structpb.Struct, oldCM tftypes.Map) tftypes.Map {
-	tflog.Debug(ctx, fmt.Sprintf("--------------data: %+v", data))
 	if data == nil || len(data.AsMap()) == 0 {
 		if !oldCM.IsUnknown() && (oldCM.IsNull() || len(oldCM.Elements()) == 0) {
 			return oldCM
@@ -35,7 +33,6 @@ func ToConfigMapTFModel(ctx context.Context, diagnostics *diag.Diagnostics, data
 func ToConfigMapAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, name string, m tftypes.Map) *v1.ConfigMap {
 	var data map[string]string
 	diagnostics.Append(m.ElementsAs(ctx, &data, true)...)
-	tflog.Debug(ctx, fmt.Sprintf("----------data: %+v\n", data))
 	return &v1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ConfigMap",

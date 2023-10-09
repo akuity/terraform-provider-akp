@@ -167,7 +167,6 @@ func (p *AkpProvider) Resources(ctx context.Context) []func() resource.Resource 
 	return []func() resource.Resource{
 		NewAkpInstanceResource,
 		NewAkpClusterResource,
-		NewAkpConfigManagementPluginResource,
 	}
 }
 
@@ -176,8 +175,6 @@ func (p *AkpProvider) DataSources(ctx context.Context) []func() datasource.DataS
 		NewAkpInstanceDataSource,
 		NewAkpClusterDataSource,
 		NewAkpClustersDataSource,
-		NewAkpConfigManagementPluginDataSource,
-		NewAkpConfigManagementPluginsDataSource,
 	}
 }
 

@@ -163,6 +163,8 @@ func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, insta
 		ArgocdTlsCertsConfigmap:       buildConfigMap(ctx, diagnostics, instance.ArgoCDTLSCertsConfigMap, "argocd-tls-certs-cm"),
 		RepoCredentialSecrets:         buildSecrets(ctx, diagnostics, instance.RepoCredentialSecrets, map[string]string{"argocd.argoproj.io/secret-type": "repository"}),
 		RepoTemplateCredentialSecrets: buildSecrets(ctx, diagnostics, instance.RepoTemplateCredentialSecrets, map[string]string{"argocd.argoproj.io/secret-type": "repo-creds"}),
+		ConfigManagementPlugins:       buildCMPs(ctx, diagnostics, instance.ConfigManagementPlugins),
+		PruneResourceTypes:            []argocdv1.PruneResourceType{argocdv1.PruneResourceType_PRUNE_RESOURCE_TYPE_CONFIG_MANAGEMENT_PLUGINS},
 	}
 	return applyReq
 }
@@ -214,6 +216,20 @@ func buildSecret(ctx context.Context, diagnostics *diag.Diagnostics, secret tfty
 		return nil
 	}
 	return s
+}
+
+func buildCMPs(ctx context.Context, diagnostics *diag.Diagnostics, cmps map[string]*types.ConfigManagementPlugin) []*structpb.Struct {
+	var res []*structpb.Struct
+	for name, cmp := range cmps {
+		apiModel := cmp.ToConfigManagementPluginAPIModel(ctx, diagnostics, name)
+		s, err := marshal.ApiModelToPBStruct(apiModel)
+		if err != nil {
+			diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create ConfigManagementPlugin. %s", err))
+			return nil
+		}
+		res = append(res, s)
+	}
+	return res
 }
 
 func refreshState(ctx context.Context, diagnostics *diag.Diagnostics, client argocdv1.ArgoCDServiceGatewayClient, instance *types.Instance, orgID string) {

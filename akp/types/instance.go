@@ -9,26 +9,28 @@ import (
 
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 	"github.com/akuity/terraform-provider-akp/akp/apis/akuity/v1alpha1"
+	argocdv1alpha1 "github.com/akuity/terraform-provider-akp/akp/apis/argocd/v1alpha1"
 	"github.com/akuity/terraform-provider-akp/akp/marshal"
 )
 
 type Instance struct {
-	ID                            types.String `tfsdk:"id"`
-	Name                          types.String `tfsdk:"name"`
-	ArgoCD                        *ArgoCD      `tfsdk:"argocd"`
-	ArgoCDConfigMap               types.Map    `tfsdk:"argocd_cm"`
-	ArgoCDRBACConfigMap           types.Map    `tfsdk:"argocd_rbac_cm"`
-	ArgoCDSecret                  types.Map    `tfsdk:"argocd_secret"`
-	ApplicationSetSecret          types.Map    `tfsdk:"application_set_secret"`
-	NotificationsConfigMap        types.Map    `tfsdk:"argocd_notifications_cm"`
-	NotificationsSecret           types.Map    `tfsdk:"argocd_notifications_secret"`
-	ImageUpdaterConfigMap         types.Map    `tfsdk:"argocd_image_updater_config"`
-	ImageUpdaterSSHConfigMap      types.Map    `tfsdk:"argocd_image_updater_ssh_config"`
-	ImageUpdaterSecret            types.Map    `tfsdk:"argocd_image_updater_secret"`
-	ArgoCDKnownHostsConfigMap     types.Map    `tfsdk:"argocd_ssh_known_hosts_cm"`
-	ArgoCDTLSCertsConfigMap       types.Map    `tfsdk:"argocd_tls_certs_cm"`
-	RepoCredentialSecrets         types.Map    `tfsdk:"repo_credential_secrets"`
-	RepoTemplateCredentialSecrets types.Map    `tfsdk:"repo_template_credential_secrets"`
+	ID                            types.String                       `tfsdk:"id"`
+	Name                          types.String                       `tfsdk:"name"`
+	ArgoCD                        *ArgoCD                            `tfsdk:"argocd"`
+	ArgoCDConfigMap               types.Map                          `tfsdk:"argocd_cm"`
+	ArgoCDRBACConfigMap           types.Map                          `tfsdk:"argocd_rbac_cm"`
+	ArgoCDSecret                  types.Map                          `tfsdk:"argocd_secret"`
+	ApplicationSetSecret          types.Map                          `tfsdk:"application_set_secret"`
+	NotificationsConfigMap        types.Map                          `tfsdk:"argocd_notifications_cm"`
+	NotificationsSecret           types.Map                          `tfsdk:"argocd_notifications_secret"`
+	ImageUpdaterConfigMap         types.Map                          `tfsdk:"argocd_image_updater_config"`
+	ImageUpdaterSSHConfigMap      types.Map                          `tfsdk:"argocd_image_updater_ssh_config"`
+	ImageUpdaterSecret            types.Map                          `tfsdk:"argocd_image_updater_secret"`
+	ArgoCDKnownHostsConfigMap     types.Map                          `tfsdk:"argocd_ssh_known_hosts_cm"`
+	ArgoCDTLSCertsConfigMap       types.Map                          `tfsdk:"argocd_tls_certs_cm"`
+	RepoCredentialSecrets         types.Map                          `tfsdk:"repo_credential_secrets"`
+	RepoTemplateCredentialSecrets types.Map                          `tfsdk:"repo_template_credential_secrets"`
+	ConfigManagementPlugins       map[string]*ConfigManagementPlugin `tfsdk:"config_management_plugins"`
 }
 
 func (i *Instance) GetSensitiveStrings(ctx context.Context, diagnostics *diag.Diagnostics) []string {
@@ -72,4 +74,19 @@ func (i *Instance) Update(ctx context.Context, diagnostics *diag.Diagnostics, ex
 	i.ImageUpdaterSSHConfigMap = ToConfigMapTFModel(ctx, diagnostics, exportResp.ImageUpdaterSshConfigmap, i.ImageUpdaterSSHConfigMap)
 	i.ArgoCDTLSCertsConfigMap = ToConfigMapTFModel(ctx, diagnostics, exportResp.ArgocdTlsCertsConfigmap, i.ArgoCDTLSCertsConfigMap)
 	i.ArgoCDKnownHostsConfigMap = ToConfigMapTFModel(ctx, diagnostics, exportResp.ArgocdKnownHostsConfigmap, i.ArgoCDKnownHostsConfigMap)
+	if len(exportResp.ConfigManagementPlugins) == 0 && len(i.ConfigManagementPlugins) == 0 {
+	} else {
+		i.ConfigManagementPlugins = make(map[string]*ConfigManagementPlugin)
+		for _, plugin := range exportResp.ConfigManagementPlugins {
+			var apiCMP *argocdv1alpha1.ConfigManagementPlugin
+			err = marshal.RemarshalTo(plugin.AsMap(), &apiCMP)
+			if err != nil {
+				diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get ConfigManagementPlugin. %s", err))
+				return
+			}
+			cmp := &ConfigManagementPlugin{}
+			cmp.Update(ctx, diagnostics, apiCMP)
+			i.ConfigManagementPlugins[apiCMP.Name] = cmp
+		}
+	}
 }

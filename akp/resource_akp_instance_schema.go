@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
@@ -147,6 +148,13 @@ func getAKPInstanceAttributes() map[string]schema.Attribute {
 			ElementType:         types.MapType{ElemType: types.StringType},
 			Validators: []validator.Map{
 				mapvalidator.KeysAre(stringvalidator.RegexMatches(regexp.MustCompile("repo-.+"), "invalid secret name, repo template credential secret name should start with 'repo-'")),
+			},
+		},
+		"config_management_plugins": schema.MapNestedAttribute{
+			MarkdownDescription: "is a map of [Config Management Plugins](https://argo-cd.readthedocs.io/en/stable/operator-manual/config-management-plugins/#config-management-plugins), the key of map entry is the `name` of the plugin, and the value is the definition of the Config Management Plugin(v2).",
+			Optional:            true,
+			NestedObject: schema.NestedAttributeObject{
+				Attributes: getAKPConfigManagementPluginAttributes(),
 			},
 		},
 	}
@@ -443,6 +451,184 @@ func getManagedClusterAttributes() map[string]schema.Attribute {
 		"cluster_name": schema.StringAttribute{
 			MarkdownDescription: "Cluster name",
 			Required:            true,
+		},
+	}
+}
+
+func getAKPConfigManagementPluginAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"enabled": schema.BoolAttribute{
+			MarkdownDescription: "Whether this plugin is enabled or not",
+			Computed:            true,
+			Optional:            true,
+			Default:             booldefault.StaticBool(false),
+		},
+		"image": schema.StringAttribute{
+			MarkdownDescription: "Image to use for the plugin",
+			Required:            true,
+		},
+		"spec": schema.SingleNestedAttribute{
+			MarkdownDescription: "Plugin spec",
+			Required:            true,
+			Attributes:          getPluginSpecAttributes(),
+		},
+	}
+}
+
+func getPluginSpecAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"version": schema.StringAttribute{
+			MarkdownDescription: "Plugin version",
+			Optional:            true,
+		},
+		"init": schema.SingleNestedAttribute{
+			MarkdownDescription: "The init command runs in the Application source directory at the beginning of each manifest generation. The init command can output anything. A non-zero status code will fail manifest generation. Init always happens immediately before generate, but its output is not treated as manifests. This is a good place to, for example, download chart dependencies.",
+			Optional:            true,
+			Attributes:          getCommandAttributes(),
+		},
+		"generate": schema.SingleNestedAttribute{
+			MarkdownDescription: "The generate command runs in the Application source directory each time manifests are generated. Standard output must be ONLY valid Kubernetes Objects in either YAML or JSON. A non-zero exit code will fail manifest generation. Error output will be sent to the UI, so avoid printing sensitive information (such as secrets).",
+			Required:            true,
+			Attributes:          getCommandAttributes(),
+		},
+		"discover": schema.SingleNestedAttribute{
+			MarkdownDescription: "The discovery config is applied to a repository. If every configured discovery tool matches, then the plugin may be used to generate manifests for Applications using the repository. If the discovery config is omitted then the plugin will not match any application but can still be invoked explicitly by specifying the plugin name in the app spec. Only one of fileName, find.glob, or find.command should be specified. If multiple are specified then only the first (in that order) is evaluated.",
+			Optional:            true,
+			Attributes:          getDiscoverAttributes(),
+		},
+		"parameters": schema.SingleNestedAttribute{
+			MarkdownDescription: "The parameters config describes what parameters the UI should display for an Application. It is up to the user to actually set parameters in the Application manifest (in spec.source.plugin.parameters). The announcements only inform the \"Parameters\" tab in the App Details page of the UI.",
+			Optional:            true,
+			Attributes:          getParametersAttributes(),
+		},
+		"preserve_file_mode": schema.BoolAttribute{
+			MarkdownDescription: "Whether the plugin receives repository files with original file mode. Dangerous since the repository might have executable files. Set to true only if you trust the CMP plugin authors. Set to false by default.",
+			Computed:            true,
+			Optional:            true,
+			Default:             booldefault.StaticBool(false),
+		},
+	}
+}
+
+func getCommandAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"command": schema.ListAttribute{
+			MarkdownDescription: "Command",
+			Required:            true,
+			ElementType:         types.StringType,
+		},
+		"args": schema.ListAttribute{
+			MarkdownDescription: "Arguments of the command",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
+	}
+}
+
+func getDiscoverAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"find": schema.SingleNestedAttribute{
+			MarkdownDescription: "Find command",
+			Optional:            true,
+			Attributes:          getFindAttributes(),
+		},
+		"file_name": schema.StringAttribute{
+			MarkdownDescription: "A glob pattern (https://pkg.go.dev/path/filepath#Glob) that is applied to the Application's source directory. If there is a match, this plugin may be used for the Application.",
+			Optional:            true,
+		},
+	}
+}
+
+func getFindAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"command": schema.ListAttribute{
+			MarkdownDescription: "The find command runs in the repository's root directory. To match, it must exit with status code 0 and produce non-empty output to standard out.",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
+		"args": schema.ListAttribute{
+			MarkdownDescription: "Arguments for the find command",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
+		"glob": schema.StringAttribute{
+			MarkdownDescription: "This does the same thing as `file_name`, but it supports double-start (nested directory) glob patterns.",
+			Optional:            true,
+		},
+	}
+}
+
+func getParametersAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"static": schema.ListNestedAttribute{
+			MarkdownDescription: "Static parameter announcements are sent to the UI for all Applications handled by this plugin. Think of the `string`, `array`, and `map` values set here as defaults. It is up to the plugin author to make sure that these default values actually reflect the plugin's behavior if the user doesn't explicitly set different values for those parameters.",
+			Optional:            true,
+			NestedObject: schema.NestedAttributeObject{
+				Attributes: getParameterAnnouncementAttributes(),
+			},
+		},
+		"dynamic": schema.SingleNestedAttribute{
+			MarkdownDescription: "Dynamic parameter announcements are announcements specific to an Application handled by this plugin. For example, the values for a Helm chart's values.yaml file could be sent as parameter announcements.",
+			Optional:            true,
+			Attributes:          getDynamicAttributes(),
+		},
+	}
+}
+
+func getParameterAnnouncementAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"name": schema.StringAttribute{
+			MarkdownDescription: "Parameter name",
+			Optional:            true,
+		},
+		"title": schema.StringAttribute{
+			MarkdownDescription: "Title and description of the parameter",
+			Optional:            true,
+		},
+		"tooltip": schema.StringAttribute{
+			MarkdownDescription: "Tooltip of the Parameter, will be shown when hovering over the title",
+			Optional:            true,
+		},
+		"required": schema.BoolAttribute{
+			MarkdownDescription: "Whether the Parameter is required or not. If this field is set, the UI will indicate to the user that they must set the value.",
+			Optional:            true,
+		},
+		"item_type": schema.StringAttribute{
+			MarkdownDescription: "Item type tells the UI how to present the parameter's value (or, for arrays and maps, values). Default is `string`. Examples of other types which may be supported in the future are `boolean` or `number`. Even if the itemType is not `string`, the parameter value from the Application spec will be sent to the plugin as a string. It's up to the plugin to do the appropriate conversion.",
+			Optional:            true,
+		},
+		"collection_type": schema.StringAttribute{
+			MarkdownDescription: "Collection Type describes what type of value this parameter accepts (string, array, or map) and allows the UI to present a form to match that type. Default is `string`. This field must be present for non-string types. It will not be inferred from the presence of an `array` or `map` field.",
+			Optional:            true,
+		},
+		"string": schema.StringAttribute{
+			MarkdownDescription: "This field communicates the parameter's default value to the UI if the parameter is a `string`.",
+			Optional:            true,
+		},
+		"array": schema.ListAttribute{
+			MarkdownDescription: "This field communicates the parameter's default value to the UI if the parameter is an `array`.",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
+		"map": schema.MapAttribute{
+			MarkdownDescription: "This field communicates the parameter's default value to the UI if the parameter is a `map`.",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
+	}
+}
+
+func getDynamicAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"command": schema.ListAttribute{
+			MarkdownDescription: "The command will run in an Application's source directory. Standard output must be JSON matching the schema of the static parameter announcements list.",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
+		"args": schema.ListAttribute{
+			MarkdownDescription: "Arguments of the command",
+			Optional:            true,
+			ElementType:         types.StringType,
 		},
 	}
 }
