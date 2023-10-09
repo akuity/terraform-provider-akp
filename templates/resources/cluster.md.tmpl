@@ -11,8 +11,15 @@ description: |-
 {{ .Description | trimspace }}
 
 {{ if .HasExample -}}
-## Example Usage
+## Example Usage (Basic)
+{{ tffile "./examples/resources/akp_cluster/basic.tf" }}
 
+- The `instance_id` assumes you have an `akp_instance` resource named `argocd`.
+- The `kube_config` assumes you have a resource named `cluster.my-cluster` that provides the `host`, `token`, `client_certificate`, `client_key`, `cluster_ca_certificate` of the Kubernetes cluster to deploy the agent into.
+
+For a complete working example using a GKE cluster, see [akuity/examples](https://github.com/akuity/examples/tree/main/terraform/akuity).
+
+## Example Usage (Exhaustive)
 {{ tffile "./examples/resources/akp_cluster/resource.tf" }}
 {{- end }}
 

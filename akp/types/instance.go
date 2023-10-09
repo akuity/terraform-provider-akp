@@ -13,22 +13,23 @@ import (
 )
 
 type Instance struct {
-	ID                            types.String `tfsdk:"id"`
-	Name                          types.String `tfsdk:"name"`
-	ArgoCD                        *ArgoCD      `tfsdk:"argocd"`
-	ArgoCDConfigMap               types.Map    `tfsdk:"argocd_cm"`
-	ArgoCDRBACConfigMap           types.Map    `tfsdk:"argocd_rbac_cm"`
-	ArgoCDSecret                  types.Map    `tfsdk:"argocd_secret"`
-	ApplicationSetSecret          types.Map    `tfsdk:"application_set_secret"`
-	NotificationsConfigMap        types.Map    `tfsdk:"argocd_notifications_cm"`
-	NotificationsSecret           types.Map    `tfsdk:"argocd_notifications_secret"`
-	ImageUpdaterConfigMap         types.Map    `tfsdk:"argocd_image_updater_config"`
-	ImageUpdaterSSHConfigMap      types.Map    `tfsdk:"argocd_image_updater_ssh_config"`
-	ImageUpdaterSecret            types.Map    `tfsdk:"argocd_image_updater_secret"`
-	ArgoCDKnownHostsConfigMap     types.Map    `tfsdk:"argocd_ssh_known_hosts_cm"`
-	ArgoCDTLSCertsConfigMap       types.Map    `tfsdk:"argocd_tls_certs_cm"`
-	RepoCredentialSecrets         types.Map    `tfsdk:"repo_credential_secrets"`
-	RepoTemplateCredentialSecrets types.Map    `tfsdk:"repo_template_credential_secrets"`
+	ID                            types.String                       `tfsdk:"id"`
+	Name                          types.String                       `tfsdk:"name"`
+	ArgoCD                        *ArgoCD                            `tfsdk:"argocd"`
+	ArgoCDConfigMap               types.Map                          `tfsdk:"argocd_cm"`
+	ArgoCDRBACConfigMap           types.Map                          `tfsdk:"argocd_rbac_cm"`
+	ArgoCDSecret                  types.Map                          `tfsdk:"argocd_secret"`
+	ApplicationSetSecret          types.Map                          `tfsdk:"application_set_secret"`
+	NotificationsConfigMap        types.Map                          `tfsdk:"argocd_notifications_cm"`
+	NotificationsSecret           types.Map                          `tfsdk:"argocd_notifications_secret"`
+	ImageUpdaterConfigMap         types.Map                          `tfsdk:"argocd_image_updater_config"`
+	ImageUpdaterSSHConfigMap      types.Map                          `tfsdk:"argocd_image_updater_ssh_config"`
+	ImageUpdaterSecret            types.Map                          `tfsdk:"argocd_image_updater_secret"`
+	ArgoCDKnownHostsConfigMap     types.Map                          `tfsdk:"argocd_ssh_known_hosts_cm"`
+	ArgoCDTLSCertsConfigMap       types.Map                          `tfsdk:"argocd_tls_certs_cm"`
+	RepoCredentialSecrets         types.Map                          `tfsdk:"repo_credential_secrets"`
+	RepoTemplateCredentialSecrets types.Map                          `tfsdk:"repo_template_credential_secrets"`
+	ConfigManagementPlugins       map[string]*ConfigManagementPlugin `tfsdk:"config_management_plugins"`
 }
 
 func (i *Instance) GetSensitiveStrings(ctx context.Context, diagnostics *diag.Diagnostics) []string {
@@ -72,4 +73,5 @@ func (i *Instance) Update(ctx context.Context, diagnostics *diag.Diagnostics, ex
 	i.ImageUpdaterSSHConfigMap = ToConfigMapTFModel(ctx, diagnostics, exportResp.ImageUpdaterSshConfigmap, i.ImageUpdaterSSHConfigMap)
 	i.ArgoCDTLSCertsConfigMap = ToConfigMapTFModel(ctx, diagnostics, exportResp.ArgocdTlsCertsConfigmap, i.ArgoCDTLSCertsConfigMap)
 	i.ArgoCDKnownHostsConfigMap = ToConfigMapTFModel(ctx, diagnostics, exportResp.ArgocdKnownHostsConfigmap, i.ArgoCDKnownHostsConfigMap)
+	i.ConfigManagementPlugins = ToConfigManagementPluginsTFModel(ctx, diagnostics, exportResp.ConfigManagementPlugins, i.ConfigManagementPlugins)
 }

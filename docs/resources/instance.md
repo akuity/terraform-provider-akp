@@ -19,8 +19,78 @@ resource "akp_instance" "argocd" {
       "instance_spec" = {
         "declarative_management_enabled" = true
       }
-      "version" = "v2.8.3-ak.2"
+      "version" = "v2.8.4"
     }
+  }
+}
+```
+
+## Example Usage (Config Management Plugins)
+```terraform
+resource "akp_instance" "argocd" {
+  name = "argocd"
+  argocd = {
+    "spec" = {
+      "instance_spec" = {
+        "declarative_management_enabled" = true
+      }
+      "version" = "v2.8.4"
+    }
+  }
+  config_management_plugins = {
+    "kasane" = {
+      image   = "gcr.io/kasaneapp/kasane"
+      enabled = true
+      spec = {
+        init = {
+          command = [
+            "kasane",
+            "update"
+          ]
+        }
+        generate = {
+          command = [
+            "kasane",
+            "show"
+          ]
+        }
+      }
+    }
+    "tanka" = {
+      enabled = true
+      image   = "grafana/tanka:0.25.0"
+      spec = {
+        discover = {
+          file_name = "jsonnetfile.json"
+        }
+        generate = {
+          args = [
+            "tk show environments/$PARAM_ENV --dangerous-allow-redirect",
+          ]
+          command = [
+            "sh",
+            "-c",
+          ]
+        }
+        init = {
+          command = [
+            "jb",
+            "update",
+          ]
+        }
+        parameters = {
+          static = [
+            {
+              name     = "env"
+              required = true
+              string   = "default"
+            },
+          ]
+        }
+        preserve_file_mode = false
+        version            = "v1.0"
+      }
+    },
   }
 }
 ```
@@ -195,6 +265,61 @@ vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOf
       username = "my-username"
     }
   }
+  config_management_plugins = {
+    "kasane" = {
+      image   = "gcr.io/kasaneapp/kasane"
+      enabled = true
+      spec = {
+        init = {
+          command = [
+            "kasane",
+            "update"
+          ]
+        }
+        generate = {
+          command = [
+            "kasane",
+            "show"
+          ]
+        }
+      }
+    }
+    "tanka" = {
+      enabled = true
+      image   = "grafana/tanka:0.25.0"
+      spec = {
+        discover = {
+          file_name = "jsonnetfile.json"
+        }
+        generate = {
+          args = [
+            "tk show environments/$PARAM_ENV --dangerous-allow-redirect",
+          ]
+          command = [
+            "sh",
+            "-c",
+          ]
+        }
+        init = {
+          command = [
+            "jb",
+            "update",
+          ]
+        }
+        parameters = {
+          static = [
+            {
+              name     = "env"
+              required = true
+              string   = "default"
+            },
+          ]
+        }
+        preserve_file_mode = false
+        version            = "v1.0"
+      }
+    },
+  }
 }
 ```
 
@@ -219,6 +344,7 @@ vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOf
 - `argocd_secret` (Map of String, Sensitive) is aligned with the options in `argocd-secret` Secret as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-secret-yaml/).
 - `argocd_ssh_known_hosts_cm` (Map of String) is aligned with the options in `argocd-ssh-known-hosts-cm` ConfigMap as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-ssh-known-hosts-cm-yaml/).
 - `argocd_tls_certs_cm` (Map of String) is aligned with the options in `argocd-tls-certs-cm` ConfigMap as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-tls-certs-cm-yaml/).
+- `config_management_plugins` (Attributes Map) is a map of [Config Management Plugins](https://argo-cd.readthedocs.io/en/stable/operator-manual/config-management-plugins/#config-management-plugins), the key of map entry is the `name` of the plugin, and the value is the definition of the Config Management Plugin(v2). (see [below for nested schema](#nestedatt--config_management_plugins))
 - `repo_credential_secrets` (Map of Map of String, Sensitive) is a map of repo credential secrets, the key of map entry is the `name` of the secret, and the value is the aligned with options in `argocd-repositories.yaml.data` as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-repositories-yaml/).
 - `repo_template_credential_secrets` (Map of Map of String, Sensitive) is a map of repository credential templates secrets, the key of map entry is the `name` of the secret, and the value is the aligned with options in `argocd-repo-creds.yaml.data` as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-repo-creds.yaml/).
 
@@ -377,6 +503,113 @@ Optional:
 Required:
 
 - `cluster_name` (String) Cluster name
+
+
+
+
+
+
+<a id="nestedatt--config_management_plugins"></a>
+### Nested Schema for `config_management_plugins`
+
+Required:
+
+- `image` (String) Image to use for the plugin
+- `spec` (Attributes) Plugin spec (see [below for nested schema](#nestedatt--config_management_plugins--spec))
+
+Optional:
+
+- `enabled` (Boolean) Whether this plugin is enabled or not
+
+<a id="nestedatt--config_management_plugins--spec"></a>
+### Nested Schema for `config_management_plugins.spec`
+
+Required:
+
+- `generate` (Attributes) The generate command runs in the Application source directory each time manifests are generated. Standard output must be ONLY valid Kubernetes Objects in either YAML or JSON. A non-zero exit code will fail manifest generation. Error output will be sent to the UI, so avoid printing sensitive information (such as secrets). (see [below for nested schema](#nestedatt--config_management_plugins--spec--generate))
+
+Optional:
+
+- `discover` (Attributes) The discovery config is applied to a repository. If every configured discovery tool matches, then the plugin may be used to generate manifests for Applications using the repository. If the discovery config is omitted then the plugin will not match any application but can still be invoked explicitly by specifying the plugin name in the app spec. Only one of fileName, find.glob, or find.command should be specified. If multiple are specified then only the first (in that order) is evaluated. (see [below for nested schema](#nestedatt--config_management_plugins--spec--discover))
+- `init` (Attributes) The init command runs in the Application source directory at the beginning of each manifest generation. The init command can output anything. A non-zero status code will fail manifest generation. Init always happens immediately before generate, but its output is not treated as manifests. This is a good place to, for example, download chart dependencies. (see [below for nested schema](#nestedatt--config_management_plugins--spec--init))
+- `parameters` (Attributes) The parameters config describes what parameters the UI should display for an Application. It is up to the user to actually set parameters in the Application manifest (in spec.source.plugin.parameters). The announcements only inform the "Parameters" tab in the App Details page of the UI. (see [below for nested schema](#nestedatt--config_management_plugins--spec--parameters))
+- `preserve_file_mode` (Boolean) Whether the plugin receives repository files with original file mode. Dangerous since the repository might have executable files. Set to true only if you trust the CMP plugin authors. Set to false by default.
+- `version` (String) Plugin version
+
+<a id="nestedatt--config_management_plugins--spec--generate"></a>
+### Nested Schema for `config_management_plugins.spec.generate`
+
+Required:
+
+- `command` (List of String) Command
+
+Optional:
+
+- `args` (List of String) Arguments of the command
+
+
+<a id="nestedatt--config_management_plugins--spec--discover"></a>
+### Nested Schema for `config_management_plugins.spec.discover`
+
+Optional:
+
+- `file_name` (String) A glob pattern (https://pkg.go.dev/path/filepath#Glob) that is applied to the Application's source directory. If there is a match, this plugin may be used for the Application.
+- `find` (Attributes) Find config (see [below for nested schema](#nestedatt--config_management_plugins--spec--discover--find))
+
+<a id="nestedatt--config_management_plugins--spec--discover--find"></a>
+### Nested Schema for `config_management_plugins.spec.discover.find`
+
+Optional:
+
+- `args` (List of String) Arguments for the find command
+- `command` (List of String) The find command runs in the repository's root directory. To match, it must exit with status code 0 and produce non-empty output to standard out.
+- `glob` (String) This does the same thing as `file_name`, but it supports double-start (nested directory) glob patterns.
+
+
+
+<a id="nestedatt--config_management_plugins--spec--init"></a>
+### Nested Schema for `config_management_plugins.spec.init`
+
+Required:
+
+- `command` (List of String) Command
+
+Optional:
+
+- `args` (List of String) Arguments of the command
+
+
+<a id="nestedatt--config_management_plugins--spec--parameters"></a>
+### Nested Schema for `config_management_plugins.spec.parameters`
+
+Optional:
+
+- `dynamic` (Attributes) Dynamic parameter announcements are announcements specific to an Application handled by this plugin. For example, the values for a Helm chart's values.yaml file could be sent as parameter announcements. (see [below for nested schema](#nestedatt--config_management_plugins--spec--parameters--dynamic))
+- `static` (Attributes List) Static parameter announcements are sent to the UI for all Applications handled by this plugin. Think of the `string`, `array`, and `map` values set here as defaults. It is up to the plugin author to make sure that these default values actually reflect the plugin's behavior if the user doesn't explicitly set different values for those parameters. (see [below for nested schema](#nestedatt--config_management_plugins--spec--parameters--static))
+
+<a id="nestedatt--config_management_plugins--spec--parameters--dynamic"></a>
+### Nested Schema for `config_management_plugins.spec.parameters.static`
+
+Optional:
+
+- `args` (List of String) Arguments of the command
+- `command` (List of String) The command will run in an Application's source directory. Standard output must be JSON matching the schema of the static parameter announcements list.
+
+
+<a id="nestedatt--config_management_plugins--spec--parameters--static"></a>
+### Nested Schema for `config_management_plugins.spec.parameters.static`
+
+Optional:
+
+- `array` (List of String) This field communicates the parameter's default value to the UI if the parameter is an `array`.
+- `collection_type` (String) Collection Type describes what type of value this parameter accepts (string, array, or map) and allows the UI to present a form to match that type. Default is `string`. This field must be present for non-string types. It will not be inferred from the presence of an `array` or `map` field.
+- `item_type` (String) Item type tells the UI how to present the parameter's value (or, for arrays and maps, values). Default is `string`. Examples of other types which may be supported in the future are `boolean` or `number`. Even if the itemType is not `string`, the parameter value from the Application spec will be sent to the plugin as a string. It's up to the plugin to do the appropriate conversion.
+- `map` (Map of String) This field communicates the parameter's default value to the UI if the parameter is a `map`.
+- `name` (String) Parameter name
+- `required` (Boolean) Whether the Parameter is required or not. If this field is set to true, the UI will indicate to the user that they must set the value.
+- `string` (String) This field communicates the parameter's default value to the UI if the parameter is a `string`.
+- `title` (String) Title and description of the parameter
+- `tooltip` (String) Tooltip of the Parameter, will be shown when hovering over the title
 
 ## Import
 
