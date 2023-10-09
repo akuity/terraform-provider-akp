@@ -62,8 +62,26 @@ resource "akp_cluster" "example" {
       kustomization         = <<EOF
   apiVersion: kustomize.config.k8s.io/v1beta1
   kind: Kustomization
-  resources:
-  - test.yaml
+  patches:
+    - patch: |-
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: argocd-repo-server
+        spec:
+          template:
+            spec:
+              containers:
+              - name: argocd-repo-server
+                resources:
+                  limits:
+                    memory: 2Gi
+                  requests:
+                    cpu: 750m
+                    memory: 1Gi
+      target:
+        kind: Deployment
+        name: argocd-repo-server
             EOF
     }
   }

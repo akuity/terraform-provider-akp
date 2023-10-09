@@ -31,7 +31,7 @@ terraform {
   required_providers {
     akp = {
       source = "akuity/akp"
-      version = "~> 0.5.0"
+      version = "~> 0.6.0"
     }
   }
 }
@@ -40,38 +40,29 @@ provider "akp" {
   org_name = "<organization-name>"
 }
 
-# Read the existing Argo CD Instance
-data "akp_instance" "existing" {
-  name = "manualy-created"
+resource "akp_instance" "argocd" {
+   name = "argocd"
+   argocd = {
+      "spec" = {
+         "instance_spec" = {
+            "declarative_management_enabled" = true
+         }
+         "version" = "v2.8.4"
+      }
+   }
 }
 
 # Add cluster to the existing instance and install the agent
 resource "akp_cluster" "example" {
-   instance_id = data.akp_instance.example.id
+   instance_id = akp_instance.argocd.id
    kube_config = {
       "config_path" = "test.kubeconfig"
    }
    name      = "test-cluster"
    namespace = "test"
-   labels = {
-      test-label = "true"
-   }
-   annotations = {
-      test-annotation = "false"
-   }
    spec = {
-      namespace_scoped = true
-      description      = "test-description"
       data = {
-         size                  = "small"
-         auto_upgrade_disabled = true
-         target_version        = "0.4.0"
-         kustomization         = <<EOF
-  apiVersion: kustomize.config.k8s.io/v1beta1
-  kind: Kustomization
-  resources:
-  - test.yaml
-            EOF
+         size = "small"
       }
    }
 }

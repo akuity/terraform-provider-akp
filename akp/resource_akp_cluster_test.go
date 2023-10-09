@@ -31,8 +31,26 @@ func TestAccClusterResource(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.auto_upgrade_disabled", "true"),
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.kustomization", `  apiVersion: kustomize.config.k8s.io/v1beta1
   kind: Kustomization
-  resources:
-  - test.yaml
+  patches:
+    - patch: |-
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: argocd-repo-server
+        spec:
+          template:
+            spec:
+              containers:
+              - name: argocd-repo-server
+                resources:
+                  limits:
+                    memory: 2Gi
+                  requests:
+                    cpu: 750m
+                    memory: 1Gi
+      target:
+        kind: Deployment
+        name: argocd-repo-server
 `),
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.app_replication", "false"),
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.target_version", "0.4.0"),
@@ -75,8 +93,26 @@ resource "akp_cluster" "test" {
       kustomization         = <<EOF
   apiVersion: kustomize.config.k8s.io/v1beta1
   kind: Kustomization
-  resources:
-  - test.yaml
+  patches:
+    - patch: |-
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: argocd-repo-server
+        spec:
+          template:
+            spec:
+              containers:
+              - name: argocd-repo-server
+                resources:
+                  limits:
+                    memory: 2Gi
+                  requests:
+                    cpu: 750m
+                    memory: 1Gi
+      target:
+        kind: Deployment
+        name: argocd-repo-server
 EOF
     }
   }
