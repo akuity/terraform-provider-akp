@@ -73,19 +73,5 @@ func (i *Instance) Update(ctx context.Context, diagnostics *diag.Diagnostics, ex
 	i.ImageUpdaterSSHConfigMap = ToConfigMapTFModel(ctx, diagnostics, exportResp.ImageUpdaterSshConfigmap, i.ImageUpdaterSSHConfigMap)
 	i.ArgoCDTLSCertsConfigMap = ToConfigMapTFModel(ctx, diagnostics, exportResp.ArgocdTlsCertsConfigmap, i.ArgoCDTLSCertsConfigMap)
 	i.ArgoCDKnownHostsConfigMap = ToConfigMapTFModel(ctx, diagnostics, exportResp.ArgocdKnownHostsConfigmap, i.ArgoCDKnownHostsConfigMap)
-	if len(exportResp.ConfigManagementPlugins) == 0 && len(i.ConfigManagementPlugins) == 0 {
-	} else {
-		i.ConfigManagementPlugins = make(map[string]*ConfigManagementPlugin)
-		for _, plugin := range exportResp.ConfigManagementPlugins {
-			var apiCMP *v1alpha1.ConfigManagementPlugin
-			err = marshal.RemarshalTo(plugin.AsMap(), &apiCMP)
-			if err != nil {
-				diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get ConfigManagementPlugin. %s", err))
-				return
-			}
-			cmp := &ConfigManagementPlugin{}
-			cmp.Update(ctx, diagnostics, apiCMP)
-			i.ConfigManagementPlugins[apiCMP.Name] = cmp
-		}
-	}
+	i.ConfigManagementPlugins = ToConfigManagementPluginsTFModel(ctx, diagnostics, exportResp.ConfigManagementPlugins, i.ConfigManagementPlugins)
 }

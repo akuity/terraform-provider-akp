@@ -213,7 +213,7 @@ Read-Only:
 Read-Only:
 
 - `file_name` (String) A glob pattern (https://pkg.go.dev/path/filepath#Glob) that is applied to the Application's source directory. If there is a match, this plugin may be used for the Application.
-- `find` (Attributes) Find command (see [below for nested schema](#nestedatt--config_management_plugins--spec--discover--find))
+- `find` (Attributes) Find config (see [below for nested schema](#nestedatt--config_management_plugins--spec--discover--find))
 
 <a id="nestedatt--config_management_plugins--spec--discover--find"></a>
 ### Nested Schema for `config_management_plugins.spec.discover.find`
@@ -271,7 +271,7 @@ Read-Only:
 - `item_type` (String) Item type tells the UI how to present the parameter's value (or, for arrays and maps, values). Default is `string`. Examples of other types which may be supported in the future are `boolean` or `number`. Even if the itemType is not `string`, the parameter value from the Application spec will be sent to the plugin as a string. It's up to the plugin to do the appropriate conversion.
 - `map` (Map of String) This field communicates the parameter's default value to the UI if the parameter is a `map`.
 - `name` (String) Parameter name
-- `required` (Boolean) Whether the Parameter is required or not. If this field is set, the UI will indicate to the user that they must set the value.
+- `required` (Boolean) Whether the Parameter is required or not. If this field is set to true, the UI will indicate to the user that they must set the value.
 - `string` (String) This field communicates the parameter's default value to the UI if the parameter is a `string`.
 - `title` (String) Title and description of the parameter
 - `tooltip` (String) Tooltip of the Parameter, will be shown when hovering over the title

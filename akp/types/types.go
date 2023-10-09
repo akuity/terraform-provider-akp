@@ -11,12 +11,14 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+	"google.golang.org/protobuf/types/known/structpb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 	"github.com/akuity/terraform-provider-akp/akp/apis/v1alpha1"
+	"github.com/akuity/terraform-provider-akp/akp/marshal"
 )
 
 var (
@@ -243,6 +245,24 @@ func (c *ConfigManagementPlugin) ToConfigManagementPluginAPIModel(ctx context.Co
 			PreserveFileMode: c.Spec.PreserveFileMode.ValueBool(),
 		},
 	}
+}
+
+func ToConfigManagementPluginsTFModel(ctx context.Context, diagnostics *diag.Diagnostics, cmps []*structpb.Struct, oldCMPs map[string]*ConfigManagementPlugin) map[string]*ConfigManagementPlugin {
+	if len(cmps) == 0 && len(oldCMPs) == 0 {
+		return oldCMPs
+	}
+	newCMPs := make(map[string]*ConfigManagementPlugin)
+	for _, plugin := range cmps {
+		var apiCMP *v1alpha1.ConfigManagementPlugin
+		if err := marshal.RemarshalTo(plugin.AsMap(), &apiCMP); err != nil {
+			diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get ConfigManagementPlugin. %s", err))
+			return nil
+		}
+		cmp := &ConfigManagementPlugin{}
+		cmp.Update(ctx, diagnostics, apiCMP)
+		newCMPs[apiCMP.Name] = cmp
+	}
+	return newCMPs
 }
 
 func toClusterDataAPIModel(diagnostics *diag.Diagnostics, clusterData ClusterData) v1alpha1.ClusterData {
@@ -648,14 +668,38 @@ func toParameterAnnouncementTFModel(ctx context.Context, diagnostics *diag.Diagn
 	}
 	m, diag := tftypes.MapValueFrom(ctx, tftypes.StringType, &parameter.Map)
 	diagnostics.Append(diag...)
+	name := tftypes.StringNull()
+	if parameter.Name != "" {
+		name = tftypes.StringValue(parameter.Name)
+	}
+	title := tftypes.StringNull()
+	if parameter.Title != "" {
+		title = tftypes.StringValue(parameter.Title)
+	}
+	tooltip := tftypes.StringNull()
+	if parameter.Tooltip != "" {
+		tooltip = tftypes.StringValue(parameter.Tooltip)
+	}
+	itemType := tftypes.StringNull()
+	if parameter.ItemType != "" {
+		itemType = tftypes.StringValue(parameter.ItemType)
+	}
+	collectionType := tftypes.StringNull()
+	if parameter.CollectionType != "" {
+		collectionType = tftypes.StringValue(parameter.CollectionType)
+	}
+	string_ := tftypes.StringNull()
+	if parameter.String_ != "" {
+		string_ = tftypes.StringValue(parameter.String_)
+	}
 	return &ParameterAnnouncement{
-		Name:           tftypes.StringValue(parameter.Name),
-		Title:          tftypes.StringValue(parameter.Title),
-		Tooltip:        tftypes.StringValue(parameter.Tooltip),
+		Name:           name,
+		Title:          title,
+		Tooltip:        tooltip,
 		Required:       tftypes.BoolValue(parameter.Required),
-		ItemType:       tftypes.StringValue(parameter.ItemType),
-		CollectionType: tftypes.StringValue(parameter.CollectionType),
-		String_:        tftypes.StringValue(parameter.String_),
+		ItemType:       itemType,
+		CollectionType: collectionType,
+		String_:        string_,
 		Array:          array,
 		Map:            m,
 	}
@@ -665,9 +709,13 @@ func toDiscoverTFModel(discover *v1alpha1.Discover) *Discover {
 	if discover == nil {
 		return nil
 	}
+	fileName := tftypes.StringNull()
+	if discover.FileName != "" {
+		fileName = tftypes.StringValue(discover.FileName)
+	}
 	return &Discover{
 		Find:     toFindTFModel(discover.Find),
-		FileName: tftypes.StringValue(discover.FileName),
+		FileName: fileName,
 	}
 }
 
@@ -683,10 +731,14 @@ func toFindTFModel(find *v1alpha1.Find) *Find {
 	for _, a := range find.Args {
 		args = append(args, tftypes.StringValue(a))
 	}
+	glob := tftypes.StringNull()
+	if find.Glob != "" {
+		glob = tftypes.StringValue(find.Glob)
+	}
 	return &Find{
 		Command: commands,
 		Args:    args,
-		Glob:    tftypes.StringValue(find.Glob),
+		Glob:    glob,
 	}
 }
 

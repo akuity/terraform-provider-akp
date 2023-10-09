@@ -402,7 +402,7 @@ func getCommandDataSourceAttributes() map[string]schema.Attribute {
 func getDiscoverDataSourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"find": schema.SingleNestedAttribute{
-			MarkdownDescription: "Find command",
+			MarkdownDescription: "Find config",
 			Computed:            true,
 			Attributes:          getFindDataSourceAttributes(),
 		},
@@ -464,7 +464,7 @@ func getParameterAnnouncementDataSourceAttributes() map[string]schema.Attribute 
 			Computed:            true,
 		},
 		"required": schema.BoolAttribute{
-			MarkdownDescription: "Whether the Parameter is required or not. If this field is set, the UI will indicate to the user that they must set the value.",
+			MarkdownDescription: "Whether the Parameter is required or not. If this field is set to true, the UI will indicate to the user that they must set the value.",
 			Computed:            true,
 		},
 		"item_type": schema.StringAttribute{

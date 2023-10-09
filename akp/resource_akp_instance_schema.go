@@ -528,7 +528,7 @@ func getCommandAttributes() map[string]schema.Attribute {
 func getDiscoverAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"find": schema.SingleNestedAttribute{
-			MarkdownDescription: "Find command",
+			MarkdownDescription: "Find config",
 			Optional:            true,
 			Attributes:          getFindAttributes(),
 		},
@@ -590,8 +590,10 @@ func getParameterAnnouncementAttributes() map[string]schema.Attribute {
 			Optional:            true,
 		},
 		"required": schema.BoolAttribute{
-			MarkdownDescription: "Whether the Parameter is required or not. If this field is set, the UI will indicate to the user that they must set the value.",
+			MarkdownDescription: "Whether the Parameter is required or not. If this field is set to true, the UI will indicate to the user that they must set the value.",
 			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(false),
 		},
 		"item_type": schema.StringAttribute{
 			MarkdownDescription: "Item type tells the UI how to present the parameter's value (or, for arrays and maps, values). Default is `string`. Examples of other types which may be supported in the future are `boolean` or `number`. Even if the itemType is not `string`, the parameter value from the Application spec will be sent to the plugin as a string. It's up to the plugin to do the appropriate conversion.",
