@@ -458,7 +458,7 @@ func getManagedClusterAttributes() map[string]schema.Attribute {
 func getAKPConfigManagementPluginAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"enabled": schema.BoolAttribute{
-			MarkdownDescription: "Whether this plugin is enabled or not",
+			MarkdownDescription: "Whether this plugin is enabled or not. Default to false.",
 			Computed:            true,
 			Optional:            true,
 			Default:             booldefault.StaticBool(false),
@@ -590,7 +590,7 @@ func getParameterAnnouncementAttributes() map[string]schema.Attribute {
 			Optional:            true,
 		},
 		"required": schema.BoolAttribute{
-			MarkdownDescription: "Whether the Parameter is required or not. If this field is set to true, the UI will indicate to the user that they must set the value.",
+			MarkdownDescription: "Whether the Parameter is required or not. If this field is set to true, the UI will indicate to the user that they must set the value. Default to false.",
 			Optional:            true,
 			Computed:            true,
 			Default:             booldefault.StaticBool(false),
