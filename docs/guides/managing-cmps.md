@@ -30,6 +30,6 @@ If you want to use AKP provider to manage CMPs, you need to add `config_manageme
 ## Delete CMPs
 You can delete CMPs by removing them from the `config_management_plugins` block in your `akp_instance` resource.
 
-!> Note that removing the `config_management_plugins` block from `akp_instance` resource will prune all the CMPs in your AKP Argo CD instance.
+!> Note that removing the entire `config_management_plugins` block from `akp_instance` resource will prune all the CMPs in your AKP Argo CD instance.
 
 Make sure to review the changes before applying them.
