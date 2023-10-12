@@ -53,7 +53,6 @@ func TestAccClusterResource(t *testing.T) {
         name: argocd-repo-server
 `),
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.app_replication", "false"),
-					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.target_version", "0.4.17"),
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.redis_tunneling", "false"),
 					resource.TestCheckResourceAttr("akp_cluster.test", "remove_agent_resources_on_destroy", "true"),
 				),

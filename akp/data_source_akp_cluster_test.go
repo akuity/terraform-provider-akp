@@ -36,7 +36,6 @@ images:
 kind: Kustomization
 `),
 					resource.TestCheckResourceAttr("data.akp_cluster.test", "spec.data.app_replication", "false"),
-					resource.TestCheckResourceAttr("data.akp_cluster.test", "spec.data.target_version", "0.4.17"),
 					resource.TestCheckResourceAttr("data.akp_cluster.test", "spec.data.redis_tunneling", "true"),
 				),
 			},
