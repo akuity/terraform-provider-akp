@@ -11,7 +11,7 @@ resource "akp_instance" "argocd" {
   config_management_plugins = {
     "kasane" = {
       image   = "gcr.io/kasaneapp/kasane"
-      enabled = true
+      enabled = false
       spec = {
         init = {
           command = [
