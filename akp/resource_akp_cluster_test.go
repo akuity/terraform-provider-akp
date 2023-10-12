@@ -28,7 +28,7 @@ func TestAccClusterResource(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.namespace_scoped", "true"),
 					// spec.data
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.size", "small"),
-					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.auto_upgrade_disabled", "false"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.auto_upgrade_disabled", "true"),
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.kustomization", `  apiVersion: kustomize.config.k8s.io/v1beta1
   kind: Kustomization
   patches:
@@ -87,6 +87,7 @@ resource "akp_cluster" "test" {
     description      = %q
     data = {
       size                  = %q
+      auto_upgrade_disabled = true
       kustomization         = <<EOF
   apiVersion: kustomize.config.k8s.io/v1beta1
   kind: Kustomization
