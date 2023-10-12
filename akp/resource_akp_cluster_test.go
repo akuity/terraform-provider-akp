@@ -53,7 +53,6 @@ func TestAccClusterResource(t *testing.T) {
         name: argocd-repo-server
 `),
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.app_replication", "false"),
-					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.target_version", "0.4.0"),
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.redis_tunneling", "false"),
 					resource.TestCheckResourceAttr("akp_cluster.test", "remove_agent_resources_on_destroy", "true"),
 				),
@@ -89,7 +88,6 @@ resource "akp_cluster" "test" {
     data = {
       size                  = %q
       auto_upgrade_disabled = true
-      target_version        = "0.4.0"
       kustomization         = <<EOF
   apiVersion: kustomize.config.k8s.io/v1beta1
   kind: Kustomization
