@@ -25,7 +25,7 @@ Finally, run `terraform plan` to make sure there is no changes to be applied.
 
 ## Add new CMPs
 
-If you want to use AKP provider to manage CMPs, you need to add `config_management_plugins` block to your `akp_instance` resource. Please refer to the [cmp schema](../resources/instance.md#nested-schema-for-configmanagementplugins) and [cmp examples](../resources/instance.md#example-usage-config-management-plugins) for more details.
+If you want to use AKP provider to manage CMPs, you need to add `config_management_plugins` block to your `akp_instance` resource. Please check the [`akp_instance` resource](../resources/instance.md) for cmp schema and examples.
 
 ## Delete CMPs
 You can delete CMPs by removing them from the `config_management_plugins` block in your `akp_instance` resource.
