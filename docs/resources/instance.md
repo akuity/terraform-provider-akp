@@ -26,6 +26,9 @@ resource "akp_instance" "argocd" {
 ```
 
 ## Example Usage (Config Management Plugins)
+
+Please read the [Managing Config Management Plugins Guide](../guides/managing-cmps.md) before you start.
+
 ```terraform
 resource "akp_instance" "argocd" {
   name = "argocd"
@@ -40,7 +43,7 @@ resource "akp_instance" "argocd" {
   config_management_plugins = {
     "kasane" = {
       image   = "gcr.io/kasaneapp/kasane"
-      enabled = true
+      enabled = false
       spec = {
         init = {
           command = [
