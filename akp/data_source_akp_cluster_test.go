@@ -31,7 +31,7 @@ func TestAccClusterDataSource(t *testing.T) {
 					resource.TestCheckResourceAttr("data.akp_cluster.test", "spec.data.auto_upgrade_disabled", "true"),
 					resource.TestCheckResourceAttr("data.akp_cluster.test", "spec.data.kustomization", `apiVersion: kustomize.config.k8s.io/v1beta1
 images:
-- name: quay.io/akuityio/agent
+- name: quay.io/akuity/agent
   newName: test.io/agent
 kind: Kustomization
 `),
