@@ -75,10 +75,7 @@ func (k *Kubectl) newApplyOptions(ioStreams genericclioptions.IOStreams, obj *un
 	if err != nil {
 		return nil, err
 	}
-	o.OpenAPISchema, err = k.OpenAPISchema()
-	if err != nil {
-		return nil, err
-	}
+	o.OpenAPIGetter = k
 
 	validateDirective := metav1.FieldValidationIgnore
 	if applyOpts.Validate {
