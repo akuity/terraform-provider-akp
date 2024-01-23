@@ -33,11 +33,19 @@ type ClusterSpec struct {
 	Data            ClusterData  `tfsdk:"data"`
 }
 
+type DirectClusterSpec struct {
+	ClusterType     DirectClusterType `tfsdk:"cluster_type"`
+	KargoInstanceId types.String      `tfsdk:"kargo_instance_id"`
+	Server          types.String      `tfsdk:"server"`
+	Token           types.String      `tfsdk:"token"`
+}
+
 type ClusterData struct {
-	Size                types.String `tfsdk:"size"`
-	AutoUpgradeDisabled types.Bool   `tfsdk:"auto_upgrade_disabled"`
-	Kustomization       types.String `tfsdk:"kustomization"`
-	AppReplication      types.Bool   `tfsdk:"app_replication"`
-	TargetVersion       types.String `tfsdk:"target_version"`
-	RedisTunneling      types.Bool   `tfsdk:"redis_tunneling"`
+	Size                types.String       `tfsdk:"size"`
+	AutoUpgradeDisabled types.Bool         `tfsdk:"auto_upgrade_disabled"`
+	Kustomization       types.String       `tfsdk:"kustomization"`
+	AppReplication      types.Bool         `tfsdk:"app_replication"`
+	TargetVersion       types.String       `tfsdk:"target_version"`
+	RedisTunneling      types.Bool         `tfsdk:"redis_tunneling"`
+	DirectClusterSpec   *DirectClusterSpec `tfsdk:"direct_cluster_spec"`
 }
