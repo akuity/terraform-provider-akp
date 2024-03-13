@@ -19,10 +19,19 @@ type Cluster struct {
 
 type ClusterSize string
 
+type DirectClusterType string
+
 type ClusterSpec struct {
 	Description     string      `json:"description,omitempty"`
 	NamespaceScoped bool        `json:"namespaceScoped,omitempty"`
 	Data            ClusterData `json:"data,omitempty"`
+}
+
+type DirectClusterSpec struct {
+	ClusterType     DirectClusterType `json:"clusterType,omitempty"`
+	KargoInstanceId *string           `json:"kargoInstanceId,omitempty"`
+	Server          *string           `json:"server,omitempty"`
+	Token           *string           `json:"token,omitempty"`
 }
 
 type ClusterData struct {
@@ -32,4 +41,5 @@ type ClusterData struct {
 	AppReplication      *bool                `json:"appReplication,omitempty"`
 	TargetVersion       string               `json:"targetVersion,omitempty"`
 	RedisTunneling      *bool                `json:"redisTunneling,omitempty"`
+	DirectClusterSpec   *DirectClusterSpec   `json:"directClusterSpec,omitempty"`
 }
