@@ -16,6 +16,7 @@ type ArgoCD struct {
 type ArgoCDSpec struct {
 	Description  types.String `tfsdk:"description"`
 	Version      types.String `tfsdk:"version"`
+	Shard        types.String `tfsdk:"shard"`
 	InstanceSpec InstanceSpec `tfsdk:"instance_spec"`
 }
 
@@ -36,6 +37,20 @@ type AppsetPolicy struct {
 	OverridePolicy types.Bool   `tfsdk:"override_policy"`
 }
 
+type AgentPermissionsRule struct {
+	ApiGroups []types.String `tfsdk:"api_groups"`
+	Resources []types.String `tfsdk:"resources"`
+	Verbs     []types.String `tfsdk:"verbs"`
+}
+
+type CrossplaneExtensionResource struct {
+	Group types.String `tfsdk:"group"`
+}
+
+type CrossplaneExtension struct {
+	Resources []*CrossplaneExtensionResource `tfsdk:"resources"`
+}
+
 type InstanceSpec struct {
 	IpAllowList                  []*IPAllowListEntry            `tfsdk:"ip_allow_list"`
 	Subdomain                    types.String                   `tfsdk:"subdomain"`
@@ -47,11 +62,14 @@ type InstanceSpec struct {
 	RepoServerDelegate           *RepoServerDelegate            `tfsdk:"repo_server_delegate"`
 	AuditExtensionEnabled        types.Bool                     `tfsdk:"audit_extension_enabled"`
 	SyncHistoryExtensionEnabled  types.Bool                     `tfsdk:"sync_history_extension_enabled"`
+	CrossplaneExtension          *CrossplaneExtension           `tfsdk:"crossplane_extension"`
 	ImageUpdaterDelegate         *ImageUpdaterDelegate          `tfsdk:"image_updater_delegate"`
 	AppSetDelegate               *AppSetDelegate                `tfsdk:"app_set_delegate"`
 	AssistantExtensionEnabled    types.Bool                     `tfsdk:"assistant_extension_enabled"`
 	AppsetPolicy                 types.Object                   `tfsdk:"appset_policy"`
 	HostAliases                  []*HostAliases                 `tfsdk:"host_aliases"`
+	AgentPermissionsRules        []*AgentPermissionsRule        `tfsdk:"agent_permissions_rules"`
+	Fqdn                         types.String                   `tfsdk:"fqdn"`
 }
 
 type ManagedCluster struct {
