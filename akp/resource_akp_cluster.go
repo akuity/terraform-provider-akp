@@ -9,9 +9,12 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"golang.org/x/exp/slices"
 	"google.golang.org/genproto/googleapis/api/httpbody"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 	"k8s.io/client-go/rest"
 
@@ -84,7 +87,7 @@ func (r *AkpClusterResource) Read(ctx context.Context, req resource.ReadRequest,
 	}
 
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
-	refreshClusterState(ctx, &resp.Diagnostics, r.akpCli.Cli, &data, r.akpCli.OrgId)
+	refreshClusterState(ctx, &resp.Diagnostics, r.akpCli.Cli, &data, r.akpCli.OrgId, &resp.State)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
@@ -162,7 +165,7 @@ func (r *AkpClusterResource) upsert(ctx context.Context, diagnostics *diag.Diagn
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Argo CD instance. %s", err))
 		return
 	}
-	refreshClusterState(ctx, diagnostics, r.akpCli.Cli, plan, r.akpCli.OrgId)
+	refreshClusterState(ctx, diagnostics, r.akpCli.Cli, plan, r.akpCli.OrgId, nil)
 	if diagnostics.HasError() {
 		return
 	}
@@ -186,7 +189,8 @@ func (r *AkpClusterResource) upsert(ctx context.Context, diagnostics *diag.Diagn
 	}
 }
 
-func refreshClusterState(ctx context.Context, diagnostics *diag.Diagnostics, client argocdv1.ArgoCDServiceGatewayClient, cluster *types.Cluster, orgID string) {
+func refreshClusterState(ctx context.Context, diagnostics *diag.Diagnostics, client argocdv1.ArgoCDServiceGatewayClient, cluster *types.Cluster,
+	orgID string, state *tfsdk.State) {
 	clusterReq := &argocdv1.GetInstanceClusterRequest{
 		OrganizationId: orgID,
 		InstanceId:     cluster.InstanceID.ValueString(),
@@ -197,6 +201,10 @@ func refreshClusterState(ctx context.Context, diagnostics *diag.Diagnostics, cli
 	tflog.Debug(ctx, fmt.Sprintf("Get cluster request: %s", clusterReq))
 	clusterResp, err := client.GetInstanceCluster(ctx, clusterReq)
 	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			state.RemoveResource(ctx)
+			return
+		}
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read Argo CD cluster: %s", err))
 		return
 	}
