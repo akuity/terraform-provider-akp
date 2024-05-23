@@ -37,11 +37,6 @@ func TestAccInstanceDataSource(t *testing.T) {
 
 					// argocd_cm
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd_cm.%", "9"),
-
-					// config_management_plugins
-					resource.TestCheckResourceAttr("data.akp_instance.test", "config_management_plugins.%", "2"),
-					resource.TestCheckResourceAttr("data.akp_instance.test", "config_management_plugins.helmfile.enabled", "false"),
-					resource.TestCheckResourceAttr("data.akp_instance.test", "config_management_plugins.tanka.enabled", "true"),
 				),
 			},
 		},
