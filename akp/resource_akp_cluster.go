@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"golang.org/x/exp/slices"
+	"google.golang.org/genproto/googleapis/api/httpbody"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -268,12 +269,13 @@ func getManifests(ctx context.Context, diagnostics *diag.Diagnostics, client arg
 		InstanceId:     cluster.InstanceID.ValueString(),
 		Id:             c.Id,
 	}
-	apiResp, err := client.GetInstanceClusterManifests(ctx, apiReq)
+	resChan, errChan, err := client.GetInstanceClusterManifests(ctx, apiReq)
 	if err != nil {
 		diagnostics.AddError("Akuity API error", fmt.Sprintf("Unable to download manifests: %s", err))
 		return ""
 	}
-	return string(apiResp.GetData())
+	apiResp, err := readStream(resChan, errChan)
+	return string(apiResp)
 }
 
 func applyManifests(ctx context.Context, manifests string, cfg *rest.Config) diag.Diagnostics {
@@ -369,4 +371,27 @@ func waitClusterReconStatus(ctx context.Context, client argocdv1.ArgoCDServiceGa
 		tflog.Debug(ctx, fmt.Sprintf("Cluster recon status: %s", reconStatus.String()))
 	}
 	return cluster, nil
+}
+
+func readStream(resChan <-chan *httpbody.HttpBody, errChan <-chan error) ([]byte, error) {
+	var data []byte
+	for resChan != nil && errChan != nil {
+		select {
+		case dataChunk, ok := <-resChan:
+			if !ok {
+				resChan = nil
+				continue
+			} else {
+				data = append(data, dataChunk.Data...)
+			}
+		case err, ok := <-errChan:
+			if !ok {
+				errChan = nil
+				continue
+			} else {
+				return nil, err
+			}
+		}
+	}
+	return data, nil
 }
