@@ -63,8 +63,6 @@ jobs:
     needs: unit-test
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    concurrency:
-      group: ${{ matrix.terraform }}
     strategy:
       fail-fast: true
       max-parallel: 2
