@@ -67,7 +67,7 @@ jobs:
       group: ${{ matrix.terraform }}
     strategy:
       fail-fast: true
-      max-parallel: 5
+      max-parallel: 2
       matrix:
         # list whatever Terraform versions here you would like to support
         terraform:
