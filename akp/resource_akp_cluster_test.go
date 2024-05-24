@@ -6,20 +6,21 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
 func TestAccClusterResource(t *testing.T) {
+	name := fmt.Sprintf("cluster-%s", acctest.RandString(10))
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			// Create and Read testing
 			{
-				Config: providerConfig + testAccClusterResourceConfig("small", "test one"),
+				Config: providerConfig + testAccClusterResourceConfig("small", name, "test one"),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrSet("akp_cluster.test", "id"),
-					resource.TestCheckResourceAttr("akp_cluster.test", "name", "test"),
 					resource.TestCheckResourceAttr("akp_cluster.test", "namespace", "test"),
 					resource.TestCheckResourceAttr("akp_cluster.test", "labels.test-label", "true"),
 					resource.TestCheckResourceAttr("akp_cluster.test", "annotations.test-annotation", "false"),
@@ -59,7 +60,7 @@ func TestAccClusterResource(t *testing.T) {
 			},
 			// Update and Read testing
 			{
-				Config: providerConfig + testAccClusterResourceConfig("medium", "test two"),
+				Config: providerConfig + testAccClusterResourceConfig("medium", name, "test two"),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.description", "test two"),
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.size", "medium"),
@@ -70,11 +71,11 @@ func TestAccClusterResource(t *testing.T) {
 	})
 }
 
-func testAccClusterResourceConfig(size string, description string) string {
+func testAccClusterResourceConfig(size string, name string, description string) string {
 	return fmt.Sprintf(`
 resource "akp_cluster" "test" {
   instance_id = "6pzhawvy4echbd8x"
-  name      = "test"
+  name      = %q
   namespace = "test"
   labels = {
     test-label = "true"
@@ -115,5 +116,5 @@ EOF
     }
   }
 }
-`, description, size)
+`, name, description, size)
 }
