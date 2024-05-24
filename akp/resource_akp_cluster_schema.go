@@ -2,7 +2,9 @@ package akp
 
 import (
 	"context"
+	"regexp"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -11,7 +13,20 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+)
+
+var (
+	minClusterNameLength  = 3
+	maxClusterNameLength  = 50
+	minInstanceNameLength = 3
+	maxInstanceNameLength = 50
+	minNamespaceLength    = 3
+	maxNamespaceLength    = 63
+
+	resourceNameRegex            = regexp.MustCompile(`^[a-z][a-z0-9-]*[a-z0-9]$`)
+	resourceNameRegexDescription = "resource name must consist of lower case alphanumeric characters, digits or '-', and must start with an alphanumeric character, and end with an alphanumeric character or a digit"
 )
 
 func (r *AkpClusterResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
@@ -43,6 +58,10 @@ func getAKPClusterAttributes() map[string]schema.Attribute {
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.RequiresReplace(),
 			},
+			Validators: []validator.String{
+				stringvalidator.LengthBetween(minClusterNameLength, maxClusterNameLength),
+				stringvalidator.RegexMatches(resourceNameRegex, resourceNameRegexDescription),
+			},
 		},
 		"namespace": schema.StringAttribute{
 			MarkdownDescription: "Agent installation namespace",
@@ -50,6 +69,10 @@ func getAKPClusterAttributes() map[string]schema.Attribute {
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
 				stringplanmodifier.RequiresReplace(),
+			},
+			Validators: []validator.String{
+				stringvalidator.LengthBetween(minNamespaceLength, maxNamespaceLength),
+				stringvalidator.RegexMatches(resourceNameRegex, resourceNameRegexDescription),
 			},
 		},
 		"labels": schema.MapAttribute{

@@ -39,6 +39,10 @@ func getAKPInstanceAttributes() map[string]schema.Attribute {
 		"name": schema.StringAttribute{
 			Required:            true,
 			MarkdownDescription: "Instance name",
+			Validators: []validator.String{
+				stringvalidator.LengthBetween(minInstanceNameLength, maxInstanceNameLength),
+				stringvalidator.RegexMatches(resourceNameRegex, resourceNameRegexDescription),
+			},
 		},
 		"argocd": schema.SingleNestedAttribute{
 			MarkdownDescription: "Argo CD instance configuration",
