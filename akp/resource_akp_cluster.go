@@ -274,8 +274,8 @@ func getManifests(ctx context.Context, diagnostics *diag.Diagnostics, client arg
 		diagnostics.AddError("Akuity API error", fmt.Sprintf("Unable to download manifests: %s", err))
 		return ""
 	}
-	apiResp, err := readStream(resChan, errChan)
-	return string(apiResp)
+	res, err := readStream(resChan, errChan)
+	return string(res)
 }
 
 func applyManifests(ctx context.Context, manifests string, cfg *rest.Config) diag.Diagnostics {

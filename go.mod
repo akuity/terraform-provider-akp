@@ -5,8 +5,8 @@ go 1.22.0
 toolchain go1.22.3
 
 require (
-	github.com/akuity/api-client-go v0.11.2
-	github.com/akuity/grpc-gateway-client v0.0.0-20230321170839-38ca1b4b439c
+	github.com/akuity/api-client-go v0.13.0
+	github.com/akuity/grpc-gateway-client v0.0.0-20231116134900-80c401329778
 	github.com/hashicorp/terraform-plugin-docs v0.16.0
 	github.com/hashicorp/terraform-plugin-framework v1.8.0
 	github.com/hashicorp/terraform-plugin-framework-validators v0.12.0
@@ -15,7 +15,7 @@ require (
 	github.com/hashicorp/terraform-plugin-testing v1.8.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/stretchr/testify v1.9.0
-	golang.org/x/exp v0.0.0-20230809150735-7b3493d9a819
+	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 	google.golang.org/genproto/googleapis/api v0.0.0-20240227224415-6ceb2ff114de
 	k8s.io/api v0.30.1
 	k8s.io/apimachinery v0.30.1
