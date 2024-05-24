@@ -63,11 +63,9 @@ jobs:
     needs: unit-test
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    concurrency:
-      group: test
     strategy:
       fail-fast: true
-      max-parallel: 5
+      max-parallel: 1
       matrix:
         # list whatever Terraform versions here you would like to support
         terraform:
