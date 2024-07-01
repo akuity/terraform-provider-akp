@@ -2,7 +2,7 @@ package types
 
 import (
 	"context"
-	"fmt"
+	"github.com/pkg/errors"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -55,12 +55,11 @@ func (i *Instance) GetSensitiveStrings(ctx context.Context, diagnostics *diag.Di
 	return res
 }
 
-func (i *Instance) Update(ctx context.Context, diagnostics *diag.Diagnostics, exportResp *argocdv1.ExportInstanceResponse) {
+func (i *Instance) Update(ctx context.Context, diagnostics *diag.Diagnostics, exportResp *argocdv1.ExportInstanceResponse) error {
 	var argoCD *v1alpha1.ArgoCD
 	err := marshal.RemarshalTo(exportResp.Argocd.AsMap(), &argoCD)
 	if err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get Argo CD instance. %s", err))
-		return
+		return errors.Wrap(err, "Unable to get Argo CD instance")
 	}
 	if i.ArgoCD == nil {
 		i.ArgoCD = &ArgoCD{}
@@ -74,4 +73,5 @@ func (i *Instance) Update(ctx context.Context, diagnostics *diag.Diagnostics, ex
 	i.ArgoCDTLSCertsConfigMap = ToConfigMapTFModel(ctx, diagnostics, exportResp.ArgocdTlsCertsConfigmap, i.ArgoCDTLSCertsConfigMap)
 	i.ArgoCDKnownHostsConfigMap = ToConfigMapTFModel(ctx, diagnostics, exportResp.ArgocdKnownHostsConfigmap, i.ArgoCDKnownHostsConfigMap)
 	i.ConfigManagementPlugins = ToConfigManagementPluginsTFModel(ctx, diagnostics, exportResp.ConfigManagementPlugins, i.ConfigManagementPlugins)
+	return nil
 }

@@ -3,6 +3,7 @@ package akp
 import (
 	"context"
 	"fmt"
+	"github.com/pkg/errors"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -64,8 +65,12 @@ func (r *AkpInstanceResource) Create(ctx context.Context, req resource.CreateReq
 		return
 	}
 
-	r.upsert(ctx, &resp.Diagnostics, &plan)
-	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+	err := r.upsert(ctx, &resp.Diagnostics, &plan)
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", err.Error())
+	} else {
+		resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+	}
 }
 
 func (r *AkpInstanceResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
@@ -80,8 +85,12 @@ func (r *AkpInstanceResource) Read(ctx context.Context, req resource.ReadRequest
 	tflog.MaskLogStrings(ctx, data.GetSensitiveStrings(ctx, &resp.Diagnostics)...)
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 
-	refreshState(ctx, &resp.Diagnostics, r.akpCli.Cli, &data, r.akpCli.OrgId)
-	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	err := refreshState(ctx, &resp.Diagnostics, r.akpCli.Cli, &data, r.akpCli.OrgId)
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", err.Error())
+	} else {
+		resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	}
 }
 
 func (r *AkpInstanceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -94,8 +103,12 @@ func (r *AkpInstanceResource) Update(ctx context.Context, req resource.UpdateReq
 		return
 	}
 
-	r.upsert(ctx, &resp.Diagnostics, &plan)
-	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+	err := r.upsert(ctx, &resp.Diagnostics, &plan)
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", err.Error())
+	} else {
+		resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+	}
 }
 
 func (r *AkpInstanceResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -125,7 +138,7 @@ func (r *AkpInstanceResource) ImportState(ctx context.Context, req resource.Impo
 	resource.ImportStatePassthroughID(ctx, path.Root("name"), req, resp)
 }
 
-func (r *AkpInstanceResource) upsert(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.Instance) {
+func (r *AkpInstanceResource) upsert(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.Instance) error {
 	// Mark sensitive secret data
 	tflog.MaskLogStrings(ctx, plan.GetSensitiveStrings(ctx, diagnostics)...)
 
@@ -134,14 +147,10 @@ func (r *AkpInstanceResource) upsert(ctx context.Context, diagnostics *diag.Diag
 	tflog.Debug(ctx, fmt.Sprintf("Apply instance request: %s", apiReq.Argocd))
 	_, err := r.akpCli.Cli.ApplyInstance(ctx, apiReq)
 	if err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to upsert Argo CD instance. %s", err))
-		return
+		return errors.Wrap(err, "Unable to upsert Argo CD instance")
 	}
 
-	refreshState(ctx, diagnostics, r.akpCli.Cli, plan, r.akpCli.OrgId)
-	if diagnostics.HasError() {
-		return
-	}
+	return refreshState(ctx, diagnostics, r.akpCli.Cli, plan, r.akpCli.OrgId)
 }
 
 func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, instance *types.Instance, orgID string) *argocdv1.ApplyInstanceRequest {
@@ -232,7 +241,7 @@ func buildCMPs(ctx context.Context, diagnostics *diag.Diagnostics, cmps map[stri
 	return res
 }
 
-func refreshState(ctx context.Context, diagnostics *diag.Diagnostics, client argocdv1.ArgoCDServiceGatewayClient, instance *types.Instance, orgID string) {
+func refreshState(ctx context.Context, diagnostics *diag.Diagnostics, client argocdv1.ArgoCDServiceGatewayClient, instance *types.Instance, orgID string) error {
 	getInstanceReq := &argocdv1.GetInstanceRequest{
 		OrganizationId: orgID,
 		IdType:         idv1.Type_NAME,
@@ -241,8 +250,7 @@ func refreshState(ctx context.Context, diagnostics *diag.Diagnostics, client arg
 	tflog.Debug(ctx, fmt.Sprintf("Get instance request: %s", getInstanceReq))
 	getInstanceResp, err := client.GetInstance(ctx, getInstanceReq)
 	if err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read Argo CD instance: %s", err))
-		return
+		return errors.Wrap(err, "Unable to read Argo CD instance")
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Get instance response: %s", getInstanceResp))
 	instance.ID = tftypes.StringValue(getInstanceResp.Instance.Id)
@@ -254,9 +262,8 @@ func refreshState(ctx context.Context, diagnostics *diag.Diagnostics, client arg
 	tflog.Debug(ctx, fmt.Sprintf("Export instance request: %s", exportReq))
 	exportResp, err := client.ExportInstance(ctx, exportReq)
 	if err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to export Argo CD instance. %s", err))
-		return
+		return errors.Wrap(err, "Unable to export Argo CD instance")
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Export instance response: %s", exportResp))
-	instance.Update(ctx, diagnostics, exportResp)
+	return instance.Update(ctx, diagnostics, exportResp)
 }

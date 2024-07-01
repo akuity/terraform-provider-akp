@@ -1,0 +1,19 @@
+# This is intended to facilitate local development, to use this locally run
+# ```
+# export TF_CLI_CONFIG_FILE=/wherever-terraform-provider-akp-is-located/dev.tfrc
+# ```
+
+provider_installation {
+  # Use /home/developer/terraform-provider-akp as an overridden package directory
+  # for the akuity/akp provider. This disables the version and checksum
+  # verifications for this provider and forces Terraform to look for the
+  # akp provider plugin in the given directory.
+  dev_overrides {
+    "akuity/akp" = "/home/developer/terraform-provider-akp"
+  }
+
+  # For all other providers, install them directly from their origin provider
+  # registries as normal. If you omit this, Terraform will _only_ use
+  # the dev_overrides block, and so no other providers will be available.
+  direct {}
+}
