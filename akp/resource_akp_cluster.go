@@ -200,7 +200,7 @@ func (r *AkpClusterResource) applyInstance(ctx context.Context, plan *types.Clus
 	tflog.Debug(ctx, fmt.Sprintf("Apply cluster request: %s", apiReq))
 	_, err := applyInstance(ctx, apiReq)
 	if err != nil {
-		return nil, errors.Wrap(err, "Unable to create Argo CD instance")
+		return nil, fmt.Errorf("unable to create Argo CD instance: %s", err)
 	}
 
 	if kubeconfig != nil {
@@ -209,7 +209,7 @@ func (r *AkpClusterResource) applyInstance(ctx context.Context, plan *types.Clus
 		if err != nil {
 			// Ensure kubeconfig won't be committed to state by setting it to nil
 			plan.Kubeconfig = nil
-			return plan, err
+			return plan, fmt.Errorf("unable to apply manifests: %s", err)
 		}
 	}
 
