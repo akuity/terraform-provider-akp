@@ -3,6 +3,7 @@ package akp
 import (
 	"context"
 	"fmt"
+	"github.com/pkg/errors"
 	"strings"
 	"time"
 
@@ -73,8 +74,15 @@ func (r *AkpClusterResource) Create(ctx context.Context, req resource.CreateRequ
 		return
 	}
 
-	r.upsert(ctx, &resp.Diagnostics, &plan, true)
-	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+	result, err := r.upsert(ctx, &resp.Diagnostics, &plan, true)
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", err.Error())
+	}
+	// In this case we commit state regardless whether there's an error or not. This is because there can be partial
+	// state (e.g. a cluster could be created in AKP but the manifests failed to be applied).
+	if result != nil {
+		resp.Diagnostics.Append(resp.State.Set(ctx, &result)...)
+	}
 }
 
 func (r *AkpClusterResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
@@ -87,8 +95,12 @@ func (r *AkpClusterResource) Read(ctx context.Context, req resource.ReadRequest,
 	}
 
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
-	refreshClusterState(ctx, &resp.Diagnostics, r.akpCli.Cli, &data, r.akpCli.OrgId, &resp.State)
-	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	err := refreshClusterState(ctx, &resp.Diagnostics, r.akpCli.Cli, &data, r.akpCli.OrgId, &resp.State)
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", err.Error())
+	} else {
+		resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	}
 }
 
 func (r *AkpClusterResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -101,8 +113,15 @@ func (r *AkpClusterResource) Update(ctx context.Context, req resource.UpdateRequ
 		return
 	}
 
-	r.upsert(ctx, &resp.Diagnostics, &plan, false)
-	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+	result, err := r.upsert(ctx, &resp.Diagnostics, &plan, false)
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", err.Error())
+	}
+	// In this case we commit state regardless whether there's an error or not. This is because there can be partial
+	// state (e.g. a cluster could be created in AKP but the manifests failed to be applied).
+	if result != nil {
+		resp.Diagnostics.Append(resp.State.Set(ctx, &result)...)
+	}
 }
 
 func (r *AkpClusterResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -114,17 +133,25 @@ func (r *AkpClusterResource) Delete(ctx context.Context, req resource.DeleteRequ
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
-	kubeconfig, diag := getKubeconfig(plan.Kubeconfig)
-	resp.Diagnostics.Append(diag...)
-	if resp.Diagnostics.HasError() {
+	kubeconfig, err := getKubeconfig(plan.Kubeconfig)
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", err.Error())
 		return
 	}
 
 	// Delete the manifests
 	if kubeconfig != nil && plan.RemoveAgentResourcesOnDestroy.ValueBool() {
-		resp.Diagnostics.Append(deleteManifests(ctx, getManifests(ctx, &resp.Diagnostics, r.akpCli.Cli, r.akpCli.OrgId, &plan), kubeconfig)...)
-		if resp.Diagnostics.HasError() {
+		manifests, err := getManifests(ctx, r.akpCli.Cli, r.akpCli.OrgId, &plan)
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", err.Error())
+			return
+		}
+
+		err = deleteManifests(ctx, manifests, kubeconfig)
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", err.Error())
 			return
 		}
 	}
@@ -133,7 +160,7 @@ func (r *AkpClusterResource) Delete(ctx context.Context, req resource.DeleteRequ
 		InstanceId:     plan.InstanceID.ValueString(),
 		Id:             plan.ID.ValueString(),
 	}
-	_, err := r.akpCli.Cli.DeleteInstanceCluster(ctx, apiReq)
+	_, err = r.akpCli.Cli.DeleteInstanceCluster(ctx, apiReq)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete Akuity cluster. %s", err))
 		return
@@ -156,41 +183,64 @@ func (r *AkpClusterResource) ImportState(ctx context.Context, req resource.Impor
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("name"), idParts[1])...)
 }
 
-func (r *AkpClusterResource) upsert(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.Cluster, isCreate bool) {
+func (r *AkpClusterResource) upsert(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.Cluster, isCreate bool) (*types.Cluster, error) {
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 	apiReq := buildClusterApplyRequest(ctx, diagnostics, plan, r.akpCli.OrgId)
-	tflog.Debug(ctx, fmt.Sprintf("Apply cluster request: %s", apiReq))
-	_, err := r.akpCli.Cli.ApplyInstance(ctx, apiReq)
+	result, err := r.applyInstance(ctx, plan, apiReq, isCreate, r.akpCli.Cli.ApplyInstance, r.upsertKubeConfig)
 	if err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Argo CD instance. %s", err))
-		return
-	}
-	refreshClusterState(ctx, diagnostics, r.akpCli.Cli, plan, r.akpCli.OrgId, nil)
-	if diagnostics.HasError() {
-		return
+		return result, err
 	}
 
+	return result, refreshClusterState(ctx, diagnostics, r.akpCli.Cli, result, r.akpCli.OrgId, nil)
+}
+
+func (r *AkpClusterResource) applyInstance(ctx context.Context, plan *types.Cluster, apiReq *argocdv1.ApplyInstanceRequest, isCreate bool, applyInstance func(context.Context, *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error), upsertKubeConfig func(ctx context.Context, plan *types.Cluster, isCreate bool) error) (*types.Cluster, error) {
+	kubeconfig := plan.Kubeconfig
+	plan.Kubeconfig = nil
+	tflog.Debug(ctx, fmt.Sprintf("Apply cluster request: %s", apiReq))
+	_, err := applyInstance(ctx, apiReq)
+	if err != nil {
+		return nil, errors.Wrap(err, "Unable to create Argo CD instance")
+	}
+
+	if kubeconfig != nil {
+		plan.Kubeconfig = kubeconfig
+		err = upsertKubeConfig(ctx, plan, isCreate)
+		if err != nil {
+			// Ensure kubeconfig won't be committed to state by setting it to nil
+			plan.Kubeconfig = nil
+			return plan, err
+		}
+	}
+
+	return plan, nil
+}
+
+func (r *AkpClusterResource) upsertKubeConfig(ctx context.Context, plan *types.Cluster, isCreate bool) error {
 	// Apply agent manifests to clusters if the kubeconfig is specified for cluster.
-	kubeconfig, diag := getKubeconfig(plan.Kubeconfig)
-	diagnostics.Append(diag...)
-	if diagnostics.HasError() {
-		return
+	kubeconfig, err := getKubeconfig(plan.Kubeconfig)
+	if err != nil {
+		return err
 	}
 
 	// Apply the manifests
 	if kubeconfig != nil && isCreate {
-		diagnostics.Append(applyManifests(ctx, getManifests(ctx, diagnostics, r.akpCli.Cli, r.akpCli.OrgId, plan), kubeconfig)...)
-		if diagnostics.HasError() {
-			return
+		manifests, err := getManifests(ctx, r.akpCli.Cli, r.akpCli.OrgId, plan)
+		if err != nil {
+			return err
 		}
-		if err := waitClusterHealthStatus(ctx, r.akpCli.Cli, r.akpCli.OrgId, plan); err != nil {
-			diagnostics.AddError("Client Error", fmt.Sprintf("unable to create Argo CD instance: %s", err))
+
+		err = applyManifests(ctx, manifests, kubeconfig)
+		if err != nil {
+			return err
 		}
+		return waitClusterHealthStatus(ctx, r.akpCli.Cli, r.akpCli.OrgId, plan)
 	}
+	return nil
 }
 
 func refreshClusterState(ctx context.Context, diagnostics *diag.Diagnostics, client argocdv1.ArgoCDServiceGatewayClient, cluster *types.Cluster,
-	orgID string, state *tfsdk.State) {
+	orgID string, state *tfsdk.State) error {
 	clusterReq := &argocdv1.GetInstanceClusterRequest{
 		OrganizationId: orgID,
 		InstanceId:     cluster.InstanceID.ValueString(),
@@ -203,13 +253,13 @@ func refreshClusterState(ctx context.Context, diagnostics *diag.Diagnostics, cli
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
 			state.RemoveResource(ctx)
-			return
+			return nil
 		}
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read Argo CD cluster: %s", err))
-		return
+		return errors.Wrap(err, "Unable to read Argo CD cluster")
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Get cluster response: %s", clusterResp))
 	cluster.Update(ctx, diagnostics, clusterResp.GetCluster())
+	return nil
 }
 
 func buildClusterApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, cluster *types.Cluster, orgId string) *argocdv1.ApplyInstanceRequest {
@@ -234,20 +284,18 @@ func buildClusters(ctx context.Context, diagnostics *diag.Diagnostics, cluster *
 	return cs
 }
 
-func getKubeconfig(kubeConfig *types.Kubeconfig) (*rest.Config, diag.Diagnostics) {
-	var diag diag.Diagnostics
+func getKubeconfig(kubeConfig *types.Kubeconfig) (*rest.Config, error) {
 	if kubeConfig == nil {
-		return nil, diag
+		return nil, nil
 	}
 	kcfg, err := kube.InitializeConfiguration(kubeConfig)
 	if err != nil {
-		diag.AddError("Kubectl error", fmt.Sprintf("Cannot insitialize Kubectl. Check kubernetes configuration. Error: %s", err))
-		return nil, diag
+		return nil, errors.Wrap(err, "Cannot initialize Kubectl. Please check kubernetes configuration")
 	}
-	return kcfg, diag
+	return kcfg, nil
 }
 
-func getManifests(ctx context.Context, diagnostics *diag.Diagnostics, client argocdv1.ArgoCDServiceGatewayClient, orgId string, cluster *types.Cluster) string {
+func getManifests(ctx context.Context, client argocdv1.ArgoCDServiceGatewayClient, orgId string, cluster *types.Cluster) (string, error) {
 	clusterReq := &argocdv1.GetInstanceClusterRequest{
 		OrganizationId: orgId,
 		InstanceId:     cluster.InstanceID.ValueString(),
@@ -256,13 +304,11 @@ func getManifests(ctx context.Context, diagnostics *diag.Diagnostics, client arg
 	}
 	clusterResp, err := client.GetInstanceCluster(ctx, clusterReq)
 	if err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read instance clusters, got error: %s", err))
-		return ""
+		return "", errors.Wrap(err, "Unable to read instance cluster")
 	}
 	c, err := waitClusterReconStatus(ctx, client, clusterResp.GetCluster(), orgId, cluster.ID.ValueString())
 	if err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to check cluster reconciliation status. %s", err))
-		return ""
+		return "", errors.Wrap(err, "Unable to check cluster reconciliation status")
 	}
 	apiReq := &argocdv1.GetInstanceClusterManifestsRequest{
 		OrganizationId: orgId,
@@ -271,45 +317,45 @@ func getManifests(ctx context.Context, diagnostics *diag.Diagnostics, client arg
 	}
 	resChan, errChan, err := client.GetInstanceClusterManifests(ctx, apiReq)
 	if err != nil {
-		diagnostics.AddError("Akuity API error", fmt.Sprintf("Unable to download manifests: %s", err))
-		return ""
+		return "", errors.Wrap(err, "Unable to download manifests")
 	}
 	res, err := readStream(resChan, errChan)
-	return string(res)
+	if err != nil {
+		return "", errors.Wrap(err, "Unable to parse manifests")
+	}
+
+	return string(res), nil
 }
 
-func applyManifests(ctx context.Context, manifests string, cfg *rest.Config) diag.Diagnostics {
-	diag := diag.Diagnostics{}
+func applyManifests(ctx context.Context, manifests string, cfg *rest.Config) error {
 	kubectl, err := kube.NewKubectl(cfg)
 	if err != nil {
-		diag.AddError("Kubernetes error", fmt.Sprintf("failed to create kubectl, error=%s", err))
+		return errors.Wrap(err, "Failed to create Kubectl")
 	}
 	resources, err := kube.SplitYAML([]byte(manifests))
 	if err != nil {
-		diag.AddError("YAML error", fmt.Sprintf("failed to parse manifest, error=%s", err))
+		return errors.Wrap(err, "Failed to parse manifests")
 	}
 
 	for _, un := range resources {
 		msg, err := kubectl.ApplyResource(ctx, &un, kube.ApplyOpts{})
 		if err != nil {
-			diag.AddError("Kubernetes error", fmt.Sprintf("failed to apply manifest %s, error=%s", un, err))
-			return diag
+			return errors.Wrap(err, fmt.Sprintf("failed to apply manifest"))
 		}
 		tflog.Debug(ctx, msg)
 	}
-	return diag
+	return nil
 }
 
-func deleteManifests(ctx context.Context, manifests string, cfg *rest.Config) diag.Diagnostics {
-	diag := diag.Diagnostics{}
+func deleteManifests(ctx context.Context, manifests string, cfg *rest.Config) error {
 	kubectl, err := kube.NewKubectl(cfg)
 	if err != nil {
-		diag.AddError("Kubernetes error", fmt.Sprintf("failed to create kubectl, error=%s", err))
+		return errors.Wrap(err, "failed to create kubectl")
 	}
 	resources, err := kube.SplitYAML([]byte(manifests))
 	tflog.Info(ctx, fmt.Sprintf("%d resources to delete", len(resources)))
 	if err != nil {
-		diag.AddError("YAML error", fmt.Sprintf("failed to parse manifest, error=%s", err))
+		return errors.Wrap(err, "failed to parse manifests")
 	}
 
 	// Delete the resources in reverse order
@@ -320,12 +366,11 @@ func deleteManifests(ctx context.Context, manifests string, cfg *rest.Config) di
 			Force:           false,
 		})
 		if err != nil {
-			diag.AddError("Kubernetes error", fmt.Sprintf("failed to delete manifest %s, error=%s", &resources[i], err))
-			return diag
+			return errors.Wrap(err, fmt.Sprintf("failed to delete manifest: %s", resources[i]))
 		}
 		tflog.Debug(ctx, msg)
 	}
-	return diag
+	return nil
 }
 
 func waitClusterHealthStatus(ctx context.Context, client argocdv1.ArgoCDServiceGatewayClient, orgID string, c *types.Cluster) error {
