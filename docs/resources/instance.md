@@ -379,14 +379,17 @@ Optional:
 
 Optional:
 
+- `agent_permissions_rules` (Attributes List) The ability to configure agent permissions rules. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--agent_permissions_rules))
 - `app_set_delegate` (Attributes) Select cluster in which you want to Install Application Set controller (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--app_set_delegate))
 - `appset_policy` (Attributes) Configures Application Set policy settings. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--appset_policy))
 - `assistant_extension_enabled` (Boolean) Enable Powerful AI-powered assistant Extension. It helps analyze Kubernetes resources behavior and provides suggestions about resolving issues.
 - `audit_extension_enabled` (Boolean) Enable Audit Extension. Set this to `true` to install Audit Extension to Argo CD instance.
 - `backend_ip_allow_list_enabled` (Boolean) Enable ip allow list for cluster agents
 - `cluster_customization_defaults` (Attributes) Default values for cluster agents (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--cluster_customization_defaults))
+- `crossplane_extension` (Attributes) Enable Argo CD UI extension and health checks for Crossplane resources by pre-configured group patterns. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--crossplane_extension))
 - `declarative_management_enabled` (Boolean) Enable Declarative Management
 - `extensions` (Attributes List) Extensions (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--extensions))
+- `fqdn` (String) Configures the FQDN for the argocd instance, for ingress URL, domain suffix, etc.
 - `host_aliases` (Attributes List) Host Aliases that override the DNS entries for control plane Argo CD components such as API Server and Dex. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--host_aliases))
 - `image_updater_delegate` (Attributes) Select cluster in which you want to Install Image Updater (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--image_updater_delegate))
 - `image_updater_enabled` (Boolean) Enable Image Updater
@@ -395,15 +398,25 @@ Optional:
 - `subdomain` (String) Instance subdomain. By default equals to instance id
 - `sync_history_extension_enabled` (Boolean) Enable Sync History Extension. Sync count and duration graphs as well as event details table on Argo CD application details page.
 
-<a id="nestedatt--argocd--spec--instance_spec--app_set_delegate"></a>
-### Nested Schema for `argocd.spec.instance_spec.app_set_delegate`
+<a id="nestedatt--argocd--spec--instance_spec--agent_permissions_rules"></a>
+### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
 
 Optional:
 
-- `managed_cluster` (Attributes) Use managed cluster (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--app_set_delegate--managed_cluster))
+- `api_groups` (List of String) API groups of the rule.
+- `resources` (List of String) Resources of the rule.
+- `verbs` (List of String) Verbs of the rule.
 
-<a id="nestedatt--argocd--spec--instance_spec--app_set_delegate--managed_cluster"></a>
-### Nested Schema for `argocd.spec.instance_spec.app_set_delegate.managed_cluster`
+
+<a id="nestedatt--argocd--spec--instance_spec--app_set_delegate"></a>
+### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
+
+Optional:
+
+- `managed_cluster` (Attributes) Use managed cluster (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster))
+
+<a id="nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster"></a>
+### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled.managed_cluster`
 
 Required:
 
@@ -412,7 +425,7 @@ Required:
 
 
 <a id="nestedatt--argocd--spec--instance_spec--appset_policy"></a>
-### Nested Schema for `argocd.spec.instance_spec.appset_policy`
+### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
 
 Optional:
 
@@ -426,7 +439,7 @@ Available options: `sync`, `create-only`, `create-delete`, and `create-update`.
 
 
 <a id="nestedatt--argocd--spec--instance_spec--cluster_customization_defaults"></a>
-### Nested Schema for `argocd.spec.instance_spec.cluster_customization_defaults`
+### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
 
 Optional:
 
@@ -436,8 +449,24 @@ Optional:
 - `redis_tunneling` (Boolean) Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy
 
 
+<a id="nestedatt--argocd--spec--instance_spec--crossplane_extension"></a>
+### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
+
+Optional:
+
+- `resources` (Attributes List) Resources. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--resources))
+
+<a id="nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--resources"></a>
+### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled.resources`
+
+Optional:
+
+- `group` (String) Group path of the resource.
+
+
+
 <a id="nestedatt--argocd--spec--instance_spec--extensions"></a>
-### Nested Schema for `argocd.spec.instance_spec.extensions`
+### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
 
 Required:
 
@@ -446,7 +475,7 @@ Required:
 
 
 <a id="nestedatt--argocd--spec--instance_spec--host_aliases"></a>
-### Nested Schema for `argocd.spec.instance_spec.host_aliases`
+### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
 
 Required:
 
@@ -458,7 +487,7 @@ Optional:
 
 
 <a id="nestedatt--argocd--spec--instance_spec--image_updater_delegate"></a>
-### Nested Schema for `argocd.spec.instance_spec.image_updater_delegate`
+### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
 
 Required:
 
@@ -466,10 +495,10 @@ Required:
 
 Optional:
 
-- `managed_cluster` (Attributes) If use managed cluster or not (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--image_updater_delegate--managed_cluster))
+- `managed_cluster` (Attributes) If use managed cluster or not (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster))
 
-<a id="nestedatt--argocd--spec--instance_spec--image_updater_delegate--managed_cluster"></a>
-### Nested Schema for `argocd.spec.instance_spec.image_updater_delegate.managed_cluster`
+<a id="nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster"></a>
+### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled.managed_cluster`
 
 Required:
 
@@ -478,7 +507,7 @@ Required:
 
 
 <a id="nestedatt--argocd--spec--instance_spec--ip_allow_list"></a>
-### Nested Schema for `argocd.spec.instance_spec.ip_allow_list`
+### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
 
 Required:
 
@@ -490,7 +519,7 @@ Optional:
 
 
 <a id="nestedatt--argocd--spec--instance_spec--repo_server_delegate"></a>
-### Nested Schema for `argocd.spec.instance_spec.repo_server_delegate`
+### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
 
 Required:
 
@@ -498,10 +527,10 @@ Required:
 
 Optional:
 
-- `managed_cluster` (Attributes) If use managed cluster or not (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--repo_server_delegate--managed_cluster))
+- `managed_cluster` (Attributes) If use managed cluster or not (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster))
 
-<a id="nestedatt--argocd--spec--instance_spec--repo_server_delegate--managed_cluster"></a>
-### Nested Schema for `argocd.spec.instance_spec.repo_server_delegate.managed_cluster`
+<a id="nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster"></a>
+### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled.managed_cluster`
 
 Required:
 

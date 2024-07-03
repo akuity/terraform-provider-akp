@@ -313,7 +313,7 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 			Optional:            true,
 			Computed:            true,
 			Attributes:          getCrossplaneExtensionAttributes(),
-		}
+		},
 		"agent_permissions_rules": schema.ListNestedAttribute{
 			MarkdownDescription: "The ability to configure agent permissions rules.",
 			Optional:            true,
