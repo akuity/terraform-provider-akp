@@ -81,11 +81,14 @@ func (a *ArgoCD) Update(ctx context.Context, diagnostics *diag.Diagnostics, cd *
 			RepoServerDelegate:           toRepoServerDelegateTFModel(cd.Spec.InstanceSpec.RepoServerDelegate),
 			AuditExtensionEnabled:        tftypes.BoolValue(auditExtensionEnabled),
 			SyncHistoryExtensionEnabled:  tftypes.BoolValue(syncHistoryExtensionEnabled),
+			CrossplaneExtension:          toCrossplaneExtensionTFModel(cd.Spec.InstanceSpec.CrossplaneExtension),
 			ImageUpdaterDelegate:         toImageUpdaterDelegateTFModel(cd.Spec.InstanceSpec.ImageUpdaterDelegate),
 			AppSetDelegate:               toAppSetDelegateTFModel(cd.Spec.InstanceSpec.AppSetDelegate),
 			AssistantExtensionEnabled:    tftypes.BoolValue(assistantExtensionEnabled),
 			AppsetPolicy:                 toAppsetPolicyTFModel(ctx, diagnostics, cd.Spec.InstanceSpec.AppsetPolicy),
 			HostAliases:                  toHostAliasesTFModel(cd.Spec.InstanceSpec.HostAliases),
+			AgentPermissionsRules:        toAgentPermissionsRulesTFModel(cd.Spec.InstanceSpec.AgentPermissionsRules),
+			Fqdn:                         tftypes.StringValue(cd.Spec.InstanceSpec.Fqdn),
 		},
 	}
 }
@@ -113,11 +116,14 @@ func (a *ArgoCD) ToArgoCDAPIModel(ctx context.Context, diag *diag.Diagnostics, n
 				RepoServerDelegate:           toRepoServerDelegateAPIModel(a.Spec.InstanceSpec.RepoServerDelegate),
 				AuditExtensionEnabled:        a.Spec.InstanceSpec.AuditExtensionEnabled.ValueBoolPointer(),
 				SyncHistoryExtensionEnabled:  a.Spec.InstanceSpec.SyncHistoryExtensionEnabled.ValueBoolPointer(),
+				CrossplaneExtension:          toCrossplaneExtensionAPIModel(a.Spec.InstanceSpec.CrossplaneExtension),
 				ImageUpdaterDelegate:         toImageUpdaterDelegateAPIModel(a.Spec.InstanceSpec.ImageUpdaterDelegate),
 				AppSetDelegate:               toAppSetDelegateAPIModel(a.Spec.InstanceSpec.AppSetDelegate),
 				AssistantExtensionEnabled:    a.Spec.InstanceSpec.AssistantExtensionEnabled.ValueBoolPointer(),
 				AppsetPolicy:                 toAppsetPolicyAPIModel(ctx, diag, a.Spec.InstanceSpec.AppsetPolicy),
 				HostAliases:                  toHostAliasesAPIModel(a.Spec.InstanceSpec.HostAliases),
+				AgentPermissionsRules:        toAgentPermissionsRuleAPIModel(a.Spec.InstanceSpec.AgentPermissionsRules),
+				Fqdn:                         a.Spec.InstanceSpec.Fqdn.ValueString(),
 			},
 		},
 	}
@@ -172,12 +178,17 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 		Description:     tftypes.StringValue(apiCluster.GetDescription()),
 		NamespaceScoped: tftypes.BoolValue(apiCluster.GetNamespaceScoped()),
 		Data: ClusterData{
-			Size:                tftypes.StringValue(ClusterSizeString[apiCluster.GetData().GetSize()]),
-			AutoUpgradeDisabled: tftypes.BoolValue(apiCluster.GetData().GetAutoUpgradeDisabled()),
-			Kustomization:       kustomization,
-			AppReplication:      tftypes.BoolValue(apiCluster.GetData().GetAppReplication()),
-			TargetVersion:       tftypes.StringValue(apiCluster.GetData().GetTargetVersion()),
-			RedisTunneling:      tftypes.BoolValue(apiCluster.GetData().GetRedisTunneling()),
+			Size:                      tftypes.StringValue(ClusterSizeString[apiCluster.GetData().GetSize()]),
+			AutoUpgradeDisabled:       tftypes.BoolValue(apiCluster.GetData().GetAutoUpgradeDisabled()),
+			Kustomization:             kustomization,
+			AppReplication:            tftypes.BoolValue(apiCluster.GetData().GetAppReplication()),
+			TargetVersion:             tftypes.StringValue(apiCluster.GetData().GetTargetVersion()),
+			RedisTunneling:            tftypes.BoolValue(apiCluster.GetData().GetRedisTunneling()),
+			DatadogAnnotationsEnabled: tftypes.BoolValue(apiCluster.GetData().GetDatadogAnnotationsEnabled()),
+			EksAddonEnabled:           tftypes.BoolValue(apiCluster.GetData().GetEksAddonEnabled()),
+			ManagedClusterConfig: &ManagedClusterConfig{
+				SecretName: tftypes.StringValue(apiCluster.GetData().GetManagedClusterConfig().GetSecretName()),
+			},
 		},
 	}
 }
@@ -271,12 +282,14 @@ func toClusterDataAPIModel(diagnostics *diag.Diagnostics, clusterData ClusterDat
 		diagnostics.AddError("failed unmarshal kustomization string to yaml", err.Error())
 	}
 	return v1alpha1.ClusterData{
-		Size:                v1alpha1.ClusterSize(clusterData.Size.ValueString()),
-		AutoUpgradeDisabled: clusterData.AutoUpgradeDisabled.ValueBoolPointer(),
-		Kustomization:       raw,
-		AppReplication:      clusterData.AppReplication.ValueBoolPointer(),
-		TargetVersion:       clusterData.TargetVersion.ValueString(),
-		RedisTunneling:      clusterData.RedisTunneling.ValueBoolPointer(),
+		Size:                      v1alpha1.ClusterSize(clusterData.Size.ValueString()),
+		AutoUpgradeDisabled:       clusterData.AutoUpgradeDisabled.ValueBoolPointer(),
+		Kustomization:             raw,
+		AppReplication:            clusterData.AppReplication.ValueBoolPointer(),
+		TargetVersion:             clusterData.TargetVersion.ValueString(),
+		RedisTunneling:            clusterData.RedisTunneling.ValueBoolPointer(),
+		DatadogAnnotationsEnabled: clusterData.DatadogAnnotationsEnabled.ValueBoolPointer(),
+		EksAddonEnabled:           clusterData.EksAddonEnabled.ValueBoolPointer(),
 	}
 }
 
@@ -288,6 +301,31 @@ func toRepoServerDelegateAPIModel(repoServerDelegate *RepoServerDelegate) *v1alp
 		ControlPlane:   repoServerDelegate.ControlPlane.ValueBoolPointer(),
 		ManagedCluster: toManagedClusterAPIModel(repoServerDelegate.ManagedCluster),
 	}
+}
+
+func toCrossplaneExtensionAPIModel(extension *CrossplaneExtension) *v1alpha1.CrossplaneExtension {
+	if extension == nil {
+		return nil
+	}
+	return &v1alpha1.CrossplaneExtension{
+		Resources: convertSlice(extension.Resources, func(t *CrossplaneExtensionResource) *v1alpha1.CrossplaneExtensionResource {
+			return &v1alpha1.CrossplaneExtensionResource{
+				Group: t.Group.ValueString(),
+			}
+		}),
+	}
+}
+
+func toAgentPermissionsRuleAPIModel(extensions []*AgentPermissionsRule) []*v1alpha1.AgentPermissionsRule {
+	var agentPermissionsRules []*v1alpha1.AgentPermissionsRule
+	for _, extension := range extensions {
+		agentPermissionsRules = append(agentPermissionsRules, &v1alpha1.AgentPermissionsRule{
+			ApiGroups: convertSlice(extension.ApiGroups, tfStringToString),
+			Resources: convertSlice(extension.Resources, tfStringToString),
+			Verbs:     convertSlice(extension.Verbs, tfStringToString),
+		})
+	}
+	return agentPermissionsRules
 }
 
 func toImageUpdaterDelegateAPIModel(imageUpdaterDelegate *ImageUpdaterDelegate) *v1alpha1.ImageUpdaterDelegate {
@@ -757,5 +795,52 @@ func toCommandTFModel(command *v1alpha1.Command) *Command {
 	return &Command{
 		Command: commands,
 		Args:    args,
+	}
+}
+
+func toCrossplaneExtensionTFModel(extension *v1alpha1.CrossplaneExtension) *CrossplaneExtension {
+	if extension == nil {
+		return nil
+	}
+	return &CrossplaneExtension{
+		Resources: convertSlice(extension.Resources, crossplaneExtensionResourceToTFModel),
+	}
+}
+
+func toAgentPermissionsRulesTFModel(rules []*v1alpha1.AgentPermissionsRule) []*AgentPermissionsRule {
+	var agentPermissionsRules []*AgentPermissionsRule
+	for _, rule := range rules {
+		tfRule := &AgentPermissionsRule{
+			ApiGroups: convertSlice(rule.ApiGroups, stringToTFString),
+			Resources: convertSlice(rule.Resources, stringToTFString),
+			Verbs:     convertSlice(rule.Verbs, stringToTFString),
+		}
+		agentPermissionsRules = append(agentPermissionsRules, tfRule)
+	}
+	return agentPermissionsRules
+}
+
+func convertSlice[T any, U any](s []T, conv func(T) U) []U {
+	var tfSlice []U
+	for _, item := range s {
+		tfSlice = append(tfSlice, conv(item))
+	}
+	return tfSlice
+}
+
+func stringToTFString(str string) tftypes.String {
+	return tftypes.StringValue(str)
+}
+
+func tfStringToString(str tftypes.String) string {
+	return str.ValueString()
+}
+
+func crossplaneExtensionResourceToTFModel(resource *v1alpha1.CrossplaneExtensionResource) *CrossplaneExtensionResource {
+	if resource == nil {
+		return nil
+	}
+	return &CrossplaneExtensionResource{
+		Group: tftypes.StringValue(resource.Group),
 	}
 }
