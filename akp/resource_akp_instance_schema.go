@@ -308,6 +308,24 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 				Attributes: getHostAliasAttributes(),
 			},
 		},
+		"crossplane_extension": schema.SingleNestedAttribute{
+			MarkdownDescription: "Enable Argo CD UI extension and health checks for Crossplane resources by pre-configured group patterns.",
+			Optional:            true,
+			Computed:            true,
+			Attributes:          getCrossplaneExtensionAttributes(),
+		}
+		"agent_permissions_rules": schema.ListNestedAttribute{
+			MarkdownDescription: "The ability to configure agent permissions rules.",
+			Optional:            true,
+			NestedObject: schema.NestedAttributeObject{
+				Attributes: getAgentPermissionsRuleAttributes(),
+			},
+		},
+		"fqdn": schema.StringAttribute{
+			MarkdownDescription: "Configures the FQDN for the argocd instance, for ingress URL, domain suffix, etc.",
+			Optional:            true,
+			Computed:            true,
+		},
 	}
 }
 
@@ -635,6 +653,47 @@ func getDynamicAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Arguments of the command",
 			Optional:            true,
 			ElementType:         types.StringType,
+		},
+	}
+}
+
+func getAgentPermissionsRuleAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"api_groups": schema.ListAttribute{
+			MarkdownDescription: "API groups of the rule.",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
+		"resources": schema.ListAttribute{
+			MarkdownDescription: "Resources of the rule.",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
+		"verbs": schema.ListAttribute{
+			MarkdownDescription: "Verbs of the rule.",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
+	}
+}
+
+func getCrossplaneExtensionAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"resources": schema.ListNestedAttribute{
+			MarkdownDescription: "Resources.",
+			Optional:            true,
+			NestedObject: schema.NestedAttributeObject{
+				Attributes: getCrossplaneExtensionResourceAttributes(),
+			},
+		},
+	}
+}
+
+func getCrossplaneExtensionResourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"group": schema.StringAttribute{
+			MarkdownDescription: "Group path of the resource.",
+			Optional:            true,
 		},
 	}
 }

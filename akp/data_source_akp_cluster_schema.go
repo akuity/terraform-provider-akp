@@ -104,6 +104,19 @@ func getClusterDataDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy",
 			Computed:            true,
 		},
+		"datadog_annotations_enabled": schema.BoolAttribute{
+			MarkdownDescription: "Enables the ability for monitoring Argo CD through Datadog.",
+			Computed:            true,
+		},
+		"eks_addon_enabled": schema.BoolAttribute{
+			MarkdownDescription: "Enable this if you want to install the cluster on EKS.",
+			Computed:            true,
+		},
+		"managed_cluster_config": schema.SingleNestedAttribute{
+			MarkdownDescription: "The ability to use a separate kubeconfig to access the managed cluster.",
+			Computed:            true,
+			Attributes:          getManagedClusterConfigDataSourceAttributes(),
+		},
 	}
 }
 
@@ -168,6 +181,19 @@ func getKubeconfigDataSourceAttributes() map[string]schema.Attribute {
 		"proxy_url": schema.StringAttribute{
 			Computed:    true,
 			Description: "URL to the proxy to be used for all API requests",
+		},
+	}
+}
+
+func getManagedClusterConfigDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"secret_name": schema.StringAttribute{
+			Description: "The name of the secret",
+			Computed:    true,
+		},
+		"secret_key": schema.StringAttribute{
+			Description: "The key in the secret",
+			Computed:    true,
 		},
 	}
 }

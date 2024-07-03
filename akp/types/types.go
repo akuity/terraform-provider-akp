@@ -186,9 +186,6 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 			RedisTunneling:            tftypes.BoolValue(apiCluster.GetData().GetRedisTunneling()),
 			DatadogAnnotationsEnabled: tftypes.BoolValue(apiCluster.GetData().GetDatadogAnnotationsEnabled()),
 			EksAddonEnabled:           tftypes.BoolValue(apiCluster.GetData().GetEksAddonEnabled()),
-			ManagedClusterConfig: &ManagedClusterConfig{
-				SecretName: tftypes.StringValue(apiCluster.GetData().GetManagedClusterConfig().GetSecretName()),
-			},
 		},
 	}
 }

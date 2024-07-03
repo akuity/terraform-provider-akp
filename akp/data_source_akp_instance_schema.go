@@ -209,6 +209,22 @@ func getInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 				Attributes: getHostAliasesDataSourceAttributes(),
 			},
 		},
+		"crossplane_extension": schema.SingleNestedAttribute{
+			MarkdownDescription: "Enable Argo CD UI extension and health checks for Crossplane resources by pre-configured group patterns.",
+			Computed:            true,
+			Attributes:          getCrossplaneExtensionDataSourceAttributes(),
+		},
+		"agent_permissions_rules": schema.ListNestedAttribute{
+			MarkdownDescription: "The ability to configure agent permissions rules.",
+			Computed:            true,
+			NestedObject: schema.NestedAttributeObject{
+				Attributes: getAgentPermissionsRuleDataSourceAttributes(),
+			},
+		},
+		"fqdn": schema.StringAttribute{
+			MarkdownDescription: "Configures the FQDN for the argocd instance, for ingress URL, domain suffix, etc.",
+			Computed:            true,
+		},
 	}
 }
 
@@ -501,6 +517,47 @@ func getDynamicDataSourceAttributes() map[string]schema.Attribute {
 		},
 		"args": schema.ListAttribute{
 			MarkdownDescription: "Arguments of the command",
+			Computed:            true,
+			ElementType:         types.StringType,
+		},
+	}
+}
+
+func getCrossplaneExtensionDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"resources": schema.ListNestedAttribute{
+			MarkdownDescription: "Resources.",
+			Computed:            true,
+			NestedObject: schema.NestedAttributeObject{
+				Attributes: getCrossplaneExtensionResourcesDataSourceAttributes(),
+			},
+		},
+	}
+}
+
+func getCrossplaneExtensionResourcesDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"group": schema.StringAttribute{
+			MarkdownDescription: "Group path of the resource.",
+			Computed:            true,
+		},
+	}
+}
+
+func getAgentPermissionsRuleDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"api_groups": schema.ListAttribute{
+			MarkdownDescription: "API groups of the rule.",
+			Computed:            true,
+			ElementType:         types.StringType,
+		},
+		"resources": schema.ListAttribute{
+			MarkdownDescription: "Resources of the rule.",
+			Computed:            true,
+			ElementType:         types.StringType,
+		},
+		"verbs": schema.ListAttribute{
+			MarkdownDescription: "Verbs of the rule.",
 			Computed:            true,
 			ElementType:         types.StringType,
 		},
