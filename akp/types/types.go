@@ -172,6 +172,12 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 		}
 	}
 
+	managedClusterConfig := &ManagedClusterConfig{}
+	if apiCluster.GetData().GetManagedClusterConfig() != nil {
+		managedClusterConfig.SecretName = tftypes.StringValue(apiCluster.GetData().GetManagedClusterConfig().GetSecretName())
+		managedClusterConfig.SecretKey = tftypes.StringValue(apiCluster.GetData().GetManagedClusterConfig().GetSecretKey())
+	}
+
 	c.Labels = labels
 	c.Annotations = annotations
 	c.Spec = &ClusterSpec{
@@ -186,6 +192,7 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 			RedisTunneling:            tftypes.BoolValue(apiCluster.GetData().GetRedisTunneling()),
 			DatadogAnnotationsEnabled: tftypes.BoolValue(apiCluster.GetData().GetDatadogAnnotationsEnabled()),
 			EksAddonEnabled:           tftypes.BoolValue(apiCluster.GetData().GetEksAddonEnabled()),
+			ManagedClusterConfig:      managedClusterConfig,
 		},
 	}
 }
@@ -278,6 +285,13 @@ func toClusterDataAPIModel(diagnostics *diag.Diagnostics, clusterData ClusterDat
 	if err := yaml.Unmarshal([]byte(clusterData.Kustomization.ValueString()), &raw); err != nil {
 		diagnostics.AddError("failed unmarshal kustomization string to yaml", err.Error())
 	}
+
+	managedConfig := &v1alpha1.ManagedClusterConfig{}
+	if clusterData.ManagedClusterConfig != nil {
+		managedConfig.SecretName = clusterData.ManagedClusterConfig.SecretName.ValueString()
+		managedConfig.SecretKey = clusterData.ManagedClusterConfig.SecretKey.ValueString()
+	}
+
 	return v1alpha1.ClusterData{
 		Size:                      v1alpha1.ClusterSize(clusterData.Size.ValueString()),
 		AutoUpgradeDisabled:       clusterData.AutoUpgradeDisabled.ValueBoolPointer(),
@@ -287,6 +301,7 @@ func toClusterDataAPIModel(diagnostics *diag.Diagnostics, clusterData ClusterDat
 		RedisTunneling:            clusterData.RedisTunneling.ValueBoolPointer(),
 		DatadogAnnotationsEnabled: clusterData.DatadogAnnotationsEnabled.ValueBoolPointer(),
 		EksAddonEnabled:           clusterData.EksAddonEnabled.ValueBoolPointer(),
+		ManagedClusterConfig:      managedConfig,
 	}
 }
 

@@ -39,14 +39,13 @@ type ManagedClusterConfig struct {
 }
 
 type ClusterData struct {
-	Size                      types.String `tfsdk:"size"`
-	AutoUpgradeDisabled       types.Bool   `tfsdk:"auto_upgrade_disabled"`
-	Kustomization             types.String `tfsdk:"kustomization"`
-	AppReplication            types.Bool   `tfsdk:"app_replication"`
-	TargetVersion             types.String `tfsdk:"target_version"`
-	RedisTunneling            types.Bool   `tfsdk:"redis_tunneling"`
-	DatadogAnnotationsEnabled types.Bool   `tfsdk:"datadog_annotations_enabled"`
-	EksAddonEnabled           types.Bool   `tfsdk:"eks_addon_enabled"`
-	// TODO(hanxiaop) Support ManagedClusterConfig in akp/types/types.go
-	ManagedClusterConfig *ManagedClusterConfig `tfsdk:"managed_cluster_config"`
+	Size                      types.String          `tfsdk:"size"`
+	AutoUpgradeDisabled       types.Bool            `tfsdk:"auto_upgrade_disabled"`
+	Kustomization             types.String          `tfsdk:"kustomization"`
+	AppReplication            types.Bool            `tfsdk:"app_replication"`
+	TargetVersion             types.String          `tfsdk:"target_version"`
+	RedisTunneling            types.Bool            `tfsdk:"redis_tunneling"`
+	DatadogAnnotationsEnabled types.Bool            `tfsdk:"datadog_annotations_enabled"`
+	EksAddonEnabled           types.Bool            `tfsdk:"eks_addon_enabled"`
+	ManagedClusterConfig      *ManagedClusterConfig `tfsdk:"managed_cluster_config"`
 }
