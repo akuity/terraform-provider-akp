@@ -324,11 +324,17 @@ func getManagedClusterConfigAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"secret_name": schema.StringAttribute{
 			Description: "The name of the secret",
-			Computed:    true,
+			Required:    true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
 		},
 		"secret_key": schema.StringAttribute{
 			Description: "The key in the secret",
-			Computed:    true,
+			Optional:    true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
 		},
 	}
 }

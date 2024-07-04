@@ -172,12 +172,6 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 		}
 	}
 
-	managedClusterConfig := &ManagedClusterConfig{}
-	if apiCluster.GetData().GetManagedClusterConfig() != nil {
-		managedClusterConfig.SecretName = tftypes.StringValue(apiCluster.GetData().GetManagedClusterConfig().GetSecretName())
-		managedClusterConfig.SecretKey = tftypes.StringValue(apiCluster.GetData().GetManagedClusterConfig().GetSecretKey())
-	}
-
 	c.Labels = labels
 	c.Annotations = annotations
 	c.Spec = &ClusterSpec{
@@ -192,7 +186,7 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 			RedisTunneling:            tftypes.BoolValue(apiCluster.GetData().GetRedisTunneling()),
 			DatadogAnnotationsEnabled: tftypes.BoolValue(apiCluster.GetData().GetDatadogAnnotationsEnabled()),
 			EksAddonEnabled:           tftypes.BoolValue(apiCluster.GetData().GetEksAddonEnabled()),
-			ManagedClusterConfig:      managedClusterConfig,
+			ManagedClusterConfig:      toManagedClusterConfigTFModel(apiCluster.GetData().GetManagedClusterConfig()),
 		},
 	}
 }
@@ -286,10 +280,12 @@ func toClusterDataAPIModel(diagnostics *diag.Diagnostics, clusterData ClusterDat
 		diagnostics.AddError("failed unmarshal kustomization string to yaml", err.Error())
 	}
 
-	managedConfig := &v1alpha1.ManagedClusterConfig{}
+	var managedConfig *v1alpha1.ManagedClusterConfig
 	if clusterData.ManagedClusterConfig != nil {
-		managedConfig.SecretName = clusterData.ManagedClusterConfig.SecretName.ValueString()
-		managedConfig.SecretKey = clusterData.ManagedClusterConfig.SecretKey.ValueString()
+		managedConfig = &v1alpha1.ManagedClusterConfig{
+			SecretName: clusterData.ManagedClusterConfig.SecretName.ValueString(),
+			SecretKey:  clusterData.ManagedClusterConfig.SecretKey.ValueString(),
+		}
 	}
 
 	return v1alpha1.ClusterData{
@@ -811,7 +807,7 @@ func toCommandTFModel(command *v1alpha1.Command) *Command {
 }
 
 func toCrossplaneExtensionTFModel(extension *v1alpha1.CrossplaneExtension) *CrossplaneExtension {
-	if extension == nil {
+	if extension == nil || len(extension.Resources) == 0 {
 		return nil
 	}
 	return &CrossplaneExtension{
@@ -854,5 +850,15 @@ func crossplaneExtensionResourceToTFModel(resource *v1alpha1.CrossplaneExtension
 	}
 	return &CrossplaneExtensionResource{
 		Group: tftypes.StringValue(resource.Group),
+	}
+}
+
+func toManagedClusterConfigTFModel(cfg *argocdv1.ManagedClusterConfig) *ManagedClusterConfig {
+	if cfg == nil {
+		return nil
+	}
+	return &ManagedClusterConfig{
+		SecretName: types.StringValue(cfg.SecretName),
+		SecretKey:  types.StringValue(cfg.SecretKey),
 	}
 }

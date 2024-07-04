@@ -311,7 +311,6 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 		"crossplane_extension": schema.SingleNestedAttribute{
 			MarkdownDescription: "Enable Argo CD UI extension and health checks for Crossplane resources by pre-configured group patterns.",
 			Optional:            true,
-			Computed:            true,
 			Attributes:          getCrossplaneExtensionAttributes(),
 		},
 		"agent_permissions_rules": schema.ListNestedAttribute{
@@ -325,6 +324,9 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Configures the FQDN for the argocd instance, for ingress URL, domain suffix, etc.",
 			Optional:            true,
 			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
 		},
 	}
 }
