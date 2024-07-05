@@ -33,11 +33,20 @@ type ClusterSpec struct {
 	Data            ClusterData  `tfsdk:"data"`
 }
 
+type ManagedClusterConfig struct {
+	SecretName types.String `tfsdk:"secret_name"`
+	SecretKey  types.String `tfsdk:"secret_key"`
+}
+
 type ClusterData struct {
-	Size                types.String `tfsdk:"size"`
-	AutoUpgradeDisabled types.Bool   `tfsdk:"auto_upgrade_disabled"`
-	Kustomization       types.String `tfsdk:"kustomization"`
-	AppReplication      types.Bool   `tfsdk:"app_replication"`
-	TargetVersion       types.String `tfsdk:"target_version"`
-	RedisTunneling      types.Bool   `tfsdk:"redis_tunneling"`
+	Size                            types.String          `tfsdk:"size"`
+	AutoUpgradeDisabled             types.Bool            `tfsdk:"auto_upgrade_disabled"`
+	Kustomization                   types.String          `tfsdk:"kustomization"`
+	AppReplication                  types.Bool            `tfsdk:"app_replication"`
+	TargetVersion                   types.String          `tfsdk:"target_version"`
+	RedisTunneling                  types.Bool            `tfsdk:"redis_tunneling"`
+	DatadogAnnotationsEnabled       types.Bool            `tfsdk:"datadog_annotations_enabled"`
+	EksAddonEnabled                 types.Bool            `tfsdk:"eks_addon_enabled"`
+	ManagedClusterConfig            *ManagedClusterConfig `tfsdk:"managed_cluster_config"`
+	MultiClusterK8SDashboardEnabled types.Bool            `tfsdk:"multi_cluster_k8s_dashboard_enabled"`
 }
