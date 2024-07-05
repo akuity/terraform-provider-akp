@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/akuity/api-client-go/pkg/api/gateway/accesscontrol"
-	gwoption "github.com/akuity/api-client-go/pkg/api/gateway/option"
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 	orgcv1 "github.com/akuity/api-client-go/pkg/api/gen/organization/v1"
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
@@ -133,7 +132,7 @@ func (p *AkpProvider) Configure(ctx context.Context, req provider.ConfigureReque
 	cred := accesscontrol.NewAPIKeyCredential(apiKeyID, apiKeySecret)
 	// Get Organizaton ID by name
 	ctx = httpctx.SetAuthorizationHeader(ctx, cred.Scheme(), cred.Credential())
-	gwc := gwoption.NewClient(ServerUrl, skipTLSVerify)
+	gwc := newClient(ServerUrl, skipTLSVerify)
 	orgc := orgcv1.NewOrganizationServiceGatewayClient(gwc)
 	res, err := orgc.GetOrganization(ctx, &orgcv1.GetOrganizationRequest{
 		Id:     orgName,
