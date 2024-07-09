@@ -157,10 +157,13 @@ Optional:
 <a id="nestedatt--spec--data--managed_cluster_config"></a>
 ### Nested Schema for `spec.data.managed_cluster_config`
 
-Read-Only:
+Required:
+
+- `secret_name` (String) The name of the secret
+
+Optional:
 
 - `secret_key` (String) The key in the secret
-- `secret_name` (String) The name of the secret
 
 
 
