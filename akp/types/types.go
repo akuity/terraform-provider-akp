@@ -67,6 +67,10 @@ func (a *ArgoCD) Update(ctx context.Context, diagnostics *diag.Diagnostics, cd *
 	if cd.Spec.InstanceSpec.AssistantExtensionEnabled != nil && *cd.Spec.InstanceSpec.AssistantExtensionEnabled {
 		assistantExtensionEnabled = true
 	}
+	fqdn := ""
+	if cd.Spec.InstanceSpec.Fqdn != nil {
+		fqdn = *cd.Spec.InstanceSpec.Fqdn
+	}
 	a.Spec = ArgoCDSpec{
 		Description: tftypes.StringValue(cd.Spec.Description),
 		Version:     tftypes.StringValue(cd.Spec.Version),
@@ -88,7 +92,7 @@ func (a *ArgoCD) Update(ctx context.Context, diagnostics *diag.Diagnostics, cd *
 			AppsetPolicy:                 toAppsetPolicyTFModel(ctx, diagnostics, cd.Spec.InstanceSpec.AppsetPolicy),
 			HostAliases:                  toHostAliasesTFModel(cd.Spec.InstanceSpec.HostAliases),
 			AgentPermissionsRules:        toAgentPermissionsRulesTFModel(cd.Spec.InstanceSpec.AgentPermissionsRules),
-			Fqdn:                         tftypes.StringValue(cd.Spec.InstanceSpec.Fqdn),
+			Fqdn:                         types.StringValue(fqdn),
 		},
 	}
 }
@@ -123,7 +127,7 @@ func (a *ArgoCD) ToArgoCDAPIModel(ctx context.Context, diag *diag.Diagnostics, n
 				AppsetPolicy:                 toAppsetPolicyAPIModel(ctx, diag, a.Spec.InstanceSpec.AppsetPolicy),
 				HostAliases:                  toHostAliasesAPIModel(a.Spec.InstanceSpec.HostAliases),
 				AgentPermissionsRules:        toAgentPermissionsRuleAPIModel(a.Spec.InstanceSpec.AgentPermissionsRules),
-				Fqdn:                         a.Spec.InstanceSpec.Fqdn.ValueString(),
+				Fqdn:                         a.Spec.InstanceSpec.Fqdn.ValueStringPointer(),
 			},
 		},
 	}

@@ -2,6 +2,7 @@ package types
 
 import (
 	"context"
+
 	"github.com/pkg/errors"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -63,6 +64,10 @@ func (i *Instance) Update(ctx context.Context, diagnostics *diag.Diagnostics, ex
 	}
 	if i.ArgoCD == nil {
 		i.ArgoCD = &ArgoCD{}
+	}
+	if argoCD.Spec.InstanceSpec.Fqdn == nil {
+		fqdn := ""
+		argoCD.Spec.InstanceSpec.Fqdn = &fqdn
 	}
 	i.ArgoCD.Update(ctx, diagnostics, argoCD)
 	i.ArgoCDConfigMap = ToConfigMapTFModel(ctx, diagnostics, exportResp.ArgocdConfigmap, i.ArgoCDConfigMap)
