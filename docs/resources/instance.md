@@ -399,7 +399,7 @@ Optional:
 - `sync_history_extension_enabled` (Boolean) Enable Sync History Extension. Sync count and duration graphs as well as event details table on Argo CD application details page.
 
 <a id="nestedatt--argocd--spec--instance_spec--agent_permissions_rules"></a>
-### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
+### Nested Schema for `argocd.spec.instance_spec.agent_permissions_rules`
 
 Optional:
 
@@ -409,14 +409,14 @@ Optional:
 
 
 <a id="nestedatt--argocd--spec--instance_spec--app_set_delegate"></a>
-### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
+### Nested Schema for `argocd.spec.instance_spec.app_set_delegate`
 
 Optional:
 
-- `managed_cluster` (Attributes) Use managed cluster (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster))
+- `managed_cluster` (Attributes) Use managed cluster (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--app_set_delegate--managed_cluster))
 
-<a id="nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster"></a>
-### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled.managed_cluster`
+<a id="nestedatt--argocd--spec--instance_spec--app_set_delegate--managed_cluster"></a>
+### Nested Schema for `argocd.spec.instance_spec.app_set_delegate.managed_cluster`
 
 Required:
 
@@ -425,7 +425,7 @@ Required:
 
 
 <a id="nestedatt--argocd--spec--instance_spec--appset_policy"></a>
-### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
+### Nested Schema for `argocd.spec.instance_spec.appset_policy`
 
 Optional:
 
@@ -439,7 +439,7 @@ Available options: `sync`, `create-only`, `create-delete`, and `create-update`.
 
 
 <a id="nestedatt--argocd--spec--instance_spec--cluster_customization_defaults"></a>
-### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
+### Nested Schema for `argocd.spec.instance_spec.cluster_customization_defaults`
 
 Optional:
 
@@ -450,14 +450,14 @@ Optional:
 
 
 <a id="nestedatt--argocd--spec--instance_spec--crossplane_extension"></a>
-### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
+### Nested Schema for `argocd.spec.instance_spec.crossplane_extension`
 
 Optional:
 
-- `resources` (Attributes List) Resources. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--resources))
+- `resources` (Attributes List) Resources. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--crossplane_extension--resources))
 
-<a id="nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--resources"></a>
-### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled.resources`
+<a id="nestedatt--argocd--spec--instance_spec--crossplane_extension--resources"></a>
+### Nested Schema for `argocd.spec.instance_spec.crossplane_extension.resources`
 
 Optional:
 
@@ -466,7 +466,7 @@ Optional:
 
 
 <a id="nestedatt--argocd--spec--instance_spec--extensions"></a>
-### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
+### Nested Schema for `argocd.spec.instance_spec.extensions`
 
 Required:
 
@@ -475,7 +475,7 @@ Required:
 
 
 <a id="nestedatt--argocd--spec--instance_spec--host_aliases"></a>
-### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
+### Nested Schema for `argocd.spec.instance_spec.host_aliases`
 
 Required:
 
@@ -487,7 +487,7 @@ Optional:
 
 
 <a id="nestedatt--argocd--spec--instance_spec--image_updater_delegate"></a>
-### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
+### Nested Schema for `argocd.spec.instance_spec.image_updater_delegate`
 
 Required:
 
@@ -495,10 +495,10 @@ Required:
 
 Optional:
 
-- `managed_cluster` (Attributes) If use managed cluster or not (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster))
+- `managed_cluster` (Attributes) If use managed cluster or not (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--image_updater_delegate--managed_cluster))
 
-<a id="nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster"></a>
-### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled.managed_cluster`
+<a id="nestedatt--argocd--spec--instance_spec--image_updater_delegate--managed_cluster"></a>
+### Nested Schema for `argocd.spec.instance_spec.image_updater_delegate.managed_cluster`
 
 Required:
 
@@ -507,7 +507,7 @@ Required:
 
 
 <a id="nestedatt--argocd--spec--instance_spec--ip_allow_list"></a>
-### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
+### Nested Schema for `argocd.spec.instance_spec.ip_allow_list`
 
 Required:
 
@@ -519,7 +519,7 @@ Optional:
 
 
 <a id="nestedatt--argocd--spec--instance_spec--repo_server_delegate"></a>
-### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled`
+### Nested Schema for `argocd.spec.instance_spec.repo_server_delegate`
 
 Required:
 
@@ -527,10 +527,10 @@ Required:
 
 Optional:
 
-- `managed_cluster` (Attributes) If use managed cluster or not (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster))
+- `managed_cluster` (Attributes) If use managed cluster or not (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--repo_server_delegate--managed_cluster))
 
-<a id="nestedatt--argocd--spec--instance_spec--sync_history_extension_enabled--managed_cluster"></a>
-### Nested Schema for `argocd.spec.instance_spec.sync_history_extension_enabled.managed_cluster`
+<a id="nestedatt--argocd--spec--instance_spec--repo_server_delegate--managed_cluster"></a>
+### Nested Schema for `argocd.spec.instance_spec.repo_server_delegate.managed_cluster`
 
 Required:
 
@@ -620,7 +620,7 @@ Optional:
 - `static` (Attributes List) Static parameter announcements are sent to the UI for all Applications handled by this plugin. Think of the `string`, `array`, and `map` values set here as defaults. It is up to the plugin author to make sure that these default values actually reflect the plugin's behavior if the user doesn't explicitly set different values for those parameters. (see [below for nested schema](#nestedatt--config_management_plugins--spec--parameters--static))
 
 <a id="nestedatt--config_management_plugins--spec--parameters--dynamic"></a>
-### Nested Schema for `config_management_plugins.spec.parameters.static`
+### Nested Schema for `config_management_plugins.spec.parameters.dynamic`
 
 Optional:
 

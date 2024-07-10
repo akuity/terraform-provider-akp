@@ -98,7 +98,7 @@ Read-Only:
 - `target_version` (String) The version of the agent to install on your cluster
 
 <a id="nestedatt--clusters--spec--data--managed_cluster_config"></a>
-### Nested Schema for `clusters.spec.data.target_version`
+### Nested Schema for `clusters.spec.data.managed_cluster_config`
 
 Read-Only:
 
