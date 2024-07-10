@@ -29,6 +29,8 @@ func ToConfigMapTFModel(ctx context.Context, diagnostics *diag.Diagnostics, data
 				return tftypes.MapNull(tftypes.StringType)
 			}
 			m[k] = sortedValue
+		default:
+			m[k] = v
 		}
 	}
 
