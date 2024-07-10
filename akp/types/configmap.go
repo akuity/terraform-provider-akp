@@ -64,10 +64,10 @@ func ToConfigMapAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, nam
 	}
 }
 
-func sortJSONKeys(value interface{}) (interface{}, error) {
+func sortJSONKeys(value any) (any, error) {
 	switch v := value.(type) {
-	case map[string]interface{}:
-		sortedMap := make(map[string]interface{})
+	case map[string]any:
+		sortedMap := make(map[string]any)
 		keys := make([]string, 0, len(v))
 		for k := range v {
 			keys = append(keys, k)
@@ -81,8 +81,8 @@ func sortJSONKeys(value interface{}) (interface{}, error) {
 			sortedMap[k] = sortedValue
 		}
 		return sortedMap, nil
-	case []interface{}:
-		sortedArray := make([]interface{}, len(v))
+	case []any:
+		sortedArray := make([]any, len(v))
 		for i, item := range v {
 			sortedValue, err := sortJSONKeys(item)
 			if err != nil {
@@ -101,7 +101,7 @@ func sortJSONString(jsonStr string) (string, error) {
 		return jsonStr, nil
 	}
 
-	var data interface{}
+	var data any
 	err := json.Unmarshal([]byte(jsonStr), &data)
 	if err != nil {
 		return "", err
