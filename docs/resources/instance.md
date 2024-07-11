@@ -379,14 +379,17 @@ Optional:
 
 Optional:
 
+- `agent_permissions_rules` (Attributes List) The ability to configure agent permissions rules. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--agent_permissions_rules))
 - `app_set_delegate` (Attributes) Select cluster in which you want to Install Application Set controller (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--app_set_delegate))
 - `appset_policy` (Attributes) Configures Application Set policy settings. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--appset_policy))
 - `assistant_extension_enabled` (Boolean) Enable Powerful AI-powered assistant Extension. It helps analyze Kubernetes resources behavior and provides suggestions about resolving issues.
 - `audit_extension_enabled` (Boolean) Enable Audit Extension. Set this to `true` to install Audit Extension to Argo CD instance.
 - `backend_ip_allow_list_enabled` (Boolean) Enable ip allow list for cluster agents
 - `cluster_customization_defaults` (Attributes) Default values for cluster agents (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--cluster_customization_defaults))
+- `crossplane_extension` (Attributes) Custom Resource Definition group name that identifies the Crossplane resource in kubernetes. We will include built-in crossplane resources. Note that you can use glob pattern to match the group. ie. *.crossplane.io (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--crossplane_extension))
 - `declarative_management_enabled` (Boolean) Enable Declarative Management
 - `extensions` (Attributes List) Extensions (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--extensions))
+- `fqdn` (String) Configures the FQDN for the argocd instance, for ingress URL, domain suffix, etc.
 - `host_aliases` (Attributes List) Host Aliases that override the DNS entries for control plane Argo CD components such as API Server and Dex. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--host_aliases))
 - `image_updater_delegate` (Attributes) Select cluster in which you want to Install Image Updater (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--image_updater_delegate))
 - `image_updater_enabled` (Boolean) Enable Image Updater
@@ -394,6 +397,16 @@ Optional:
 - `repo_server_delegate` (Attributes) In case some clusters don't have network access to your private Git provider you can delegate these operations to one specific cluster. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--repo_server_delegate))
 - `subdomain` (String) Instance subdomain. By default equals to instance id
 - `sync_history_extension_enabled` (Boolean) Enable Sync History Extension. Sync count and duration graphs as well as event details table on Argo CD application details page.
+
+<a id="nestedatt--argocd--spec--instance_spec--agent_permissions_rules"></a>
+### Nested Schema for `argocd.spec.instance_spec.agent_permissions_rules`
+
+Optional:
+
+- `api_groups` (List of String) API groups of the rule.
+- `resources` (List of String) Resources of the rule.
+- `verbs` (List of String) Verbs of the rule.
+
 
 <a id="nestedatt--argocd--spec--instance_spec--app_set_delegate"></a>
 ### Nested Schema for `argocd.spec.instance_spec.app_set_delegate`
@@ -434,6 +447,22 @@ Optional:
 - `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
 - `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
 - `redis_tunneling` (Boolean) Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy
+
+
+<a id="nestedatt--argocd--spec--instance_spec--crossplane_extension"></a>
+### Nested Schema for `argocd.spec.instance_spec.crossplane_extension`
+
+Optional:
+
+- `resources` (Attributes List) Glob patterns of the resources to match. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--crossplane_extension--resources))
+
+<a id="nestedatt--argocd--spec--instance_spec--crossplane_extension--resources"></a>
+### Nested Schema for `argocd.spec.instance_spec.crossplane_extension.resources`
+
+Optional:
+
+- `group` (String) Glob pattern of the group to match.
+
 
 
 <a id="nestedatt--argocd--spec--instance_spec--extensions"></a>
@@ -591,7 +620,7 @@ Optional:
 - `static` (Attributes List) Static parameter announcements are sent to the UI for all Applications handled by this plugin. Think of the `string`, `array`, and `map` values set here as defaults. It is up to the plugin author to make sure that these default values actually reflect the plugin's behavior if the user doesn't explicitly set different values for those parameters. (see [below for nested schema](#nestedatt--config_management_plugins--spec--parameters--static))
 
 <a id="nestedatt--config_management_plugins--spec--parameters--dynamic"></a>
-### Nested Schema for `config_management_plugins.spec.parameters.static`
+### Nested Schema for `config_management_plugins.spec.parameters.dynamic`
 
 Optional:
 

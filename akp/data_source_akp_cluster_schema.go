@@ -104,6 +104,19 @@ func getClusterDataDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy",
 			Computed:            true,
 		},
+		"datadog_annotations_enabled": schema.BoolAttribute{
+			MarkdownDescription: "Enable Datadog metrics collection of Application Controller and Repo Server. Make sure that you install Datadog agent in cluster.",
+			Computed:            true,
+		},
+		"eks_addon_enabled": schema.BoolAttribute{
+			MarkdownDescription: "Enable this if you are installing this cluster on EKS.",
+			Computed:            true,
+		},
+		"managed_cluster_config": schema.SingleNestedAttribute{
+			MarkdownDescription: "The config to access managed Kubernetes cluster. By default agent is using \"in-cluster\" config.",
+			Computed:            true,
+			Attributes:          getManagedClusterConfigDataSourceAttributes(),
+		},
 	}
 }
 
@@ -168,6 +181,19 @@ func getKubeconfigDataSourceAttributes() map[string]schema.Attribute {
 		"proxy_url": schema.StringAttribute{
 			Computed:    true,
 			Description: "URL to the proxy to be used for all API requests",
+		},
+	}
+}
+
+func getManagedClusterConfigDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"secret_name": schema.StringAttribute{
+			Description: "The name of the secret for the managed cluster config",
+			Computed:    true,
+		},
+		"secret_key": schema.StringAttribute{
+			Description: "The key in the secret for the managed cluster config",
+			Computed:    true,
 		},
 	}
 }
