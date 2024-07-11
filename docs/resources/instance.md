@@ -386,7 +386,7 @@ Optional:
 - `audit_extension_enabled` (Boolean) Enable Audit Extension. Set this to `true` to install Audit Extension to Argo CD instance.
 - `backend_ip_allow_list_enabled` (Boolean) Enable ip allow list for cluster agents
 - `cluster_customization_defaults` (Attributes) Default values for cluster agents (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--cluster_customization_defaults))
-- `crossplane_extension` (Attributes) Enable Argo CD UI extension and health checks for Crossplane resources by pre-configured group patterns. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--crossplane_extension))
+- `crossplane_extension` (Attributes) Custom Resource Definition group name that identifies the Crossplane resource in kubernetes. We will include built-in crossplane resources. Note that you can use glob pattern to match the group. ie. *.crossplane.io (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--crossplane_extension))
 - `declarative_management_enabled` (Boolean) Enable Declarative Management
 - `extensions` (Attributes List) Extensions (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--extensions))
 - `fqdn` (String) Configures the FQDN for the argocd instance, for ingress URL, domain suffix, etc.
@@ -454,14 +454,14 @@ Optional:
 
 Optional:
 
-- `resources` (Attributes List) Resources. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--crossplane_extension--resources))
+- `resources` (Attributes List) Glob patterns of the resources to match. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--crossplane_extension--resources))
 
 <a id="nestedatt--argocd--spec--instance_spec--crossplane_extension--resources"></a>
 ### Nested Schema for `argocd.spec.instance_spec.crossplane_extension.resources`
 
 Optional:
 
-- `group` (String) Group path of the resource.
+- `group` (String) Glob pattern of the group to match.
 
 
 

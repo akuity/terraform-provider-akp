@@ -190,7 +190,7 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 			},
 		},
 		"datadog_annotations_enabled": schema.BoolAttribute{
-			MarkdownDescription: "Enables Datadog annotations",
+			MarkdownDescription: "Enable Datadog metrics collection of Application Controller and Repo Server. Make sure that you install Datadog agent in cluster.",
 			Optional:            true,
 			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
@@ -198,7 +198,7 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 			},
 		},
 		"eks_addon_enabled": schema.BoolAttribute{
-			MarkdownDescription: "Enable this if you want to install the cluster on EKS.",
+			MarkdownDescription: "Enable this if you are installing this cluster on EKS.",
 			Optional:            true,
 			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
@@ -206,7 +206,7 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 			},
 		},
 		"managed_cluster_config": schema.SingleNestedAttribute{
-			MarkdownDescription: "The ability to use a separate kubeconfig to access the managed cluster.",
+			MarkdownDescription: "The config to access managed Kubernetes cluster. By default agent is using \"in-cluster\" config.",
 			Optional:            true,
 			Attributes:          getManagedClusterConfigAttributes(),
 		},
@@ -323,14 +323,14 @@ func getKubeconfigAttributes() map[string]schema.Attribute {
 func getManagedClusterConfigAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"secret_name": schema.StringAttribute{
-			Description: "The name of the secret",
+			Description: "The name of the secret for the managed cluster config",
 			Required:    true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
 			},
 		},
 		"secret_key": schema.StringAttribute{
-			Description: "The key in the secret",
+			Description: "The key in the secret for the managed cluster config",
 			Optional:    true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),

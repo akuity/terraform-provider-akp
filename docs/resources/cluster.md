@@ -147,10 +147,10 @@ Optional:
 
 - `app_replication` (Boolean) Enables Argo CD state replication to the managed cluster that allows disconnecting the cluster from Akuity Platform without losing core Argocd features
 - `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
-- `datadog_annotations_enabled` (Boolean) Enables Datadog annotations
-- `eks_addon_enabled` (Boolean) Enable this if you want to install the cluster on EKS.
+- `datadog_annotations_enabled` (Boolean) Enable Datadog metrics collection of Application Controller and Repo Server. Make sure that you install Datadog agent in cluster.
+- `eks_addon_enabled` (Boolean) Enable this if you are installing this cluster on EKS.
 - `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
-- `managed_cluster_config` (Attributes) The ability to use a separate kubeconfig to access the managed cluster. (see [below for nested schema](#nestedatt--spec--data--managed_cluster_config))
+- `managed_cluster_config` (Attributes) The config to access managed Kubernetes cluster. By default agent is using "in-cluster" config. (see [below for nested schema](#nestedatt--spec--data--managed_cluster_config))
 - `redis_tunneling` (Boolean) Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy
 - `target_version` (String) The version of the agent to install on your cluster
 
@@ -159,11 +159,11 @@ Optional:
 
 Required:
 
-- `secret_name` (String) The name of the secret
+- `secret_name` (String) The name of the secret for the managed cluster config
 
 Optional:
 
-- `secret_key` (String) The key in the secret
+- `secret_key` (String) The key in the secret for the managed cluster config
 
 
 

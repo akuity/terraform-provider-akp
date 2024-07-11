@@ -309,7 +309,7 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 			},
 		},
 		"crossplane_extension": schema.SingleNestedAttribute{
-			MarkdownDescription: "Enable Argo CD UI extension and health checks for Crossplane resources by pre-configured group patterns.",
+			MarkdownDescription: "Custom Resource Definition group name that identifies the Crossplane resource in kubernetes. We will include built-in crossplane resources. Note that you can use glob pattern to match the group. ie. *.crossplane.io",
 			Optional:            true,
 			Attributes:          getCrossplaneExtensionAttributes(),
 		},
@@ -682,7 +682,7 @@ func getAgentPermissionsRuleAttributes() map[string]schema.Attribute {
 func getCrossplaneExtensionAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"resources": schema.ListNestedAttribute{
-			MarkdownDescription: "Resources.",
+			MarkdownDescription: "Glob patterns of the resources to match.",
 			Optional:            true,
 			NestedObject: schema.NestedAttributeObject{
 				Attributes: getCrossplaneExtensionResourceAttributes(),
@@ -694,7 +694,7 @@ func getCrossplaneExtensionAttributes() map[string]schema.Attribute {
 func getCrossplaneExtensionResourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"group": schema.StringAttribute{
-			MarkdownDescription: "Group path of the resource.",
+			MarkdownDescription: "Glob pattern of the group to match.",
 			Optional:            true,
 		},
 	}

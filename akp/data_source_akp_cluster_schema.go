@@ -105,15 +105,15 @@ func getClusterDataDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 		},
 		"datadog_annotations_enabled": schema.BoolAttribute{
-			MarkdownDescription: "Enables the ability for monitoring Argo CD through Datadog.",
+			MarkdownDescription: "Enable Datadog metrics collection of Application Controller and Repo Server. Make sure that you install Datadog agent in cluster.",
 			Computed:            true,
 		},
 		"eks_addon_enabled": schema.BoolAttribute{
-			MarkdownDescription: "Enable this if you want to install the cluster on EKS.",
+			MarkdownDescription: "Enable this if you are installing this cluster on EKS.",
 			Computed:            true,
 		},
 		"managed_cluster_config": schema.SingleNestedAttribute{
-			MarkdownDescription: "The ability to use a separate kubeconfig to access the managed cluster.",
+			MarkdownDescription: "The config to access managed Kubernetes cluster. By default agent is using \"in-cluster\" config.",
 			Computed:            true,
 			Attributes:          getManagedClusterConfigDataSourceAttributes(),
 		},
@@ -188,11 +188,11 @@ func getKubeconfigDataSourceAttributes() map[string]schema.Attribute {
 func getManagedClusterConfigDataSourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"secret_name": schema.StringAttribute{
-			Description: "The name of the secret",
+			Description: "The name of the secret for the managed cluster config",
 			Computed:    true,
 		},
 		"secret_key": schema.StringAttribute{
-			Description: "The key in the secret",
+			Description: "The key in the secret for the managed cluster config",
 			Computed:    true,
 		},
 	}
