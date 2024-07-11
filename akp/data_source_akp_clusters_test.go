@@ -3,9 +3,11 @@
 package akp
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
 func TestAccClustersDataSource(t *testing.T) {
@@ -13,33 +15,10 @@ func TestAccClustersDataSource(t *testing.T) {
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Read testing
 			{
 				Config: providerConfig + testAccClustersDataSourceConfig,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.akp_clusters.test", "instance_id", "6pzhawvy4echbd8x"),
-					resource.TestCheckResourceAttr("data.akp_clusters.test", "id", "6pzhawvy4echbd8x"),
-					resource.TestCheckResourceAttr("data.akp_clusters.test", "clusters.#", "1"),
-					resource.TestCheckResourceAttr("data.akp_clusters.test", "clusters.0.id", "nyc6s87mrlh4s2af"),
-					resource.TestCheckResourceAttr("data.akp_clusters.test", "clusters.0.instance_id", "6pzhawvy4echbd8x"),
-					resource.TestCheckResourceAttr("data.akp_clusters.test", "clusters.0.name", "data-source-cluster"),
-					resource.TestCheckResourceAttr("data.akp_clusters.test", "clusters.0.namespace", "akuity"),
-					resource.TestCheckResourceAttr("data.akp_clusters.test", "clusters.0.labels.test-label", "test"),
-					resource.TestCheckResourceAttr("data.akp_clusters.test", "clusters.0.annotations.test-annotation", "false"),
-					// spec
-					resource.TestCheckResourceAttr("data.akp_clusters.test", "clusters.0.spec.description", "Cluster Description"),
-					resource.TestCheckResourceAttr("data.akp_clusters.test", "clusters.0.spec.namespace_scoped", "false"),
-					// spec.data
-					resource.TestCheckResourceAttr("data.akp_clusters.test", "clusters.0.spec.data.size", "small"),
-					resource.TestCheckResourceAttr("data.akp_clusters.test", "clusters.0.spec.data.auto_upgrade_disabled", "true"),
-					resource.TestCheckResourceAttr("data.akp_clusters.test", "clusters.0.spec.data.kustomization", `apiVersion: kustomize.config.k8s.io/v1beta1
-images:
-- name: quay.io/akuity/agent
-  newName: test.io/agent
-kind: Kustomization
-`),
-					resource.TestCheckResourceAttr("data.akp_clusters.test", "clusters.0.spec.data.app_replication", "false"),
-					resource.TestCheckResourceAttr("data.akp_clusters.test", "clusters.0.spec.data.redis_tunneling", "true"),
+					testAccCheckClusterAttributes("data.akp_clusters.test", "data-source-cluster"),
 				),
 			},
 		},
@@ -51,3 +30,66 @@ data "akp_clusters" "test" {
   instance_id = "6pzhawvy4echbd8x"
 }
 `
+
+func testAccCheckClusterAttributes(dataSourceName string, targetClusterName string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[dataSourceName]
+		if !ok {
+			return fmt.Errorf("data source %s not found", dataSourceName)
+		}
+		clusters := rs.Primary.Attributes
+		for i := 0; ; i++ {
+			if clusters[fmt.Sprintf("clusters.%d.name", i)] == "" {
+				break
+			}
+			if clusters[fmt.Sprintf("clusters.%d.name", i)] == targetClusterName {
+				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("clusters.%d.instance_id", i), "6pzhawvy4echbd8x")(s); err != nil {
+					return err
+				}
+				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("clusters.%d.id", i), "nyc6s87mrlh4s2af")(s); err != nil {
+					return err
+				}
+				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("clusters.%d.name", i), "data-source-cluster")(s); err != nil {
+					return err
+				}
+				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("clusters.%d.namespace", i), "akuity")(s); err != nil {
+					return err
+				}
+				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("clusters.%d.labels.test-label", i), "test")(s); err != nil {
+					return err
+				}
+				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("clusters.%d.annotations.test-annotation", i), "false")(s); err != nil {
+					return err
+				}
+				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("clusters.%d.spec.description", i), "Cluster Description")(s); err != nil {
+					return err
+				}
+				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("clusters.%d.spec.namespace_scoped", i), "false")(s); err != nil {
+					return err
+				}
+				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("clusters.%d.spec.data.size", i), "small")(s); err != nil {
+					return err
+				}
+				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("clusters.%d.spec.data.auto_upgrade_disabled", i), "true")(s); err != nil {
+					return err
+				}
+				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("clusters.%d.spec.data.kustomization", i), `apiVersion: kustomize.config.k8s.io/v1beta1
+images:
+- name: quay.io/akuity/agent
+  newName: test.io/agent
+kind: Kustomization
+`)(s); err != nil {
+					return err
+				}
+				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("clusters.%d.spec.data.app_replication", i), "false")(s); err != nil {
+					return err
+				}
+				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("clusters.%d.spec.data.redis_tunneling", i), "true")(s); err != nil {
+					return err
+				}
+				return nil
+			}
+		}
+		return fmt.Errorf("target cluster %s not found", targetClusterName)
+	}
+}
