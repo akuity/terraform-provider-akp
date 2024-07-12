@@ -19,7 +19,7 @@ resource "akp_instance" "argocd" {
       "instance_spec" = {
         "declarative_management_enabled" = true
       }
-      "version" = "v2.8.4"
+      "version" = "v2.11.4"
     }
   }
 }
@@ -37,7 +37,7 @@ resource "akp_instance" "argocd" {
       "instance_spec" = {
         "declarative_management_enabled" = true
       }
-      "version" = "v2.8.4"
+      "version" = "v2.11.4"
     }
   }
   config_management_plugins = {
@@ -128,8 +128,23 @@ resource "akp_instance" "example" {
             ip        = "1.2.3.4"
           },
         ]
+        crossplane_extension = {
+          resources = [
+            {
+              group = "*.example.crossplane.*",
+            }
+          ]
+        }
+        agent_permissions_rules = [
+          {
+            api_groups = ["batch"]
+            resources  = ["jobs"]
+            verbs      = ["create"]
+          }
+        ]
+        fqdn = "test.example.com"
       }
-      version = "v2.6.4"
+      version = "v2.11.4"
     }
   }
   argocd_cm = {

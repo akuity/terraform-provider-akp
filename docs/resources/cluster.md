@@ -59,7 +59,13 @@ resource "akp_cluster" "example" {
       size                  = "small"
       auto_upgrade_disabled = true
       target_version        = "0.4.0"
-      kustomization         = <<EOF
+      managed_cluster_config = {
+        secret_key  = "secret"
+        secret_name = "secret-name"
+      }
+      eks_addon_enabled           = true
+      datadog_annotations_enabled = true
+      kustomization               = <<EOF
   apiVersion: kustomize.config.k8s.io/v1beta1
   kind: Kustomization
   patches:
