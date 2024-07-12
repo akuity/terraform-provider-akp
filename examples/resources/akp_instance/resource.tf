@@ -29,7 +29,7 @@ resource "akp_instance" "example" {
         crossplane_extension = {
           resources = [
             {
-              group = "*.example.*",
+              group = "*.example.crossplane.*",
             }
           ]
         }
