@@ -1,4 +1,6 @@
 # Visit https://goreleaser.com for documentation on how to customize this
+git:
+  tag_sort: semver
 # behavior.
 before:
   hooks:
