@@ -31,7 +31,7 @@ terraform {
   required_providers {
     akp = {
       source = "akuity/akp"
-      version = "~> 0.6.0"
+      version = "~> 0.7.0"
     }
   }
 }
@@ -72,3 +72,4 @@ See more examples in [here](https://github.com/akuity/terraform-provider-akp/tre
 ## Upgrading
 - [Upgrading to v0.5](./docs/guides/v0.5-upgrading.md)
 - [Upgrading to v0.6](./docs/guides/v0.6-upgrading.md)
+- [Upgrading to v0.7](./docs/guides/v0.7-upgrading.md)
