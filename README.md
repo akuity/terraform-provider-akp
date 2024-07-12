@@ -47,7 +47,7 @@ resource "akp_instance" "argocd" {
          "instance_spec" = {
             "declarative_management_enabled" = true
          }
-         "version" = "v2.8.4"
+         "version" = "v2.11.4"
       }
    }
 }

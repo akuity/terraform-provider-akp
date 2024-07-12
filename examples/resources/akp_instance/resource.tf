@@ -42,7 +42,7 @@ resource "akp_instance" "example" {
         ]
         fqdn = "test.example.com"
       }
-      version = "v2.6.4"
+      version = "v2.11.4"
     }
   }
   argocd_cm = {
