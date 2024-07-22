@@ -20,7 +20,7 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20240528184218-531527333157
 	k8s.io/api v0.30.3
 	k8s.io/apimachinery v0.30.3
-	k8s.io/cli-runtime v0.30.2
+	k8s.io/cli-runtime v0.30.3
 	k8s.io/client-go v0.30.3
 	k8s.io/kubectl v0.30.2
 	sigs.k8s.io/yaml v1.4.0
