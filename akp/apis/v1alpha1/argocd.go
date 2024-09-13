@@ -73,7 +73,7 @@ type InstanceSpec struct {
 	AppsetPolicy                    *AppsetPolicy                  `json:"appsetPolicy,omitempty"`
 	HostAliases                     []*HostAliases                 `json:"hostAliases,omitempty"`
 	AgentPermissionsRules           []*AgentPermissionsRule        `json:"agentPermissionsRules,omitempty"`
-	Fqdn                            string                         `json:"fqdn,omitempty"`
+	Fqdn                            *string                        `json:"fqdn,omitempty"`
 	MultiClusterK8SDashboardEnabled *bool                          `json:"multiClusterK8sDashboardEnabled,omitempty"`
 }
 
