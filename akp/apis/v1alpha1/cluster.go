@@ -31,13 +31,14 @@ type ManagedClusterConfig struct {
 }
 
 type ClusterData struct {
-	Size                      ClusterSize           `json:"size,omitempty"`
-	AutoUpgradeDisabled       *bool                 `json:"autoUpgradeDisabled,omitempty"`
-	Kustomization             runtime.RawExtension  `json:"kustomization,omitempty"`
-	AppReplication            *bool                 `json:"appReplication,omitempty"`
-	TargetVersion             string                `json:"targetVersion,omitempty"`
-	RedisTunneling            *bool                 `json:"redisTunneling,omitempty"`
-	DatadogAnnotationsEnabled *bool                 `json:"datadogAnnotationsEnabled,omitempty"`
-	EksAddonEnabled           *bool                 `json:"eksAddonEnabled,omitempty"`
-	ManagedClusterConfig      *ManagedClusterConfig `json:"managedClusterConfig,omitempty"`
+	Size                            ClusterSize           `json:"size,omitempty"`
+	AutoUpgradeDisabled             *bool                 `json:"autoUpgradeDisabled,omitempty"`
+	Kustomization                   runtime.RawExtension  `json:"kustomization,omitempty"`
+	AppReplication                  *bool                 `json:"appReplication,omitempty"`
+	TargetVersion                   string                `json:"targetVersion,omitempty"`
+	RedisTunneling                  *bool                 `json:"redisTunneling,omitempty"`
+	DatadogAnnotationsEnabled       *bool                 `json:"datadogAnnotationsEnabled,omitempty"`
+	EksAddonEnabled                 *bool                 `json:"eksAddonEnabled,omitempty"`
+	ManagedClusterConfig            *ManagedClusterConfig `json:"managedClusterConfig,omitempty"`
+	MultiClusterK8SDashboardEnabled *bool                 `json:"multiClusterK8sDashboardEnabled,omitempty"`
 }

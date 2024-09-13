@@ -56,24 +56,25 @@ type CrossplaneExtension struct {
 }
 
 type InstanceSpec struct {
-	IpAllowList                  []*IPAllowListEntry            `json:"ipAllowList,omitempty"`
-	Subdomain                    string                         `json:"subdomain,omitempty"`
-	DeclarativeManagementEnabled *bool                          `json:"declarativeManagementEnabled,omitempty"`
-	Extensions                   []*ArgoCDExtensionInstallEntry `json:"extensions,omitempty"`
-	ClusterCustomizationDefaults *ClusterCustomization          `json:"clusterCustomizationDefaults,omitempty"`
-	ImageUpdaterEnabled          *bool                          `json:"imageUpdaterEnabled,omitempty"`
-	BackendIpAllowListEnabled    *bool                          `json:"backendIpAllowListEnabled,omitempty"`
-	RepoServerDelegate           *RepoServerDelegate            `json:"repoServerDelegate,omitempty"`
-	AuditExtensionEnabled        *bool                          `json:"auditExtensionEnabled,omitempty"`
-	SyncHistoryExtensionEnabled  *bool                          `json:"syncHistoryExtensionEnabled,omitempty"`
-	CrossplaneExtension          *CrossplaneExtension           `json:"crossplaneExtension,omitempty"`
-	ImageUpdaterDelegate         *ImageUpdaterDelegate          `json:"imageUpdaterDelegate,omitempty"`
-	AppSetDelegate               *AppSetDelegate                `json:"appSetDelegate,omitempty"`
-	AssistantExtensionEnabled    *bool                          `json:"assistantExtensionEnabled,omitempty"`
-	AppsetPolicy                 *AppsetPolicy                  `json:"appsetPolicy,omitempty"`
-	HostAliases                  []*HostAliases                 `json:"hostAliases,omitempty"`
-	AgentPermissionsRules        []*AgentPermissionsRule        `json:"agentPermissionsRules,omitempty"`
-	Fqdn                         *string                        `json:"fqdn,omitempty"`
+	IpAllowList                     []*IPAllowListEntry            `json:"ipAllowList,omitempty"`
+	Subdomain                       string                         `json:"subdomain,omitempty"`
+	DeclarativeManagementEnabled    *bool                          `json:"declarativeManagementEnabled,omitempty"`
+	Extensions                      []*ArgoCDExtensionInstallEntry `json:"extensions,omitempty"`
+	ClusterCustomizationDefaults    *ClusterCustomization          `json:"clusterCustomizationDefaults,omitempty"`
+	ImageUpdaterEnabled             *bool                          `json:"imageUpdaterEnabled,omitempty"`
+	BackendIpAllowListEnabled       *bool                          `json:"backendIpAllowListEnabled,omitempty"`
+	RepoServerDelegate              *RepoServerDelegate            `json:"repoServerDelegate,omitempty"`
+	AuditExtensionEnabled           *bool                          `json:"auditExtensionEnabled,omitempty"`
+	SyncHistoryExtensionEnabled     *bool                          `json:"syncHistoryExtensionEnabled,omitempty"`
+	CrossplaneExtension             *CrossplaneExtension           `json:"crossplaneExtension,omitempty"`
+	ImageUpdaterDelegate            *ImageUpdaterDelegate          `json:"imageUpdaterDelegate,omitempty"`
+	AppSetDelegate                  *AppSetDelegate                `json:"appSetDelegate,omitempty"`
+	AssistantExtensionEnabled       *bool                          `json:"assistantExtensionEnabled,omitempty"`
+	AppsetPolicy                    *AppsetPolicy                  `json:"appsetPolicy,omitempty"`
+	HostAliases                     []*HostAliases                 `json:"hostAliases,omitempty"`
+	AgentPermissionsRules           []*AgentPermissionsRule        `json:"agentPermissionsRules,omitempty"`
+	Fqdn                            *string                        `json:"fqdn,omitempty"`
+	MultiClusterK8SDashboardEnabled *bool                          `json:"multiClusterK8sDashboardEnabled,omitempty"`
 }
 
 type ManagedCluster struct {
