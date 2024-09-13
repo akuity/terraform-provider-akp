@@ -51,24 +51,25 @@ type CrossplaneExtension struct {
 }
 
 type InstanceSpec struct {
-	IpAllowList                  []*IPAllowListEntry            `tfsdk:"ip_allow_list"`
-	Subdomain                    types.String                   `tfsdk:"subdomain"`
-	DeclarativeManagementEnabled types.Bool                     `tfsdk:"declarative_management_enabled"`
-	Extensions                   []*ArgoCDExtensionInstallEntry `tfsdk:"extensions"`
-	ClusterCustomizationDefaults types.Object                   `tfsdk:"cluster_customization_defaults"`
-	ImageUpdaterEnabled          types.Bool                     `tfsdk:"image_updater_enabled"`
-	BackendIpAllowListEnabled    types.Bool                     `tfsdk:"backend_ip_allow_list_enabled"`
-	RepoServerDelegate           *RepoServerDelegate            `tfsdk:"repo_server_delegate"`
-	AuditExtensionEnabled        types.Bool                     `tfsdk:"audit_extension_enabled"`
-	SyncHistoryExtensionEnabled  types.Bool                     `tfsdk:"sync_history_extension_enabled"`
-	CrossplaneExtension          *CrossplaneExtension           `tfsdk:"crossplane_extension"`
-	ImageUpdaterDelegate         *ImageUpdaterDelegate          `tfsdk:"image_updater_delegate"`
-	AppSetDelegate               *AppSetDelegate                `tfsdk:"app_set_delegate"`
-	AssistantExtensionEnabled    types.Bool                     `tfsdk:"assistant_extension_enabled"`
-	AppsetPolicy                 types.Object                   `tfsdk:"appset_policy"`
-	HostAliases                  []*HostAliases                 `tfsdk:"host_aliases"`
-	AgentPermissionsRules        []*AgentPermissionsRule        `tfsdk:"agent_permissions_rules"`
-	Fqdn                         types.String                   `tfsdk:"fqdn"`
+	IpAllowList                     []*IPAllowListEntry            `tfsdk:"ip_allow_list"`
+	Subdomain                       types.String                   `tfsdk:"subdomain"`
+	DeclarativeManagementEnabled    types.Bool                     `tfsdk:"declarative_management_enabled"`
+	Extensions                      []*ArgoCDExtensionInstallEntry `tfsdk:"extensions"`
+	ClusterCustomizationDefaults    types.Object                   `tfsdk:"cluster_customization_defaults"`
+	ImageUpdaterEnabled             types.Bool                     `tfsdk:"image_updater_enabled"`
+	BackendIpAllowListEnabled       types.Bool                     `tfsdk:"backend_ip_allow_list_enabled"`
+	RepoServerDelegate              *RepoServerDelegate            `tfsdk:"repo_server_delegate"`
+	AuditExtensionEnabled           types.Bool                     `tfsdk:"audit_extension_enabled"`
+	SyncHistoryExtensionEnabled     types.Bool                     `tfsdk:"sync_history_extension_enabled"`
+	CrossplaneExtension             *CrossplaneExtension           `tfsdk:"crossplane_extension"`
+	ImageUpdaterDelegate            *ImageUpdaterDelegate          `tfsdk:"image_updater_delegate"`
+	AppSetDelegate                  *AppSetDelegate                `tfsdk:"app_set_delegate"`
+	AssistantExtensionEnabled       types.Bool                     `tfsdk:"assistant_extension_enabled"`
+	AppsetPolicy                    types.Object                   `tfsdk:"appset_policy"`
+	HostAliases                     []*HostAliases                 `tfsdk:"host_aliases"`
+	AgentPermissionsRules           []*AgentPermissionsRule        `tfsdk:"agent_permissions_rules"`
+	Fqdn                            types.String                   `tfsdk:"fqdn"`
+	MultiClusterK8SDashboardEnabled types.Bool                     `tfsdk:"multi_cluster_k8s_dashboard_enabled"`
 }
 
 type ManagedCluster struct {

@@ -210,6 +210,14 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 			Optional:            true,
 			Attributes:          getManagedClusterConfigAttributes(),
 		},
+		"multi_cluster_k8s_dashboard_enabled": schema.BoolAttribute{
+			MarkdownDescription: "Enable the KubeVision dashboards feature on the managed cluster",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Bool{
+				boolplanmodifier.UseStateForUnknown(),
+			},
+		},
 	}
 }
 

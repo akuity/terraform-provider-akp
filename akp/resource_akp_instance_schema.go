@@ -328,6 +328,14 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 				stringplanmodifier.UseStateForUnknown(),
 			},
 		},
+		"multi_cluster_k8s_dashboard_enabled": schema.BoolAttribute{
+			MarkdownDescription: "Enable the KubeVision dashboards feature on the managed cluster",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Bool{
+				boolplanmodifier.UseStateForUnknown(),
+			},
+		},
 	}
 }
 

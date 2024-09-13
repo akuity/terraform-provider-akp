@@ -225,6 +225,10 @@ func getInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Configures the FQDN for the argocd instance, for ingress URL, domain suffix, etc.",
 			Computed:            true,
 		},
+		"multi_cluster_k8s_dashboard_enabled": schema.BoolAttribute{
+			MarkdownDescription: "Enable the KubeVision dashboards feature on the managed cluster",
+			Computed:            true,
+		},
 	}
 }
 
