@@ -55,6 +55,12 @@ type CrossplaneExtension struct {
 	Resources []*CrossplaneExtensionResource `json:"resources,omitempty"`
 }
 
+type KubeVisionArgoExtension struct {
+	Enabled          *bool    `json:"enabled,omitempty"`
+	AllowedUsernames []string `json:"allowedUsernames,omitempty"`
+	AllowedGroups    []string `json:"allowedGroups,omitempty"`
+}
+
 type InstanceSpec struct {
 	IpAllowList                     []*IPAllowListEntry            `json:"ipAllowList,omitempty"`
 	Subdomain                       string                         `json:"subdomain,omitempty"`
@@ -73,8 +79,10 @@ type InstanceSpec struct {
 	AppsetPolicy                    *AppsetPolicy                  `json:"appsetPolicy,omitempty"`
 	HostAliases                     []*HostAliases                 `json:"hostAliases,omitempty"`
 	AgentPermissionsRules           []*AgentPermissionsRule        `json:"agentPermissionsRules,omitempty"`
-	Fqdn                            *string                        `json:"fqdn,omitempty"`
+	Fqdn                            string                         `json:"fqdn,omitempty"`
 	MultiClusterK8SDashboardEnabled *bool                          `json:"multiClusterK8sDashboardEnabled,omitempty"`
+	KubeVisionArgoExtension         *KubeVisionArgoExtension       `json:"kubeVisionArgoExtension,omitempty"`
+	ImageUpdaterVersion             string                         `json:"imageUpdaterVersion,omitempty"`
 }
 
 type ManagedCluster struct {

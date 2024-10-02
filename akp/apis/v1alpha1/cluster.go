@@ -25,9 +25,31 @@ type ClusterSpec struct {
 	Data            ClusterData `json:"data,omitempty"`
 }
 
+type Resources struct {
+	Mem string `json:"mem,omitempty"`
+	Cpu string `json:"cpu,omitempty"`
+}
+
 type ManagedClusterConfig struct {
 	SecretName string `json:"secretName,omitempty"`
 	SecretKey  string `json:"secretKey,omitempty"`
+}
+
+type AutoScalerConfig struct {
+	ApplicationController *AppControllerAutoScalingConfig `json:"applicationController,omitempty"`
+	RepoServer            *RepoServerAutoScalingConfig    `json:"repoServer,omitempty"`
+}
+
+type AppControllerAutoScalingConfig struct {
+	ResourceMinimum *Resources `json:"resourceMinimum,omitempty"`
+	ResourceMaximum *Resources `json:"resourceMaximum,omitempty"`
+}
+
+type RepoServerAutoScalingConfig struct {
+	ResourceMinimum *Resources `json:"resourceMinimum,omitempty"`
+	ResourceMaximum *Resources `json:"resourceMaximum,omitempty"`
+	ReplicaMaximum  int32      `json:"replicaMaximum,omitempty"`
+	ReplicaMinimum  int32      `json:"replicaMinimum,omitempty"`
 }
 
 type ClusterData struct {
@@ -42,5 +64,6 @@ type ClusterData struct {
 	EksAddonEnabled           *bool                 `json:"eksAddonEnabled,omitempty"`
 	ManagedClusterConfig      *ManagedClusterConfig `json:"managedClusterConfig,omitempty"`
 
-	MultiClusterK8SDashboardEnabled *bool `json:"multiClusterK8sDashboardEnabled,omitempty"`
+	MultiClusterK8SDashboardEnabled *bool             `json:"multiClusterK8sDashboardEnabled,omitempty"`
+	AutoscalerConfig                *AutoScalerConfig `json:"autoscalerConfig,omitempty"`
 }

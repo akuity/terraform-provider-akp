@@ -50,6 +50,12 @@ type CrossplaneExtension struct {
 	Resources []*CrossplaneExtensionResource `tfsdk:"resources"`
 }
 
+type KubeVisionArgoExtension struct {
+	Enabled          types.Bool     `tfsdk:"enabled"`
+	AllowedUsernames []types.String `tfsdk:"allowed_usernames"`
+	AllowedGroups    []types.String `tfsdk:"allowed_groups"`
+}
+
 type InstanceSpec struct {
 	IpAllowList                     []*IPAllowListEntry            `tfsdk:"ip_allow_list"`
 	Subdomain                       types.String                   `tfsdk:"subdomain"`
@@ -70,6 +76,8 @@ type InstanceSpec struct {
 	AgentPermissionsRules           []*AgentPermissionsRule        `tfsdk:"agent_permissions_rules"`
 	Fqdn                            types.String                   `tfsdk:"fqdn"`
 	MultiClusterK8SDashboardEnabled types.Bool                     `tfsdk:"multi_cluster_k8s_dashboard_enabled"`
+	KubeVisionArgoExtension         *KubeVisionArgoExtension       `tfsdk:"kube_vision_argo_extension"`
+	ImageUpdaterVersion             types.String                   `tfsdk:"image_updater_version"`
 }
 
 type ManagedCluster struct {
