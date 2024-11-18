@@ -155,10 +155,18 @@ func (r *AkpInstanceResource) upsert(ctx context.Context, diagnostics *diag.Diag
 }
 
 func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, instance *types.Instance, orgID string) *argocdv1.ApplyInstanceRequest {
+	idType := idv1.Type_NAME
+	id := instance.Name.ValueString()
+
+	if !instance.ID.IsNull() && instance.ID.ValueString() != "" {
+		idType = idv1.Type_ID
+		id = instance.ID.ValueString()
+	}
+
 	applyReq := &argocdv1.ApplyInstanceRequest{
 		OrganizationId:                orgID,
-		IdType:                        idv1.Type_NAME,
-		Id:                            instance.Name.ValueString(),
+		IdType:                        idType,
+		Id:                            id,
 		Argocd:                        buildArgoCD(ctx, diagnostics, instance),
 		ArgocdConfigmap:               buildConfigMap(ctx, diagnostics, instance.ArgoCDConfigMap, "argocd-cm"),
 		ArgocdRbacConfigmap:           buildConfigMap(ctx, diagnostics, instance.ArgoCDRBACConfigMap, "argocd-rbac-cm"),
