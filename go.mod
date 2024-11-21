@@ -1,7 +1,8 @@
 module github.com/akuity/terraform-provider-akp
 
-go 1.22.0
-toolchain go1.22.9
+go 1.22.7
+
+toolchain go1.23.1
 
 require (
 	github.com/akuity/api-client-go v0.18.0
