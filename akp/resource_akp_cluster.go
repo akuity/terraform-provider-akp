@@ -3,9 +3,10 @@ package akp
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -275,6 +276,9 @@ func buildClusterApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics
 func buildClusters(ctx context.Context, diagnostics *diag.Diagnostics, cluster *types.Cluster) []*structpb.Struct {
 	var cs []*structpb.Struct
 	apiCluster := cluster.ToClusterAPIModel(ctx, diagnostics)
+	if diagnostics.HasError() {
+		return nil
+	}
 	s, err := marshal.ApiModelToPBStruct(apiCluster)
 	if err != nil {
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Cluster. %s", err))

@@ -121,6 +121,16 @@ func getClusterDataDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Enable the KubeVision feature on the managed cluster",
 			Computed:            true,
 		},
+		"autoscaler_config": schema.SingleNestedAttribute{
+			MarkdownDescription: "Autoscaler config for auto agent size",
+			Computed:            true,
+			Attributes:          getAutoScalerConfigDataSourceAttributes(),
+		},
+		"custom_agent_size_config": schema.SingleNestedAttribute{
+			MarkdownDescription: "Custom agent size config",
+			Computed:            true,
+			Attributes:          getAutoScalerConfigDataSourceAttributes(),
+		},
 	}
 }
 
@@ -197,6 +207,72 @@ func getManagedClusterConfigDataSourceAttributes() map[string]schema.Attribute {
 		},
 		"secret_key": schema.StringAttribute{
 			Description: "The key in the secret for the managed cluster config",
+			Computed:    true,
+		},
+	}
+}
+
+func getAutoScalerConfigDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"application_controller": schema.SingleNestedAttribute{
+			Description: "Application Controller auto scaling config",
+			Computed:    true,
+			Attributes:  getAppControllerAutoScalingConfigDataSourceAttributes(),
+		},
+		"repo_server": schema.SingleNestedAttribute{
+			Description: "Repo Server auto scaling config",
+			Computed:    true,
+			Attributes:  getRepoServerAutoScalingConfigDataSourceAttributes(),
+		},
+	}
+}
+
+func getAppControllerAutoScalingConfigDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"resource_minimum": schema.SingleNestedAttribute{
+			Description: "Resource minimum",
+			Computed:    true,
+			Attributes:  getResourcesDataSourceAttributes(),
+		},
+		"resource_maximum": schema.SingleNestedAttribute{
+			Description: "Resource maximum",
+			Computed:    true,
+			Attributes:  getResourcesDataSourceAttributes(),
+		},
+	}
+}
+
+func getRepoServerAutoScalingConfigDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"resource_minimum": schema.SingleNestedAttribute{
+			Description: "Resource minimum",
+			Computed:    true,
+			Attributes:  getResourcesDataSourceAttributes(),
+		},
+		"resource_maximum": schema.SingleNestedAttribute{
+			Description: "Resource maximum",
+			Computed:    true,
+			Attributes:  getResourcesDataSourceAttributes(),
+		},
+		"replica_maximum": schema.Int64Attribute{
+			Description: "Replica maximum",
+			Computed:    true,
+		},
+		"replica_minimum": schema.Int64Attribute{
+			Description: "Replica minimum",
+			Computed:    true,
+		},
+	}
+}
+
+func getResourcesDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"mem": schema.StringAttribute{
+			Description: "Memory",
+			Computed:    true,
+		},
+		"cpu": schema.StringAttribute{
+			Description: "CPU",
 			Computed:    true,
 		},
 	}

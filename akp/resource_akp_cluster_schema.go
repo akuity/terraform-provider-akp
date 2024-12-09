@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -218,6 +219,17 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 				boolplanmodifier.UseStateForUnknown(),
 			},
 		},
+		"autoscaler_config": schema.SingleNestedAttribute{
+			MarkdownDescription: "Custom agent size config",
+			Optional:            true,
+			Computed:            true,
+			Attributes:          getAutoScalerConfigAttributes(),
+		},
+		"custom_agent_size_config": schema.SingleNestedAttribute{
+			MarkdownDescription: "Custom agent size config",
+			Optional:            true,
+			Attributes:          getAutoScalerConfigAttributes(),
+		},
 	}
 }
 
@@ -340,6 +352,88 @@ func getManagedClusterConfigAttributes() map[string]schema.Attribute {
 		"secret_key": schema.StringAttribute{
 			Description: "The key in the secret for the managed cluster config",
 			Optional:    true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+	}
+}
+
+func getAutoScalerConfigAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"application_controller": schema.SingleNestedAttribute{
+			Description: "Application Controller auto scaling config",
+			Optional:    true,
+			Attributes:  getAppControllerAutoScalingConfigAttributes(),
+		},
+		"repo_server": schema.SingleNestedAttribute{
+			Description: "Repo Server auto scaling config",
+			Optional:    true,
+			Attributes:  getRepoServerAutoScalingConfigAttributes(),
+		},
+	}
+}
+
+func getAppControllerAutoScalingConfigAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"resource_minimum": schema.SingleNestedAttribute{
+			Description: "Resource minimum",
+			Optional:    true,
+			Attributes:  getResourcesAttributes(),
+		},
+		"resource_maximum": schema.SingleNestedAttribute{
+			Description: "Resource maximum",
+			Optional:    true,
+			Attributes:  getResourcesAttributes(),
+		},
+	}
+}
+
+func getRepoServerAutoScalingConfigAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"resource_minimum": schema.SingleNestedAttribute{
+			Description: "Resource minimum",
+			Optional:    true,
+			Attributes:  getResourcesAttributes(),
+		},
+		"resource_maximum": schema.SingleNestedAttribute{
+			Description: "Resource maximum",
+			Optional:    true,
+			Attributes:  getResourcesAttributes(),
+		},
+		"replica_maximum": schema.Int64Attribute{
+			Description: "Replica maximum",
+			Optional:    true,
+			Computed:    true,
+			PlanModifiers: []planmodifier.Int64{
+				int64planmodifier.UseStateForUnknown(),
+			},
+		},
+		"replica_minimum": schema.Int64Attribute{
+			Description: "Replica minimum",
+			Optional:    true,
+			Computed:    true,
+			PlanModifiers: []planmodifier.Int64{
+				int64planmodifier.UseStateForUnknown(),
+			},
+		},
+	}
+}
+
+func getResourcesAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"cpu": schema.StringAttribute{
+			Description: "CPU",
+			Optional:    true,
+			Computed:    true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"mem": schema.StringAttribute{
+			Description: "Memory",
+			Optional:    true,
+			Computed:    true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
 			},
