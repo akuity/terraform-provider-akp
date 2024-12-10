@@ -22,7 +22,7 @@ func TestAccInstanceDataSource(t *testing.T) {
 
 					// argocd
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.description", "This is used by the terraform provider to test managing clusters."),
-					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.version", "v2.8.0"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.version", "v2.13.1"),
 					// argocd.instance_spec
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.subdomain", "6pzhawvy4echbd8x"),
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.declarative_management_enabled", "false"),
