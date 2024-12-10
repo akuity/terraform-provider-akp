@@ -50,6 +50,28 @@ type CrossplaneExtension struct {
 	Resources []*CrossplaneExtensionResource `tfsdk:"resources"`
 }
 
+type KubeVisionArgoExtension struct {
+	Enabled          types.Bool     `tfsdk:"enabled"`
+	AllowedUsernames []types.String `tfsdk:"allowed_usernames"`
+	AllowedGroups    []types.String `tfsdk:"allowed_groups"`
+}
+
+type KubeVisionConfig struct {
+	CveScanConfig *CveScanConfig `tfsdk:"cve_scan_config"`
+}
+
+type CustomDeprecatedAPI struct {
+	ApiVersion                     types.String `tfsdk:"api_version"`
+	NewApiVersion                  types.String `tfsdk:"new_api_version"`
+	DeprecatedInKubernetesVersion  types.String `tfsdk:"deprecated_in_kubernetes_version"`
+	UnavailableInKubernetesVersion types.String `tfsdk:"unavailable_in_kubernetes_version"`
+}
+
+type CveScanConfig struct {
+	ScanEnabled    types.Bool   `tfsdk:"scan_enabled"`
+	RescanInterval types.String `tfsdk:"rescan_interval"`
+}
+
 type InstanceSpec struct {
 	IpAllowList                     []*IPAllowListEntry            `tfsdk:"ip_allow_list"`
 	Subdomain                       types.String                   `tfsdk:"subdomain"`
@@ -70,6 +92,10 @@ type InstanceSpec struct {
 	AgentPermissionsRules           []*AgentPermissionsRule        `tfsdk:"agent_permissions_rules"`
 	Fqdn                            types.String                   `tfsdk:"fqdn"`
 	MultiClusterK8SDashboardEnabled types.Bool                     `tfsdk:"multi_cluster_k8s_dashboard_enabled"`
+	KubeVisionArgoExtension         *KubeVisionArgoExtension       `tfsdk:"kube_vision_argo_extension"`
+	ImageUpdaterVersion             types.String                   `tfsdk:"image_updater_version"`
+	CustomDeprecatedApis            []*CustomDeprecatedAPI         `tfsdk:"custom_deprecated_apis"`
+	KubeVisionConfig                *KubeVisionConfig              `tfsdk:"kube_vision_config"`
 }
 
 type ManagedCluster struct {
