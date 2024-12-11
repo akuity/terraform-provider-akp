@@ -195,14 +195,11 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 		if extractedCustomConfig != nil {
 			if plan != nil && plan.Spec != nil && plan.Spec.Data.CustomAgentSizeConfig != nil {
 				if areConfigsEquivalent(ctx, plan.Spec.Data.CustomAgentSizeConfig, extractedCustomConfig) {
-					tflog.Info(ctx, fmt.Sprintf("hanxiaop: custom config is equivalent, using plan custom config"))
 					customConfig = plan.Spec.Data.CustomAgentSizeConfig
 				} else {
-					tflog.Info(ctx, fmt.Sprintf("hanxiaop: custom config is not equivalent, but compared, using new custom config"))
 					customConfig = extractedCustomConfig
 				}
 			} else {
-				tflog.Info(ctx, fmt.Sprintf("hanxiaop: custom config is not equivalent, using new custom config"))
 				customConfig = extractedCustomConfig
 			}
 
@@ -227,8 +224,6 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 		newAPIConfig := apiCluster.GetData().GetAutoscalerConfig()
 		if !plan.Spec.Data.AutoscalerConfig.IsNull() && !plan.Spec.Data.AutoscalerConfig.IsUnknown() && newAPIConfig != nil &&
 			newAPIConfig.RepoServer != nil && newAPIConfig.ApplicationController != nil {
-			tflog.Info(ctx, fmt.Sprintf("hanxiaop: autoscaler config is not null or unknown"))
-			tflog.Info(ctx, fmt.Sprintf("hanxiaop: plan autoscaler config: %v", plan.Spec.Data.AutoscalerConfig))
 			autoscalerConfig = plan.Spec.Data.AutoscalerConfig
 			newConfig := &AutoScalerConfig{
 				ApplicationController: &AppControllerAutoScalingConfig{
@@ -255,20 +250,14 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 				},
 			}
 			if areConfigsEquivalent(ctx, extractConfigFromObjectValue(plan.Spec.Data.AutoscalerConfig), newConfig) {
-				tflog.Info(ctx, fmt.Sprintf("hanxiaop: autoscaler config is equivalent, using plan autoscaler config"))
 				autoscalerConfig = plan.Spec.Data.AutoscalerConfig
 			} else {
-				tflog.Info(ctx, fmt.Sprintf("hanxiaop: autoscaler config is not equivalent, but compared, using new autoscaler config"))
 				autoscalerConfig = toAutoScalerConfigTFModel(newAPIConfig)
 			}
 		} else {
-			tflog.Info(ctx, fmt.Sprintf("hanxiaop: plan autoscaler config is null or unknown"))
-			tflog.Info(ctx, fmt.Sprintf("hanxiaop: autoscaler config is not equivalent, using new autoscaler config"))
 			autoscalerConfig = toAutoScalerConfigTFModel(newAPIConfig)
 		}
 	} else {
-		tflog.Info(ctx, fmt.Sprintf("hanxiaop: plan is nil"))
-		tflog.Info(ctx, fmt.Sprintf("hanxiaop: autoscaler config is not equivalent, using new autoscaler config"))
 		autoscalerConfig = toAutoScalerConfigTFModel(apiCluster.GetData().GetAutoscalerConfig())
 	}
 
@@ -1450,7 +1439,6 @@ func areConfigsEquivalent(ctx context.Context, config1, config2 *AutoScalerConfi
 }
 
 func areResourcesEquivalent(ctx context.Context, old, new string) bool {
-	tflog.Info(ctx, fmt.Sprintf("hanxiaop: compare resources %s %s", old, new))
 	oldQ, err1 := resource.ParseQuantity(old)
 	newQ, err2 := resource.ParseQuantity(new)
 	if err1 != nil || err2 != nil {
