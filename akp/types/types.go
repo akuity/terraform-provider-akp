@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"google.golang.org/protobuf/types/known/structpb"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
