@@ -219,7 +219,7 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 				boolplanmodifier.UseStateForUnknown(),
 			},
 		},
-		"autoscaler_config": schema.SingleNestedAttribute{
+		"auto_agent_size_config": schema.SingleNestedAttribute{
 			MarkdownDescription: "Autoscaler config for auto agent size",
 			Optional:            true,
 			Computed:            true,

@@ -121,7 +121,7 @@ func getClusterDataDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Enable the KubeVision feature on the managed cluster",
 			Computed:            true,
 		},
-		"autoscaler_config": schema.SingleNestedAttribute{
+		"auto_agent_size_config": schema.SingleNestedAttribute{
 			MarkdownDescription: "Autoscaler config for auto agent size",
 			Computed:            true,
 			Attributes:          getAutoScalerConfigDataSourceAttributes(),

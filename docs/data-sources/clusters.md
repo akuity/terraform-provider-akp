@@ -88,8 +88,8 @@ Read-Only:
 Read-Only:
 
 - `app_replication` (Boolean) Enables Argo CD state replication to the managed cluster that allows disconnecting the cluster from Akuity Platform without losing core Argocd features
+- `auto_agent_size_config` (Attributes) Autoscaler config for auto agent size (see [below for nested schema](#nestedatt--clusters--spec--data--auto_agent_size_config))
 - `auto_upgrade_disabled` (Boolean) Disables agents auto upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
-- `autoscaler_config` (Attributes) Autoscaler config for auto agent size (see [below for nested schema](#nestedatt--clusters--spec--data--autoscaler_config))
 - `custom_agent_size_config` (Attributes) Custom agent size config (see [below for nested schema](#nestedatt--clusters--spec--data--custom_agent_size_config))
 - `datadog_annotations_enabled` (Boolean) Enable Datadog metrics collection of Application Controller and Repo Server. Make sure that you install Datadog agent in cluster.
 - `eks_addon_enabled` (Boolean) Enable this if you are installing this cluster on EKS.
@@ -100,33 +100,24 @@ Read-Only:
 - `size` (String) Cluster Size. One of `small`, `medium` or `large`
 - `target_version` (String) The version of the agent to install on your cluster
 
-<a id="nestedatt--clusters--spec--data--autoscaler_config"></a>
-### Nested Schema for `clusters.spec.data.autoscaler_config`
+<a id="nestedatt--clusters--spec--data--auto_agent_size_config"></a>
+### Nested Schema for `clusters.spec.data.auto_agent_size_config`
 
 Read-Only:
 
-- `application_controller` (Attributes) Application Controller auto scaling config (see [below for nested schema](#nestedatt--clusters--spec--data--autoscaler_config--application_controller))
-- `repo_server` (Attributes) Repo Server auto scaling config (see [below for nested schema](#nestedatt--clusters--spec--data--autoscaler_config--repo_server))
+- `application_controller` (Attributes) Application Controller auto scaling config (see [below for nested schema](#nestedatt--clusters--spec--data--auto_agent_size_config--application_controller))
+- `repo_server` (Attributes) Repo Server auto scaling config (see [below for nested schema](#nestedatt--clusters--spec--data--auto_agent_size_config--repo_server))
 
-<a id="nestedatt--clusters--spec--data--autoscaler_config--application_controller"></a>
-### Nested Schema for `clusters.spec.data.autoscaler_config.application_controller`
-
-Read-Only:
-
-- `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--clusters--spec--data--autoscaler_config--application_controller--resource_maximum))
-- `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--clusters--spec--data--autoscaler_config--application_controller--resource_minimum))
-
-<a id="nestedatt--clusters--spec--data--autoscaler_config--application_controller--resource_maximum"></a>
-### Nested Schema for `clusters.spec.data.autoscaler_config.application_controller.resource_maximum`
+<a id="nestedatt--clusters--spec--data--auto_agent_size_config--application_controller"></a>
+### Nested Schema for `clusters.spec.data.auto_agent_size_config.application_controller`
 
 Read-Only:
 
-- `cpu` (String) CPU
-- `mem` (String) Memory
+- `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--clusters--spec--data--auto_agent_size_config--application_controller--resource_maximum))
+- `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--clusters--spec--data--auto_agent_size_config--application_controller--resource_minimum))
 
-
-<a id="nestedatt--clusters--spec--data--autoscaler_config--application_controller--resource_minimum"></a>
-### Nested Schema for `clusters.spec.data.autoscaler_config.application_controller.resource_minimum`
+<a id="nestedatt--clusters--spec--data--auto_agent_size_config--application_controller--resource_maximum"></a>
+### Nested Schema for `clusters.spec.data.auto_agent_size_config.application_controller.resource_maximum`
 
 Read-Only:
 
@@ -134,19 +125,28 @@ Read-Only:
 - `mem` (String) Memory
 
 
+<a id="nestedatt--clusters--spec--data--auto_agent_size_config--application_controller--resource_minimum"></a>
+### Nested Schema for `clusters.spec.data.auto_agent_size_config.application_controller.resource_minimum`
 
-<a id="nestedatt--clusters--spec--data--autoscaler_config--repo_server"></a>
-### Nested Schema for `clusters.spec.data.autoscaler_config.repo_server`
+Read-Only:
+
+- `cpu` (String) CPU
+- `mem` (String) Memory
+
+
+
+<a id="nestedatt--clusters--spec--data--auto_agent_size_config--repo_server"></a>
+### Nested Schema for `clusters.spec.data.auto_agent_size_config.repo_server`
 
 Read-Only:
 
 - `replica_maximum` (Number) Replica maximum
 - `replica_minimum` (Number) Replica minimum
-- `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--clusters--spec--data--autoscaler_config--repo_server--resource_maximum))
-- `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--clusters--spec--data--autoscaler_config--repo_server--resource_minimum))
+- `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--clusters--spec--data--auto_agent_size_config--repo_server--resource_maximum))
+- `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--clusters--spec--data--auto_agent_size_config--repo_server--resource_minimum))
 
-<a id="nestedatt--clusters--spec--data--autoscaler_config--repo_server--resource_maximum"></a>
-### Nested Schema for `clusters.spec.data.autoscaler_config.repo_server.resource_maximum`
+<a id="nestedatt--clusters--spec--data--auto_agent_size_config--repo_server--resource_maximum"></a>
+### Nested Schema for `clusters.spec.data.auto_agent_size_config.repo_server.resource_maximum`
 
 Read-Only:
 
@@ -154,8 +154,8 @@ Read-Only:
 - `mem` (String) Memory
 
 
-<a id="nestedatt--clusters--spec--data--autoscaler_config--repo_server--resource_minimum"></a>
-### Nested Schema for `clusters.spec.data.autoscaler_config.repo_server.resource_minimum`
+<a id="nestedatt--clusters--spec--data--auto_agent_size_config--repo_server--resource_minimum"></a>
+### Nested Schema for `clusters.spec.data.auto_agent_size_config.repo_server.resource_minimum`
 
 Read-Only:
 

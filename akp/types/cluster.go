@@ -72,6 +72,6 @@ type ClusterData struct {
 	EksAddonEnabled                 types.Bool            `tfsdk:"eks_addon_enabled"`
 	ManagedClusterConfig            *ManagedClusterConfig `tfsdk:"managed_cluster_config"`
 	MultiClusterK8SDashboardEnabled types.Bool            `tfsdk:"multi_cluster_k8s_dashboard_enabled"`
-	AutoscalerConfig                basetypes.ObjectValue `tfsdk:"autoscaler_config"`
+	AutoscalerConfig                basetypes.ObjectValue `tfsdk:"auto_agent_size_config"`
 	CustomAgentSizeConfig           *AutoScalerConfig     `tfsdk:"custom_agent_size_config"`
 }

@@ -11,8 +11,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"google.golang.org/protobuf/types/known/structpb"
 	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kustomizetypes "sigs.k8s.io/kustomize/api/types"
@@ -142,7 +144,7 @@ func (a *ArgoCD) ToArgoCDAPIModel(ctx context.Context, diag *diag.Diagnostics, n
 	}
 }
 
-func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, apiCluster *argocdv1.Cluster) {
+func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, apiCluster *argocdv1.Cluster, plan *Cluster) {
 	c.ID = tftypes.StringValue(apiCluster.GetId())
 	c.Name = tftypes.StringValue(apiCluster.GetName())
 	c.Namespace = tftypes.StringValue(apiCluster.GetNamespace())
@@ -184,12 +186,26 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 			kustomization = old
 		}
 	}
+
 	var existingConfig kustomizetypes.Kustomization
 	size := tftypes.StringValue(ClusterSizeString[apiCluster.GetData().GetSize()])
 	var customConfig *AutoScalerConfig
 	if err := yaml.Unmarshal(yamlData, &existingConfig); err == nil {
-		customConfig = extractCustomSizeConfig(existingConfig)
-		if customConfig != nil {
+		extractedCustomConfig := extractCustomSizeConfig(existingConfig)
+		if extractedCustomConfig != nil {
+			if plan != nil && plan.Spec != nil && plan.Spec.Data.CustomAgentSizeConfig != nil {
+				if areConfigsEquivalent(ctx, plan.Spec.Data.CustomAgentSizeConfig, extractedCustomConfig) {
+					tflog.Info(ctx, fmt.Sprintf("hanxiaop: custom config is equivalent, using plan custom config"))
+					customConfig = plan.Spec.Data.CustomAgentSizeConfig
+				} else {
+					tflog.Info(ctx, fmt.Sprintf("hanxiaop: custom config is not equivalent, but compared, using new custom config"))
+					customConfig = extractedCustomConfig
+				}
+			} else {
+				tflog.Info(ctx, fmt.Sprintf("hanxiaop: custom config is not equivalent, using new custom config"))
+				customConfig = extractedCustomConfig
+			}
+
 			existingConfig.Patches = filterNonSizePatchesKustomize(existingConfig.Patches)
 			existingConfig.Replicas = filterNonRepoServerReplicasKustomize(existingConfig.Replicas)
 
@@ -205,6 +221,57 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 
 	c.Labels = labels
 	c.Annotations = annotations
+
+	var autoscalerConfig basetypes.ObjectValue
+	if c.Spec != nil && plan != nil {
+		newAPIConfig := apiCluster.GetData().GetAutoscalerConfig()
+		if !plan.Spec.Data.AutoscalerConfig.IsNull() && !plan.Spec.Data.AutoscalerConfig.IsUnknown() && newAPIConfig != nil &&
+			newAPIConfig.RepoServer != nil && newAPIConfig.ApplicationController != nil {
+			tflog.Info(ctx, fmt.Sprintf("hanxiaop: autoscaler config is not null or unknown"))
+			tflog.Info(ctx, fmt.Sprintf("hanxiaop: plan autoscaler config: %v", plan.Spec.Data.AutoscalerConfig))
+			autoscalerConfig = plan.Spec.Data.AutoscalerConfig
+			newConfig := &AutoScalerConfig{
+				ApplicationController: &AppControllerAutoScalingConfig{
+					ResourceMinimum: &Resources{
+						Mem: tftypes.StringValue(newAPIConfig.ApplicationController.ResourceMinimum.Mem),
+						Cpu: tftypes.StringValue(newAPIConfig.ApplicationController.ResourceMinimum.Cpu),
+					},
+					ResourceMaximum: &Resources{
+						Mem: tftypes.StringValue(newAPIConfig.ApplicationController.ResourceMaximum.Mem),
+						Cpu: tftypes.StringValue(newAPIConfig.ApplicationController.ResourceMaximum.Cpu),
+					},
+				},
+				RepoServer: &RepoServerAutoScalingConfig{
+					ResourceMinimum: &Resources{
+						Mem: tftypes.StringValue(newAPIConfig.RepoServer.ResourceMinimum.Mem),
+						Cpu: tftypes.StringValue(newAPIConfig.RepoServer.ResourceMinimum.Cpu),
+					},
+					ResourceMaximum: &Resources{
+						Mem: tftypes.StringValue(newAPIConfig.RepoServer.ResourceMaximum.Mem),
+						Cpu: tftypes.StringValue(newAPIConfig.RepoServer.ResourceMaximum.Cpu),
+					},
+					ReplicaMaximum: tftypes.Int64Value(int64(newAPIConfig.RepoServer.ReplicaMaximum)),
+					ReplicaMinimum: tftypes.Int64Value(int64(newAPIConfig.RepoServer.ReplicaMinimum)),
+				},
+			}
+			if areConfigsEquivalent(ctx, extractConfigFromObjectValue(plan.Spec.Data.AutoscalerConfig), newConfig) {
+				tflog.Info(ctx, fmt.Sprintf("hanxiaop: autoscaler config is equivalent, using plan autoscaler config"))
+				autoscalerConfig = plan.Spec.Data.AutoscalerConfig
+			} else {
+				tflog.Info(ctx, fmt.Sprintf("hanxiaop: autoscaler config is not equivalent, but compared, using new autoscaler config"))
+				autoscalerConfig = toAutoScalerConfigTFModel(newAPIConfig)
+			}
+		} else {
+			tflog.Info(ctx, fmt.Sprintf("hanxiaop: plan autoscaler config is null or unknown"))
+			tflog.Info(ctx, fmt.Sprintf("hanxiaop: autoscaler config is not equivalent, using new autoscaler config"))
+			autoscalerConfig = toAutoScalerConfigTFModel(newAPIConfig)
+		}
+	} else {
+		tflog.Info(ctx, fmt.Sprintf("hanxiaop: plan is nil"))
+		tflog.Info(ctx, fmt.Sprintf("hanxiaop: autoscaler config is not equivalent, using new autoscaler config"))
+		autoscalerConfig = toAutoScalerConfigTFModel(apiCluster.GetData().GetAutoscalerConfig())
+	}
+
 	c.Spec = &ClusterSpec{
 		Description:     tftypes.StringValue(apiCluster.GetDescription()),
 		NamespaceScoped: tftypes.BoolValue(apiCluster.GetNamespaceScoped()),
@@ -219,7 +286,7 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 			EksAddonEnabled:                 tftypes.BoolValue(apiCluster.GetData().GetEksAddonEnabled()),
 			ManagedClusterConfig:            toManagedClusterConfigTFModel(apiCluster.GetData().GetManagedClusterConfig()),
 			MultiClusterK8SDashboardEnabled: tftypes.BoolValue(apiCluster.GetData().GetMultiClusterK8SDashboardEnabled()),
-			AutoscalerConfig:                toAutoScalerConfigTFModel(apiCluster.GetData().GetAutoscalerConfig()),
+			AutoscalerConfig:                autoscalerConfig,
 			CustomAgentSizeConfig:           customConfig,
 		},
 	}
@@ -1334,4 +1401,98 @@ func extractCustomSizeConfig(existingConfig kustomizetypes.Kustomization) *AutoS
 		ApplicationController: appController,
 		RepoServer:            repoServer,
 	}
+}
+
+func areConfigsEquivalent(ctx context.Context, config1, config2 *AutoScalerConfig) bool {
+	if config1 == nil || config2 == nil {
+		return config1 == config2
+	}
+	if config1.ApplicationController != nil && config2.ApplicationController != nil {
+		if !areResourcesEquivalent(ctx,
+			config1.ApplicationController.ResourceMinimum.Cpu.ValueString(),
+			config2.ApplicationController.ResourceMinimum.Cpu.ValueString(),
+		) || !areResourcesEquivalent(ctx,
+			config1.ApplicationController.ResourceMinimum.Mem.ValueString(),
+			config2.ApplicationController.ResourceMinimum.Mem.ValueString(),
+		) || !areResourcesEquivalent(ctx,
+			config1.ApplicationController.ResourceMaximum.Cpu.ValueString(),
+			config2.ApplicationController.ResourceMaximum.Cpu.ValueString(),
+		) || !areResourcesEquivalent(ctx,
+			config1.ApplicationController.ResourceMaximum.Mem.ValueString(),
+			config2.ApplicationController.ResourceMaximum.Mem.ValueString(),
+		) {
+			return false
+		}
+	} else if config1.ApplicationController != nil || config2.ApplicationController != nil {
+		return false
+	}
+	if config1.RepoServer != nil && config2.RepoServer != nil {
+		if !areResourcesEquivalent(ctx,
+			config1.RepoServer.ResourceMinimum.Cpu.ValueString(),
+			config2.RepoServer.ResourceMinimum.Cpu.ValueString(),
+		) || !areResourcesEquivalent(ctx,
+			config1.RepoServer.ResourceMinimum.Mem.ValueString(),
+			config2.RepoServer.ResourceMinimum.Mem.ValueString(),
+		) || !areResourcesEquivalent(ctx,
+			config1.RepoServer.ResourceMaximum.Cpu.ValueString(),
+			config2.RepoServer.ResourceMaximum.Cpu.ValueString(),
+		) || !areResourcesEquivalent(ctx,
+			config1.RepoServer.ResourceMaximum.Mem.ValueString(),
+			config2.RepoServer.ResourceMaximum.Mem.ValueString(),
+		) || config1.RepoServer.ReplicaMaximum != config2.RepoServer.ReplicaMaximum ||
+			config1.RepoServer.ReplicaMinimum != config2.RepoServer.ReplicaMinimum {
+			return false
+		}
+	} else if config1.RepoServer != nil || config2.RepoServer != nil {
+		return false
+	}
+	return true
+}
+
+func areResourcesEquivalent(ctx context.Context, old, new string) bool {
+	tflog.Info(ctx, fmt.Sprintf("hanxiaop: compare resources %s %s", old, new))
+	oldQ, err1 := resource.ParseQuantity(old)
+	newQ, err2 := resource.ParseQuantity(new)
+	if err1 != nil || err2 != nil {
+		return old == new
+	}
+	return oldQ.Equal(newQ)
+}
+
+func extractConfigFromObjectValue(obj basetypes.ObjectValue) *AutoScalerConfig {
+	if obj.IsNull() || obj.IsUnknown() {
+		return nil
+	}
+
+	attrs := obj.Attributes()
+	config := &AutoScalerConfig{}
+	if appCtrl, ok := attrs["application_controller"].(basetypes.ObjectValue); ok {
+		appCtrlAttrs := appCtrl.Attributes()
+		config.ApplicationController = &AppControllerAutoScalingConfig{
+			ResourceMinimum: &Resources{
+				Cpu: appCtrlAttrs["resource_minimum"].(basetypes.ObjectValue).Attributes()["cpu"].(basetypes.StringValue),
+				Mem: appCtrlAttrs["resource_minimum"].(basetypes.ObjectValue).Attributes()["mem"].(basetypes.StringValue),
+			},
+			ResourceMaximum: &Resources{
+				Cpu: appCtrlAttrs["resource_maximum"].(basetypes.ObjectValue).Attributes()["cpu"].(basetypes.StringValue),
+				Mem: appCtrlAttrs["resource_maximum"].(basetypes.ObjectValue).Attributes()["mem"].(basetypes.StringValue),
+			},
+		}
+	}
+	if repoServer, ok := attrs["repo_server"].(basetypes.ObjectValue); ok {
+		repoServerAttrs := repoServer.Attributes()
+		config.RepoServer = &RepoServerAutoScalingConfig{
+			ResourceMinimum: &Resources{
+				Cpu: repoServerAttrs["resource_minimum"].(basetypes.ObjectValue).Attributes()["cpu"].(basetypes.StringValue),
+				Mem: repoServerAttrs["resource_minimum"].(basetypes.ObjectValue).Attributes()["mem"].(basetypes.StringValue),
+			},
+			ResourceMaximum: &Resources{
+				Cpu: repoServerAttrs["resource_maximum"].(basetypes.ObjectValue).Attributes()["cpu"].(basetypes.StringValue),
+				Mem: repoServerAttrs["resource_maximum"].(basetypes.ObjectValue).Attributes()["mem"].(basetypes.StringValue),
+			},
+			ReplicaMaximum: repoServerAttrs["replica_maximum"].(basetypes.Int64Value),
+			ReplicaMinimum: repoServerAttrs["replica_minimum"].(basetypes.Int64Value),
+		}
+	}
+	return config
 }
