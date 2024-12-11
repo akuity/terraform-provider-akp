@@ -153,7 +153,7 @@ Optional:
 
 - `app_replication` (Boolean) Enables Argo CD state replication to the managed cluster that allows disconnecting the cluster from Akuity Platform without losing core Argocd features
 - `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
-- `autoscaler_config` (Attributes) Custom agent size config (see [below for nested schema](#nestedatt--spec--data--autoscaler_config))
+- `autoscaler_config` (Attributes) Autoscaler config for auto agent size (see [below for nested schema](#nestedatt--spec--data--autoscaler_config))
 - `custom_agent_size_config` (Attributes) Custom agent size config (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config))
 - `datadog_annotations_enabled` (Boolean) Enable Datadog metrics collection of Application Controller and Repo Server. Make sure that you install Datadog agent in cluster.
 - `eks_addon_enabled` (Boolean) Enable this if you are installing this cluster on EKS.
@@ -204,7 +204,7 @@ Optional:
 Optional:
 
 - `replica_maximum` (Number) Replica maximum
-- `replica_minimum` (Number) Replica minimum
+- `replica_minimum` (Number) Replica minimum, this should be set to 1 as a minimum
 - `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--spec--data--autoscaler_config--repo_server--resource_maximum))
 - `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--spec--data--autoscaler_config--repo_server--resource_minimum))
 
@@ -269,7 +269,7 @@ Optional:
 Optional:
 
 - `replica_maximum` (Number) Replica maximum
-- `replica_minimum` (Number) Replica minimum
+- `replica_minimum` (Number) Replica minimum, this should be set to 1 as a minimum
 - `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config--repo_server--resource_maximum))
 - `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config--repo_server--resource_minimum))
 

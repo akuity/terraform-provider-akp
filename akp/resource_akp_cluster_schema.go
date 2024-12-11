@@ -220,7 +220,7 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 			},
 		},
 		"autoscaler_config": schema.SingleNestedAttribute{
-			MarkdownDescription: "Custom agent size config",
+			MarkdownDescription: "Autoscaler config for auto agent size",
 			Optional:            true,
 			Computed:            true,
 			Attributes:          getAutoScalerConfigAttributes(),
@@ -410,7 +410,7 @@ func getRepoServerAutoScalingConfigAttributes() map[string]schema.Attribute {
 			},
 		},
 		"replica_minimum": schema.Int64Attribute{
-			Description: "Replica minimum",
+			Description: "Replica minimum, this should be set to 1 as a minimum",
 			Optional:    true,
 			Computed:    true,
 			PlanModifiers: []planmodifier.Int64{
