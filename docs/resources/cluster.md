@@ -153,6 +153,8 @@ Optional:
 
 - `app_replication` (Boolean) Enables Argo CD state replication to the managed cluster that allows disconnecting the cluster from Akuity Platform without losing core Argocd features
 - `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
+- `autoscaler_config` (Attributes) Custom agent size config (see [below for nested schema](#nestedatt--spec--data--autoscaler_config))
+- `custom_agent_size_config` (Attributes) Custom agent size config (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config))
 - `datadog_annotations_enabled` (Boolean) Enable Datadog metrics collection of Application Controller and Repo Server. Make sure that you install Datadog agent in cluster.
 - `eks_addon_enabled` (Boolean) Enable this if you are installing this cluster on EKS.
 - `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
@@ -160,6 +162,136 @@ Optional:
 - `multi_cluster_k8s_dashboard_enabled` (Boolean) Enable the KubeVision feature on the managed cluster
 - `redis_tunneling` (Boolean) Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy
 - `target_version` (String) The version of the agent to install on your cluster
+
+<a id="nestedatt--spec--data--autoscaler_config"></a>
+### Nested Schema for `spec.data.autoscaler_config`
+
+Optional:
+
+- `application_controller` (Attributes) Application Controller auto scaling config (see [below for nested schema](#nestedatt--spec--data--autoscaler_config--application_controller))
+- `repo_server` (Attributes) Repo Server auto scaling config (see [below for nested schema](#nestedatt--spec--data--autoscaler_config--repo_server))
+
+<a id="nestedatt--spec--data--autoscaler_config--application_controller"></a>
+### Nested Schema for `spec.data.autoscaler_config.application_controller`
+
+Optional:
+
+- `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--spec--data--autoscaler_config--application_controller--resource_maximum))
+- `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--spec--data--autoscaler_config--application_controller--resource_minimum))
+
+<a id="nestedatt--spec--data--autoscaler_config--application_controller--resource_maximum"></a>
+### Nested Schema for `spec.data.autoscaler_config.application_controller.resource_maximum`
+
+Optional:
+
+- `cpu` (String) CPU
+- `mem` (String) Memory
+
+
+<a id="nestedatt--spec--data--autoscaler_config--application_controller--resource_minimum"></a>
+### Nested Schema for `spec.data.autoscaler_config.application_controller.resource_minimum`
+
+Optional:
+
+- `cpu` (String) CPU
+- `mem` (String) Memory
+
+
+
+<a id="nestedatt--spec--data--autoscaler_config--repo_server"></a>
+### Nested Schema for `spec.data.autoscaler_config.repo_server`
+
+Optional:
+
+- `replica_maximum` (Number) Replica maximum
+- `replica_minimum` (Number) Replica minimum
+- `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--spec--data--autoscaler_config--repo_server--resource_maximum))
+- `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--spec--data--autoscaler_config--repo_server--resource_minimum))
+
+<a id="nestedatt--spec--data--autoscaler_config--repo_server--resource_maximum"></a>
+### Nested Schema for `spec.data.autoscaler_config.repo_server.resource_maximum`
+
+Optional:
+
+- `cpu` (String) CPU
+- `mem` (String) Memory
+
+
+<a id="nestedatt--spec--data--autoscaler_config--repo_server--resource_minimum"></a>
+### Nested Schema for `spec.data.autoscaler_config.repo_server.resource_minimum`
+
+Optional:
+
+- `cpu` (String) CPU
+- `mem` (String) Memory
+
+
+
+
+<a id="nestedatt--spec--data--custom_agent_size_config"></a>
+### Nested Schema for `spec.data.custom_agent_size_config`
+
+Optional:
+
+- `application_controller` (Attributes) Application Controller auto scaling config (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config--application_controller))
+- `repo_server` (Attributes) Repo Server auto scaling config (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config--repo_server))
+
+<a id="nestedatt--spec--data--custom_agent_size_config--application_controller"></a>
+### Nested Schema for `spec.data.custom_agent_size_config.application_controller`
+
+Optional:
+
+- `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config--application_controller--resource_maximum))
+- `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config--application_controller--resource_minimum))
+
+<a id="nestedatt--spec--data--custom_agent_size_config--application_controller--resource_maximum"></a>
+### Nested Schema for `spec.data.custom_agent_size_config.application_controller.resource_maximum`
+
+Optional:
+
+- `cpu` (String) CPU
+- `mem` (String) Memory
+
+
+<a id="nestedatt--spec--data--custom_agent_size_config--application_controller--resource_minimum"></a>
+### Nested Schema for `spec.data.custom_agent_size_config.application_controller.resource_minimum`
+
+Optional:
+
+- `cpu` (String) CPU
+- `mem` (String) Memory
+
+
+
+<a id="nestedatt--spec--data--custom_agent_size_config--repo_server"></a>
+### Nested Schema for `spec.data.custom_agent_size_config.repo_server`
+
+Optional:
+
+- `replica_maximum` (Number) Replica maximum
+- `replica_minimum` (Number) Replica minimum
+- `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config--repo_server--resource_maximum))
+- `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config--repo_server--resource_minimum))
+
+<a id="nestedatt--spec--data--custom_agent_size_config--repo_server--resource_maximum"></a>
+### Nested Schema for `spec.data.custom_agent_size_config.repo_server.resource_maximum`
+
+Optional:
+
+- `cpu` (String) CPU
+- `mem` (String) Memory
+
+
+<a id="nestedatt--spec--data--custom_agent_size_config--repo_server--resource_minimum"></a>
+### Nested Schema for `spec.data.custom_agent_size_config.repo_server.resource_minimum`
+
+Optional:
+
+- `cpu` (String) CPU
+- `mem` (String) Memory
+
+
+
 
 <a id="nestedatt--spec--data--managed_cluster_config"></a>
 ### Nested Schema for `spec.data.managed_cluster_config`

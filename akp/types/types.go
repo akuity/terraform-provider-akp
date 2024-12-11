@@ -225,23 +225,6 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 	}
 }
 
-func (c *AutoScalerConfig) String() string {
-	return fmt.Sprintf("AppController: %v, RepoServer: %v", c.ApplicationController, c.RepoServer)
-}
-
-func (c *AppControllerAutoScalingConfig) String() string {
-	return fmt.Sprintf("ResourceMax: %v, ResourceMin: %v", c.ResourceMaximum, c.ResourceMinimum)
-}
-
-func (c *RepoServerAutoScalingConfig) String() string {
-	return fmt.Sprintf("ResourceMax: %v, ResourceMin: %v, ReplicaMax: %v, ReplicaMin: %v",
-		c.ResourceMaximum, c.ResourceMinimum, c.ReplicaMaximum, c.ReplicaMinimum)
-}
-
-func (r *Resources) String() string {
-	return fmt.Sprintf("Mem: %s, CPU: %s", r.Mem.ValueString(), r.Cpu.ValueString())
-}
-
 func (c *Cluster) ToClusterAPIModel(ctx context.Context, diagnostics *diag.Diagnostics) *v1alpha1.Cluster {
 	var labels map[string]string
 	var annotations map[string]string
