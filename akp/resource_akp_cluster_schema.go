@@ -143,7 +143,7 @@ func getClusterSpecAttributes() map[string]schema.Attribute {
 func getClusterDataAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"size": schema.StringAttribute{
-			MarkdownDescription: "Cluster Size. One of `small`, `medium` or `large`",
+			MarkdownDescription: "Cluster Size. One of `small`, `medium`, `large`, `custom` or `auto`",
 			Required:            true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
@@ -228,7 +228,7 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 		"custom_agent_size_config": schema.SingleNestedAttribute{
 			MarkdownDescription: "Custom agent size config",
 			Optional:            true,
-			Attributes:          getAutoScalerConfigAttributes(),
+			Attributes:          getCustomAgentSizeConfigAttributes(),
 		},
 	}
 }
@@ -354,6 +354,71 @@ func getManagedClusterConfigAttributes() map[string]schema.Attribute {
 			Optional:    true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+	}
+}
+
+func getCustomAgentSizeConfigAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"application_controller": schema.SingleNestedAttribute{
+			Description: "Application Controller custom agent size config",
+			Optional:    true,
+			Attributes:  getAppControllerCustomAgentSizeConfigAttributes(),
+		},
+		"repo_server": schema.SingleNestedAttribute{
+			Description: "Repo Server custom agent size config",
+			Optional:    true,
+			Attributes:  getRepoServerCustomAgentSizeConfigAttributes(),
+		},
+	}
+}
+
+func getAppControllerCustomAgentSizeConfigAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"cpu": schema.StringAttribute{
+			Description: "CPU",
+			Optional:    true,
+			Computed:    true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"mem": schema.StringAttribute{
+			Description: "Memory",
+			Optional:    true,
+			Computed:    true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+	}
+}
+
+func getRepoServerCustomAgentSizeConfigAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"cpu": schema.StringAttribute{
+			Description: "CPU",
+			Optional:    true,
+			Computed:    true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"mem": schema.StringAttribute{
+			Description: "Memory",
+			Optional:    true,
+			Computed:    true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"replica": schema.Int64Attribute{
+			Description: "Replica",
+			Optional:    true,
+			Computed:    true,
+			PlanModifiers: []planmodifier.Int64{
+				int64planmodifier.UseStateForUnknown(),
 			},
 		},
 	}

@@ -188,12 +188,12 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 
 	var existingConfig kustomizetypes.Kustomization
 	size := tftypes.StringValue(ClusterSizeString[apiCluster.GetData().GetSize()])
-	var customConfig *AutoScalerConfig
+	var customConfig *CustomAgentSizeConfig
 	if err := yaml.Unmarshal(yamlData, &existingConfig); err == nil {
 		extractedCustomConfig := extractCustomSizeConfig(existingConfig)
 		if extractedCustomConfig != nil {
 			if plan != nil && plan.Spec != nil && plan.Spec.Data.CustomAgentSizeConfig != nil {
-				if areConfigsEquivalent(ctx, plan.Spec.Data.CustomAgentSizeConfig, extractedCustomConfig) {
+				if areCustomAgentConfigsEquivalent(plan.Spec.Data.CustomAgentSizeConfig, extractedCustomConfig) {
 					customConfig = plan.Spec.Data.CustomAgentSizeConfig
 				} else {
 					customConfig = extractedCustomConfig
@@ -248,7 +248,7 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 					ReplicaMinimum: tftypes.Int64Value(int64(newAPIConfig.RepoServer.ReplicaMinimum)),
 				},
 			}
-			if areConfigsEquivalent(ctx, extractConfigFromObjectValue(plan.Spec.Data.AutoscalerConfig), newConfig) {
+			if areAutoScalerConfigsEquivalent(extractConfigFromObjectValue(plan.Spec.Data.AutoscalerConfig), newConfig) {
 				autoscalerConfig = plan.Spec.Data.AutoscalerConfig
 			} else {
 				autoscalerConfig = toAutoScalerConfigTFModel(newAPIConfig)
@@ -257,6 +257,9 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 			autoscalerConfig = toAutoScalerConfigTFModel(newAPIConfig)
 		}
 	} else {
+		if plan.Spec.Data.AutoscalerConfig.IsNull() {
+			autoscalerConfig = basetypes.ObjectValue{}
+		}
 		autoscalerConfig = toAutoScalerConfigTFModel(apiCluster.GetData().GetAutoscalerConfig())
 	}
 
@@ -373,7 +376,7 @@ func toClusterDataAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, c
 		return v1alpha1.ClusterData{}
 	}
 
-	size, raw := handleAgentSizeAndKustomization(ctx, diagnostics, &clusterData, autoscalerConfig)
+	size, raw := handleAgentSizeAndKustomization(diagnostics, &clusterData, autoscalerConfig)
 	if diagnostics.HasError() {
 		return v1alpha1.ClusterData{}
 	}
@@ -1070,15 +1073,11 @@ func toAutoScalerConfigTFModel(cfg *argocdv1.AutoScalerConfig) basetypes.ObjectV
 	return objectValue
 }
 
-func handleAgentSizeAndKustomization(ctx context.Context, diagnostics *diag.Diagnostics, clusterData *ClusterData, autoscalerConfig *AutoScalerConfig) (size string, kustomization runtime.RawExtension) {
+func handleAgentSizeAndKustomization(diagnostics *diag.Diagnostics, clusterData *ClusterData, autoscalerConfig *AutoScalerConfig) (size string, kustomization runtime.RawExtension) {
 	// Validate configs
 	customSizeConfig := clusterData.CustomAgentSizeConfig
 	if autoscalerConfig != nil && clusterData.Size.ValueString() != "auto" {
 		diagnostics.AddError("autoscaler config should not be set when size is not auto", "")
-		return clusterData.Size.ValueString(), runtime.RawExtension{}
-	}
-	if autoscalerConfig == nil && clusterData.Size.ValueString() == "auto" {
-		diagnostics.AddError("autoscaler config is required when size is auto", "")
 		return clusterData.Size.ValueString(), runtime.RawExtension{}
 	}
 	if customSizeConfig == nil && clusterData.Size.ValueString() == "custom" {
@@ -1168,9 +1167,9 @@ func handleAgentSizeAndKustomization(ctx context.Context, diagnostics *diag.Diag
 			},
 		})
 
-		if customSizeConfig.RepoServer.ReplicaMaximum.ValueInt64() > 0 {
+		if customSizeConfig.RepoServer.Replica.ValueInt64() > 0 {
 			replicas = append(replicas, map[string]any{
-				"count": customSizeConfig.RepoServer.ReplicaMaximum.ValueInt64(),
+				"count": customSizeConfig.RepoServer.Replica.ValueInt64(),
 				"name":  "argocd-repo-server",
 			})
 		}
@@ -1258,7 +1257,7 @@ func filterNonRepoServerReplicasKustomize(replicas []kustomizetypes.Replica) []k
 	return filtered
 }
 
-func generateAppControllerPatch(config *AppControllerAutoScalingConfig) string {
+func generateAppControllerPatch(config *AppControllerCustomAgentSizeConfig) string {
 	return fmt.Sprintf(`apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -1271,29 +1270,15 @@ spec:
           resources:
             limits:
               memory: %s
-              cpu: %s
-            requests:
-              cpu: %s
-              memory: %s
-        - name: syncer
-          resources:
-            limits:
-              memory: %s
-              cpu: %s
             requests:
               cpu: %s
               memory: %s`,
-		config.ResourceMaximum.Mem.ValueString(),
-		config.ResourceMaximum.Cpu.ValueString(),
-		config.ResourceMinimum.Cpu.ValueString(),
-		config.ResourceMinimum.Mem.ValueString(),
-		config.ResourceMaximum.Mem.ValueString(),
-		config.ResourceMaximum.Cpu.ValueString(),
-		config.ResourceMinimum.Cpu.ValueString(),
-		config.ResourceMinimum.Mem.ValueString())
+		config.Mem.ValueString(),
+		config.Cpu.ValueString(),
+		config.Mem.ValueString())
 }
 
-func generateRepoServerPatch(config *RepoServerAutoScalingConfig) string {
+func generateRepoServerPatch(config *RepoServerCustomAgentSizeConfig) string {
 	return fmt.Sprintf(`apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -1306,14 +1291,12 @@ spec:
           resources:
             limits:
               memory: %s
-              cpu: %s
             requests:
               cpu: %s
               memory: %s`,
-		config.ResourceMaximum.Mem.ValueString(),
-		config.ResourceMaximum.Cpu.ValueString(),
-		config.ResourceMinimum.Cpu.ValueString(),
-		config.ResourceMinimum.Mem.ValueString())
+		config.Mem.ValueString(),
+		config.Cpu.ValueString(),
+		config.Mem.ValueString())
 }
 
 func toResourcesAPIModel(resources *Resources) *v1alpha1.Resources {
@@ -1326,9 +1309,9 @@ func toResourcesAPIModel(resources *Resources) *v1alpha1.Resources {
 	}
 }
 
-func extractCustomSizeConfig(existingConfig kustomizetypes.Kustomization) *AutoScalerConfig {
-	var appController *AppControllerAutoScalingConfig
-	var repoServer *RepoServerAutoScalingConfig
+func extractCustomSizeConfig(existingConfig kustomizetypes.Kustomization) *CustomAgentSizeConfig {
+	var appController *AppControllerCustomAgentSizeConfig
+	var repoServer *RepoServerCustomAgentSizeConfig
 
 	for _, p := range existingConfig.Patches {
 		var patch appsv1.Deployment
@@ -1340,15 +1323,9 @@ func extractCustomSizeConfig(existingConfig kustomizetypes.Kustomization) *AutoS
 		case "argocd-application-controller":
 			for _, container := range patch.Spec.Template.Spec.Containers {
 				if container.Name == "argocd-application-controller" {
-					appController = &AppControllerAutoScalingConfig{
-						ResourceMaximum: &Resources{
-							Mem: tftypes.StringValue(container.Resources.Limits.Memory().String()),
-							Cpu: tftypes.StringValue(container.Resources.Limits.Cpu().String()),
-						},
-						ResourceMinimum: &Resources{
-							Mem: tftypes.StringValue(container.Resources.Requests.Memory().String()),
-							Cpu: tftypes.StringValue(container.Resources.Requests.Cpu().String()),
-						},
+					appController = &AppControllerCustomAgentSizeConfig{
+						Mem: tftypes.StringValue(container.Resources.Requests.Memory().String()),
+						Cpu: tftypes.StringValue(container.Resources.Requests.Cpu().String()),
 					}
 					break
 				}
@@ -1356,15 +1333,9 @@ func extractCustomSizeConfig(existingConfig kustomizetypes.Kustomization) *AutoS
 		case "argocd-repo-server":
 			for _, container := range patch.Spec.Template.Spec.Containers {
 				if container.Name == "argocd-repo-server" {
-					repoServer = &RepoServerAutoScalingConfig{
-						ResourceMaximum: &Resources{
-							Mem: tftypes.StringValue(container.Resources.Limits.Memory().String()),
-							Cpu: tftypes.StringValue(container.Resources.Limits.Cpu().String()),
-						},
-						ResourceMinimum: &Resources{
-							Mem: tftypes.StringValue(container.Resources.Requests.Memory().String()),
-							Cpu: tftypes.StringValue(container.Resources.Requests.Cpu().String()),
-						},
+					repoServer = &RepoServerCustomAgentSizeConfig{
+						Mem: tftypes.StringValue(container.Resources.Requests.Memory().String()),
+						Cpu: tftypes.StringValue(container.Resources.Requests.Cpu().String()),
 					}
 					break
 				}
@@ -1374,8 +1345,7 @@ func extractCustomSizeConfig(existingConfig kustomizetypes.Kustomization) *AutoS
 	if repoServer != nil {
 		for _, r := range existingConfig.Replicas {
 			if r.Name == "argocd-repo-server" {
-				repoServer.ReplicaMaximum = tftypes.Int64Value(r.Count)
-				repoServer.ReplicaMinimum = types.Int64Value(1)
+				repoServer.Replica = tftypes.Int64Value(r.Count)
 				break
 			}
 		}
@@ -1385,27 +1355,60 @@ func extractCustomSizeConfig(existingConfig kustomizetypes.Kustomization) *AutoS
 		return nil
 	}
 
-	return &AutoScalerConfig{
+	return &CustomAgentSizeConfig{
 		ApplicationController: appController,
 		RepoServer:            repoServer,
 	}
 }
 
-func areConfigsEquivalent(ctx context.Context, config1, config2 *AutoScalerConfig) bool {
+func areCustomAgentConfigsEquivalent(config1, config2 *CustomAgentSizeConfig) bool {
 	if config1 == nil || config2 == nil {
 		return config1 == config2
 	}
 	if config1.ApplicationController != nil && config2.ApplicationController != nil {
-		if !areResourcesEquivalent(ctx,
+		if !areResourcesEquivalent(
+			config1.ApplicationController.Cpu.ValueString(),
+			config2.ApplicationController.Cpu.ValueString(),
+		) || !areResourcesEquivalent(
+			config1.ApplicationController.Mem.ValueString(),
+			config2.ApplicationController.Mem.ValueString(),
+		) {
+			return false
+		}
+	} else if config1.ApplicationController != nil || config2.ApplicationController != nil {
+		return false
+	}
+	if config1.RepoServer != nil && config2.RepoServer != nil {
+		if !areResourcesEquivalent(
+			config1.RepoServer.Cpu.ValueString(),
+			config2.RepoServer.Cpu.ValueString(),
+		) || !areResourcesEquivalent(
+			config1.RepoServer.Mem.ValueString(),
+			config2.RepoServer.Mem.ValueString(),
+		) || config1.RepoServer.Replica != config2.RepoServer.Replica {
+			return false
+		}
+	} else if config1.RepoServer != nil || config2.RepoServer != nil {
+		return false
+	}
+	return true
+}
+
+func areAutoScalerConfigsEquivalent(config1, config2 *AutoScalerConfig) bool {
+	if config1 == nil || config2 == nil {
+		return config1 == config2
+	}
+	if config1.ApplicationController != nil && config2.ApplicationController != nil {
+		if !areResourcesEquivalent(
 			config1.ApplicationController.ResourceMinimum.Cpu.ValueString(),
 			config2.ApplicationController.ResourceMinimum.Cpu.ValueString(),
-		) || !areResourcesEquivalent(ctx,
+		) || !areResourcesEquivalent(
 			config1.ApplicationController.ResourceMinimum.Mem.ValueString(),
 			config2.ApplicationController.ResourceMinimum.Mem.ValueString(),
-		) || !areResourcesEquivalent(ctx,
+		) || !areResourcesEquivalent(
 			config1.ApplicationController.ResourceMaximum.Cpu.ValueString(),
 			config2.ApplicationController.ResourceMaximum.Cpu.ValueString(),
-		) || !areResourcesEquivalent(ctx,
+		) || !areResourcesEquivalent(
 			config1.ApplicationController.ResourceMaximum.Mem.ValueString(),
 			config2.ApplicationController.ResourceMaximum.Mem.ValueString(),
 		) {
@@ -1415,16 +1418,16 @@ func areConfigsEquivalent(ctx context.Context, config1, config2 *AutoScalerConfi
 		return false
 	}
 	if config1.RepoServer != nil && config2.RepoServer != nil {
-		if !areResourcesEquivalent(ctx,
+		if !areResourcesEquivalent(
 			config1.RepoServer.ResourceMinimum.Cpu.ValueString(),
 			config2.RepoServer.ResourceMinimum.Cpu.ValueString(),
-		) || !areResourcesEquivalent(ctx,
+		) || !areResourcesEquivalent(
 			config1.RepoServer.ResourceMinimum.Mem.ValueString(),
 			config2.RepoServer.ResourceMinimum.Mem.ValueString(),
-		) || !areResourcesEquivalent(ctx,
+		) || !areResourcesEquivalent(
 			config1.RepoServer.ResourceMaximum.Cpu.ValueString(),
 			config2.RepoServer.ResourceMaximum.Cpu.ValueString(),
-		) || !areResourcesEquivalent(ctx,
+		) || !areResourcesEquivalent(
 			config1.RepoServer.ResourceMaximum.Mem.ValueString(),
 			config2.RepoServer.ResourceMaximum.Mem.ValueString(),
 		) || config1.RepoServer.ReplicaMaximum != config2.RepoServer.ReplicaMaximum ||
@@ -1437,7 +1440,7 @@ func areConfigsEquivalent(ctx context.Context, config1, config2 *AutoScalerConfi
 	return true
 }
 
-func areResourcesEquivalent(ctx context.Context, old, new string) bool {
+func areResourcesEquivalent(old, new string) bool {
 	oldQ, err1 := resource.ParseQuantity(old)
 	newQ, err2 := resource.ParseQuantity(new)
 	if err1 != nil || err2 != nil {

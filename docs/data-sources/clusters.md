@@ -97,7 +97,7 @@ Read-Only:
 - `managed_cluster_config` (Attributes) The config to access managed Kubernetes cluster. By default agent is using "in-cluster" config. (see [below for nested schema](#nestedatt--clusters--spec--data--managed_cluster_config))
 - `multi_cluster_k8s_dashboard_enabled` (Boolean) Enable the KubeVision feature on the managed cluster
 - `redis_tunneling` (Boolean) Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy
-- `size` (String) Cluster Size. One of `small`, `medium` or `large`
+- `size` (String) Cluster Size. One of `small`, `medium`, `large`, `custom` or `auto`
 - `target_version` (String) The version of the agent to install on your cluster
 
 <a id="nestedatt--clusters--spec--data--auto_agent_size_config"></a>
@@ -170,34 +170,16 @@ Read-Only:
 
 Read-Only:
 
-- `application_controller` (Attributes) Application Controller auto scaling config (see [below for nested schema](#nestedatt--clusters--spec--data--custom_agent_size_config--application_controller))
-- `repo_server` (Attributes) Repo Server auto scaling config (see [below for nested schema](#nestedatt--clusters--spec--data--custom_agent_size_config--repo_server))
+- `application_controller` (Attributes) Application Controller custom agent size config (see [below for nested schema](#nestedatt--clusters--spec--data--custom_agent_size_config--application_controller))
+- `repo_server` (Attributes) Repo Server custom agent size config (see [below for nested schema](#nestedatt--clusters--spec--data--custom_agent_size_config--repo_server))
 
 <a id="nestedatt--clusters--spec--data--custom_agent_size_config--application_controller"></a>
 ### Nested Schema for `clusters.spec.data.custom_agent_size_config.application_controller`
 
 Read-Only:
 
-- `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--clusters--spec--data--custom_agent_size_config--application_controller--resource_maximum))
-- `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--clusters--spec--data--custom_agent_size_config--application_controller--resource_minimum))
-
-<a id="nestedatt--clusters--spec--data--custom_agent_size_config--application_controller--resource_maximum"></a>
-### Nested Schema for `clusters.spec.data.custom_agent_size_config.application_controller.resource_maximum`
-
-Read-Only:
-
 - `cpu` (String) CPU
 - `mem` (String) Memory
-
-
-<a id="nestedatt--clusters--spec--data--custom_agent_size_config--application_controller--resource_minimum"></a>
-### Nested Schema for `clusters.spec.data.custom_agent_size_config.application_controller.resource_minimum`
-
-Read-Only:
-
-- `cpu` (String) CPU
-- `mem` (String) Memory
-
 
 
 <a id="nestedatt--clusters--spec--data--custom_agent_size_config--repo_server"></a>
@@ -205,28 +187,9 @@ Read-Only:
 
 Read-Only:
 
-- `replica_maximum` (Number) Replica maximum
-- `replica_minimum` (Number) Replica minimum
-- `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--clusters--spec--data--custom_agent_size_config--repo_server--resource_maximum))
-- `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--clusters--spec--data--custom_agent_size_config--repo_server--resource_minimum))
-
-<a id="nestedatt--clusters--spec--data--custom_agent_size_config--repo_server--resource_maximum"></a>
-### Nested Schema for `clusters.spec.data.custom_agent_size_config.repo_server.resource_maximum`
-
-Read-Only:
-
 - `cpu` (String) CPU
 - `mem` (String) Memory
-
-
-<a id="nestedatt--clusters--spec--data--custom_agent_size_config--repo_server--resource_minimum"></a>
-### Nested Schema for `clusters.spec.data.custom_agent_size_config.repo_server.resource_minimum`
-
-Read-Only:
-
-- `cpu` (String) CPU
-- `mem` (String) Memory
-
+- `replica` (Number) Replica
 
 
 

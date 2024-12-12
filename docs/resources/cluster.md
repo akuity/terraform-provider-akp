@@ -36,6 +36,99 @@ resource "akp_cluster" "my-cluster" {
 
 For a complete working example using a GKE cluster, see [akuity/examples](https://github.com/akuity/examples/tree/main/terraform/akuity).
 
+## Example Usage (Custom agent size)
+```terraform
+data "akp_instance" "example" {
+  name = "test"
+}
+
+resource "akp_cluster" "example" {
+  instance_id = data.akp_instance.example.id
+  name        = "test-cluster"
+  namespace   = "test"
+  labels = {
+    test-label = true
+  }
+  annotations = {
+    test-annotation = false
+  }
+  spec = {
+    namespace_scoped = true
+    description      = "test-description"
+    data = {
+      size                  = "custom"
+      auto_upgrade_disabled = false
+      custom_agent_size_config = {
+        application_controller = {
+          cpu = "1000m"
+          mem = "2Gi"
+        }
+        repo_server = {
+          replica = 3,
+          cpu     = "1000m"
+          mem     = "2Gi"
+        }
+      }
+    }
+  }
+}
+```
+
+## Example Usage (Auto agent size)
+```terraform
+data "akp_instance" "example" {
+  name = "test"
+}
+
+resource "akp_cluster" "example" {
+  instance_id = data.akp_instance.example.id
+  name        = "test-cluster"
+  namespace   = "test"
+  labels = {
+    test-label = true
+  }
+  annotations = {
+    test-annotation = false
+  }
+  spec = {
+    namespace_scoped = true
+    description      = "test-description"
+    data = {
+      size = "auto"
+      # auto_upgrade_disabled  can be set to true if you want to enable auto scaling of the agent size for the cluster
+      auto_upgrade_disabled = false
+      auto_agent_size_config = {
+        application_controller = {
+          resource_maximum = {
+            cpu = "3"
+            mem = "2Gi"
+          },
+          resource_minimum = {
+            cpu = "250m",
+            mem = "1Gi"
+          }
+        },
+        repo_server = {
+          replica_maximum = 3,
+          # minimum number of replicas should be set to 1
+          replica_minimum = 1,
+          resource_maximum = {
+            cpu = "3"
+            mem = "2.00Gi"
+          },
+          resource_minimum = {
+            cpu = "250m",
+            mem = "256Mi"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+- This example uses the `auto` agent size, which will automatically scale the agent based on the number of applications in the cluster. `auto_upgrade_disabled` cannot be set to `true` when using `auto` agent size.
+
 ## Example Usage (Exhaustive)
 ```terraform
 data "akp_instance" "example" {
@@ -147,7 +240,7 @@ Optional:
 
 Required:
 
-- `size` (String) Cluster Size. One of `small`, `medium` or `large`
+- `size` (String) Cluster Size. One of `small`, `medium`, `large`, `custom` or `auto`
 
 Optional:
 
@@ -233,34 +326,16 @@ Optional:
 
 Optional:
 
-- `application_controller` (Attributes) Application Controller auto scaling config (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config--application_controller))
-- `repo_server` (Attributes) Repo Server auto scaling config (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config--repo_server))
+- `application_controller` (Attributes) Application Controller custom agent size config (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config--application_controller))
+- `repo_server` (Attributes) Repo Server custom agent size config (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config--repo_server))
 
 <a id="nestedatt--spec--data--custom_agent_size_config--application_controller"></a>
 ### Nested Schema for `spec.data.custom_agent_size_config.application_controller`
 
 Optional:
 
-- `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config--application_controller--resource_maximum))
-- `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config--application_controller--resource_minimum))
-
-<a id="nestedatt--spec--data--custom_agent_size_config--application_controller--resource_maximum"></a>
-### Nested Schema for `spec.data.custom_agent_size_config.application_controller.resource_maximum`
-
-Optional:
-
 - `cpu` (String) CPU
 - `mem` (String) Memory
-
-
-<a id="nestedatt--spec--data--custom_agent_size_config--application_controller--resource_minimum"></a>
-### Nested Schema for `spec.data.custom_agent_size_config.application_controller.resource_minimum`
-
-Optional:
-
-- `cpu` (String) CPU
-- `mem` (String) Memory
-
 
 
 <a id="nestedatt--spec--data--custom_agent_size_config--repo_server"></a>
@@ -268,28 +343,9 @@ Optional:
 
 Optional:
 
-- `replica_maximum` (Number) Replica maximum
-- `replica_minimum` (Number) Replica minimum, this should be set to 1 as a minimum
-- `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config--repo_server--resource_maximum))
-- `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config--repo_server--resource_minimum))
-
-<a id="nestedatt--spec--data--custom_agent_size_config--repo_server--resource_maximum"></a>
-### Nested Schema for `spec.data.custom_agent_size_config.repo_server.resource_maximum`
-
-Optional:
-
 - `cpu` (String) CPU
 - `mem` (String) Memory
-
-
-<a id="nestedatt--spec--data--custom_agent_size_config--repo_server--resource_minimum"></a>
-### Nested Schema for `spec.data.custom_agent_size_config.repo_server.resource_minimum`
-
-Optional:
-
-- `cpu` (String) CPU
-- `mem` (String) Memory
-
+- `replica` (Number) Replica
 
 
 

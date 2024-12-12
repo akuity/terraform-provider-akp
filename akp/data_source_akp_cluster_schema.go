@@ -81,7 +81,7 @@ func getClusterSpecDataSourceAttributes() map[string]schema.Attribute {
 func getClusterDataDataSourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"size": schema.StringAttribute{
-			MarkdownDescription: "Cluster Size. One of `small`, `medium` or `large`",
+			MarkdownDescription: "Cluster Size. One of `small`, `medium`, `large`, `custom` or `auto`",
 			Computed:            true,
 		},
 		"auto_upgrade_disabled": schema.BoolAttribute{
@@ -129,7 +129,7 @@ func getClusterDataDataSourceAttributes() map[string]schema.Attribute {
 		"custom_agent_size_config": schema.SingleNestedAttribute{
 			MarkdownDescription: "Custom agent size config",
 			Computed:            true,
-			Attributes:          getAutoScalerConfigDataSourceAttributes(),
+			Attributes:          getCustomAgentSizeConfigDataSourceAttributes(),
 		},
 	}
 }
@@ -223,6 +223,51 @@ func getAutoScalerConfigDataSourceAttributes() map[string]schema.Attribute {
 			Description: "Repo Server auto scaling config",
 			Computed:    true,
 			Attributes:  getRepoServerAutoScalingConfigDataSourceAttributes(),
+		},
+	}
+}
+
+func getCustomAgentSizeConfigDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"application_controller": schema.SingleNestedAttribute{
+			Description: "Application Controller custom agent size config",
+			Computed:    true,
+			Attributes:  getAppControllerCustomAgentSizeConfigDataSourceAttributes(),
+		},
+		"repo_server": schema.SingleNestedAttribute{
+			Description: "Repo Server custom agent size config",
+			Computed:    true,
+			Attributes:  getRepoServerCustomAgentSizeConfigDataSourceAttributes(),
+		},
+	}
+}
+
+func getAppControllerCustomAgentSizeConfigDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"mem": schema.StringAttribute{
+			Description: "Memory",
+			Computed:    true,
+		},
+		"cpu": schema.StringAttribute{
+			Description: "CPU",
+			Computed:    true,
+		},
+	}
+}
+
+func getRepoServerCustomAgentSizeConfigDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"mem": schema.StringAttribute{
+			Description: "Memory",
+			Computed:    true,
+		},
+		"cpu": schema.StringAttribute{
+			Description: "CPU",
+			Computed:    true,
+		},
+		"replica": schema.Int64Attribute{
+			Description: "Replica",
+			Computed:    true,
 		},
 	}
 }

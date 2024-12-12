@@ -20,30 +20,15 @@ resource "akp_cluster" "example" {
       auto_upgrade_disabled = false
       custom_agent_size_config = {
         application_controller = {
-          resource_maximum = {
-            cpu = "3"
-            mem = "2Gi"
-          },
-          resource_minimum = {
-            cpu = "250m",
-            mem = "1Gi"
-          }
-        },
+          cpu = "1000m"
+          mem = "2Gi"
+        }
         repo_server = {
-          replica_maximum = 3,
-          # minimum number of replicas should be set to 1
-          replica_minimum = 1,
-          resource_maximum = {
-            cpu = "3"
-            mem = "2.00Gi"
-          },
-          resource_minimum = {
-            cpu = "250m",
-            mem = "256Mi"
-          }
+          replica = 3,
+          cpu     = "1000m"
+          mem     = "2Gi"
         }
       }
     }
   }
-
 }

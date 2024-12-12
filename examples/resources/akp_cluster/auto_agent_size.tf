@@ -46,5 +46,4 @@ resource "akp_cluster" "example" {
       }
     }
   }
-
 }
