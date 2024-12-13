@@ -60,13 +60,13 @@ resource "akp_cluster" "example" {
       auto_upgrade_disabled = false
       custom_agent_size_config = {
         application_controller = {
-          cpu = "1000m"
-          mem = "2Gi"
+          cpu    = "1000m"
+          memory = "2Gi"
         }
         repo_server = {
           replica = 3,
           cpu     = "1000m"
-          mem     = "2Gi"
+          memory  = "2Gi"
         }
       }
     }
@@ -335,7 +335,7 @@ Optional:
 Optional:
 
 - `cpu` (String) CPU
-- `mem` (String) Memory
+- `memory` (String) Memory
 
 
 <a id="nestedatt--spec--data--custom_agent_size_config--repo_server"></a>
@@ -344,7 +344,7 @@ Optional:
 Optional:
 
 - `cpu` (String) CPU
-- `mem` (String) Memory
+- `memory` (String) Memory
 - `replica` (Number) Replica
 
 

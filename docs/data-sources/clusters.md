@@ -179,7 +179,7 @@ Read-Only:
 Read-Only:
 
 - `cpu` (String) CPU
-- `mem` (String) Memory
+- `memory` (String) Memory
 
 
 <a id="nestedatt--clusters--spec--data--custom_agent_size_config--repo_server"></a>
@@ -188,7 +188,7 @@ Read-Only:
 Read-Only:
 
 - `cpu` (String) CPU
-- `mem` (String) Memory
+- `memory` (String) Memory
 - `replica` (Number) Replica
 
 

@@ -384,7 +384,7 @@ func getAppControllerCustomAgentSizeConfigAttributes() map[string]schema.Attribu
 				stringplanmodifier.UseStateForUnknown(),
 			},
 		},
-		"mem": schema.StringAttribute{
+		"memory": schema.StringAttribute{
 			Description: "Memory",
 			Optional:    true,
 			Computed:    true,
@@ -405,7 +405,7 @@ func getRepoServerCustomAgentSizeConfigAttributes() map[string]schema.Attribute 
 				stringplanmodifier.UseStateForUnknown(),
 			},
 		},
-		"mem": schema.StringAttribute{
+		"memory": schema.StringAttribute{
 			Description: "Memory",
 			Optional:    true,
 			Computed:    true,

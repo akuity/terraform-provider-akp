@@ -67,12 +67,12 @@ type CustomAgentSizeConfig struct {
 }
 
 type AppControllerCustomAgentSizeConfig struct {
-	Mem types.String `tfsdk:"mem"`
-	Cpu types.String `tfsdk:"cpu"`
+	Memory types.String `tfsdk:"memory"`
+	Cpu    types.String `tfsdk:"cpu"`
 }
 
 type RepoServerCustomAgentSizeConfig struct {
-	Mem     types.String `tfsdk:"mem"`
+	Memory  types.String `tfsdk:"memory"`
 	Cpu     types.String `tfsdk:"cpu"`
 	Replica types.Int64  `tfsdk:"replica"`
 }

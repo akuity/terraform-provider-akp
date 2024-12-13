@@ -1273,9 +1273,9 @@ spec:
             requests:
               cpu: %s
               memory: %s`,
-		config.Mem.ValueString(),
+		config.Memory.ValueString(),
 		config.Cpu.ValueString(),
-		config.Mem.ValueString())
+		config.Memory.ValueString())
 }
 
 func generateRepoServerPatch(config *RepoServerCustomAgentSizeConfig) string {
@@ -1294,9 +1294,9 @@ spec:
             requests:
               cpu: %s
               memory: %s`,
-		config.Mem.ValueString(),
+		config.Memory.ValueString(),
 		config.Cpu.ValueString(),
-		config.Mem.ValueString())
+		config.Memory.ValueString())
 }
 
 func toResourcesAPIModel(resources *Resources) *v1alpha1.Resources {
@@ -1324,8 +1324,8 @@ func extractCustomSizeConfig(existingConfig kustomizetypes.Kustomization) *Custo
 			for _, container := range patch.Spec.Template.Spec.Containers {
 				if container.Name == "argocd-application-controller" {
 					appController = &AppControllerCustomAgentSizeConfig{
-						Mem: tftypes.StringValue(container.Resources.Requests.Memory().String()),
-						Cpu: tftypes.StringValue(container.Resources.Requests.Cpu().String()),
+						Memory: tftypes.StringValue(container.Resources.Requests.Memory().String()),
+						Cpu:    tftypes.StringValue(container.Resources.Requests.Cpu().String()),
 					}
 					break
 				}
@@ -1334,8 +1334,8 @@ func extractCustomSizeConfig(existingConfig kustomizetypes.Kustomization) *Custo
 			for _, container := range patch.Spec.Template.Spec.Containers {
 				if container.Name == "argocd-repo-server" {
 					repoServer = &RepoServerCustomAgentSizeConfig{
-						Mem: tftypes.StringValue(container.Resources.Requests.Memory().String()),
-						Cpu: tftypes.StringValue(container.Resources.Requests.Cpu().String()),
+						Memory: tftypes.StringValue(container.Resources.Requests.Memory().String()),
+						Cpu:    tftypes.StringValue(container.Resources.Requests.Cpu().String()),
 					}
 					break
 				}
@@ -1370,8 +1370,8 @@ func areCustomAgentConfigsEquivalent(config1, config2 *CustomAgentSizeConfig) bo
 			config1.ApplicationController.Cpu.ValueString(),
 			config2.ApplicationController.Cpu.ValueString(),
 		) || !areResourcesEquivalent(
-			config1.ApplicationController.Mem.ValueString(),
-			config2.ApplicationController.Mem.ValueString(),
+			config1.ApplicationController.Memory.ValueString(),
+			config2.ApplicationController.Memory.ValueString(),
 		) {
 			return false
 		}
@@ -1383,8 +1383,8 @@ func areCustomAgentConfigsEquivalent(config1, config2 *CustomAgentSizeConfig) bo
 			config1.RepoServer.Cpu.ValueString(),
 			config2.RepoServer.Cpu.ValueString(),
 		) || !areResourcesEquivalent(
-			config1.RepoServer.Mem.ValueString(),
-			config2.RepoServer.Mem.ValueString(),
+			config1.RepoServer.Memory.ValueString(),
+			config2.RepoServer.Memory.ValueString(),
 		) || config1.RepoServer.Replica != config2.RepoServer.Replica {
 			return false
 		}

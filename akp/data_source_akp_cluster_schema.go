@@ -244,7 +244,7 @@ func getCustomAgentSizeConfigDataSourceAttributes() map[string]schema.Attribute 
 
 func getAppControllerCustomAgentSizeConfigDataSourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
-		"mem": schema.StringAttribute{
+		"memory": schema.StringAttribute{
 			Description: "Memory",
 			Computed:    true,
 		},
@@ -257,7 +257,7 @@ func getAppControllerCustomAgentSizeConfigDataSourceAttributes() map[string]sche
 
 func getRepoServerCustomAgentSizeConfigDataSourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
-		"mem": schema.StringAttribute{
+		"memory": schema.StringAttribute{
 			Description: "Memory",
 			Computed:    true,
 		},
