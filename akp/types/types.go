@@ -257,7 +257,7 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 			autoscalerConfig = toAutoScalerConfigTFModel(newAPIConfig)
 		}
 	} else {
-		if plan.Spec.Data.AutoscalerConfig.IsNull() {
+		if plan == nil || plan.Spec == nil || plan.Spec.Data.AutoscalerConfig.IsNull() {
 			autoscalerConfig = basetypes.ObjectValue{}
 		}
 		autoscalerConfig = toAutoScalerConfigTFModel(apiCluster.GetData().GetAutoscalerConfig())
