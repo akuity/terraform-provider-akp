@@ -111,7 +111,7 @@ Read-Only:
 Read-Only:
 
 - `cpu` (String) CPU
-- `mem` (String) Memory
+- `memory` (String) Memory
 
 
 <a id="nestedatt--spec--data--auto_agent_size_config--application_controller--resource_minimum"></a>
@@ -120,7 +120,7 @@ Read-Only:
 Read-Only:
 
 - `cpu` (String) CPU
-- `mem` (String) Memory
+- `memory` (String) Memory
 
 
 
@@ -129,8 +129,8 @@ Read-Only:
 
 Read-Only:
 
-- `replica_maximum` (Number) Replica maximum
-- `replica_minimum` (Number) Replica minimum
+- `replicas_maximum` (Number) Replica maximum
+- `replicas_minimum` (Number) Replica minimum
 - `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--spec--data--auto_agent_size_config--repo_server--resource_maximum))
 - `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--spec--data--auto_agent_size_config--repo_server--resource_minimum))
 
@@ -140,7 +140,7 @@ Read-Only:
 Read-Only:
 
 - `cpu` (String) CPU
-- `mem` (String) Memory
+- `memory` (String) Memory
 
 
 <a id="nestedatt--spec--data--auto_agent_size_config--repo_server--resource_minimum"></a>
@@ -149,7 +149,7 @@ Read-Only:
 Read-Only:
 
 - `cpu` (String) CPU
-- `mem` (String) Memory
+- `memory` (String) Memory
 
 
 
@@ -178,7 +178,7 @@ Read-Only:
 
 - `cpu` (String) CPU
 - `memory` (String) Memory
-- `replica` (Number) Replica
+- `replicas` (Number) Replica
 
 
 

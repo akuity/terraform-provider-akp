@@ -413,7 +413,7 @@ func getRepoServerCustomAgentSizeConfigAttributes() map[string]schema.Attribute 
 				stringplanmodifier.UseStateForUnknown(),
 			},
 		},
-		"replica": schema.Int64Attribute{
+		"replicas": schema.Int64Attribute{
 			Description: "Replica",
 			Optional:    true,
 			Computed:    true,
@@ -466,7 +466,7 @@ func getRepoServerAutoScalingConfigAttributes() map[string]schema.Attribute {
 			Optional:    true,
 			Attributes:  getResourcesAttributes(),
 		},
-		"replica_maximum": schema.Int64Attribute{
+		"replicas_maximum": schema.Int64Attribute{
 			Description: "Replica maximum",
 			Optional:    true,
 			Computed:    true,
@@ -474,7 +474,7 @@ func getRepoServerAutoScalingConfigAttributes() map[string]schema.Attribute {
 				int64planmodifier.UseStateForUnknown(),
 			},
 		},
-		"replica_minimum": schema.Int64Attribute{
+		"replicas_minimum": schema.Int64Attribute{
 			Description: "Replica minimum, this should be set to 1 as a minimum",
 			Optional:    true,
 			Computed:    true,
@@ -495,7 +495,7 @@ func getResourcesAttributes() map[string]schema.Attribute {
 				stringplanmodifier.UseStateForUnknown(),
 			},
 		},
-		"mem": schema.StringAttribute{
+		"memory": schema.StringAttribute{
 			Description: "Memory",
 			Optional:    true,
 			Computed:    true,

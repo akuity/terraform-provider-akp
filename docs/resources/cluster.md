@@ -64,9 +64,9 @@ resource "akp_cluster" "example" {
           memory = "2Gi"
         }
         repo_server = {
-          replica = 3,
-          cpu     = "1000m"
-          memory  = "2Gi"
+          replicas = 3,
+          cpu      = "1000m"
+          memory   = "2Gi"
         }
       }
     }
@@ -100,25 +100,25 @@ resource "akp_cluster" "example" {
       auto_agent_size_config = {
         application_controller = {
           resource_maximum = {
-            cpu = "3"
-            mem = "2Gi"
+            cpu    = "3"
+            memory = "2Gi"
           },
           resource_minimum = {
-            cpu = "250m",
-            mem = "1Gi"
+            cpu    = "250m",
+            memory = "1Gi"
           }
         },
         repo_server = {
-          replica_maximum = 3,
+          replicas_maximum = 3,
           # minimum number of replicas should be set to 1
-          replica_minimum = 1,
+          replicas_minimum = 1,
           resource_maximum = {
-            cpu = "3"
-            mem = "2.00Gi"
+            cpu    = "3"
+            memory = "2.00Gi"
           },
           resource_minimum = {
-            cpu = "250m",
-            mem = "256Mi"
+            cpu    = "250m",
+            memory = "256Mi"
           }
         }
       }
@@ -278,7 +278,7 @@ Optional:
 Optional:
 
 - `cpu` (String) CPU
-- `mem` (String) Memory
+- `memory` (String) Memory
 
 
 <a id="nestedatt--spec--data--auto_agent_size_config--application_controller--resource_minimum"></a>
@@ -287,7 +287,7 @@ Optional:
 Optional:
 
 - `cpu` (String) CPU
-- `mem` (String) Memory
+- `memory` (String) Memory
 
 
 
@@ -296,8 +296,8 @@ Optional:
 
 Optional:
 
-- `replica_maximum` (Number) Replica maximum
-- `replica_minimum` (Number) Replica minimum, this should be set to 1 as a minimum
+- `replicas_maximum` (Number) Replica maximum
+- `replicas_minimum` (Number) Replica minimum, this should be set to 1 as a minimum
 - `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--spec--data--auto_agent_size_config--repo_server--resource_maximum))
 - `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--spec--data--auto_agent_size_config--repo_server--resource_minimum))
 
@@ -307,7 +307,7 @@ Optional:
 Optional:
 
 - `cpu` (String) CPU
-- `mem` (String) Memory
+- `memory` (String) Memory
 
 
 <a id="nestedatt--spec--data--auto_agent_size_config--repo_server--resource_minimum"></a>
@@ -316,7 +316,7 @@ Optional:
 Optional:
 
 - `cpu` (String) CPU
-- `mem` (String) Memory
+- `memory` (String) Memory
 
 
 
@@ -345,7 +345,7 @@ Optional:
 
 - `cpu` (String) CPU
 - `memory` (String) Memory
-- `replica` (Number) Replica
+- `replicas` (Number) Replica
 
 
 

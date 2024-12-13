@@ -265,7 +265,7 @@ func getRepoServerCustomAgentSizeConfigDataSourceAttributes() map[string]schema.
 			Description: "CPU",
 			Computed:    true,
 		},
-		"replica": schema.Int64Attribute{
+		"replicas": schema.Int64Attribute{
 			Description: "Replica",
 			Computed:    true,
 		},
@@ -299,11 +299,11 @@ func getRepoServerAutoScalingConfigDataSourceAttributes() map[string]schema.Attr
 			Computed:    true,
 			Attributes:  getResourcesDataSourceAttributes(),
 		},
-		"replica_maximum": schema.Int64Attribute{
+		"replicas_maximum": schema.Int64Attribute{
 			Description: "Replica maximum",
 			Computed:    true,
 		},
-		"replica_minimum": schema.Int64Attribute{
+		"replicas_minimum": schema.Int64Attribute{
 			Description: "Replica minimum",
 			Computed:    true,
 		},
@@ -312,7 +312,7 @@ func getRepoServerAutoScalingConfigDataSourceAttributes() map[string]schema.Attr
 
 func getResourcesDataSourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
-		"mem": schema.StringAttribute{
+		"memory": schema.StringAttribute{
 			Description: "Memory",
 			Computed:    true,
 		},

@@ -35,8 +35,8 @@ type ClusterSpec struct {
 }
 
 type Resources struct {
-	Mem types.String `tfsdk:"mem"`
-	Cpu types.String `tfsdk:"cpu"`
+	Memory types.String `tfsdk:"memory"`
+	Cpu    types.String `tfsdk:"cpu"`
 }
 
 type ManagedClusterConfig struct {
@@ -57,8 +57,8 @@ type AppControllerAutoScalingConfig struct {
 type RepoServerAutoScalingConfig struct {
 	ResourceMinimum *Resources  `tfsdk:"resource_minimum"`
 	ResourceMaximum *Resources  `tfsdk:"resource_maximum"`
-	ReplicaMaximum  types.Int64 `tfsdk:"replica_maximum"`
-	ReplicaMinimum  types.Int64 `tfsdk:"replica_minimum"`
+	ReplicasMaximum types.Int64 `tfsdk:"replicas_maximum"`
+	ReplicasMinimum types.Int64 `tfsdk:"replicas_minimum"`
 }
 
 type CustomAgentSizeConfig struct {
@@ -72,9 +72,9 @@ type AppControllerCustomAgentSizeConfig struct {
 }
 
 type RepoServerCustomAgentSizeConfig struct {
-	Memory  types.String `tfsdk:"memory"`
-	Cpu     types.String `tfsdk:"cpu"`
-	Replica types.Int64  `tfsdk:"replica"`
+	Memory   types.String `tfsdk:"memory"`
+	Cpu      types.String `tfsdk:"cpu"`
+	Replicas types.Int64  `tfsdk:"replicas"`
 }
 
 type ClusterData struct {

@@ -227,25 +227,25 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 			newConfig := &AutoScalerConfig{
 				ApplicationController: &AppControllerAutoScalingConfig{
 					ResourceMinimum: &Resources{
-						Mem: tftypes.StringValue(newAPIConfig.ApplicationController.ResourceMinimum.Mem),
-						Cpu: tftypes.StringValue(newAPIConfig.ApplicationController.ResourceMinimum.Cpu),
+						Memory: tftypes.StringValue(newAPIConfig.ApplicationController.ResourceMinimum.Mem),
+						Cpu:    tftypes.StringValue(newAPIConfig.ApplicationController.ResourceMinimum.Cpu),
 					},
 					ResourceMaximum: &Resources{
-						Mem: tftypes.StringValue(newAPIConfig.ApplicationController.ResourceMaximum.Mem),
-						Cpu: tftypes.StringValue(newAPIConfig.ApplicationController.ResourceMaximum.Cpu),
+						Memory: tftypes.StringValue(newAPIConfig.ApplicationController.ResourceMaximum.Mem),
+						Cpu:    tftypes.StringValue(newAPIConfig.ApplicationController.ResourceMaximum.Cpu),
 					},
 				},
 				RepoServer: &RepoServerAutoScalingConfig{
 					ResourceMinimum: &Resources{
-						Mem: tftypes.StringValue(newAPIConfig.RepoServer.ResourceMinimum.Mem),
-						Cpu: tftypes.StringValue(newAPIConfig.RepoServer.ResourceMinimum.Cpu),
+						Memory: tftypes.StringValue(newAPIConfig.RepoServer.ResourceMinimum.Mem),
+						Cpu:    tftypes.StringValue(newAPIConfig.RepoServer.ResourceMinimum.Cpu),
 					},
 					ResourceMaximum: &Resources{
-						Mem: tftypes.StringValue(newAPIConfig.RepoServer.ResourceMaximum.Mem),
-						Cpu: tftypes.StringValue(newAPIConfig.RepoServer.ResourceMaximum.Cpu),
+						Memory: tftypes.StringValue(newAPIConfig.RepoServer.ResourceMaximum.Mem),
+						Cpu:    tftypes.StringValue(newAPIConfig.RepoServer.ResourceMaximum.Cpu),
 					},
-					ReplicaMaximum: tftypes.Int64Value(int64(newAPIConfig.RepoServer.ReplicaMaximum)),
-					ReplicaMinimum: tftypes.Int64Value(int64(newAPIConfig.RepoServer.ReplicaMinimum)),
+					ReplicasMaximum: tftypes.Int64Value(int64(newAPIConfig.RepoServer.ReplicaMaximum)),
+					ReplicasMinimum: tftypes.Int64Value(int64(newAPIConfig.RepoServer.ReplicaMinimum)),
 				},
 			}
 			if areAutoScalerConfigsEquivalent(extractConfigFromObjectValue(plan.Spec.Data.AutoscalerConfig), newConfig) {
@@ -395,8 +395,8 @@ func toClusterDataAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, c
 			autoscalerConfigAPI.RepoServer = &v1alpha1.RepoServerAutoScalingConfig{
 				ResourceMinimum: toResourcesAPIModel(autoscalerConfig.RepoServer.ResourceMinimum),
 				ResourceMaximum: toResourcesAPIModel(autoscalerConfig.RepoServer.ResourceMaximum),
-				ReplicaMaximum:  int32(autoscalerConfig.RepoServer.ReplicaMaximum.ValueInt64()),
-				ReplicaMinimum:  int32(autoscalerConfig.RepoServer.ReplicaMinimum.ValueInt64()),
+				ReplicaMaximum:  int32(autoscalerConfig.RepoServer.ReplicasMaximum.ValueInt64()),
+				ReplicaMinimum:  int32(autoscalerConfig.RepoServer.ReplicasMinimum.ValueInt64()),
 			}
 		}
 		if autoscalerConfig.ApplicationController != nil {
@@ -989,14 +989,14 @@ func toAutoScalerConfigTFModel(cfg *argocdv1.AutoScalerConfig) basetypes.ObjectV
 			AttrTypes: map[string]attr.Type{
 				"resource_minimum": basetypes.ObjectType{
 					AttrTypes: map[string]attr.Type{
-						"mem": types.StringType,
-						"cpu": types.StringType,
+						"memory": types.StringType,
+						"cpu":    types.StringType,
 					},
 				},
 				"resource_maximum": basetypes.ObjectType{
 					AttrTypes: map[string]attr.Type{
-						"mem": types.StringType,
-						"cpu": types.StringType,
+						"memory": types.StringType,
+						"cpu":    types.StringType,
 					},
 				},
 			},
@@ -1005,18 +1005,18 @@ func toAutoScalerConfigTFModel(cfg *argocdv1.AutoScalerConfig) basetypes.ObjectV
 			AttrTypes: map[string]attr.Type{
 				"resource_minimum": basetypes.ObjectType{
 					AttrTypes: map[string]attr.Type{
-						"mem": types.StringType,
-						"cpu": types.StringType,
+						"memory": types.StringType,
+						"cpu":    types.StringType,
 					},
 				},
 				"resource_maximum": basetypes.ObjectType{
 					AttrTypes: map[string]attr.Type{
-						"mem": types.StringType,
-						"cpu": types.StringType,
+						"memory": types.StringType,
+						"cpu":    types.StringType,
 					},
 				},
-				"replica_maximum": types.Int64Type,
-				"replica_minimum": types.Int64Type,
+				"replicas_maximum": types.Int64Type,
+				"replicas_minimum": types.Int64Type,
 			},
 		},
 	}
@@ -1029,15 +1029,15 @@ func toAutoScalerConfigTFModel(cfg *argocdv1.AutoScalerConfig) basetypes.ObjectV
 				"resource_minimum": basetypes.NewObjectValueMust(
 					attributeTypes["application_controller"].(basetypes.ObjectType).AttrTypes["resource_minimum"].(basetypes.ObjectType).AttrTypes,
 					map[string]attr.Value{
-						"mem": basetypes.NewStringValue(cfg.ApplicationController.ResourceMinimum.Mem),
-						"cpu": basetypes.NewStringValue(cfg.ApplicationController.ResourceMinimum.Cpu),
+						"memory": basetypes.NewStringValue(cfg.ApplicationController.ResourceMinimum.Mem),
+						"cpu":    basetypes.NewStringValue(cfg.ApplicationController.ResourceMinimum.Cpu),
 					},
 				),
 				"resource_maximum": basetypes.NewObjectValueMust(
 					attributeTypes["application_controller"].(basetypes.ObjectType).AttrTypes["resource_maximum"].(basetypes.ObjectType).AttrTypes,
 					map[string]attr.Value{
-						"mem": basetypes.NewStringValue(cfg.ApplicationController.ResourceMaximum.Mem),
-						"cpu": basetypes.NewStringValue(cfg.ApplicationController.ResourceMaximum.Cpu),
+						"memory": basetypes.NewStringValue(cfg.ApplicationController.ResourceMaximum.Mem),
+						"cpu":    basetypes.NewStringValue(cfg.ApplicationController.ResourceMaximum.Cpu),
 					},
 				),
 			})
@@ -1049,19 +1049,19 @@ func toAutoScalerConfigTFModel(cfg *argocdv1.AutoScalerConfig) basetypes.ObjectV
 				"resource_minimum": basetypes.NewObjectValueMust(
 					attributeTypes["repo_server"].(basetypes.ObjectType).AttrTypes["resource_minimum"].(basetypes.ObjectType).AttrTypes,
 					map[string]attr.Value{
-						"mem": basetypes.NewStringValue(cfg.RepoServer.ResourceMinimum.Mem),
-						"cpu": basetypes.NewStringValue(cfg.RepoServer.ResourceMinimum.Cpu),
+						"memory": basetypes.NewStringValue(cfg.RepoServer.ResourceMinimum.Mem),
+						"cpu":    basetypes.NewStringValue(cfg.RepoServer.ResourceMinimum.Cpu),
 					},
 				),
 				"resource_maximum": basetypes.NewObjectValueMust(
 					attributeTypes["repo_server"].(basetypes.ObjectType).AttrTypes["resource_maximum"].(basetypes.ObjectType).AttrTypes,
 					map[string]attr.Value{
-						"mem": basetypes.NewStringValue(cfg.RepoServer.ResourceMaximum.Mem),
-						"cpu": basetypes.NewStringValue(cfg.RepoServer.ResourceMaximum.Cpu),
+						"memory": basetypes.NewStringValue(cfg.RepoServer.ResourceMaximum.Mem),
+						"cpu":    basetypes.NewStringValue(cfg.RepoServer.ResourceMaximum.Cpu),
 					},
 				),
-				"replica_maximum": basetypes.NewInt64Value(int64(cfg.RepoServer.ReplicaMaximum)),
-				"replica_minimum": basetypes.NewInt64Value(int64(cfg.RepoServer.ReplicaMinimum)),
+				"replicas_maximum": basetypes.NewInt64Value(int64(cfg.RepoServer.ReplicaMaximum)),
+				"replicas_minimum": basetypes.NewInt64Value(int64(cfg.RepoServer.ReplicaMinimum)),
 			},
 		)
 	}
@@ -1167,9 +1167,9 @@ func handleAgentSizeAndKustomization(diagnostics *diag.Diagnostics, clusterData 
 			},
 		})
 
-		if customSizeConfig.RepoServer.Replica.ValueInt64() > 0 {
+		if customSizeConfig.RepoServer.Replicas.ValueInt64() > 0 {
 			replicas = append(replicas, map[string]any{
-				"count": customSizeConfig.RepoServer.Replica.ValueInt64(),
+				"count": customSizeConfig.RepoServer.Replicas.ValueInt64(),
 				"name":  "argocd-repo-server",
 			})
 		}
@@ -1304,7 +1304,7 @@ func toResourcesAPIModel(resources *Resources) *v1alpha1.Resources {
 		return nil
 	}
 	return &v1alpha1.Resources{
-		Mem: resources.Mem.ValueString(),
+		Mem: resources.Memory.ValueString(),
 		Cpu: resources.Cpu.ValueString(),
 	}
 }
@@ -1345,7 +1345,7 @@ func extractCustomSizeConfig(existingConfig kustomizetypes.Kustomization) *Custo
 	if repoServer != nil {
 		for _, r := range existingConfig.Replicas {
 			if r.Name == "argocd-repo-server" {
-				repoServer.Replica = tftypes.Int64Value(r.Count)
+				repoServer.Replicas = tftypes.Int64Value(r.Count)
 				break
 			}
 		}
@@ -1385,7 +1385,7 @@ func areCustomAgentConfigsEquivalent(config1, config2 *CustomAgentSizeConfig) bo
 		) || !areResourcesEquivalent(
 			config1.RepoServer.Memory.ValueString(),
 			config2.RepoServer.Memory.ValueString(),
-		) || config1.RepoServer.Replica != config2.RepoServer.Replica {
+		) || config1.RepoServer.Replicas != config2.RepoServer.Replicas {
 			return false
 		}
 	} else if config1.RepoServer != nil || config2.RepoServer != nil {
@@ -1403,14 +1403,14 @@ func areAutoScalerConfigsEquivalent(config1, config2 *AutoScalerConfig) bool {
 			config1.ApplicationController.ResourceMinimum.Cpu.ValueString(),
 			config2.ApplicationController.ResourceMinimum.Cpu.ValueString(),
 		) || !areResourcesEquivalent(
-			config1.ApplicationController.ResourceMinimum.Mem.ValueString(),
-			config2.ApplicationController.ResourceMinimum.Mem.ValueString(),
+			config1.ApplicationController.ResourceMinimum.Memory.ValueString(),
+			config2.ApplicationController.ResourceMinimum.Memory.ValueString(),
 		) || !areResourcesEquivalent(
 			config1.ApplicationController.ResourceMaximum.Cpu.ValueString(),
 			config2.ApplicationController.ResourceMaximum.Cpu.ValueString(),
 		) || !areResourcesEquivalent(
-			config1.ApplicationController.ResourceMaximum.Mem.ValueString(),
-			config2.ApplicationController.ResourceMaximum.Mem.ValueString(),
+			config1.ApplicationController.ResourceMaximum.Memory.ValueString(),
+			config2.ApplicationController.ResourceMaximum.Memory.ValueString(),
 		) {
 			return false
 		}
@@ -1422,16 +1422,16 @@ func areAutoScalerConfigsEquivalent(config1, config2 *AutoScalerConfig) bool {
 			config1.RepoServer.ResourceMinimum.Cpu.ValueString(),
 			config2.RepoServer.ResourceMinimum.Cpu.ValueString(),
 		) || !areResourcesEquivalent(
-			config1.RepoServer.ResourceMinimum.Mem.ValueString(),
-			config2.RepoServer.ResourceMinimum.Mem.ValueString(),
+			config1.RepoServer.ResourceMinimum.Memory.ValueString(),
+			config2.RepoServer.ResourceMinimum.Memory.ValueString(),
 		) || !areResourcesEquivalent(
 			config1.RepoServer.ResourceMaximum.Cpu.ValueString(),
 			config2.RepoServer.ResourceMaximum.Cpu.ValueString(),
 		) || !areResourcesEquivalent(
-			config1.RepoServer.ResourceMaximum.Mem.ValueString(),
-			config2.RepoServer.ResourceMaximum.Mem.ValueString(),
-		) || config1.RepoServer.ReplicaMaximum != config2.RepoServer.ReplicaMaximum ||
-			config1.RepoServer.ReplicaMinimum != config2.RepoServer.ReplicaMinimum {
+			config1.RepoServer.ResourceMaximum.Memory.ValueString(),
+			config2.RepoServer.ResourceMaximum.Memory.ValueString(),
+		) || config1.RepoServer.ReplicasMaximum != config2.RepoServer.ReplicasMaximum ||
+			config1.RepoServer.ReplicasMinimum != config2.RepoServer.ReplicasMinimum {
 			return false
 		}
 	} else if config1.RepoServer != nil || config2.RepoServer != nil {
@@ -1460,12 +1460,12 @@ func extractConfigFromObjectValue(obj basetypes.ObjectValue) *AutoScalerConfig {
 		appCtrlAttrs := appCtrl.Attributes()
 		config.ApplicationController = &AppControllerAutoScalingConfig{
 			ResourceMinimum: &Resources{
-				Cpu: appCtrlAttrs["resource_minimum"].(basetypes.ObjectValue).Attributes()["cpu"].(basetypes.StringValue),
-				Mem: appCtrlAttrs["resource_minimum"].(basetypes.ObjectValue).Attributes()["mem"].(basetypes.StringValue),
+				Cpu:    appCtrlAttrs["resource_minimum"].(basetypes.ObjectValue).Attributes()["cpu"].(basetypes.StringValue),
+				Memory: appCtrlAttrs["resource_minimum"].(basetypes.ObjectValue).Attributes()["memory"].(basetypes.StringValue),
 			},
 			ResourceMaximum: &Resources{
-				Cpu: appCtrlAttrs["resource_maximum"].(basetypes.ObjectValue).Attributes()["cpu"].(basetypes.StringValue),
-				Mem: appCtrlAttrs["resource_maximum"].(basetypes.ObjectValue).Attributes()["mem"].(basetypes.StringValue),
+				Cpu:    appCtrlAttrs["resource_maximum"].(basetypes.ObjectValue).Attributes()["cpu"].(basetypes.StringValue),
+				Memory: appCtrlAttrs["resource_maximum"].(basetypes.ObjectValue).Attributes()["memory"].(basetypes.StringValue),
 			},
 		}
 	}
@@ -1473,15 +1473,15 @@ func extractConfigFromObjectValue(obj basetypes.ObjectValue) *AutoScalerConfig {
 		repoServerAttrs := repoServer.Attributes()
 		config.RepoServer = &RepoServerAutoScalingConfig{
 			ResourceMinimum: &Resources{
-				Cpu: repoServerAttrs["resource_minimum"].(basetypes.ObjectValue).Attributes()["cpu"].(basetypes.StringValue),
-				Mem: repoServerAttrs["resource_minimum"].(basetypes.ObjectValue).Attributes()["mem"].(basetypes.StringValue),
+				Cpu:    repoServerAttrs["resource_minimum"].(basetypes.ObjectValue).Attributes()["cpu"].(basetypes.StringValue),
+				Memory: repoServerAttrs["resource_minimum"].(basetypes.ObjectValue).Attributes()["memory"].(basetypes.StringValue),
 			},
 			ResourceMaximum: &Resources{
-				Cpu: repoServerAttrs["resource_maximum"].(basetypes.ObjectValue).Attributes()["cpu"].(basetypes.StringValue),
-				Mem: repoServerAttrs["resource_maximum"].(basetypes.ObjectValue).Attributes()["mem"].(basetypes.StringValue),
+				Cpu:    repoServerAttrs["resource_maximum"].(basetypes.ObjectValue).Attributes()["cpu"].(basetypes.StringValue),
+				Memory: repoServerAttrs["resource_maximum"].(basetypes.ObjectValue).Attributes()["memory"].(basetypes.StringValue),
 			},
-			ReplicaMaximum: repoServerAttrs["replica_maximum"].(basetypes.Int64Value),
-			ReplicaMinimum: repoServerAttrs["replica_minimum"].(basetypes.Int64Value),
+			ReplicasMaximum: repoServerAttrs["replicas_maximum"].(basetypes.Int64Value),
+			ReplicasMinimum: repoServerAttrs["replicas_minimum"].(basetypes.Int64Value),
 		}
 	}
 	return config

@@ -22,25 +22,25 @@ resource "akp_cluster" "example" {
       auto_agent_size_config = {
         application_controller = {
           resource_maximum = {
-            cpu = "3"
-            mem = "2Gi"
+            cpu    = "3"
+            memory = "2Gi"
           },
           resource_minimum = {
-            cpu = "250m",
-            mem = "1Gi"
+            cpu    = "250m",
+            memory = "1Gi"
           }
         },
         repo_server = {
-          replica_maximum = 3,
+          replicas_maximum = 3,
           # minimum number of replicas should be set to 1
-          replica_minimum = 1,
+          replicas_minimum = 1,
           resource_maximum = {
-            cpu = "3"
-            mem = "2.00Gi"
+            cpu    = "3"
+            memory = "2.00Gi"
           },
           resource_minimum = {
-            cpu = "250m",
-            mem = "256Mi"
+            cpu    = "250m",
+            memory = "256Mi"
           }
         }
       }

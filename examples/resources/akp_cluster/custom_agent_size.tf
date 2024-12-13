@@ -24,9 +24,9 @@ resource "akp_cluster" "example" {
           memory = "2Gi"
         }
         repo_server = {
-          replica = 3,
-          cpu     = "1000m"
-          memory  = "2Gi"
+          replicas = 3,
+          cpu      = "1000m"
+          memory   = "2Gi"
         }
       }
     }
