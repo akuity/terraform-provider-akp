@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -429,12 +430,20 @@ func getAutoScalerConfigAttributes() map[string]schema.Attribute {
 		"application_controller": schema.SingleNestedAttribute{
 			Description: "Application Controller auto scaling config",
 			Optional:    true,
-			Attributes:  getAppControllerAutoScalingConfigAttributes(),
+			Computed:    true,
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier.UseStateForUnknown(),
+			},
+			Attributes: getAppControllerAutoScalingConfigAttributes(),
 		},
 		"repo_server": schema.SingleNestedAttribute{
 			Description: "Repo Server auto scaling config",
 			Optional:    true,
-			Attributes:  getRepoServerAutoScalingConfigAttributes(),
+			Computed:    true,
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier.UseStateForUnknown(),
+			},
+			Attributes: getRepoServerAutoScalingConfigAttributes(),
 		},
 	}
 }
@@ -444,12 +453,20 @@ func getAppControllerAutoScalingConfigAttributes() map[string]schema.Attribute {
 		"resource_minimum": schema.SingleNestedAttribute{
 			Description: "Resource minimum",
 			Optional:    true,
-			Attributes:  getResourcesAttributes(),
+			Computed:    true,
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier.UseStateForUnknown(),
+			},
+			Attributes: getResourcesAttributes(),
 		},
 		"resource_maximum": schema.SingleNestedAttribute{
 			Description: "Resource maximum",
 			Optional:    true,
-			Attributes:  getResourcesAttributes(),
+			Computed:    true,
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier.UseStateForUnknown(),
+			},
+			Attributes: getResourcesAttributes(),
 		},
 	}
 }
@@ -459,12 +476,20 @@ func getRepoServerAutoScalingConfigAttributes() map[string]schema.Attribute {
 		"resource_minimum": schema.SingleNestedAttribute{
 			Description: "Resource minimum",
 			Optional:    true,
-			Attributes:  getResourcesAttributes(),
+			Computed:    true,
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier.UseStateForUnknown(),
+			},
+			Attributes: getResourcesAttributes(),
 		},
 		"resource_maximum": schema.SingleNestedAttribute{
 			Description: "Resource maximum",
 			Optional:    true,
-			Attributes:  getResourcesAttributes(),
+			Computed:    true,
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier.UseStateForUnknown(),
+			},
+			Attributes: getResourcesAttributes(),
 		},
 		"replicas_maximum": schema.Int64Attribute{
 			Description: "Replica maximum",

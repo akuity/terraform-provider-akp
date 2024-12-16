@@ -62,7 +62,6 @@ func TestAccClusterResource(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.redis_tunneling", "false"),
 					resource.TestCheckResourceAttr("akp_cluster.test", "remove_agent_resources_on_destroy", "true"),
 				),
-				ExpectNonEmptyPlan: true,
 			},
 			// Update and Read testing
 			{
@@ -71,7 +70,6 @@ func TestAccClusterResource(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.description", "test two"),
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.size", "medium"),
 				),
-				ExpectNonEmptyPlan: true,
 			},
 			// Delete testing automatically occurs in TestCase
 		},
