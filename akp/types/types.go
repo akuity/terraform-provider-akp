@@ -3,7 +3,6 @@ package types
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 
@@ -197,14 +196,17 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 				if areCustomAgentConfigsEquivalent(plan.Spec.Data.CustomAgentSizeConfig, extractedCustomConfig) {
 					customConfig = plan.Spec.Data.CustomAgentSizeConfig
 				} else {
-					customConfig = extractedCustomConfig
+					customConfig = plan.Spec.Data.CustomAgentSizeConfig
 				}
+				existingConfig.Patches = filterNonSizePatchesKustomize(existingConfig.Patches)
+				existingConfig.Replicas = filterNonRepoServerReplicasKustomize(existingConfig.Replicas)
 			} else {
 				customConfig = extractedCustomConfig
 			}
 
-			existingConfig.Patches = filterNonSizePatchesKustomize(existingConfig.Patches)
-			existingConfig.Replicas = filterNonRepoServerReplicasKustomize(existingConfig.Replicas)
+			if existingConfig.CheckEmpty() != nil {
+				kustomization = tftypes.StringValue("{}\n")
+			}
 
 			cleanYamlData, err := yaml.Marshal(existingConfig)
 			if err != nil {
@@ -1443,66 +1445,76 @@ func areCustomAgentConfigsEquivalent(config1, config2 *CustomAgentSizeConfig) bo
 		) || config1.RepoServer.Replicas != config2.RepoServer.Replicas {
 			return false
 		}
+	} else if config1.RepoServer != nil || config2.RepoServer != nil {
+		return false
 	}
 	return true
 }
 
-func areAutoScalerConfigsEquivalent(config1, config2 *AutoScalerConfig) bool {
-	if config1 == nil || config2 == nil {
+func areAutoScalerConfigsEquivalent(plan, now *AutoScalerConfig) bool {
+	if plan == nil {
 		return true
 	}
-	if config1.ApplicationController != nil && config2.ApplicationController != nil {
+	if plan.ApplicationController != nil && now.ApplicationController != nil {
 		if !areResourcesEquivalent(
-			config1.ApplicationController.ResourceMinimum.Cpu.ValueString(),
-			config2.ApplicationController.ResourceMinimum.Cpu.ValueString(),
+			plan.ApplicationController.ResourceMinimum.Cpu.ValueString(),
+			now.ApplicationController.ResourceMinimum.Cpu.ValueString(),
 		) || !areResourcesEquivalent(
-			config1.ApplicationController.ResourceMinimum.Memory.ValueString(),
-			config2.ApplicationController.ResourceMinimum.Memory.ValueString(),
+			plan.ApplicationController.ResourceMinimum.Memory.ValueString(),
+			now.ApplicationController.ResourceMinimum.Memory.ValueString(),
 		) || !areResourcesEquivalent(
-			config1.ApplicationController.ResourceMaximum.Cpu.ValueString(),
-			config2.ApplicationController.ResourceMaximum.Cpu.ValueString(),
+			plan.ApplicationController.ResourceMaximum.Cpu.ValueString(),
+			now.ApplicationController.ResourceMaximum.Cpu.ValueString(),
 		) || !areResourcesEquivalent(
-			config1.ApplicationController.ResourceMaximum.Memory.ValueString(),
-			config2.ApplicationController.ResourceMaximum.Memory.ValueString(),
+			plan.ApplicationController.ResourceMaximum.Memory.ValueString(),
+			now.ApplicationController.ResourceMaximum.Memory.ValueString(),
 		) {
 			return false
 		}
-	} else if config1.ApplicationController != nil || config2.ApplicationController != nil {
-		return true
 	}
-	if config1.RepoServer != nil && config2.RepoServer != nil {
+	if plan.RepoServer != nil && now.RepoServer != nil {
 		if !areResourcesEquivalent(
-			config1.RepoServer.ResourceMinimum.Cpu.ValueString(),
-			config2.RepoServer.ResourceMinimum.Cpu.ValueString(),
+			plan.RepoServer.ResourceMinimum.Cpu.ValueString(),
+			now.RepoServer.ResourceMinimum.Cpu.ValueString(),
 		) || !areResourcesEquivalent(
-			config1.RepoServer.ResourceMinimum.Memory.ValueString(),
-			config2.RepoServer.ResourceMinimum.Memory.ValueString(),
+			plan.RepoServer.ResourceMinimum.Memory.ValueString(),
+			now.RepoServer.ResourceMinimum.Memory.ValueString(),
 		) || !areResourcesEquivalent(
-			config1.RepoServer.ResourceMaximum.Cpu.ValueString(),
-			config2.RepoServer.ResourceMaximum.Cpu.ValueString(),
+			plan.RepoServer.ResourceMaximum.Cpu.ValueString(),
+			now.RepoServer.ResourceMaximum.Cpu.ValueString(),
 		) || !areResourcesEquivalent(
-			config1.RepoServer.ResourceMaximum.Memory.ValueString(),
-			config2.RepoServer.ResourceMaximum.Memory.ValueString(),
-		) || config1.RepoServer.ReplicasMaximum != config2.RepoServer.ReplicasMaximum ||
-			config1.RepoServer.ReplicasMinimum != config2.RepoServer.ReplicasMinimum {
+			plan.RepoServer.ResourceMaximum.Memory.ValueString(),
+			now.RepoServer.ResourceMaximum.Memory.ValueString(),
+		) || plan.RepoServer.ReplicasMaximum != now.RepoServer.ReplicasMaximum ||
+			plan.RepoServer.ReplicasMinimum != now.RepoServer.ReplicasMinimum {
 			return false
 		}
-	} else if config1.RepoServer != nil || config2.RepoServer != nil {
-		return true
 	}
 	return true
 }
 
-func areResourcesEquivalent(old, new string) bool {
-	oldQ, err1 := resource.ParseQuantity(old)
+func areResourcesEquivalent(plan, new string) bool {
+	if plan == "" {
+		return true
+	}
+	planQ, err1 := resource.ParseQuantity(plan)
 	newQ, err2 := resource.ParseQuantity(new)
 	if err1 != nil || err2 != nil {
-		if errors.Is(err1, resource.ErrFormatWrong) || errors.Is(err2, resource.ErrFormatWrong) {
-			return true
-		}
-		return old == new
+		return plan == new
 	}
-	return oldQ.Equal(newQ)
+
+	planVal := planQ.Value()
+	newVal := newQ.Value()
+
+	var diff float64
+	if planVal > newVal {
+		diff = float64(planVal-newVal) / float64(planVal)
+	} else {
+		diff = float64(newVal-planVal) / float64(newVal)
+	}
+
+	// there maybe Mi to Gi conversion with some rounding difference
+	return diff <= 0.05
 }
 
 func extractConfigFromObjectValue(obj basetypes.ObjectValue) *AutoScalerConfig {
