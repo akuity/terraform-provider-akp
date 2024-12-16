@@ -189,7 +189,7 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 	var existingConfig kustomizetypes.Kustomization
 	size := tftypes.StringValue(ClusterSizeString[apiCluster.GetData().GetSize()])
 	var customConfig *CustomAgentSizeConfig
-	if err := yaml.Unmarshal(yamlData, &existingConfig); err == nil {
+	if err := yaml.Unmarshal(yamlData, &existingConfig); err == nil && plan.Spec.Data.CustomAgentSizeConfig != nil {
 		extractedCustomConfig := extractCustomSizeConfig(existingConfig)
 		if extractedCustomConfig != nil {
 			if plan != nil && plan.Spec != nil && plan.Spec.Data.CustomAgentSizeConfig != nil {
@@ -1144,42 +1144,8 @@ func handleAgentSizeAndKustomization(diagnostics *diag.Diagnostics, clusterData 
 			return clusterData.Size.ValueString(), runtime.RawExtension{}
 		}
 	}
-	if clusterData.Size.ValueString() != "custom" || customSizeConfig == nil {
-		if existingConfig != nil {
-			// Remove custom patches and replicas
-			if patches, ok := existingConfig["patches"].([]any); ok {
-				filteredPatches := filterNonSizePatches(patches)
-				if len(filteredPatches) > 0 {
-					existingConfig["patches"] = filteredPatches
-				} else {
-					delete(existingConfig, "patches")
-				}
-			}
-			if replicas, ok := existingConfig["replicas"].([]any); ok {
-				filteredReplicas := filterNonRepoServerReplicas(replicas)
-				if len(filteredReplicas) > 0 {
-					existingConfig["replicas"] = filteredReplicas
-				} else {
-					delete(existingConfig, "replicas")
-				}
-			}
-
-			if len(existingConfig) <= 2 {
-				return clusterData.Size.ValueString(), runtime.RawExtension{}
-			}
-
-			yamlData, err := yaml.Marshal(existingConfig)
-			if err != nil {
-				diagnostics.AddError("failed to marshal config to yaml", err.Error())
-				return clusterData.Size.ValueString(), runtime.RawExtension{}
-			}
-			if err = yaml.Unmarshal(yamlData, &raw); err != nil {
-				diagnostics.AddError("failed unmarshal kustomization string to yaml", err.Error())
-				return clusterData.Size.ValueString(), runtime.RawExtension{}
-			}
-			return clusterData.Size.ValueString(), raw
-		}
-		return clusterData.Size.ValueString(), runtime.RawExtension{}
+	if clusterData.Size.ValueString() != "custom" {
+		return clusterData.Size.ValueString(), raw
 	}
 
 	if existingConfig == nil {
