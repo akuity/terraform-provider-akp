@@ -189,7 +189,7 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 	var existingConfig kustomizetypes.Kustomization
 	size := tftypes.StringValue(ClusterSizeString[apiCluster.GetData().GetSize()])
 	var customConfig *CustomAgentSizeConfig
-	if err := yaml.Unmarshal(yamlData, &existingConfig); err == nil && plan.Spec.Data.CustomAgentSizeConfig != nil {
+	if err := yaml.Unmarshal(yamlData, &existingConfig); err == nil && plan != nil && plan.Spec != nil && plan.Spec.Data.CustomAgentSizeConfig != nil {
 		extractedCustomConfig := extractCustomSizeConfig(existingConfig)
 		if extractedCustomConfig != nil {
 			if plan != nil && plan.Spec != nil && plan.Spec.Data.CustomAgentSizeConfig != nil {
@@ -413,6 +413,10 @@ func toClusterDataAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, c
 				autoscalerConfig.RepoServer.ResourceMaximum.Cpu.ValueString(),
 			) {
 				diagnostics.AddError("repo server minimum CPU must be less than or equal to maximum CPU", "")
+				return v1alpha1.ClusterData{}
+			}
+			if autoscalerConfig.RepoServer.ReplicasMinimum.ValueInt64() > autoscalerConfig.RepoServer.ReplicasMaximum.ValueInt64() {
+				diagnostics.AddError("repo server minimum replicas must be less than or equal to maximum replicas", "")
 				return v1alpha1.ClusterData{}
 			}
 			autoscalerConfigAPI.RepoServer = &v1alpha1.RepoServerAutoScalingConfig{
