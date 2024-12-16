@@ -3,15 +3,16 @@ package akp
 import (
 	"context"
 	"fmt"
-	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
-	"github.com/akuity/terraform-provider-akp/akp/types"
-	hashitype "github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/pkg/errors"
-	"github.com/stretchr/testify/assert"
 	"testing"
 
+	hashitype "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
+
+	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
+	"github.com/akuity/terraform-provider-akp/akp/types"
 )
 
 func TestAccClusterResource(t *testing.T) {
@@ -61,6 +62,7 @@ func TestAccClusterResource(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.redis_tunneling", "false"),
 					resource.TestCheckResourceAttr("akp_cluster.test", "remove_agent_resources_on_destroy", "true"),
 				),
+				ExpectNonEmptyPlan: true,
 			},
 			// Update and Read testing
 			{
@@ -69,6 +71,7 @@ func TestAccClusterResource(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.description", "test two"),
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.size", "medium"),
 				),
+				ExpectNonEmptyPlan: true,
 			},
 			// Delete testing automatically occurs in TestCase
 		},

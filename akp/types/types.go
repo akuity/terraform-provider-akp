@@ -395,6 +395,10 @@ func toClusterDataAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, c
 	autoscalerConfigAPI := &v1alpha1.AutoScalerConfig{}
 	if autoscalerConfig != nil {
 		if autoscalerConfig.RepoServer != nil {
+			if autoscalerConfig.RepoServer.ResourceMaximum == nil || autoscalerConfig.RepoServer.ResourceMinimum == nil {
+				diagnostics.AddError("repo server autoscaler config requires minimum and maximum resources", "")
+				return v1alpha1.ClusterData{}
+			}
 			if autoscalerConfig.RepoServer.ResourceMinimum.Memory.ValueString() == "" || autoscalerConfig.RepoServer.ResourceMinimum.Cpu.ValueString() == "" ||
 				autoscalerConfig.RepoServer.ResourceMaximum.Memory.ValueString() == "" || autoscalerConfig.RepoServer.ResourceMaximum.Cpu.ValueString() == "" ||
 				autoscalerConfig.RepoServer.ReplicasMaximum.ValueInt64() == 0 || autoscalerConfig.RepoServer.ReplicasMinimum.ValueInt64() == 0 {
@@ -427,6 +431,10 @@ func toClusterDataAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, c
 			}
 		}
 		if autoscalerConfig.ApplicationController != nil {
+			if autoscalerConfig.ApplicationController.ResourceMaximum == nil || autoscalerConfig.ApplicationController.ResourceMinimum == nil {
+				diagnostics.AddError("app controller autoscaler config requires minimum and maximum resources", "")
+				return v1alpha1.ClusterData{}
+			}
 			if autoscalerConfig.ApplicationController.ResourceMinimum.Memory.ValueString() == "" || autoscalerConfig.ApplicationController.ResourceMinimum.Cpu.ValueString() == "" ||
 				autoscalerConfig.ApplicationController.ResourceMaximum.Memory.ValueString() == "" || autoscalerConfig.ApplicationController.ResourceMaximum.Cpu.ValueString() == "" {
 				diagnostics.AddError("app controller autoscaler config requires memory, cpu values", "")
