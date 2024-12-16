@@ -3,6 +3,7 @@ package types
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -392,6 +393,26 @@ func toClusterDataAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, c
 	autoscalerConfigAPI := &v1alpha1.AutoScalerConfig{}
 	if autoscalerConfig != nil {
 		if autoscalerConfig.RepoServer != nil {
+			if autoscalerConfig.RepoServer.ResourceMinimum.Memory.ValueString() == "" || autoscalerConfig.RepoServer.ResourceMinimum.Cpu.ValueString() == "" ||
+				autoscalerConfig.RepoServer.ResourceMaximum.Memory.ValueString() == "" || autoscalerConfig.RepoServer.ResourceMaximum.Cpu.ValueString() == "" ||
+				autoscalerConfig.RepoServer.ReplicasMaximum.ValueInt64() == 0 || autoscalerConfig.RepoServer.ReplicasMinimum.ValueInt64() == 0 {
+				diagnostics.AddError("repo server autoscaler config requires memory, cpu, and replicas values", "")
+				return v1alpha1.ClusterData{}
+			}
+			if !areResourcesValid(
+				autoscalerConfig.RepoServer.ResourceMinimum.Memory.ValueString(),
+				autoscalerConfig.RepoServer.ResourceMaximum.Memory.ValueString(),
+			) {
+				diagnostics.AddError("repo server minimum memory must be less than or equal to maximum memory", "")
+				return v1alpha1.ClusterData{}
+			}
+			if !areResourcesValid(
+				autoscalerConfig.RepoServer.ResourceMinimum.Cpu.ValueString(),
+				autoscalerConfig.RepoServer.ResourceMaximum.Cpu.ValueString(),
+			) {
+				diagnostics.AddError("repo server minimum CPU must be less than or equal to maximum CPU", "")
+				return v1alpha1.ClusterData{}
+			}
 			autoscalerConfigAPI.RepoServer = &v1alpha1.RepoServerAutoScalingConfig{
 				ResourceMinimum: toResourcesAPIModel(autoscalerConfig.RepoServer.ResourceMinimum),
 				ResourceMaximum: toResourcesAPIModel(autoscalerConfig.RepoServer.ResourceMaximum),
@@ -400,6 +421,25 @@ func toClusterDataAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, c
 			}
 		}
 		if autoscalerConfig.ApplicationController != nil {
+			if autoscalerConfig.ApplicationController.ResourceMinimum.Memory.ValueString() == "" || autoscalerConfig.ApplicationController.ResourceMinimum.Cpu.ValueString() == "" ||
+				autoscalerConfig.ApplicationController.ResourceMaximum.Memory.ValueString() == "" || autoscalerConfig.ApplicationController.ResourceMaximum.Cpu.ValueString() == "" {
+				diagnostics.AddError("app controller autoscaler config requires memory, cpu values", "")
+				return v1alpha1.ClusterData{}
+			}
+			if !areResourcesValid(
+				autoscalerConfig.ApplicationController.ResourceMinimum.Memory.ValueString(),
+				autoscalerConfig.ApplicationController.ResourceMaximum.Memory.ValueString(),
+			) {
+				diagnostics.AddError("application controller minimum memory must be less than or equal to maximum memory", "")
+				return v1alpha1.ClusterData{}
+			}
+			if !areResourcesValid(
+				autoscalerConfig.ApplicationController.ResourceMinimum.Cpu.ValueString(),
+				autoscalerConfig.ApplicationController.ResourceMaximum.Cpu.ValueString(),
+			) {
+				diagnostics.AddError("application controller minimum CPU must be less than or equal to maximum CPU", "")
+				return v1alpha1.ClusterData{}
+			}
 			autoscalerConfigAPI.ApplicationController = &v1alpha1.AppControllerAutoScalingConfig{
 				ResourceMinimum: toResourcesAPIModel(autoscalerConfig.ApplicationController.ResourceMinimum),
 				ResourceMaximum: toResourcesAPIModel(autoscalerConfig.ApplicationController.ResourceMaximum),
@@ -1149,6 +1189,10 @@ func handleAgentSizeAndKustomization(diagnostics *diag.Diagnostics, clusterData 
 	patches := make([]map[string]any, 0)
 	replicas := make([]map[string]any, 0)
 	if customSizeConfig.ApplicationController != nil {
+		if customSizeConfig.ApplicationController.Memory.ValueString() == "" || customSizeConfig.ApplicationController.Cpu.ValueString() == "" {
+			diagnostics.AddError("memory and cpu are required for app controller custom size", "")
+			return clusterData.Size.ValueString(), runtime.RawExtension{}
+		}
 		patches = append(patches, map[string]any{
 			"patch": generateAppControllerPatch(customSizeConfig.ApplicationController),
 			"target": map[string]string{
@@ -1159,6 +1203,13 @@ func handleAgentSizeAndKustomization(diagnostics *diag.Diagnostics, clusterData 
 	}
 
 	if customSizeConfig.RepoServer != nil {
+		if customSizeConfig.RepoServer.Memory.ValueString() == "" || customSizeConfig.RepoServer.Cpu.ValueString() == "" || customSizeConfig.RepoServer.Replicas.ValueInt64() == 0 {
+			diagnostics.AddError("memory, cpu and replicas are required for repo server custom size", "")
+			return clusterData.Size.ValueString(), runtime.RawExtension{}
+		} else if customSizeConfig.RepoServer.Replicas.ValueInt64() < 0 {
+			diagnostics.AddError("replicas must be greater than or equal to 0", "")
+			return clusterData.Size.ValueString(), runtime.RawExtension{}
+		}
 		patches = append(patches, map[string]any{
 			"patch": generateRepoServerPatch(customSizeConfig.RepoServer),
 			"target": map[string]string{
@@ -1167,12 +1218,10 @@ func handleAgentSizeAndKustomization(diagnostics *diag.Diagnostics, clusterData 
 			},
 		})
 
-		if customSizeConfig.RepoServer.Replicas.ValueInt64() > 0 {
-			replicas = append(replicas, map[string]any{
-				"count": customSizeConfig.RepoServer.Replicas.ValueInt64(),
-				"name":  "argocd-repo-server",
-			})
-		}
+		replicas = append(replicas, map[string]any{
+			"count": customSizeConfig.RepoServer.Replicas.ValueInt64(),
+			"name":  "argocd-repo-server",
+		})
 	}
 
 	if existingPatches, ok := existingConfig["patches"].([]any); ok {
@@ -1258,6 +1307,9 @@ func filterNonRepoServerReplicasKustomize(replicas []kustomizetypes.Replica) []k
 }
 
 func generateAppControllerPatch(config *AppControllerCustomAgentSizeConfig) string {
+	if config == nil {
+		return ""
+	}
 	return fmt.Sprintf(`apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -1279,6 +1331,9 @@ spec:
 }
 
 func generateRepoServerPatch(config *RepoServerCustomAgentSizeConfig) string {
+	if config == nil {
+		return ""
+	}
 	return fmt.Sprintf(`apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -1388,15 +1443,13 @@ func areCustomAgentConfigsEquivalent(config1, config2 *CustomAgentSizeConfig) bo
 		) || config1.RepoServer.Replicas != config2.RepoServer.Replicas {
 			return false
 		}
-	} else if config1.RepoServer != nil || config2.RepoServer != nil {
-		return false
 	}
 	return true
 }
 
 func areAutoScalerConfigsEquivalent(config1, config2 *AutoScalerConfig) bool {
 	if config1 == nil || config2 == nil {
-		return config1 == config2
+		return true
 	}
 	if config1.ApplicationController != nil && config2.ApplicationController != nil {
 		if !areResourcesEquivalent(
@@ -1415,7 +1468,7 @@ func areAutoScalerConfigsEquivalent(config1, config2 *AutoScalerConfig) bool {
 			return false
 		}
 	} else if config1.ApplicationController != nil || config2.ApplicationController != nil {
-		return false
+		return true
 	}
 	if config1.RepoServer != nil && config2.RepoServer != nil {
 		if !areResourcesEquivalent(
@@ -1435,7 +1488,7 @@ func areAutoScalerConfigsEquivalent(config1, config2 *AutoScalerConfig) bool {
 			return false
 		}
 	} else if config1.RepoServer != nil || config2.RepoServer != nil {
-		return false
+		return true
 	}
 	return true
 }
@@ -1444,6 +1497,9 @@ func areResourcesEquivalent(old, new string) bool {
 	oldQ, err1 := resource.ParseQuantity(old)
 	newQ, err2 := resource.ParseQuantity(new)
 	if err1 != nil || err2 != nil {
+		if errors.Is(err1, resource.ErrFormatWrong) || errors.Is(err2, resource.ErrFormatWrong) {
+			return true
+		}
 		return old == new
 	}
 	return oldQ.Equal(newQ)
@@ -1458,31 +1514,72 @@ func extractConfigFromObjectValue(obj basetypes.ObjectValue) *AutoScalerConfig {
 	config := &AutoScalerConfig{}
 	if appCtrl, ok := attrs["application_controller"].(basetypes.ObjectValue); ok {
 		appCtrlAttrs := appCtrl.Attributes()
-		config.ApplicationController = &AppControllerAutoScalingConfig{
-			ResourceMinimum: &Resources{
-				Cpu:    appCtrlAttrs["resource_minimum"].(basetypes.ObjectValue).Attributes()["cpu"].(basetypes.StringValue),
-				Memory: appCtrlAttrs["resource_minimum"].(basetypes.ObjectValue).Attributes()["memory"].(basetypes.StringValue),
-			},
-			ResourceMaximum: &Resources{
-				Cpu:    appCtrlAttrs["resource_maximum"].(basetypes.ObjectValue).Attributes()["cpu"].(basetypes.StringValue),
-				Memory: appCtrlAttrs["resource_maximum"].(basetypes.ObjectValue).Attributes()["memory"].(basetypes.StringValue),
-			},
+		if resMin, ok := appCtrlAttrs["resource_minimum"].(basetypes.ObjectValue); ok {
+			resMinAttrs := resMin.Attributes()
+			if cpu, ok := resMinAttrs["cpu"].(basetypes.StringValue); ok {
+				if mem, ok := resMinAttrs["memory"].(basetypes.StringValue); ok {
+					if resMax, ok := appCtrlAttrs["resource_maximum"].(basetypes.ObjectValue); ok {
+						resMaxAttrs := resMax.Attributes()
+						if maxCpu, ok := resMaxAttrs["cpu"].(basetypes.StringValue); ok {
+							if maxMem, ok := resMaxAttrs["memory"].(basetypes.StringValue); ok {
+								config.ApplicationController = &AppControllerAutoScalingConfig{
+									ResourceMinimum: &Resources{
+										Cpu:    cpu,
+										Memory: mem,
+									},
+									ResourceMaximum: &Resources{
+										Cpu:    maxCpu,
+										Memory: maxMem,
+									},
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 	if repoServer, ok := attrs["repo_server"].(basetypes.ObjectValue); ok {
 		repoServerAttrs := repoServer.Attributes()
-		config.RepoServer = &RepoServerAutoScalingConfig{
-			ResourceMinimum: &Resources{
-				Cpu:    repoServerAttrs["resource_minimum"].(basetypes.ObjectValue).Attributes()["cpu"].(basetypes.StringValue),
-				Memory: repoServerAttrs["resource_minimum"].(basetypes.ObjectValue).Attributes()["memory"].(basetypes.StringValue),
-			},
-			ResourceMaximum: &Resources{
-				Cpu:    repoServerAttrs["resource_maximum"].(basetypes.ObjectValue).Attributes()["cpu"].(basetypes.StringValue),
-				Memory: repoServerAttrs["resource_maximum"].(basetypes.ObjectValue).Attributes()["memory"].(basetypes.StringValue),
-			},
-			ReplicasMaximum: repoServerAttrs["replicas_maximum"].(basetypes.Int64Value),
-			ReplicasMinimum: repoServerAttrs["replicas_minimum"].(basetypes.Int64Value),
+		if resMin, ok := repoServerAttrs["resource_minimum"].(basetypes.ObjectValue); ok {
+			resMinAttrs := resMin.Attributes()
+			if cpu, ok := resMinAttrs["cpu"].(basetypes.StringValue); ok {
+				if mem, ok := resMinAttrs["memory"].(basetypes.StringValue); ok {
+					if resMax, ok := repoServerAttrs["resource_maximum"].(basetypes.ObjectValue); ok {
+						resMaxAttrs := resMax.Attributes()
+						if maxCpu, ok := resMaxAttrs["cpu"].(basetypes.StringValue); ok {
+							if maxMem, ok := resMaxAttrs["memory"].(basetypes.StringValue); ok {
+								if replMax, ok := repoServerAttrs["replicas_maximum"].(basetypes.Int64Value); ok {
+									if replMin, ok := repoServerAttrs["replicas_minimum"].(basetypes.Int64Value); ok {
+										config.RepoServer = &RepoServerAutoScalingConfig{
+											ResourceMinimum: &Resources{
+												Cpu:    cpu,
+												Memory: mem,
+											},
+											ResourceMaximum: &Resources{
+												Cpu:    maxCpu,
+												Memory: maxMem,
+											},
+											ReplicasMaximum: replMax,
+											ReplicasMinimum: replMin,
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 	return config
+}
+
+func areResourcesValid(min, max string) bool {
+	minQ, err1 := resource.ParseQuantity(min)
+	maxQ, err2 := resource.ParseQuantity(max)
+	if err1 != nil || err2 != nil {
+		return true
+	}
+	return minQ.Cmp(maxQ) <= 0
 }
