@@ -187,11 +187,13 @@ func (r *AkpClusterResource) ImportState(ctx context.Context, req resource.Impor
 func (r *AkpClusterResource) upsert(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.Cluster, isCreate bool) (*types.Cluster, error) {
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 	apiReq := buildClusterApplyRequest(ctx, diagnostics, plan, r.akpCli.OrgId)
+	if diagnostics.HasError() {
+		return nil, nil
+	}
 	result, err := r.applyInstance(ctx, plan, apiReq, isCreate, r.akpCli.Cli.ApplyInstance, r.upsertKubeConfig)
 	if err != nil {
 		return result, err
 	}
-
 	return result, refreshClusterState(ctx, diagnostics, r.akpCli.Cli, result, r.akpCli.OrgId, nil, plan)
 }
 
@@ -276,9 +278,6 @@ func buildClusterApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics
 func buildClusters(ctx context.Context, diagnostics *diag.Diagnostics, cluster *types.Cluster) []*structpb.Struct {
 	var cs []*structpb.Struct
 	apiCluster := cluster.ToClusterAPIModel(ctx, diagnostics)
-	if diagnostics.HasError() {
-		return nil
-	}
 	s, err := marshal.ApiModelToPBStruct(apiCluster)
 	if err != nil {
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Cluster. %s", err))
