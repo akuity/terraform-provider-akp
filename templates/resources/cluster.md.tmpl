@@ -19,6 +19,14 @@ description: |-
 
 For a complete working example using a GKE cluster, see [akuity/examples](https://github.com/akuity/examples/tree/main/terraform/akuity).
 
+## Example Usage (Custom agent size)
+{{ tffile "./examples/resources/akp_cluster/custom_agent_size.tf" }}
+
+## Example Usage (Auto agent size)
+{{ tffile "./examples/resources/akp_cluster/auto_agent_size.tf" }}
+
+- This example uses the `auto` agent size, which will automatically scale the agent based on the number of applications in the cluster. `auto_upgrade_disabled` cannot be set to `true` when using `auto` agent size.
+
 ## Example Usage (Exhaustive)
 {{ tffile "./examples/resources/akp_cluster/resource.tf" }}
 {{- end }}

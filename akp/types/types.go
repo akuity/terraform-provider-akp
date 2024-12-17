@@ -12,8 +12,11 @@ import (
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"google.golang.org/protobuf/types/known/structpb"
+	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	kustomizetypes "sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/yaml"
 
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
@@ -38,6 +41,7 @@ var (
 		argocdv1.ClusterSize_CLUSTER_SIZE_SMALL:       "small",
 		argocdv1.ClusterSize_CLUSTER_SIZE_MEDIUM:      "medium",
 		argocdv1.ClusterSize_CLUSTER_SIZE_LARGE:       "large",
+		argocdv1.ClusterSize_CLUSTER_SIZE_AUTO:        "auto",
 		argocdv1.ClusterSize_CLUSTER_SIZE_UNSPECIFIED: "unspecified",
 	}
 )
@@ -139,7 +143,7 @@ func (a *ArgoCD) ToArgoCDAPIModel(ctx context.Context, diag *diag.Diagnostics, n
 	}
 }
 
-func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, apiCluster *argocdv1.Cluster) {
+func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, apiCluster *argocdv1.Cluster, plan *Cluster) {
 	c.ID = tftypes.StringValue(apiCluster.GetId())
 	c.Name = tftypes.StringValue(apiCluster.GetName())
 	c.Namespace = tftypes.StringValue(apiCluster.GetNamespace())
@@ -182,13 +186,91 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 		}
 	}
 
+	var existingConfig kustomizetypes.Kustomization
+	size := tftypes.StringValue(ClusterSizeString[apiCluster.GetData().GetSize()])
+	var customConfig *CustomAgentSizeConfig
+	if err := yaml.Unmarshal(yamlData, &existingConfig); err == nil && plan != nil && plan.Spec != nil && plan.Spec.Data.CustomAgentSizeConfig != nil {
+		extractedCustomConfig := extractCustomSizeConfig(existingConfig)
+		if extractedCustomConfig != nil {
+			if plan != nil && plan.Spec != nil && plan.Spec.Data.CustomAgentSizeConfig != nil {
+				if areCustomAgentConfigsEquivalent(plan.Spec.Data.CustomAgentSizeConfig, extractedCustomConfig) {
+					customConfig = plan.Spec.Data.CustomAgentSizeConfig
+				} else {
+					customConfig = plan.Spec.Data.CustomAgentSizeConfig
+				}
+				existingConfig.Patches = filterNonSizePatchesKustomize(existingConfig.Patches)
+				existingConfig.Replicas = filterNonRepoServerReplicasKustomize(existingConfig.Replicas)
+			} else {
+				customConfig = extractedCustomConfig
+			}
+
+			if existingConfig.CheckEmpty() != nil {
+				kustomization = tftypes.StringValue("{}\n")
+			}
+
+			cleanYamlData, err := yaml.Marshal(existingConfig)
+			if err != nil {
+				diagnostics.AddError("failed to marshal cleaned config to yaml", err.Error())
+			} else {
+				kustomization = tftypes.StringValue(string(cleanYamlData))
+			}
+			size = tftypes.StringValue("custom")
+		}
+	}
+
 	c.Labels = labels
 	c.Annotations = annotations
+
+	var autoscalerConfig basetypes.ObjectValue
+	if c.Spec != nil && plan != nil {
+		newAPIConfig := apiCluster.GetData().GetAutoscalerConfig()
+		if !plan.Spec.Data.AutoscalerConfig.IsNull() && !plan.Spec.Data.AutoscalerConfig.IsUnknown() && newAPIConfig != nil &&
+			newAPIConfig.RepoServer != nil && newAPIConfig.ApplicationController != nil {
+			autoscalerConfig = plan.Spec.Data.AutoscalerConfig
+			newConfig := &AutoScalerConfig{
+				ApplicationController: &AppControllerAutoScalingConfig{
+					ResourceMinimum: &Resources{
+						Memory: tftypes.StringValue(newAPIConfig.ApplicationController.ResourceMinimum.Mem),
+						Cpu:    tftypes.StringValue(newAPIConfig.ApplicationController.ResourceMinimum.Cpu),
+					},
+					ResourceMaximum: &Resources{
+						Memory: tftypes.StringValue(newAPIConfig.ApplicationController.ResourceMaximum.Mem),
+						Cpu:    tftypes.StringValue(newAPIConfig.ApplicationController.ResourceMaximum.Cpu),
+					},
+				},
+				RepoServer: &RepoServerAutoScalingConfig{
+					ResourceMinimum: &Resources{
+						Memory: tftypes.StringValue(newAPIConfig.RepoServer.ResourceMinimum.Mem),
+						Cpu:    tftypes.StringValue(newAPIConfig.RepoServer.ResourceMinimum.Cpu),
+					},
+					ResourceMaximum: &Resources{
+						Memory: tftypes.StringValue(newAPIConfig.RepoServer.ResourceMaximum.Mem),
+						Cpu:    tftypes.StringValue(newAPIConfig.RepoServer.ResourceMaximum.Cpu),
+					},
+					ReplicasMaximum: tftypes.Int64Value(int64(newAPIConfig.RepoServer.ReplicaMaximum)),
+					ReplicasMinimum: tftypes.Int64Value(int64(newAPIConfig.RepoServer.ReplicaMinimum)),
+				},
+			}
+			if areAutoScalerConfigsEquivalent(extractConfigFromObjectValue(plan.Spec.Data.AutoscalerConfig), newConfig) {
+				autoscalerConfig = plan.Spec.Data.AutoscalerConfig
+			} else {
+				autoscalerConfig = toAutoScalerConfigTFModel(newAPIConfig)
+			}
+		} else {
+			autoscalerConfig = toAutoScalerConfigTFModel(newAPIConfig)
+		}
+	} else {
+		if plan == nil || plan.Spec == nil || plan.Spec.Data.AutoscalerConfig.IsNull() {
+			autoscalerConfig = basetypes.ObjectValue{}
+		}
+		autoscalerConfig = toAutoScalerConfigTFModel(apiCluster.GetData().GetAutoscalerConfig())
+	}
+
 	c.Spec = &ClusterSpec{
 		Description:     tftypes.StringValue(apiCluster.GetDescription()),
 		NamespaceScoped: tftypes.BoolValue(apiCluster.GetNamespaceScoped()),
 		Data: ClusterData{
-			Size:                            tftypes.StringValue(ClusterSizeString[apiCluster.GetData().GetSize()]),
+			Size:                            size,
 			AutoUpgradeDisabled:             tftypes.BoolValue(apiCluster.GetData().GetAutoUpgradeDisabled()),
 			Kustomization:                   kustomization,
 			AppReplication:                  tftypes.BoolValue(apiCluster.GetData().GetAppReplication()),
@@ -198,6 +280,8 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 			EksAddonEnabled:                 tftypes.BoolValue(apiCluster.GetData().GetEksAddonEnabled()),
 			ManagedClusterConfig:            toManagedClusterConfigTFModel(apiCluster.GetData().GetManagedClusterConfig()),
 			MultiClusterK8SDashboardEnabled: tftypes.BoolValue(apiCluster.GetData().GetMultiClusterK8SDashboardEnabled()),
+			AutoscalerConfig:                autoscalerConfig,
+			CustomAgentSizeConfig:           customConfig,
 		},
 	}
 }
@@ -221,7 +305,7 @@ func (c *Cluster) ToClusterAPIModel(ctx context.Context, diagnostics *diag.Diagn
 		Spec: v1alpha1.ClusterSpec{
 			Description:     c.Spec.Description.ValueString(),
 			NamespaceScoped: c.Spec.NamespaceScoped.ValueBool(),
-			Data:            toClusterDataAPIModel(diagnostics, c.Spec.Data),
+			Data:            toClusterDataAPIModel(ctx, diagnostics, c.Spec.Data),
 		},
 	}
 }
@@ -285,10 +369,19 @@ func ToConfigManagementPluginsTFModel(ctx context.Context, diagnostics *diag.Dia
 	return newCMPs
 }
 
-func toClusterDataAPIModel(diagnostics *diag.Diagnostics, clusterData ClusterData) v1alpha1.ClusterData {
-	raw := runtime.RawExtension{}
-	if err := yaml.Unmarshal([]byte(clusterData.Kustomization.ValueString()), &raw); err != nil {
-		diagnostics.AddError("failed unmarshal kustomization string to yaml", err.Error())
+func toClusterDataAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, clusterData ClusterData) v1alpha1.ClusterData {
+	var autoscalerConfig *AutoScalerConfig
+	if d := clusterData.AutoscalerConfig.As(ctx, &autoscalerConfig, basetypes.ObjectAsOptions{
+		UnhandledNullAsEmpty:    true,
+		UnhandledUnknownAsEmpty: true,
+	}); d.HasError() {
+		diagnostics.AddError("failed to convert autoscaler config", "")
+		return v1alpha1.ClusterData{}
+	}
+
+	size, raw := handleAgentSizeAndKustomization(diagnostics, &clusterData, autoscalerConfig)
+	if diagnostics.HasError() {
+		return v1alpha1.ClusterData{}
 	}
 
 	var managedConfig *v1alpha1.ManagedClusterConfig
@@ -299,8 +392,76 @@ func toClusterDataAPIModel(diagnostics *diag.Diagnostics, clusterData ClusterDat
 		}
 	}
 
+	autoscalerConfigAPI := &v1alpha1.AutoScalerConfig{}
+	if autoscalerConfig != nil {
+		if autoscalerConfig.RepoServer != nil {
+			if autoscalerConfig.RepoServer.ResourceMaximum == nil || autoscalerConfig.RepoServer.ResourceMinimum == nil {
+				diagnostics.AddError("repo server autoscaler config requires minimum and maximum resources", "")
+				return v1alpha1.ClusterData{}
+			}
+			if autoscalerConfig.RepoServer.ResourceMinimum.Memory.ValueString() == "" || autoscalerConfig.RepoServer.ResourceMinimum.Cpu.ValueString() == "" ||
+				autoscalerConfig.RepoServer.ResourceMaximum.Memory.ValueString() == "" || autoscalerConfig.RepoServer.ResourceMaximum.Cpu.ValueString() == "" ||
+				autoscalerConfig.RepoServer.ReplicasMaximum.ValueInt64() == 0 || autoscalerConfig.RepoServer.ReplicasMinimum.ValueInt64() == 0 {
+				diagnostics.AddError("repo server autoscaler config requires memory, cpu, and replicas values", "")
+				return v1alpha1.ClusterData{}
+			}
+			if !areResourcesValid(
+				autoscalerConfig.RepoServer.ResourceMinimum.Memory.ValueString(),
+				autoscalerConfig.RepoServer.ResourceMaximum.Memory.ValueString(),
+			) {
+				diagnostics.AddError("repo server minimum memory must be less than or equal to maximum memory", "")
+				return v1alpha1.ClusterData{}
+			}
+			if !areResourcesValid(
+				autoscalerConfig.RepoServer.ResourceMinimum.Cpu.ValueString(),
+				autoscalerConfig.RepoServer.ResourceMaximum.Cpu.ValueString(),
+			) {
+				diagnostics.AddError("repo server minimum CPU must be less than or equal to maximum CPU", "")
+				return v1alpha1.ClusterData{}
+			}
+			if autoscalerConfig.RepoServer.ReplicasMinimum.ValueInt64() > autoscalerConfig.RepoServer.ReplicasMaximum.ValueInt64() {
+				diagnostics.AddError("repo server minimum replicas must be less than or equal to maximum replicas", "")
+				return v1alpha1.ClusterData{}
+			}
+			autoscalerConfigAPI.RepoServer = &v1alpha1.RepoServerAutoScalingConfig{
+				ResourceMinimum: toResourcesAPIModel(autoscalerConfig.RepoServer.ResourceMinimum),
+				ResourceMaximum: toResourcesAPIModel(autoscalerConfig.RepoServer.ResourceMaximum),
+				ReplicaMaximum:  int32(autoscalerConfig.RepoServer.ReplicasMaximum.ValueInt64()),
+				ReplicaMinimum:  int32(autoscalerConfig.RepoServer.ReplicasMinimum.ValueInt64()),
+			}
+		}
+		if autoscalerConfig.ApplicationController != nil {
+			if autoscalerConfig.ApplicationController.ResourceMaximum == nil || autoscalerConfig.ApplicationController.ResourceMinimum == nil {
+				diagnostics.AddError("app controller autoscaler config requires minimum and maximum resources", "")
+				return v1alpha1.ClusterData{}
+			}
+			if autoscalerConfig.ApplicationController.ResourceMinimum.Memory.ValueString() == "" || autoscalerConfig.ApplicationController.ResourceMinimum.Cpu.ValueString() == "" ||
+				autoscalerConfig.ApplicationController.ResourceMaximum.Memory.ValueString() == "" || autoscalerConfig.ApplicationController.ResourceMaximum.Cpu.ValueString() == "" {
+				diagnostics.AddError("app controller autoscaler config requires memory, cpu values", "")
+				return v1alpha1.ClusterData{}
+			}
+			if !areResourcesValid(
+				autoscalerConfig.ApplicationController.ResourceMinimum.Memory.ValueString(),
+				autoscalerConfig.ApplicationController.ResourceMaximum.Memory.ValueString(),
+			) {
+				diagnostics.AddError("application controller minimum memory must be less than or equal to maximum memory", "")
+				return v1alpha1.ClusterData{}
+			}
+			if !areResourcesValid(
+				autoscalerConfig.ApplicationController.ResourceMinimum.Cpu.ValueString(),
+				autoscalerConfig.ApplicationController.ResourceMaximum.Cpu.ValueString(),
+			) {
+				diagnostics.AddError("application controller minimum CPU must be less than or equal to maximum CPU", "")
+				return v1alpha1.ClusterData{}
+			}
+			autoscalerConfigAPI.ApplicationController = &v1alpha1.AppControllerAutoScalingConfig{
+				ResourceMinimum: toResourcesAPIModel(autoscalerConfig.ApplicationController.ResourceMinimum),
+				ResourceMaximum: toResourcesAPIModel(autoscalerConfig.ApplicationController.ResourceMaximum),
+			}
+		}
+	}
 	return v1alpha1.ClusterData{
-		Size:                            v1alpha1.ClusterSize(clusterData.Size.ValueString()),
+		Size:                            v1alpha1.ClusterSize(size),
 		AutoUpgradeDisabled:             clusterData.AutoUpgradeDisabled.ValueBoolPointer(),
 		Kustomization:                   raw,
 		AppReplication:                  clusterData.AppReplication.ValueBoolPointer(),
@@ -310,6 +471,7 @@ func toClusterDataAPIModel(diagnostics *diag.Diagnostics, clusterData ClusterDat
 		EksAddonEnabled:                 clusterData.EksAddonEnabled.ValueBoolPointer(),
 		ManagedClusterConfig:            managedConfig,
 		MultiClusterK8SDashboardEnabled: clusterData.MultiClusterK8SDashboardEnabled.ValueBoolPointer(),
+		AutoscalerConfig:                autoscalerConfigAPI,
 	}
 }
 
@@ -873,4 +1035,541 @@ func toManagedClusterConfigTFModel(cfg *argocdv1.ManagedClusterConfig) *ManagedC
 		SecretName: types.StringValue(cfg.SecretName),
 		SecretKey:  types.StringValue(cfg.SecretKey),
 	}
+}
+
+func toAutoScalerConfigTFModel(cfg *argocdv1.AutoScalerConfig) basetypes.ObjectValue {
+	attributeTypes := map[string]attr.Type{
+		"application_controller": basetypes.ObjectType{
+			AttrTypes: map[string]attr.Type{
+				"resource_minimum": basetypes.ObjectType{
+					AttrTypes: map[string]attr.Type{
+						"memory": types.StringType,
+						"cpu":    types.StringType,
+					},
+				},
+				"resource_maximum": basetypes.ObjectType{
+					AttrTypes: map[string]attr.Type{
+						"memory": types.StringType,
+						"cpu":    types.StringType,
+					},
+				},
+			},
+		},
+		"repo_server": basetypes.ObjectType{
+			AttrTypes: map[string]attr.Type{
+				"resource_minimum": basetypes.ObjectType{
+					AttrTypes: map[string]attr.Type{
+						"memory": types.StringType,
+						"cpu":    types.StringType,
+					},
+				},
+				"resource_maximum": basetypes.ObjectType{
+					AttrTypes: map[string]attr.Type{
+						"memory": types.StringType,
+						"cpu":    types.StringType,
+					},
+				},
+				"replicas_maximum": types.Int64Type,
+				"replicas_minimum": types.Int64Type,
+			},
+		},
+	}
+
+	attributes := map[string]attr.Value{}
+	if cfg.ApplicationController != nil {
+		attributes["application_controller"] = basetypes.NewObjectValueMust(
+			attributeTypes["application_controller"].(basetypes.ObjectType).AttrTypes,
+			map[string]attr.Value{
+				"resource_minimum": basetypes.NewObjectValueMust(
+					attributeTypes["application_controller"].(basetypes.ObjectType).AttrTypes["resource_minimum"].(basetypes.ObjectType).AttrTypes,
+					map[string]attr.Value{
+						"memory": basetypes.NewStringValue(cfg.ApplicationController.ResourceMinimum.Mem),
+						"cpu":    basetypes.NewStringValue(cfg.ApplicationController.ResourceMinimum.Cpu),
+					},
+				),
+				"resource_maximum": basetypes.NewObjectValueMust(
+					attributeTypes["application_controller"].(basetypes.ObjectType).AttrTypes["resource_maximum"].(basetypes.ObjectType).AttrTypes,
+					map[string]attr.Value{
+						"memory": basetypes.NewStringValue(cfg.ApplicationController.ResourceMaximum.Mem),
+						"cpu":    basetypes.NewStringValue(cfg.ApplicationController.ResourceMaximum.Cpu),
+					},
+				),
+			})
+	}
+	if cfg.RepoServer != nil {
+		attributes["repo_server"] = basetypes.NewObjectValueMust(
+			attributeTypes["repo_server"].(basetypes.ObjectType).AttrTypes,
+			map[string]attr.Value{
+				"resource_minimum": basetypes.NewObjectValueMust(
+					attributeTypes["repo_server"].(basetypes.ObjectType).AttrTypes["resource_minimum"].(basetypes.ObjectType).AttrTypes,
+					map[string]attr.Value{
+						"memory": basetypes.NewStringValue(cfg.RepoServer.ResourceMinimum.Mem),
+						"cpu":    basetypes.NewStringValue(cfg.RepoServer.ResourceMinimum.Cpu),
+					},
+				),
+				"resource_maximum": basetypes.NewObjectValueMust(
+					attributeTypes["repo_server"].(basetypes.ObjectType).AttrTypes["resource_maximum"].(basetypes.ObjectType).AttrTypes,
+					map[string]attr.Value{
+						"memory": basetypes.NewStringValue(cfg.RepoServer.ResourceMaximum.Mem),
+						"cpu":    basetypes.NewStringValue(cfg.RepoServer.ResourceMaximum.Cpu),
+					},
+				),
+				"replicas_maximum": basetypes.NewInt64Value(int64(cfg.RepoServer.ReplicaMaximum)),
+				"replicas_minimum": basetypes.NewInt64Value(int64(cfg.RepoServer.ReplicaMinimum)),
+			},
+		)
+	}
+
+	objectValue, diags := basetypes.NewObjectValue(attributeTypes, attributes)
+	if diags.HasError() {
+		return basetypes.NewObjectUnknown(attributeTypes)
+	}
+	return objectValue
+}
+
+func handleAgentSizeAndKustomization(diagnostics *diag.Diagnostics, clusterData *ClusterData, autoscalerConfig *AutoScalerConfig) (size string, kustomization runtime.RawExtension) {
+	// Validate configs
+	customSizeConfig := clusterData.CustomAgentSizeConfig
+	if autoscalerConfig != nil && clusterData.Size.ValueString() != "auto" {
+		diagnostics.AddError("autoscaler config should not be set when size is not auto", "")
+		return clusterData.Size.ValueString(), runtime.RawExtension{}
+	}
+	if customSizeConfig == nil && clusterData.Size.ValueString() == "custom" {
+		diagnostics.AddError("custom agent size config is required when size is custom", "")
+		return clusterData.Size.ValueString(), runtime.RawExtension{}
+	}
+	if customSizeConfig != nil && clusterData.Size.ValueString() != "custom" {
+		diagnostics.AddError("custom agent size config should not be set when size is not custom", "")
+		return clusterData.Size.ValueString(), runtime.RawExtension{}
+	}
+
+	// Parse existing kustomization if it exists
+	var existingConfig map[string]any
+	raw := runtime.RawExtension{}
+	if clusterData.Kustomization.ValueString() != "" {
+		if err := yaml.Unmarshal([]byte(clusterData.Kustomization.ValueString()), &raw); err != nil {
+			diagnostics.AddError("failed unmarshal kustomization string to yaml", err.Error())
+			return clusterData.Size.ValueString(), runtime.RawExtension{}
+		}
+		if err := yaml.Unmarshal(raw.Raw, &existingConfig); err != nil {
+			diagnostics.AddError("failed to parse existing kustomization", err.Error())
+			return clusterData.Size.ValueString(), runtime.RawExtension{}
+		}
+	}
+	if clusterData.Size.ValueString() != "custom" {
+		return clusterData.Size.ValueString(), raw
+	}
+
+	if existingConfig == nil {
+		existingConfig = map[string]any{
+			"apiVersion": "kustomize.config.k8s.io/v1beta1",
+			"kind":       "Kustomization",
+		}
+	}
+	patches := make([]map[string]any, 0)
+	replicas := make([]map[string]any, 0)
+	if customSizeConfig.ApplicationController != nil {
+		if customSizeConfig.ApplicationController.Memory.ValueString() == "" || customSizeConfig.ApplicationController.Cpu.ValueString() == "" {
+			diagnostics.AddError("memory and cpu are required for app controller custom size", "")
+			return clusterData.Size.ValueString(), runtime.RawExtension{}
+		}
+		patches = append(patches, map[string]any{
+			"patch": generateAppControllerPatch(customSizeConfig.ApplicationController),
+			"target": map[string]string{
+				"kind": "Deployment",
+				"name": "argocd-application-controller",
+			},
+		})
+	}
+
+	if customSizeConfig.RepoServer != nil {
+		if customSizeConfig.RepoServer.Memory.ValueString() == "" || customSizeConfig.RepoServer.Cpu.ValueString() == "" || customSizeConfig.RepoServer.Replicas.ValueInt64() == 0 {
+			diagnostics.AddError("memory, cpu and replicas are required for repo server custom size", "")
+			return clusterData.Size.ValueString(), runtime.RawExtension{}
+		} else if customSizeConfig.RepoServer.Replicas.ValueInt64() < 0 {
+			diagnostics.AddError("replicas must be greater than or equal to 0", "")
+			return clusterData.Size.ValueString(), runtime.RawExtension{}
+		}
+		patches = append(patches, map[string]any{
+			"patch": generateRepoServerPatch(customSizeConfig.RepoServer),
+			"target": map[string]string{
+				"kind": "Deployment",
+				"name": "argocd-repo-server",
+			},
+		})
+
+		replicas = append(replicas, map[string]any{
+			"count": customSizeConfig.RepoServer.Replicas.ValueInt64(),
+			"name":  "argocd-repo-server",
+		})
+	}
+
+	if existingPatches, ok := existingConfig["patches"].([]any); ok {
+		patches = append(filterNonSizePatches(existingPatches), patches...)
+	}
+	if existingReplicas, ok := existingConfig["replicas"].([]any); ok {
+		replicas = append(filterNonRepoServerReplicas(existingReplicas), replicas...)
+	}
+
+	existingConfig["patches"] = patches
+	if len(replicas) > 0 {
+		existingConfig["replicas"] = replicas
+	}
+
+	yamlData, err := yaml.Marshal(existingConfig)
+	if err != nil {
+		diagnostics.AddError("failed to marshal config to yaml", err.Error())
+		return clusterData.Size.ValueString(), runtime.RawExtension{}
+	}
+
+	if err = yaml.Unmarshal(yamlData, &raw); err != nil {
+		diagnostics.AddError("failed unmarshal kustomization string to yaml", err.Error())
+		return clusterData.Size.ValueString(), runtime.RawExtension{}
+	}
+
+	// Custom size will be represented as large with kustomization
+	return "large", raw
+}
+
+func filterNonSizePatches(patches []any) []map[string]any {
+	var filtered []map[string]any
+	for _, p := range patches {
+		patch, ok := p.(map[string]any)
+		if !ok {
+			continue
+		}
+		target, ok := patch["target"].(map[string]any)
+		if !ok {
+			filtered = append(filtered, patch)
+			continue
+		}
+		name, ok := target["name"].(string)
+		if !ok || (name != "argocd-application-controller" && name != "argocd-repo-server") {
+			filtered = append(filtered, patch)
+		}
+	}
+	return filtered
+}
+
+func filterNonRepoServerReplicas(replicas []any) []map[string]any {
+	var filtered []map[string]any
+	for _, r := range replicas {
+		replica, ok := r.(map[string]any)
+		if !ok {
+			continue
+		}
+		name, ok := replica["name"].(string)
+		if !ok || name != "argocd-repo-server" {
+			filtered = append(filtered, replica)
+		}
+	}
+	return filtered
+}
+
+func filterNonSizePatchesKustomize(patches []kustomizetypes.Patch) []kustomizetypes.Patch {
+	var filtered []kustomizetypes.Patch
+	for _, p := range patches {
+		if p.Target == nil || (p.Target.Name != "argocd-application-controller" && p.Target.Name != "argocd-repo-server") {
+			filtered = append(filtered, p)
+		}
+	}
+	return filtered
+}
+
+func filterNonRepoServerReplicasKustomize(replicas []kustomizetypes.Replica) []kustomizetypes.Replica {
+	var filtered []kustomizetypes.Replica
+	for _, r := range replicas {
+		if r.Name != "argocd-repo-server" {
+			filtered = append(filtered, r)
+		}
+	}
+	return filtered
+}
+
+func generateAppControllerPatch(config *AppControllerCustomAgentSizeConfig) string {
+	if config == nil {
+		return ""
+	}
+	return fmt.Sprintf(`apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-application-controller
+spec:
+  template:
+    spec:
+      containers:
+        - name: argocd-application-controller
+          resources:
+            limits:
+              memory: %s
+            requests:
+              cpu: %s
+              memory: %s`,
+		config.Memory.ValueString(),
+		config.Cpu.ValueString(),
+		config.Memory.ValueString())
+}
+
+func generateRepoServerPatch(config *RepoServerCustomAgentSizeConfig) string {
+	if config == nil {
+		return ""
+	}
+	return fmt.Sprintf(`apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-repo-server
+spec:
+  template:
+    spec:
+      containers:
+        - name: argocd-repo-server
+          resources:
+            limits:
+              memory: %s
+            requests:
+              cpu: %s
+              memory: %s`,
+		config.Memory.ValueString(),
+		config.Cpu.ValueString(),
+		config.Memory.ValueString())
+}
+
+func toResourcesAPIModel(resources *Resources) *v1alpha1.Resources {
+	if resources == nil {
+		return nil
+	}
+	return &v1alpha1.Resources{
+		Mem: resources.Memory.ValueString(),
+		Cpu: resources.Cpu.ValueString(),
+	}
+}
+
+func extractCustomSizeConfig(existingConfig kustomizetypes.Kustomization) *CustomAgentSizeConfig {
+	var appController *AppControllerCustomAgentSizeConfig
+	var repoServer *RepoServerCustomAgentSizeConfig
+
+	for _, p := range existingConfig.Patches {
+		var patch appsv1.Deployment
+		if err := yaml.Unmarshal([]byte(p.Patch), &patch); err != nil {
+			continue
+		}
+
+		switch p.Target.Name {
+		case "argocd-application-controller":
+			for _, container := range patch.Spec.Template.Spec.Containers {
+				if container.Name == "argocd-application-controller" {
+					appController = &AppControllerCustomAgentSizeConfig{
+						Memory: tftypes.StringValue(container.Resources.Requests.Memory().String()),
+						Cpu:    tftypes.StringValue(container.Resources.Requests.Cpu().String()),
+					}
+					break
+				}
+			}
+		case "argocd-repo-server":
+			for _, container := range patch.Spec.Template.Spec.Containers {
+				if container.Name == "argocd-repo-server" {
+					repoServer = &RepoServerCustomAgentSizeConfig{
+						Memory: tftypes.StringValue(container.Resources.Requests.Memory().String()),
+						Cpu:    tftypes.StringValue(container.Resources.Requests.Cpu().String()),
+					}
+					break
+				}
+			}
+		}
+	}
+	if repoServer != nil {
+		for _, r := range existingConfig.Replicas {
+			if r.Name == "argocd-repo-server" {
+				repoServer.Replicas = tftypes.Int64Value(r.Count)
+				break
+			}
+		}
+	}
+
+	if appController == nil && repoServer == nil {
+		return nil
+	}
+
+	return &CustomAgentSizeConfig{
+		ApplicationController: appController,
+		RepoServer:            repoServer,
+	}
+}
+
+func areCustomAgentConfigsEquivalent(config1, config2 *CustomAgentSizeConfig) bool {
+	if config1 == nil || config2 == nil {
+		return config1 == config2
+	}
+	if config1.ApplicationController != nil && config2.ApplicationController != nil {
+		if !areResourcesEquivalent(
+			config1.ApplicationController.Cpu.ValueString(),
+			config2.ApplicationController.Cpu.ValueString(),
+		) || !areResourcesEquivalent(
+			config1.ApplicationController.Memory.ValueString(),
+			config2.ApplicationController.Memory.ValueString(),
+		) {
+			return false
+		}
+	} else if config1.ApplicationController != nil || config2.ApplicationController != nil {
+		return false
+	}
+	if config1.RepoServer != nil && config2.RepoServer != nil {
+		if !areResourcesEquivalent(
+			config1.RepoServer.Cpu.ValueString(),
+			config2.RepoServer.Cpu.ValueString(),
+		) || !areResourcesEquivalent(
+			config1.RepoServer.Memory.ValueString(),
+			config2.RepoServer.Memory.ValueString(),
+		) || config1.RepoServer.Replicas != config2.RepoServer.Replicas {
+			return false
+		}
+	} else if config1.RepoServer != nil || config2.RepoServer != nil {
+		return false
+	}
+	return true
+}
+
+func areAutoScalerConfigsEquivalent(plan, now *AutoScalerConfig) bool {
+	if plan == nil {
+		return true
+	}
+	if plan.ApplicationController != nil && now.ApplicationController != nil {
+		if !areResourcesEquivalent(
+			plan.ApplicationController.ResourceMinimum.Cpu.ValueString(),
+			now.ApplicationController.ResourceMinimum.Cpu.ValueString(),
+		) || !areResourcesEquivalent(
+			plan.ApplicationController.ResourceMinimum.Memory.ValueString(),
+			now.ApplicationController.ResourceMinimum.Memory.ValueString(),
+		) || !areResourcesEquivalent(
+			plan.ApplicationController.ResourceMaximum.Cpu.ValueString(),
+			now.ApplicationController.ResourceMaximum.Cpu.ValueString(),
+		) || !areResourcesEquivalent(
+			plan.ApplicationController.ResourceMaximum.Memory.ValueString(),
+			now.ApplicationController.ResourceMaximum.Memory.ValueString(),
+		) {
+			return false
+		}
+	}
+	if plan.RepoServer != nil && now.RepoServer != nil {
+		if !areResourcesEquivalent(
+			plan.RepoServer.ResourceMinimum.Cpu.ValueString(),
+			now.RepoServer.ResourceMinimum.Cpu.ValueString(),
+		) || !areResourcesEquivalent(
+			plan.RepoServer.ResourceMinimum.Memory.ValueString(),
+			now.RepoServer.ResourceMinimum.Memory.ValueString(),
+		) || !areResourcesEquivalent(
+			plan.RepoServer.ResourceMaximum.Cpu.ValueString(),
+			now.RepoServer.ResourceMaximum.Cpu.ValueString(),
+		) || !areResourcesEquivalent(
+			plan.RepoServer.ResourceMaximum.Memory.ValueString(),
+			now.RepoServer.ResourceMaximum.Memory.ValueString(),
+		) || plan.RepoServer.ReplicasMaximum != now.RepoServer.ReplicasMaximum ||
+			plan.RepoServer.ReplicasMinimum != now.RepoServer.ReplicasMinimum {
+			return false
+		}
+	}
+	return true
+}
+
+func areResourcesEquivalent(plan, new string) bool {
+	if plan == "" {
+		return true
+	}
+	planQ, err1 := resource.ParseQuantity(plan)
+	newQ, err2 := resource.ParseQuantity(new)
+	if err1 != nil || err2 != nil {
+		return plan == new
+	}
+
+	planVal := planQ.Value()
+	newVal := newQ.Value()
+
+	var diff float64
+	if planVal > newVal {
+		diff = float64(planVal-newVal) / float64(planVal)
+	} else {
+		diff = float64(newVal-planVal) / float64(newVal)
+	}
+
+	// there maybe Mi to Gi conversion with some rounding difference
+	return diff <= 0.05
+}
+
+func extractConfigFromObjectValue(obj basetypes.ObjectValue) *AutoScalerConfig {
+	if obj.IsNull() || obj.IsUnknown() {
+		return nil
+	}
+
+	attrs := obj.Attributes()
+	config := &AutoScalerConfig{}
+	if appCtrl, ok := attrs["application_controller"].(basetypes.ObjectValue); ok {
+		appCtrlAttrs := appCtrl.Attributes()
+		if resMin, ok := appCtrlAttrs["resource_minimum"].(basetypes.ObjectValue); ok {
+			resMinAttrs := resMin.Attributes()
+			if cpu, ok := resMinAttrs["cpu"].(basetypes.StringValue); ok {
+				if mem, ok := resMinAttrs["memory"].(basetypes.StringValue); ok {
+					if resMax, ok := appCtrlAttrs["resource_maximum"].(basetypes.ObjectValue); ok {
+						resMaxAttrs := resMax.Attributes()
+						if maxCpu, ok := resMaxAttrs["cpu"].(basetypes.StringValue); ok {
+							if maxMem, ok := resMaxAttrs["memory"].(basetypes.StringValue); ok {
+								config.ApplicationController = &AppControllerAutoScalingConfig{
+									ResourceMinimum: &Resources{
+										Cpu:    cpu,
+										Memory: mem,
+									},
+									ResourceMaximum: &Resources{
+										Cpu:    maxCpu,
+										Memory: maxMem,
+									},
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	if repoServer, ok := attrs["repo_server"].(basetypes.ObjectValue); ok {
+		repoServerAttrs := repoServer.Attributes()
+		if resMin, ok := repoServerAttrs["resource_minimum"].(basetypes.ObjectValue); ok {
+			resMinAttrs := resMin.Attributes()
+			if cpu, ok := resMinAttrs["cpu"].(basetypes.StringValue); ok {
+				if mem, ok := resMinAttrs["memory"].(basetypes.StringValue); ok {
+					if resMax, ok := repoServerAttrs["resource_maximum"].(basetypes.ObjectValue); ok {
+						resMaxAttrs := resMax.Attributes()
+						if maxCpu, ok := resMaxAttrs["cpu"].(basetypes.StringValue); ok {
+							if maxMem, ok := resMaxAttrs["memory"].(basetypes.StringValue); ok {
+								if replMax, ok := repoServerAttrs["replicas_maximum"].(basetypes.Int64Value); ok {
+									if replMin, ok := repoServerAttrs["replicas_minimum"].(basetypes.Int64Value); ok {
+										config.RepoServer = &RepoServerAutoScalingConfig{
+											ResourceMinimum: &Resources{
+												Cpu:    cpu,
+												Memory: mem,
+											},
+											ResourceMaximum: &Resources{
+												Cpu:    maxCpu,
+												Memory: maxMem,
+											},
+											ReplicasMaximum: replMax,
+											ReplicasMinimum: replMin,
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return config
+}
+
+func areResourcesValid(min, max string) bool {
+	minQ, err1 := resource.ParseQuantity(min)
+	maxQ, err2 := resource.ParseQuantity(max)
+	if err1 != nil || err2 != nil {
+		return true
+	}
+	return minQ.Cmp(maxQ) <= 0
 }

@@ -7,6 +7,7 @@ package types
 
 import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 )
 
 type Cluster struct {
@@ -33,20 +34,60 @@ type ClusterSpec struct {
 	Data            ClusterData  `tfsdk:"data"`
 }
 
+type Resources struct {
+	Memory types.String `tfsdk:"memory"`
+	Cpu    types.String `tfsdk:"cpu"`
+}
+
 type ManagedClusterConfig struct {
 	SecretName types.String `tfsdk:"secret_name"`
 	SecretKey  types.String `tfsdk:"secret_key"`
 }
 
+type AutoScalerConfig struct {
+	ApplicationController *AppControllerAutoScalingConfig `tfsdk:"application_controller"`
+	RepoServer            *RepoServerAutoScalingConfig    `tfsdk:"repo_server"`
+}
+
+type AppControllerAutoScalingConfig struct {
+	ResourceMinimum *Resources `tfsdk:"resource_minimum"`
+	ResourceMaximum *Resources `tfsdk:"resource_maximum"`
+}
+
+type RepoServerAutoScalingConfig struct {
+	ResourceMinimum *Resources  `tfsdk:"resource_minimum"`
+	ResourceMaximum *Resources  `tfsdk:"resource_maximum"`
+	ReplicasMaximum types.Int64 `tfsdk:"replicas_maximum"`
+	ReplicasMinimum types.Int64 `tfsdk:"replicas_minimum"`
+}
+
+type CustomAgentSizeConfig struct {
+	ApplicationController *AppControllerCustomAgentSizeConfig `tfsdk:"application_controller"`
+	RepoServer            *RepoServerCustomAgentSizeConfig    `tfsdk:"repo_server"`
+}
+
+type AppControllerCustomAgentSizeConfig struct {
+	Memory types.String `tfsdk:"memory"`
+	Cpu    types.String `tfsdk:"cpu"`
+}
+
+type RepoServerCustomAgentSizeConfig struct {
+	Memory   types.String `tfsdk:"memory"`
+	Cpu      types.String `tfsdk:"cpu"`
+	Replicas types.Int64  `tfsdk:"replicas"`
+}
+
 type ClusterData struct {
-	Size                            types.String          `tfsdk:"size"`
-	AutoUpgradeDisabled             types.Bool            `tfsdk:"auto_upgrade_disabled"`
-	Kustomization                   types.String          `tfsdk:"kustomization"`
-	AppReplication                  types.Bool            `tfsdk:"app_replication"`
-	TargetVersion                   types.String          `tfsdk:"target_version"`
-	RedisTunneling                  types.Bool            `tfsdk:"redis_tunneling"`
-	DatadogAnnotationsEnabled       types.Bool            `tfsdk:"datadog_annotations_enabled"`
-	EksAddonEnabled                 types.Bool            `tfsdk:"eks_addon_enabled"`
-	ManagedClusterConfig            *ManagedClusterConfig `tfsdk:"managed_cluster_config"`
-	MultiClusterK8SDashboardEnabled types.Bool            `tfsdk:"multi_cluster_k8s_dashboard_enabled"`
+	Size                            types.String           `tfsdk:"size"`
+	AutoUpgradeDisabled             types.Bool             `tfsdk:"auto_upgrade_disabled"`
+	Kustomization                   types.String           `tfsdk:"kustomization"`
+	AppReplication                  types.Bool             `tfsdk:"app_replication"`
+	TargetVersion                   types.String           `tfsdk:"target_version"`
+	RedisTunneling                  types.Bool             `tfsdk:"redis_tunneling"`
+	DatadogAnnotationsEnabled       types.Bool             `tfsdk:"datadog_annotations_enabled"`
+	EksAddonEnabled                 types.Bool             `tfsdk:"eks_addon_enabled"`
+	ManagedClusterConfig            *ManagedClusterConfig  `tfsdk:"managed_cluster_config"`
+	MultiClusterK8SDashboardEnabled types.Bool             `tfsdk:"multi_cluster_k8s_dashboard_enabled"`
+	AutoscalerConfig                basetypes.ObjectValue  `tfsdk:"auto_agent_size_config"`
+	CustomAgentSizeConfig           *CustomAgentSizeConfig `tfsdk:"custom_agent_size_config"`
 }

@@ -36,6 +36,99 @@ resource "akp_cluster" "my-cluster" {
 
 For a complete working example using a GKE cluster, see [akuity/examples](https://github.com/akuity/examples/tree/main/terraform/akuity).
 
+## Example Usage (Custom agent size)
+```terraform
+data "akp_instance" "example" {
+  name = "test"
+}
+
+resource "akp_cluster" "example" {
+  instance_id = data.akp_instance.example.id
+  name        = "test-cluster"
+  namespace   = "test"
+  labels = {
+    test-label = true
+  }
+  annotations = {
+    test-annotation = false
+  }
+  spec = {
+    namespace_scoped = true
+    description      = "test-description"
+    data = {
+      size                  = "custom"
+      auto_upgrade_disabled = false
+      custom_agent_size_config = {
+        application_controller = {
+          cpu    = "1000m"
+          memory = "2Gi"
+        }
+        repo_server = {
+          replicas = 3,
+          cpu      = "1000m"
+          memory   = "2Gi"
+        }
+      }
+    }
+  }
+}
+```
+
+## Example Usage (Auto agent size)
+```terraform
+data "akp_instance" "example" {
+  name = "test"
+}
+
+resource "akp_cluster" "example" {
+  instance_id = data.akp_instance.example.id
+  name        = "test-cluster"
+  namespace   = "test"
+  labels = {
+    test-label = true
+  }
+  annotations = {
+    test-annotation = false
+  }
+  spec = {
+    namespace_scoped = true
+    description      = "test-description"
+    data = {
+      size = "auto"
+      # auto_upgrade_disabled  can be set to true if you want to enable auto scaling of the agent size for the cluster
+      auto_upgrade_disabled = false
+      auto_agent_size_config = {
+        application_controller = {
+          resource_maximum = {
+            cpu    = "3"
+            memory = "2Gi"
+          },
+          resource_minimum = {
+            cpu    = "250m",
+            memory = "1Gi"
+          }
+        },
+        repo_server = {
+          replicas_maximum = 3,
+          # minimum number of replicas should be set to 1
+          replicas_minimum = 1,
+          resource_maximum = {
+            cpu    = "3"
+            memory = "2.00Gi"
+          },
+          resource_minimum = {
+            cpu    = "250m",
+            memory = "256Mi"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+- This example uses the `auto` agent size, which will automatically scale the agent based on the number of applications in the cluster. `auto_upgrade_disabled` cannot be set to `true` when using `auto` agent size.
+
 ## Example Usage (Exhaustive)
 ```terraform
 data "akp_instance" "example" {
@@ -147,12 +240,14 @@ Optional:
 
 Required:
 
-- `size` (String) Cluster Size. One of `small`, `medium` or `large`
+- `size` (String) Cluster Size. One of `small`, `medium`, `large`, `custom` or `auto`
 
 Optional:
 
 - `app_replication` (Boolean) Enables Argo CD state replication to the managed cluster that allows disconnecting the cluster from Akuity Platform without losing core Argocd features
+- `auto_agent_size_config` (Attributes) Autoscaler config for auto agent size (see [below for nested schema](#nestedatt--spec--data--auto_agent_size_config))
 - `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
+- `custom_agent_size_config` (Attributes) Custom agent size config (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config))
 - `datadog_annotations_enabled` (Boolean) Enable Datadog metrics collection of Application Controller and Repo Server. Make sure that you install Datadog agent in cluster.
 - `eks_addon_enabled` (Boolean) Enable this if you are installing this cluster on EKS.
 - `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
@@ -160,6 +255,99 @@ Optional:
 - `multi_cluster_k8s_dashboard_enabled` (Boolean) Enable the KubeVision feature on the managed cluster
 - `redis_tunneling` (Boolean) Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy
 - `target_version` (String) The version of the agent to install on your cluster
+
+<a id="nestedatt--spec--data--auto_agent_size_config"></a>
+### Nested Schema for `spec.data.auto_agent_size_config`
+
+Optional:
+
+- `application_controller` (Attributes) Application Controller auto scaling config (see [below for nested schema](#nestedatt--spec--data--auto_agent_size_config--application_controller))
+- `repo_server` (Attributes) Repo Server auto scaling config (see [below for nested schema](#nestedatt--spec--data--auto_agent_size_config--repo_server))
+
+<a id="nestedatt--spec--data--auto_agent_size_config--application_controller"></a>
+### Nested Schema for `spec.data.auto_agent_size_config.application_controller`
+
+Optional:
+
+- `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--spec--data--auto_agent_size_config--application_controller--resource_maximum))
+- `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--spec--data--auto_agent_size_config--application_controller--resource_minimum))
+
+<a id="nestedatt--spec--data--auto_agent_size_config--application_controller--resource_maximum"></a>
+### Nested Schema for `spec.data.auto_agent_size_config.application_controller.resource_maximum`
+
+Optional:
+
+- `cpu` (String) CPU
+- `memory` (String) Memory
+
+
+<a id="nestedatt--spec--data--auto_agent_size_config--application_controller--resource_minimum"></a>
+### Nested Schema for `spec.data.auto_agent_size_config.application_controller.resource_minimum`
+
+Optional:
+
+- `cpu` (String) CPU
+- `memory` (String) Memory
+
+
+
+<a id="nestedatt--spec--data--auto_agent_size_config--repo_server"></a>
+### Nested Schema for `spec.data.auto_agent_size_config.repo_server`
+
+Optional:
+
+- `replicas_maximum` (Number) Replica maximum
+- `replicas_minimum` (Number) Replica minimum, this should be set to 1 as a minimum
+- `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--spec--data--auto_agent_size_config--repo_server--resource_maximum))
+- `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--spec--data--auto_agent_size_config--repo_server--resource_minimum))
+
+<a id="nestedatt--spec--data--auto_agent_size_config--repo_server--resource_maximum"></a>
+### Nested Schema for `spec.data.auto_agent_size_config.repo_server.resource_maximum`
+
+Optional:
+
+- `cpu` (String) CPU
+- `memory` (String) Memory
+
+
+<a id="nestedatt--spec--data--auto_agent_size_config--repo_server--resource_minimum"></a>
+### Nested Schema for `spec.data.auto_agent_size_config.repo_server.resource_minimum`
+
+Optional:
+
+- `cpu` (String) CPU
+- `memory` (String) Memory
+
+
+
+
+<a id="nestedatt--spec--data--custom_agent_size_config"></a>
+### Nested Schema for `spec.data.custom_agent_size_config`
+
+Optional:
+
+- `application_controller` (Attributes) Application Controller custom agent size config (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config--application_controller))
+- `repo_server` (Attributes) Repo Server custom agent size config (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config--repo_server))
+
+<a id="nestedatt--spec--data--custom_agent_size_config--application_controller"></a>
+### Nested Schema for `spec.data.custom_agent_size_config.application_controller`
+
+Optional:
+
+- `cpu` (String) CPU
+- `memory` (String) Memory
+
+
+<a id="nestedatt--spec--data--custom_agent_size_config--repo_server"></a>
+### Nested Schema for `spec.data.custom_agent_size_config.repo_server`
+
+Optional:
+
+- `cpu` (String) CPU
+- `memory` (String) Memory
+- `replicas` (Number) Replica
+
+
 
 <a id="nestedatt--spec--data--managed_cluster_config"></a>
 ### Nested Schema for `spec.data.managed_cluster_config`

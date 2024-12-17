@@ -3,9 +3,10 @@ package akp
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -95,7 +96,7 @@ func (r *AkpClusterResource) Read(ctx context.Context, req resource.ReadRequest,
 	}
 
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
-	err := refreshClusterState(ctx, &resp.Diagnostics, r.akpCli.Cli, &data, r.akpCli.OrgId, &resp.State)
+	err := refreshClusterState(ctx, &resp.Diagnostics, r.akpCli.Cli, &data, r.akpCli.OrgId, &resp.State, &data)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", err.Error())
 	} else {
@@ -186,12 +187,14 @@ func (r *AkpClusterResource) ImportState(ctx context.Context, req resource.Impor
 func (r *AkpClusterResource) upsert(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.Cluster, isCreate bool) (*types.Cluster, error) {
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 	apiReq := buildClusterApplyRequest(ctx, diagnostics, plan, r.akpCli.OrgId)
+	if diagnostics.HasError() {
+		return nil, nil
+	}
 	result, err := r.applyInstance(ctx, plan, apiReq, isCreate, r.akpCli.Cli.ApplyInstance, r.upsertKubeConfig)
 	if err != nil {
 		return result, err
 	}
-
-	return result, refreshClusterState(ctx, diagnostics, r.akpCli.Cli, result, r.akpCli.OrgId, nil)
+	return result, refreshClusterState(ctx, diagnostics, r.akpCli.Cli, result, r.akpCli.OrgId, nil, plan)
 }
 
 func (r *AkpClusterResource) applyInstance(ctx context.Context, plan *types.Cluster, apiReq *argocdv1.ApplyInstanceRequest, isCreate bool, applyInstance func(context.Context, *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error), upsertKubeConfig func(ctx context.Context, plan *types.Cluster, isCreate bool) error) (*types.Cluster, error) {
@@ -240,7 +243,7 @@ func (r *AkpClusterResource) upsertKubeConfig(ctx context.Context, plan *types.C
 }
 
 func refreshClusterState(ctx context.Context, diagnostics *diag.Diagnostics, client argocdv1.ArgoCDServiceGatewayClient, cluster *types.Cluster,
-	orgID string, state *tfsdk.State) error {
+	orgID string, state *tfsdk.State, plan *types.Cluster) error {
 	clusterReq := &argocdv1.GetInstanceClusterRequest{
 		OrganizationId: orgID,
 		InstanceId:     cluster.InstanceID.ValueString(),
@@ -258,7 +261,7 @@ func refreshClusterState(ctx context.Context, diagnostics *diag.Diagnostics, cli
 		return errors.Wrap(err, "Unable to read Argo CD cluster")
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Get cluster response: %s", clusterResp))
-	cluster.Update(ctx, diagnostics, clusterResp.GetCluster())
+	cluster.Update(ctx, diagnostics, clusterResp.GetCluster(), plan)
 	return nil
 }
 
