@@ -309,7 +309,7 @@ func getManifests(ctx context.Context, client argocdv1.ArgoCDServiceGatewayClien
 	if err != nil {
 		return "", errors.Wrap(err, "Unable to read instance cluster")
 	}
-	c, err := waitClusterReconStatus(ctx, client, clusterResp.GetCluster(), orgId, cluster.ID.ValueString())
+	c, err := waitClusterReconStatus(ctx, client, clusterResp.GetCluster(), orgId, cluster.InstanceID.ValueString())
 	if err != nil {
 		return "", errors.Wrap(err, "Unable to check cluster reconciliation status")
 	}

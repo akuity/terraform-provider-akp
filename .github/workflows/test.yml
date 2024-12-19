@@ -40,6 +40,10 @@ jobs:
         with:
           go-version-file: 'go.mod'
           cache: true
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ matrix.terraform }}
+          terraform_wrapper: false
       - run: make generate
       - name: git diff
         run: |
