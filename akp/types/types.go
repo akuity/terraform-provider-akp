@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -805,14 +806,17 @@ func toIPAllowListTFModel(entries []*v1alpha1.IPAllowListEntry) []*IPAllowListEn
 func toExtensionsTFModel(entries []*v1alpha1.ArgoCDExtensionInstallEntry) types.List {
 	var extensions []attr.Value
 	for _, entry := range entries {
+		id := strings.Trim(entry.Id, `"`)
+		version := strings.Trim(entry.Version, `"`)
+
 		extensions = append(extensions, types.ObjectValueMust(
 			map[string]attr.Type{
 				"id":      types.StringType,
 				"version": types.StringType,
 			},
 			map[string]attr.Value{
-				"id":      types.StringValue(entry.Id),
-				"version": types.StringValue(entry.Version),
+				"id":      types.StringValue(id),
+				"version": types.StringValue(version),
 			},
 		))
 	}
