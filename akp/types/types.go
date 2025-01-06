@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -575,8 +574,8 @@ func toExtensionsAPIModel(entries basetypes.ListValue) []*v1alpha1.ArgoCDExtensi
 	var extensions []*v1alpha1.ArgoCDExtensionInstallEntry
 	for _, entry := range entries.Elements() {
 		obj := entry.(basetypes.ObjectValue)
-		id := strings.Trim(obj.Attributes()["id"].String(), `"`)
-		version := strings.Trim(obj.Attributes()["version"].String(), `"`)
+		id := obj.Attributes()["id"].(basetypes.StringValue).ValueString()
+		version := obj.Attributes()["version"].(basetypes.StringValue).ValueString()
 		extensions = append(extensions, &v1alpha1.ArgoCDExtensionInstallEntry{
 			Id:      id,
 			Version: version,
