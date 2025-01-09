@@ -570,12 +570,22 @@ func toIPAllowListAPIModel(entries []*IPAllowListEntry) []*v1alpha1.IPAllowListE
 	return ipAllowList
 }
 
-func toExtensionsAPIModel(entries []*ArgoCDExtensionInstallEntry) []*v1alpha1.ArgoCDExtensionInstallEntry {
-	var extensions []*v1alpha1.ArgoCDExtensionInstallEntry
-	for _, entry := range entries {
+func toExtensionsAPIModel(entries basetypes.ListValue) []*v1alpha1.ArgoCDExtensionInstallEntry {
+	if entries.IsNull() {
+		return nil
+	}
+
+	extensions := make([]*v1alpha1.ArgoCDExtensionInstallEntry, 0)
+	for _, entry := range entries.Elements() {
+		obj := entry.(basetypes.ObjectValue)
+		id := obj.Attributes()["id"].(basetypes.StringValue).ValueString()
+		version := obj.Attributes()["version"].(basetypes.StringValue).ValueString()
+		if id == "" || version == "" {
+			continue
+		}
 		extensions = append(extensions, &v1alpha1.ArgoCDExtensionInstallEntry{
-			Id:      entry.Id.ValueString(),
-			Version: entry.Version.ValueString(),
+			Id:      id,
+			Version: version,
 		})
 	}
 	return extensions
@@ -799,15 +809,30 @@ func toIPAllowListTFModel(entries []*v1alpha1.IPAllowListEntry) []*IPAllowListEn
 	return ipAllowList
 }
 
-func toExtensionsTFModel(entries []*v1alpha1.ArgoCDExtensionInstallEntry) []*ArgoCDExtensionInstallEntry {
-	var extensions []*ArgoCDExtensionInstallEntry
+func toExtensionsTFModel(entries []*v1alpha1.ArgoCDExtensionInstallEntry) types.List {
+	extensions := make([]attr.Value, 0, len(entries))
 	for _, entry := range entries {
-		extensions = append(extensions, &ArgoCDExtensionInstallEntry{
-			Id:      tftypes.StringValue(entry.Id),
-			Version: tftypes.StringValue(entry.Version),
-		})
+		extensions = append(extensions, types.ObjectValueMust(
+			map[string]attr.Type{
+				"id":      types.StringType,
+				"version": types.StringType,
+			},
+			map[string]attr.Value{
+				"id":      types.StringValue(entry.Id),
+				"version": types.StringValue(entry.Version),
+			},
+		))
 	}
-	return extensions
+
+	return types.ListValueMust(
+		types.ObjectType{
+			AttrTypes: map[string]attr.Type{
+				"id":      types.StringType,
+				"version": types.StringType,
+			},
+		},
+		extensions,
+	)
 }
 
 func toAppsetPolicyTFModel(ctx context.Context, diagnostics *diag.Diagnostics, appsetPolicy *v1alpha1.AppsetPolicy) tftypes.Object {
