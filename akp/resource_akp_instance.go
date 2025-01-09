@@ -2,6 +2,7 @@ package akp
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -189,9 +190,29 @@ func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, insta
 
 func buildArgoCD(ctx context.Context, diag *diag.Diagnostics, instance *types.Instance) *structpb.Struct {
 	apiArgoCD := instance.ArgoCD.ToArgoCDAPIModel(ctx, diag, instance.Name.ValueString())
-	s, err := marshal.ApiModelToPBStruct(apiArgoCD)
+	jsonBytes, err := json.Marshal(apiArgoCD)
 	if err != nil {
-		diag.AddError("Client Error", fmt.Sprintf("Unable to create Argo CD instance. %s", err))
+		diag.AddError("Client Error", fmt.Sprintf("Unable to marshal Argo CD instance. %s", err))
+		return nil
+	}
+
+	var rawMap map[string]any
+	if err = json.Unmarshal(jsonBytes, &rawMap); err != nil {
+		diag.AddError("Client Error", fmt.Sprintf("Unable to unmarshal Argo CD instance. %s", err))
+		return nil
+	}
+
+	if spec, ok := rawMap["spec"].(map[string]any); ok {
+		if instanceSpec, ok := spec["instanceSpec"].(map[string]any); ok {
+			if _, exists := instanceSpec["extensions"]; !exists && apiArgoCD.Spec.InstanceSpec.Extensions != nil {
+				instanceSpec["extensions"] = []any{}
+			}
+		}
+	}
+
+	s, err := structpb.NewStruct(rawMap)
+	if err != nil {
+		diag.AddError("Client Error", fmt.Sprintf("Unable to create Argo CD instance struct. %s", err))
 		return nil
 	}
 	return s

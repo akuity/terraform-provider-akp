@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -224,8 +225,12 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 		"extensions": schema.ListNestedAttribute{
 			MarkdownDescription: "Extensions",
 			Optional:            true,
+			Computed:            true,
 			NestedObject: schema.NestedAttributeObject{
 				Attributes: getArgoCDExtensionInstallEntryAttributes(),
+			},
+			PlanModifiers: []planmodifier.List{
+				listplanmodifier.UseStateForUnknown(),
 			},
 		},
 		"cluster_customization_defaults": schema.SingleNestedAttribute{
