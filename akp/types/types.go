@@ -571,11 +571,18 @@ func toIPAllowListAPIModel(entries []*IPAllowListEntry) []*v1alpha1.IPAllowListE
 }
 
 func toExtensionsAPIModel(entries basetypes.ListValue) []*v1alpha1.ArgoCDExtensionInstallEntry {
-	var extensions []*v1alpha1.ArgoCDExtensionInstallEntry
+	if entries.IsNull() {
+		return nil
+	}
+
+	extensions := make([]*v1alpha1.ArgoCDExtensionInstallEntry, 0)
 	for _, entry := range entries.Elements() {
 		obj := entry.(basetypes.ObjectValue)
 		id := obj.Attributes()["id"].(basetypes.StringValue).ValueString()
 		version := obj.Attributes()["version"].(basetypes.StringValue).ValueString()
+		if id == "" || version == "" {
+			continue
+		}
 		extensions = append(extensions, &v1alpha1.ArgoCDExtensionInstallEntry{
 			Id:      id,
 			Version: version,
@@ -803,7 +810,7 @@ func toIPAllowListTFModel(entries []*v1alpha1.IPAllowListEntry) []*IPAllowListEn
 }
 
 func toExtensionsTFModel(entries []*v1alpha1.ArgoCDExtensionInstallEntry) types.List {
-	var extensions []attr.Value
+	extensions := make([]attr.Value, 0, len(entries))
 	for _, entry := range entries {
 		extensions = append(extensions, types.ObjectValueMust(
 			map[string]attr.Type{
