@@ -20,12 +20,12 @@ func getAKPKargoDataSourceAttributes() map[string]schema.Attribute {
 		"spec": schema.SingleNestedAttribute{
 			MarkdownDescription: "Specification of the Kargo instance",
 			Computed:            true,
-			Attributes:          getKargoSpecAttributes(),
+			Attributes:          getKargoSpecDataSourceAttributes(),
 		},
 	}
 }
 
-func getKargoSpecAttributes() map[string]schema.Attribute {
+func getKargoSpecDataSourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"description": schema.StringAttribute{
 			MarkdownDescription: "Description of the Kargo instance",
@@ -38,12 +38,12 @@ func getKargoSpecAttributes() map[string]schema.Attribute {
 		"kargo_instance_spec": schema.SingleNestedAttribute{
 			MarkdownDescription: "Kargo instance specific configuration",
 			Computed:            true,
-			Attributes:          getKargoInstanceSpecAttributes(),
+			Attributes:          getKargoInstanceSpecDataSourceAttributes(),
 		},
 	}
 }
 
-func getKargoInstanceSpecAttributes() map[string]schema.Attribute {
+func getKargoInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"backend_ip_allow_list_enabled": schema.BoolAttribute{
 			MarkdownDescription: "Whether IP allow list is enabled for the backend",
@@ -53,13 +53,13 @@ func getKargoInstanceSpecAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "List of allowed IPs",
 			Computed:            true,
 			NestedObject: schema.NestedAttributeObject{
-				Attributes: getKargoIPAllowListEntryAttributes(),
+				Attributes: getKargoIPAllowListEntryDataSourceAttributes(),
 			},
 		},
 		"agent_customization_defaults": schema.SingleNestedAttribute{
 			MarkdownDescription: "Default agent customization settings",
 			Computed:            true,
-			Attributes:          getKargoAgentCustomizationAttributes(),
+			Attributes:          getKargoAgentCustomizationDataSourceAttributes(),
 		},
 		"default_shard_agent": schema.StringAttribute{
 			MarkdownDescription: "Default shard agent",
@@ -78,7 +78,7 @@ func getKargoInstanceSpecAttributes() map[string]schema.Attribute {
 	}
 }
 
-func getKargoIPAllowListEntryAttributes() map[string]schema.Attribute {
+func getKargoIPAllowListEntryDataSourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"ip": schema.StringAttribute{
 			MarkdownDescription: "IP address",
@@ -91,7 +91,7 @@ func getKargoIPAllowListEntryAttributes() map[string]schema.Attribute {
 	}
 }
 
-func getKargoAgentCustomizationAttributes() map[string]schema.Attribute {
+func getKargoAgentCustomizationDataSourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"auto_upgrade_disabled": schema.BoolAttribute{
 			MarkdownDescription: "Whether auto upgrade is disabled",

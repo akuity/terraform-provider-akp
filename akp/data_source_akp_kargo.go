@@ -47,15 +47,16 @@ func (r *AkpKargoDataSource) Configure(ctx context.Context, req datasource.Confi
 
 func (r *AkpKargoDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	tflog.Debug(ctx, "Reading an Instance Datasource")
-	var data types.Kargo
+	var data types.KargoInstance
 	// Read Terraform prior state data into the model
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
+	// hanxiaop: mask sensitive strings
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 
-	refreshKargoState(ctx, &resp.Diagnostics, r.akpCli.Cli, &data, r.akpCli.OrgId)
+	refreshKargoState(ctx, &resp.Diagnostics, r.akpCli.KargoCli, &data, r.akpCli.OrgId)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
