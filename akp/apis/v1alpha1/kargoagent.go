@@ -30,6 +30,6 @@ type KargoAgentData struct {
 	TargetVersion       string               `json:"targetVersion,omitempty"`
 	Kustomization       runtime.RawExtension `json:"kustomization,omitempty"`
 	RemoteArgocd        string               `json:"remoteArgocd,omitempty"`
-	AkuityManaged       bool                 `json:"akuityManaged,omitempty"`
+	AkuityManaged       *bool                 `json:"akuityManaged,omitempty"`
 	ArgocdNamespace     string               `json:"argocdNamespace,omitempty"`
 }

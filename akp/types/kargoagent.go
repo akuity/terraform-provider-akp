@@ -10,21 +10,23 @@ import (
 )
 
 type KargoAgent struct {
-	ID          types.String    `tfsdk:"id"`
-	InstanceID  types.String    `tfsdk:"instance_id"`
-	Name        types.String    `tfsdk:"name"`
-	Labels      types.Map       `tfsdk:"labels"`
-	Annotations types.Map       `tfsdk:"annotations"`
-	Spec        *KargoAgentSpec `tfsdk:"spec"`
+	ID                            types.String    `tfsdk:"id"`
+	InstanceID                    types.String    `tfsdk:"instance_id"`
+	WorkspaceID                   types.String    `tfsdk:"workspace_id"`
+	Name                          types.String    `tfsdk:"name"`
+	Labels                        types.Map       `tfsdk:"labels"`
+	Annotations                   types.Map       `tfsdk:"annotations"`
+	Spec                          *KargoAgentSpec `tfsdk:"spec"`
+	Kubeconfig                    *Kubeconfig     `tfsdk:"kube_config"`
+	RemoveAgentResourcesOnDestroy types.Bool      `tfsdk:"remove_agent_resources_on_destroy"`
 }
 
 type KargoAgents struct {
 	ID         types.String `tfsdk:"id"`
 	InstanceID types.String `tfsdk:"instance_id"`
+	WorkspaceID types.String `tfsdk:"workspace_id"`
 	Agents     []KargoAgent `tfsdk:"agents"`
 }
-
-type KargoAgentSize types.String
 
 type KargoAgentSpec struct {
 	Description types.String   `tfsdk:"description"`
@@ -32,7 +34,7 @@ type KargoAgentSpec struct {
 }
 
 type KargoAgentData struct {
-	Size                KargoAgentSize `tfsdk:"size"`
+	Size                types.String   `tfsdk:"size"`
 	AutoUpgradeDisabled types.Bool     `tfsdk:"auto_upgrade_disabled"`
 	TargetVersion       types.String   `tfsdk:"target_version"`
 	Kustomization       types.String   `tfsdk:"kustomization"`
