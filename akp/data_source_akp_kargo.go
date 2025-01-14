@@ -54,7 +54,6 @@ func (r *AkpKargoDataSource) Read(ctx context.Context, req datasource.ReadReques
 		return
 	}
 
-	// hanxiaop: mask sensitive strings
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 
 	refreshKargoState(ctx, &resp.Diagnostics, r.akpCli.KargoCli, &data, r.akpCli.OrgId)
