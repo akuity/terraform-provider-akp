@@ -28,13 +28,42 @@ func (k *Kargo) Update(ctx context.Context, diagnostics *diag.Diagnostics, kargo
 	if kargo.Spec.KargoInstanceSpec.BackendIpAllowListEnabled != nil {
 		backendIpAllowListEnabled = *kargo.Spec.KargoInstanceSpec.BackendIpAllowListEnabled
 	}
+	var acd *KargoAgentCustomization
+	if kargo.Spec.KargoInstanceSpec.AgentCustomizationDefaults != nil {
+		kacd := kargo.Spec.KargoInstanceSpec.AgentCustomizationDefaults
+		var disabled bool
+		if kacd.AutoUpgradeDisabled != nil {
+			disabled = *kacd.AutoUpgradeDisabled
+		}
+
+		// If we have existing customization defaults, compare the normalized YAML
+		if k.Spec.KargoInstanceSpec.AgentCustomizationDefaults != nil && len(kacd.Kustomization.Raw) > 0 {
+			var newData, existingData map[string]interface{}
+			existingYaml := []byte(k.Spec.KargoInstanceSpec.AgentCustomizationDefaults.Kustomization.ValueString())
+
+			if err := yaml.Unmarshal(kacd.Kustomization.Raw, &newData); err == nil {
+				if err := yaml.Unmarshal(existingYaml, &existingData); err == nil {
+					newNormalized, err1 := yaml.Marshal(newData)
+					existingNormalized, err2 := yaml.Marshal(existingData)
+					if err1 == nil && err2 == nil && bytes.Equal(newNormalized, existingNormalized) {
+						// If they're equal, use the existing customization
+						acd = k.Spec.KargoInstanceSpec.AgentCustomizationDefaults
+					}
+				}
+			}
+		} else if k.Spec.KargoInstanceSpec.AgentCustomizationDefaults == nil && !disabled && len(kacd.Kustomization.Raw) == 0 {
+			acd = nil
+		} else {
+			acd = toKargoAgentCustomizationTFModel(kargo.Spec.KargoInstanceSpec.AgentCustomizationDefaults, diagnostics)
+		}
+	}
 	k.Spec = KargoSpec{
 		Description: tftypes.StringValue(kargo.Spec.Description),
 		Version:     tftypes.StringValue(kargo.Spec.Version),
 		KargoInstanceSpec: KargoInstanceSpec{
 			BackendIpAllowListEnabled:  tftypes.BoolValue(backendIpAllowListEnabled),
 			IpAllowList:                toKargoIPAllowListTFModel(kargo.Spec.KargoInstanceSpec.IpAllowList),
-			AgentCustomizationDefaults: toKargoAgentCustomizationTFModel(kargo.Spec.KargoInstanceSpec.AgentCustomizationDefaults, diagnostics),
+			AgentCustomizationDefaults: acd,
 			DefaultShardAgent:          tftypes.StringValue(kargo.Spec.KargoInstanceSpec.DefaultShardAgent),
 			GlobalCredentialsNs:        toStringArrayTFModel(kargo.Spec.KargoInstanceSpec.GlobalCredentialsNs),
 			GlobalServiceAccountNs:     toStringArrayTFModel(kargo.Spec.KargoInstanceSpec.GlobalServiceAccountNs),
@@ -89,9 +118,11 @@ func toKargoAgentCustomizationAPIModel(agentCustomizationDefaults *KargoAgentCus
 	if agentCustomizationDefaults == nil {
 		return nil
 	}
-	raw := runtime.RawExtension{}
-	if err := yaml.Unmarshal([]byte(agentCustomizationDefaults.Kustomization.ValueString()), &raw); err != nil {
-		diags.AddError("failed unmarshal kustomization string to yaml", err.Error())
+	var raw runtime.RawExtension
+	if !agentCustomizationDefaults.Kustomization.IsNull() {
+		if err := yaml.Unmarshal([]byte(agentCustomizationDefaults.Kustomization.ValueString()), &raw); err != nil {
+			diags.AddError("failed unmarshal kustomization string to yaml", err.Error())
+		}
 	}
 	return &v1alpha1.KargoAgentCustomization{
 		AutoUpgradeDisabled: agentCustomizationDefaults.AutoUpgradeDisabled.ValueBoolPointer(),
@@ -100,6 +131,9 @@ func toKargoAgentCustomizationAPIModel(agentCustomizationDefaults *KargoAgentCus
 }
 
 func toKargoIPAllowListTFModel(ipAllowList []*v1alpha1.KargoIPAllowListEntry) []*KargoIPAllowListEntry {
+	if ipAllowList == nil {
+		return nil
+	}
 	ipAllowListTF := make([]*KargoIPAllowListEntry, len(ipAllowList))
 	for i, ipAllowListEntry := range ipAllowList {
 		ipAllowListTF[i] = &KargoIPAllowListEntry{
@@ -118,17 +152,26 @@ func toKargoAgentCustomizationTFModel(agentCustomizationDefaults *v1alpha1.Kargo
 	if agentCustomizationDefaults.AutoUpgradeDisabled != nil {
 		autoUpgradeDisabled = *agentCustomizationDefaults.AutoUpgradeDisabled
 	}
-	yamlData, err := yaml.JSONToYAML(agentCustomizationDefaults.Kustomization.Raw)
-	if err != nil {
-		diags.AddError("failed to convert json to yaml", err.Error())
+	var kustomization types.String
+	if len(agentCustomizationDefaults.Kustomization.Raw) == 0 {
+		kustomization = tftypes.StringNull()
+	} else {
+		yamlData, err := yaml.JSONToYAML(agentCustomizationDefaults.Kustomization.Raw)
+		if err != nil {
+			diags.AddError("failed to convert json to yaml", err.Error())
+		}
+		kustomization = tftypes.StringValue(string(yamlData))
 	}
 	return &KargoAgentCustomization{
 		AutoUpgradeDisabled: tftypes.BoolValue(autoUpgradeDisabled),
-		Kustomization:       tftypes.StringValue(string(yamlData)),
+		Kustomization:       kustomization,
 	}
 }
 
 func toStringArrayTFModel(strings []string) []types.String {
+	if len(strings) == 0 {
+		return nil
+	}
 	nss := make([]types.String, len(strings))
 	for i, s := range strings {
 		nss[i] = types.StringValue(s)
@@ -139,6 +182,7 @@ func toStringArrayTFModel(strings []string) []types.String {
 func (ka *KargoAgent) Update(ctx context.Context, diagnostics *diag.Diagnostics, apiKargoAgent *kargov1.KargoAgent, plan *KargoAgent) {
 	ka.ID = tftypes.StringValue(apiKargoAgent.GetId())
 	ka.Name = tftypes.StringValue(apiKargoAgent.GetName())
+	ka.Namespace = tftypes.StringValue(apiKargoAgent.GetData().GetNamespace())
 	if ka.RemoveAgentResourcesOnDestroy.IsUnknown() || ka.RemoveAgentResourcesOnDestroy.IsNull() {
 		ka.RemoveAgentResourcesOnDestroy = tftypes.BoolValue(true)
 	}
@@ -208,6 +252,7 @@ func (ka *KargoAgent) ToKargoAgentAPIModel(ctx context.Context, diagnostics *dia
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        ka.Name.ValueString(),
+			Namespace:   ka.Namespace.ValueString(),
 			Labels:      labels,
 			Annotations: annotations,
 		},
@@ -230,12 +275,6 @@ func toKargoAgentDataAPIModel(ctx context.Context, diagnostics *diag.Diagnostics
 			diagnostics.AddError("failed to parse existing kustomization", err.Error())
 			return v1alpha1.KargoAgentData{}
 		}
-	}
-	if _, ok := existingConfig["apiVersion"]; !ok {
-		existingConfig["apiVersion"] = "kustomize.config.k8s.io/v1beta1"
-	}
-	if _, ok := existingConfig["kind"]; !ok {
-		existingConfig["kind"] = "Kustomization"
 	}
 	yamlData, err := yaml.Marshal(existingConfig)
 	if err != nil {

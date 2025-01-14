@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
+
 	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
 	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
 	"github.com/akuity/terraform-provider-akp/akp/types"
-	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
@@ -59,7 +60,6 @@ func (d *AkpKargoAgentsDataSource) Read(ctx context.Context, req datasource.Read
 	apiReq := &kargov1.ListKargoInstanceAgentsRequest{
 		OrganizationId: d.akpCli.OrgId,
 		InstanceId:     data.InstanceID.ValueString(),
-		WorkspaceId:    data.WorkspaceID.ValueString(),
 	}
 	tflog.Debug(ctx, fmt.Sprintf("List Kargo agents request: %s", apiReq))
 	apiResp, err := d.akpCli.KargoCli.ListKargoInstanceAgents(ctx, apiReq)
@@ -74,7 +74,6 @@ func (d *AkpKargoAgentsDataSource) Read(ctx context.Context, req datasource.Read
 	for _, agent := range agents {
 		stateAgent := types.KargoAgent{
 			InstanceID: data.InstanceID,
-			WorkspaceID: data.WorkspaceID,
 		}
 		stateAgent.Update(ctx, &resp.Diagnostics, agent, nil)
 		data.Agents = append(data.Agents, stateAgent)

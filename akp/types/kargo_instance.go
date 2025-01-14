@@ -13,10 +13,9 @@ import (
 )
 
 type KargoInstance struct {
-	ID          types.String `tfsdk:"id"`
-	Name        types.String `tfsdk:"name"`
-	Kargo       *Kargo       `tfsdk:"kargo"`
-	WorkspaceId types.String `tfsdk:"workspace_id"`
+	ID    types.String `tfsdk:"id"`
+	Name  types.String `tfsdk:"name"`
+	Kargo *Kargo       `tfsdk:"kargo"`
 }
 
 func (k *KargoInstance) Update(ctx context.Context, diagnostics *diag.Diagnostics, exportResp *kargov1.ExportKargoInstanceResponse) error {

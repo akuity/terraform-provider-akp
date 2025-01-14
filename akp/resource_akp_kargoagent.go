@@ -13,8 +13,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/slices"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
@@ -29,7 +27,7 @@ import (
 var _ resource.Resource = &AkpKargoAgentResource{}
 var _ resource.ResourceWithImportState = &AkpKargoAgentResource{}
 
-func NewKargoAgentResource() resource.Resource {
+func NewAkpKargoAgentResource() resource.Resource {
 	return &AkpKargoAgentResource{}
 }
 
@@ -154,7 +152,6 @@ func (r *AkpKargoAgentResource) Delete(ctx context.Context, req resource.DeleteR
 		OrganizationId: r.akpCli.OrgId,
 		InstanceId:     plan.InstanceID.ValueString(),
 		Id:             plan.ID.ValueString(),
-		WorkspaceId:    plan.WorkspaceID.ValueString(),
 	}
 	_, err = r.akpCli.KargoCli.DeleteInstanceAgent(ctx, apiReq)
 	if err != nil {
@@ -239,24 +236,26 @@ func (r *AkpKargoAgentResource) upsertKubeConfig(ctx context.Context, plan *type
 
 func refreshKargoAgentState(ctx context.Context, diagnostics *diag.Diagnostics, client kargov1.KargoServiceGatewayClient, kargoAgent *types.KargoAgent,
 	orgID string, state *tfsdk.State, plan *types.KargoAgent) error {
-	kargoAgentReq := &kargov1.GetKargoInstanceAgentRequest{
+	agents, err := client.ListKargoInstanceAgents(ctx, &kargov1.ListKargoInstanceAgentsRequest{
 		OrganizationId: orgID,
 		InstanceId:     kargoAgent.InstanceID.ValueString(),
-		Id:             kargoAgent.ID.ValueString(),
-		WorkspaceId:    kargoAgent.WorkspaceID.ValueString(),
-	}
-
-	tflog.Debug(ctx, fmt.Sprintf("Get kargo agent request: %s", kargoAgentReq))
-	kargoAgentResp, err := client.GetKargoInstanceAgent(ctx, kargoAgentReq)
+	})
 	if err != nil {
-		if status.Code(err) == codes.NotFound {
-			state.RemoveResource(ctx)
-			return nil
-		}
-		return errors.Wrap(err, "Unable to read Kargo agent")
+		return errors.Wrap(err, "Unable to read Kargo agents")
 	}
-	tflog.Debug(ctx, fmt.Sprintf("Get kargo agent response: %s", kargoAgentResp))
-	kargoAgent.Update(ctx, diagnostics, kargoAgentResp.GetAgent(), plan)
+	var agent *kargov1.KargoAgent
+	for _, a := range agents.GetAgents() {
+		if a.GetName() == kargoAgent.Name.ValueString() {
+			agent = a
+			break
+		}
+	}
+	if agent == nil {
+		state.RemoveResource(ctx)
+		return nil
+	}
+	tflog.Debug(ctx, fmt.Sprintf("current kargo agent: %s", agent))
+	kargoAgent.Update(ctx, diagnostics, agent, plan)
 	return nil
 }
 
@@ -264,7 +263,6 @@ func buildKargoAgentApplyRequest(ctx context.Context, diagnostics *diag.Diagnost
 	applyReq := &kargov1.ApplyKargoInstanceRequest{
 		OrganizationId: orgId,
 		Id:             kargoAgent.InstanceID.ValueString(),
-		WorkspaceId:    kargoAgent.WorkspaceID.ValueString(),
 		Agents:         buildKargoAgents(ctx, diagnostics, kargoAgent),
 	}
 	return applyReq
@@ -287,13 +285,12 @@ func getKargoManifests(ctx context.Context, client kargov1.KargoServiceGatewayCl
 		OrganizationId: orgId,
 		InstanceId:     kargoAgent.InstanceID.ValueString(),
 		Id:             kargoAgent.Name.ValueString(),
-		WorkspaceId:    kargoAgent.WorkspaceID.ValueString(),
 	}
 	kargoAgentResp, err := client.GetKargoInstanceAgent(ctx, kargoAgentReq)
 	if err != nil {
 		return "", errors.Wrap(err, "Unable to read instance kargo agent")
 	}
-	k, err := waitKargoAgentReconStatus(ctx, client, kargoAgentResp.GetAgent(), orgId, kargoAgent.InstanceID.ValueString(), kargoAgent.WorkspaceID.ValueString())
+	k, err := waitKargoAgentReconStatus(ctx, client, kargoAgentResp.GetAgent(), orgId, kargoAgent.InstanceID.ValueString())
 	if err != nil {
 		return "", errors.Wrap(err, "Unable to check kargo agent health status")
 	}
@@ -325,7 +322,6 @@ func waitKargoAgentHealthStatus(ctx context.Context, client kargov1.KargoService
 			OrganizationId: orgID,
 			InstanceId:     c.InstanceID.ValueString(),
 			Id:             c.Name.ValueString(),
-			WorkspaceId:    c.WorkspaceID.ValueString(),
 		})
 		if err != nil {
 			return err
@@ -337,7 +333,7 @@ func waitKargoAgentHealthStatus(ctx context.Context, client kargov1.KargoService
 	return nil
 }
 
-func waitKargoAgentReconStatus(ctx context.Context, client kargov1.KargoServiceGatewayClient, kargoAgent *kargov1.KargoAgent, orgId, instanceId, workspaceId string) (*kargov1.KargoAgent, error) {
+func waitKargoAgentReconStatus(ctx context.Context, client kargov1.KargoServiceGatewayClient, kargoAgent *kargov1.KargoAgent, orgId, instanceId string) (*kargov1.KargoAgent, error) {
 	reconStatus := kargoAgent.GetReconciliationStatus()
 	breakStatusesRecon := []reconv1.StatusCode{reconv1.StatusCode_STATUS_CODE_SUCCESSFUL, reconv1.StatusCode_STATUS_CODE_FAILED}
 
@@ -347,7 +343,6 @@ func waitKargoAgentReconStatus(ctx context.Context, client kargov1.KargoServiceG
 			OrganizationId: orgId,
 			InstanceId:     instanceId,
 			Id:             kargoAgent.Id,
-			WorkspaceId:    workspaceId,
 		})
 		if err != nil {
 			return nil, err

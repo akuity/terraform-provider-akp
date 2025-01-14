@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 func (d *AkpKargoAgentDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
@@ -28,23 +29,29 @@ func getAKPKargoAgentDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "The name of the Kargo agent",
 			Computed:            true,
 		},
+		"namespace": schema.StringAttribute{
+			MarkdownDescription: "The namespace of the Kargo agent",
+			Computed:            true,
+		},
 		"labels": schema.MapAttribute{
+			ElementType:         types.StringType,
 			MarkdownDescription: "The labels of the Kargo agent",
 			Computed:            true,
 		},
 		"annotations": schema.MapAttribute{
+			ElementType:         types.StringType,
 			MarkdownDescription: "The annotations of the Kargo agent",
 			Computed:            true,
 		},
 		"spec": schema.SingleNestedAttribute{
 			MarkdownDescription: "The spec of the Kargo agent",
 			Computed:            true,
-			Attributes:          getAKPKargoAgentSpecAttributes(),
+			Attributes:          getAKPKargoAgentSpecDataSourceAttributes(),
 		},
 	}
 }
 
-func getAKPKargoAgentSpecAttributes() map[string]schema.Attribute {
+func getAKPKargoAgentSpecDataSourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"description": schema.StringAttribute{
 			MarkdownDescription: "The description of the Kargo agent",

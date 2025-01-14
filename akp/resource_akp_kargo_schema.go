@@ -38,14 +38,7 @@ func getAKPKargoInstanceAttributes() map[string]schema.Attribute {
 				stringvalidator.RegexMatches(resourceNameRegex, resourceNameRegexDescription),
 			},
 		},
-		"workspace_id": schema.StringAttribute{
-			Required:            true,
-			MarkdownDescription: "Workspace ID",
-			PlanModifiers: []planmodifier.String{
-				stringplanmodifier.UseStateForUnknown(),
-			},
-		},
-		"spec": schema.SingleNestedAttribute{
+		"kargo": schema.SingleNestedAttribute{
 			Required:            true,
 			MarkdownDescription: "Kargo instance configuration",
 			Attributes:          getKargoAttributes(),
@@ -54,6 +47,16 @@ func getAKPKargoInstanceAttributes() map[string]schema.Attribute {
 }
 
 func getKargoAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"spec": schema.SingleNestedAttribute{
+			MarkdownDescription: "Kargo instance spec",
+			Required:            true,
+			Attributes:          getKargoSpecAttributes(),
+		},
+	}
+}
+
+func getKargoSpecAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"description": schema.StringAttribute{
 			MarkdownDescription: "Description of the Kargo instance",
@@ -87,7 +90,7 @@ func getKargoSpecInstanceAttributes() map[string]schema.Attribute {
 		},
 		"ip_allow_list": schema.ListNestedAttribute{
 			MarkdownDescription: "List of allowed IPs",
-			Computed:            true,
+			Optional:            true,
 			NestedObject: schema.NestedAttributeObject{
 				Attributes: getKargoIPAllowListEntryAttributes(),
 			},
@@ -136,16 +139,12 @@ func getKargoAgentCustomizationAttributes() map[string]schema.Attribute {
 		"auto_upgrade_disabled": schema.BoolAttribute{
 			MarkdownDescription: "Whether auto upgrade is disabled",
 			Optional:            true,
-			Computed:            true,
 			Default:             booldefault.StaticBool(false),
+			Computed:            true,
 		},
 		"kustomization": schema.StringAttribute{
 			MarkdownDescription: "Kustomization that will be applied to the Kargo agent to generate agent installation manifests",
 			Optional:            true,
-			Computed:            true,
-			PlanModifiers: []planmodifier.String{
-				stringplanmodifier.UseStateForUnknown(),
-			},
 		},
 	}
 }

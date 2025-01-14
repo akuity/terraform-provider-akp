@@ -17,6 +17,14 @@ func (d *AkpKargoDataSource) Schema(ctx context.Context, req datasource.SchemaRe
 
 func getAKPKargoDataSourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
+		"id": schema.StringAttribute{
+			MarkdownDescription: "Kargo instance ID",
+			Computed:            true,
+		},
+		"name": schema.StringAttribute{
+			MarkdownDescription: "Kargo instance name",
+			Computed:            true,
+		},
 		"spec": schema.SingleNestedAttribute{
 			MarkdownDescription: "Specification of the Kargo instance",
 			Computed:            true,

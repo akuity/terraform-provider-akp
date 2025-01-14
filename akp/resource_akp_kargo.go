@@ -19,6 +19,14 @@ import (
 	"github.com/akuity/terraform-provider-akp/akp/types"
 )
 
+// Ensure provider defined types fully satisfy framework interfaces
+var _ resource.Resource = &AkpKargoInstanceResource{}
+var _ resource.ResourceWithImportState = &AkpKargoInstanceResource{}
+
+func NewAkpKargoInstanceResource() resource.Resource {
+	return &AkpKargoInstanceResource{}
+}
+
 type AkpKargoInstanceResource struct {
 	akpCli *AkpCli
 }
@@ -113,7 +121,6 @@ func (r *AkpKargoInstanceResource) Delete(ctx context.Context, req resource.Dele
 	_, err := r.akpCli.KargoCli.DeleteInstance(ctx, &kargov1.DeleteInstanceRequest{
 		Id:             state.ID.ValueString(),
 		OrganizationId: r.akpCli.OrgId,
-		WorkspaceId:    state.WorkspaceId.ValueString(),
 	})
 
 	if err != nil {
@@ -134,28 +141,23 @@ func (r *AkpKargoInstanceResource) upsert(ctx context.Context, diagnostics *diag
 	tflog.Debug(ctx, fmt.Sprintf("Apply instance request: %s", apiReq))
 	_, err := r.akpCli.KargoCli.ApplyKargoInstance(ctx, apiReq)
 	if err != nil {
-		return errors.Wrap(err, "Unable to upsert Argo CD instance")
+		return errors.Wrap(err, "Unable to upsert Kargo instance")
 	}
 
 	return refreshKargoState(ctx, diagnostics, r.akpCli.KargoCli, plan, r.akpCli.OrgId)
 }
 
 func buildKargoApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, kargo *types.KargoInstance, orgID string) *kargov1.ApplyKargoInstanceRequest {
-	id := kargo.Name.ValueString()
-	if !kargo.ID.IsNull() && kargo.ID.ValueString() != "" {
-		id = kargo.ID.ValueString()
-	}
 	applyReq := &kargov1.ApplyKargoInstanceRequest{
-		Id:             id,
+		Id:             kargo.Name.ValueString(),
 		OrganizationId: orgID,
-		WorkspaceId:    kargo.WorkspaceId.ValueString(),
 		Kargo:          buildKargo(ctx, diagnostics, kargo),
 	}
 	return applyReq
 }
 
 func buildKargo(ctx context.Context, diagnostics *diag.Diagnostics, kargo *types.KargoInstance) *structpb.Struct {
-	apiKargo := kargo.Kargo.ToKargoAPIModel(ctx, diagnostics, kargo.WorkspaceId.ValueString())
+	apiKargo := kargo.Kargo.ToKargoAPIModel(ctx, diagnostics, kargo.Name.ValueString())
 	s, err := marshal.ApiModelToPBStruct(apiKargo)
 	if err != nil {
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Argo CD instance. %s", err))
@@ -168,7 +170,6 @@ func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, clien
 	req := &kargov1.GetKargoInstanceRequest{
 		OrganizationId: orgID,
 		Name:           kargo.Name.ValueString(),
-		WorkspaceId:    kargo.WorkspaceId.ValueString(),
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Get Kargo instance request: %s", req))
 	resp, err := client.GetKargoInstance(ctx, req)
@@ -177,11 +178,9 @@ func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, clien
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Get Kargo instance response: %s", resp))
 	kargo.ID = tftypes.StringValue(resp.Instance.Id)
-	kargo.WorkspaceId = tftypes.StringValue(resp.Instance.WorkspaceId)
 	exportReq := &kargov1.ExportKargoInstanceRequest{
 		OrganizationId: orgID,
 		Id:             kargo.ID.ValueString(),
-		WorkspaceId:    kargo.WorkspaceId.ValueString(),
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Export Kargo instance request: %s", exportReq))
 	exportResp, err := client.ExportKargoInstance(ctx, exportReq)
