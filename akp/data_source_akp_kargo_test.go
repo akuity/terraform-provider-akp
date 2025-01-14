@@ -14,11 +14,10 @@ func TestAccKargoDataSource(t *testing.T) {
 			{
 				Config: providerConfig + testAccKargoDataSourceConfig,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.akp_kargo.test", "id", "1722sbsxf7405d33"),
+					resource.TestCheckResourceAttr("data.akp_kargo.test", "id", "5gjcg0rh8fjemhc0"),
 					resource.TestCheckResourceAttr("data.akp_kargo.test", "name", "kargo"),
 					resource.TestCheckResourceAttr("data.akp_kargo.test", "version", "v1.1.1"),
 					resource.TestCheckResourceAttr("data.akp_kargo.test", "workspace_id", "sw3lpl9tr4iuaj8z"),
-					resource.TestCheckResourceAttr("data.akp_kargo.test", "subdomain", "1722sbsxf7405d33"),
 					// spec
 					resource.TestCheckResourceAttr("data.akp_kargo.test", "spec.backend_ip_allow_list_enabled", "false"),
 					resource.TestCheckResourceAttr("data.akp_kargo.test", "spec.ip_allow_list.#", "0"),
@@ -36,6 +35,6 @@ func TestAccKargoDataSource(t *testing.T) {
 
 const testAccKargoDataSourceConfig = `
 data "akp_kargo" "test" {
-  name = "kargo"
+  name = "test-instance"
 }
 `

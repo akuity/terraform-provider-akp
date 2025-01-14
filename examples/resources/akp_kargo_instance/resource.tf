@@ -1,7 +1,6 @@
 resource "akp_kargo_instance" "example" {
   name = "test"
   kargo = {
-    name = "test-kargo"
     spec = {
       description = "test-description"
       version     = "v1.1.1"
@@ -27,8 +26,8 @@ images:
     newName: quay.io/akuityy/agent
 EOT
         }
-        default_shard_agent = "test"
-        global_credentials_ns = ["test1", "test2"]
+        default_shard_agent       = "test"
+        global_credentials_ns     = ["test1", "test2"]
         global_service_account_ns = ["test3", "test4"]
       }
     }

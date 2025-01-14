@@ -1,9 +1,8 @@
 resource "akp_kargo_instance" "example" {
   name = "test"
   kargo = {
-    name = "test-kargo"
     spec = {
-      version = "v1.1.1"
+      version             = "v1.1.1"
       kargo_instance_spec = {}
     }
   }

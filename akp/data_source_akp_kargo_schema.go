@@ -25,8 +25,18 @@ func getAKPKargoDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Kargo instance name",
 			Computed:            true,
 		},
-		"spec": schema.SingleNestedAttribute{
+		"kargo": schema.SingleNestedAttribute{
 			MarkdownDescription: "Specification of the Kargo instance",
+			Computed:            true,
+			Attributes:          getKargoDataSourceAttributes(),
+		},
+	}
+}
+
+func getKargoDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"spec": schema.SingleNestedAttribute{
+			MarkdownDescription: "Kargo instance spec",
 			Computed:            true,
 			Attributes:          getKargoSpecDataSourceAttributes(),
 		},
