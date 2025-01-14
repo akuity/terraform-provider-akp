@@ -48,6 +48,15 @@ func getAKPKargoAgentDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			Attributes:          getAKPKargoAgentSpecDataSourceAttributes(),
 		},
+		"kubeconfig": schema.SingleNestedAttribute{
+			MarkdownDescription: "The kubeconfig of the Kargo agent",
+			Computed:            true,
+			Attributes:          getKubeconfigDataSourceAttributes(),
+		},
+		"remove_agent_resources_on_destroy": schema.BoolAttribute{
+			MarkdownDescription: "Whether to remove agent resources on destroy",
+			Computed:            true,
+		},
 	}
 }
 

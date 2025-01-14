@@ -12,27 +12,27 @@ description: |-
 
 {{ if .HasExample -}}
 ## Example Usage (Basic)
-{{ tffile "./examples/resources/akp_kargo_instance/basic.tf" }}
+{{ tffile "./examples/resources/akp_kargo_agent/basic.tf" }}
 
 ## Example Usage (Exhaustive)
-{{ tffile "./examples/resources/akp_kargo_instance/resource.tf" }}
+{{ tffile "./examples/resources/akp_kargo_agent/resource.tf" }}
 {{- end }}
 
 {{ .SchemaMarkdown | trimspace }}
 
 ## Import
 
-In Terraform v1.5.0 and later, use an [`import` block](https://developer.hashicorp.com/terraform/language/import) to import the AKP Kargo instance using its `name`. For example:
+In Terraform v1.5.0 and later, use an [`import` block](https://developer.hashicorp.com/terraform/language/import) to import the AKP Kargo agent using its `name`. For example:
 
 ```terraform
 import {
-  to = akp_kargo_instance.example
+  to = akp_kargo_agent.example
   id = "test"
 }
 ```
 
-Using `terraform import`, import AKP Kargo instance using its `name`. For example:
+Using `terraform import`, import AKP Kargo agent using its `name`. For example:
 
 ```shell
-terraform import akp_kargo_instance.example test
+terraform import akp_kargo_agent.example test
 ```
