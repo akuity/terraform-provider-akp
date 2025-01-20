@@ -40,6 +40,7 @@ type AkpCli struct {
 	Cli      argocdv1.ArgoCDServiceGatewayClient
 	KargoCli kargov1.KargoServiceGatewayClient
 	Cred     accesscontrol.ClientCredential
+	OrgCli   orgcv1.OrganizationServiceGatewayClient
 	OrgId    string
 }
 
@@ -157,11 +158,13 @@ func (p *AkpProvider) Configure(ctx context.Context, req provider.ConfigureReque
 
 	argoc := argocdv1.NewArgoCDServiceGatewayClient(gwc)
 	kargoc := kargov1.NewKargoServiceGatewayClient(gwc)
+	orgc = orgcv1.NewOrganizationServiceGatewayClient(gwc)
 	akpCli := &AkpCli{
 		Cli:      argoc,
 		KargoCli: kargoc,
 		Cred:     cred,
 		OrgId:    orgID,
+		OrgCli:   orgc,
 	}
 	resp.DataSourceData = akpCli
 	resp.ResourceData = akpCli

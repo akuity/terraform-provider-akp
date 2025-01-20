@@ -16,6 +16,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 
 	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
+	orgcv1 "github.com/akuity/api-client-go/pkg/api/gen/organization/v1"
 	healthv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/health/v1"
 	reconv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/reconciliation/v1"
 	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
@@ -178,7 +179,23 @@ func (r *AkpKargoAgentResource) ImportState(ctx context.Context, req resource.Im
 
 func (r *AkpKargoAgentResource) upsert(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.KargoAgent, isCreate bool) (*types.KargoAgent, error) {
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
-	apiReq := buildKargoAgentApplyRequest(ctx, diagnostics, plan, r.akpCli.OrgId)
+	workspaces, err := r.akpCli.OrgCli.ListWorkspaces(ctx, &orgcv1.ListWorkspacesRequest{
+		OrganizationId: r.akpCli.OrgId,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "Unable to read workspaces")
+	}
+	var workspaceId string
+	for _, w := range workspaces.GetWorkspaces() {
+		if w.GetIsDefault() {
+			workspaceId = w.GetId()
+			break
+		}
+	}
+	if workspaceId == "" {
+		return nil, errors.New("Default workspace not found")
+	}
+	apiReq := buildKargoAgentApplyRequest(ctx, diagnostics, plan, r.akpCli.OrgId, workspaceId)
 	if diagnostics.HasError() {
 		return nil, nil
 	}
@@ -259,10 +276,11 @@ func refreshKargoAgentState(ctx context.Context, diagnostics *diag.Diagnostics, 
 	return nil
 }
 
-func buildKargoAgentApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, kargoAgent *types.KargoAgent, orgId string) *kargov1.ApplyKargoInstanceRequest {
+func buildKargoAgentApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, kargoAgent *types.KargoAgent, orgId, workspaceId string) *kargov1.ApplyKargoInstanceRequest {
 	applyReq := &kargov1.ApplyKargoInstanceRequest{
 		OrganizationId: orgId,
 		Id:             kargoAgent.InstanceID.ValueString(),
+		WorkspaceId:    workspaceId,
 		Agents:         buildKargoAgents(ctx, diagnostics, kargoAgent),
 	}
 	return applyReq

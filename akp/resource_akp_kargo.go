@@ -14,6 +14,8 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 
 	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
+	orgcv1 "github.com/akuity/api-client-go/pkg/api/gen/organization/v1"
+	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
 	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
 	"github.com/akuity/terraform-provider-akp/akp/marshal"
 	"github.com/akuity/terraform-provider-akp/akp/types"
@@ -137,9 +139,25 @@ func (r *AkpKargoInstanceResource) ImportState(ctx context.Context, req resource
 
 func (r *AkpKargoInstanceResource) upsert(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.KargoInstance) error {
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
-	apiReq := buildKargoApplyRequest(ctx, diagnostics, plan, r.akpCli.OrgId)
+	workspaces, err := r.akpCli.OrgCli.ListWorkspaces(ctx, &orgcv1.ListWorkspacesRequest{
+		OrganizationId: r.akpCli.OrgId,
+	})
+	if err != nil {
+		return errors.Wrap(err, "Unable to read workspaces")
+	}
+	var workspaceId string
+	for _, w := range workspaces.GetWorkspaces() {
+		if w.GetIsDefault() {
+			workspaceId = w.GetId()
+			break
+		}
+	}
+	if workspaceId == "" {
+		return errors.New("Default workspace not found")
+	}
+	apiReq := buildKargoApplyRequest(ctx, diagnostics, plan, r.akpCli.OrgId, workspaceId)
 	tflog.Debug(ctx, fmt.Sprintf("Apply instance request: %s", apiReq))
-	_, err := r.akpCli.KargoCli.ApplyKargoInstance(ctx, apiReq)
+	_, err = r.akpCli.KargoCli.ApplyKargoInstance(ctx, apiReq)
 	if err != nil {
 		return errors.Wrap(err, "Unable to upsert Kargo instance")
 	}
@@ -147,11 +165,23 @@ func (r *AkpKargoInstanceResource) upsert(ctx context.Context, diagnostics *diag
 	return refreshKargoState(ctx, diagnostics, r.akpCli.KargoCli, plan, r.akpCli.OrgId)
 }
 
-func buildKargoApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, kargo *types.KargoInstance, orgID string) *kargov1.ApplyKargoInstanceRequest {
+func buildKargoApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, kargo *types.KargoInstance, orgID, workspaceID string) *kargov1.ApplyKargoInstanceRequest {
+	idType := idv1.Type_NAME
+	id := kargo.Name.ValueString()
+
+	if !kargo.ID.IsNull() && kargo.ID.ValueString() != "" {
+		idType = idv1.Type_ID
+		id = kargo.ID.ValueString()
+	}
+
 	applyReq := &kargov1.ApplyKargoInstanceRequest{
-		Id:             kargo.Name.ValueString(),
-		OrganizationId: orgID,
-		Kargo:          buildKargo(ctx, diagnostics, kargo),
+		OrganizationId:     orgID,
+		Id:                 id,
+		IdType:             idType,
+		WorkspaceId:        workspaceID,
+		Kargo:              buildKargo(ctx, diagnostics, kargo),
+		Agents:             nil,
+		PruneResourceTypes: nil,
 	}
 	return applyReq
 }
