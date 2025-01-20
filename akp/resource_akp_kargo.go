@@ -175,13 +175,11 @@ func buildKargoApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, 
 	}
 
 	applyReq := &kargov1.ApplyKargoInstanceRequest{
-		OrganizationId:     orgID,
-		Id:                 id,
-		IdType:             idType,
-		WorkspaceId:        workspaceID,
-		Kargo:              buildKargo(ctx, diagnostics, kargo),
-		Agents:             nil,
-		PruneResourceTypes: nil,
+		OrganizationId: orgID,
+		Id:             id,
+		IdType:         idType,
+		WorkspaceId:    workspaceID,
+		Kargo:          buildKargo(ctx, diagnostics, kargo),
 	}
 	return applyReq
 }
