@@ -30,6 +30,16 @@ func getAKPKargoDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			Attributes:          getKargoDataSourceAttributes(),
 		},
+		"kargo_cm": schema.MapAttribute{
+			MarkdownDescription: "ConfigMap to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf",
+			ElementType:         types.StringType,
+			Computed:            true,
+		},
+		"kargo_secret": schema.MapAttribute{
+			MarkdownDescription: "Secret to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf",
+			ElementType:         types.StringType,
+			Computed:            true,
+		},
 	}
 }
 
@@ -57,6 +67,19 @@ func getKargoSpecDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Kargo instance specific configuration",
 			Computed:            true,
 			Attributes:          getKargoInstanceSpecDataSourceAttributes(),
+		},
+		"fqdn": schema.StringAttribute{
+			MarkdownDescription: "FQDN of the Kargo instance",
+			Computed:            true,
+		},
+		"subdomain": schema.StringAttribute{
+			MarkdownDescription: "Subdomain of the Kargo instance",
+			Computed:            true,
+		},
+		"oidc_config": schema.SingleNestedAttribute{
+			MarkdownDescription: "OIDC configuration",
+			Computed:            true,
+			Attributes:          getOIDCConfigDataSourceAttributes(),
 		},
 	}
 }
@@ -118,6 +141,72 @@ func getKargoAgentCustomizationDataSourceAttributes() map[string]schema.Attribut
 		"kustomization": schema.StringAttribute{
 			MarkdownDescription: "Kustomization configuration",
 			Computed:            true,
+		},
+	}
+}
+
+func getOIDCConfigDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"enabled": schema.BoolAttribute{
+			MarkdownDescription: "Whether OIDC is enabled",
+			Computed:            true,
+		},
+		"dex_enabled": schema.BoolAttribute{
+			MarkdownDescription: "Whether DEX is enabled",
+			Computed:            true,
+		},
+		"dex_config": schema.StringAttribute{
+			MarkdownDescription: "DEX configuration",
+			Computed:            true,
+		},
+		"dex_config_secret": schema.MapAttribute{
+			MarkdownDescription: "DEX configuration secret",
+			Computed:            true,
+			ElementType:         types.StringType,
+		},
+		"issuer_url": schema.StringAttribute{
+			MarkdownDescription: "Issuer URL",
+			Computed:            true,
+		},
+		"client_id": schema.StringAttribute{
+			MarkdownDescription: "Client ID",
+			Computed:            true,
+		},
+		"cli_client_id": schema.StringAttribute{
+			MarkdownDescription: "CLI Client ID",
+			Computed:            true,
+		},
+		"admin_account": schema.SingleNestedAttribute{
+			MarkdownDescription: "Admin account",
+			Computed:            true,
+			Attributes:          getKargoPredefinedAccountDataAttributes(),
+		},
+		"viewer_account": schema.SingleNestedAttribute{
+			MarkdownDescription: "Viewer account",
+			Computed:            true,
+			Attributes:          getKargoPredefinedAccountDataAttributes(),
+		},
+		"additional_scopes": schema.SingleNestedAttribute{
+			MarkdownDescription: "Additional scopes",
+			Computed:            true,
+			Attributes:          getKargoPredefinedAccountDataAttributes(),
+		},
+	}
+}
+
+func getKargoPredefinedAccountDataAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"claims": schema.MapNestedAttribute{
+			MarkdownDescription: "Claims",
+			Computed:            true,
+			NestedObject: schema.NestedAttributeObject{
+				Attributes: map[string]schema.Attribute{
+					"values": schema.ListAttribute{
+						ElementType: types.StringType,
+						Computed:    true,
+					},
+				},
+			},
 		},
 	}
 }

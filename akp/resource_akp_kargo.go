@@ -180,6 +180,8 @@ func buildKargoApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, 
 		IdType:         idType,
 		WorkspaceId:    workspaceID,
 		Kargo:          buildKargo(ctx, diagnostics, kargo),
+		KargoConfigmap: buildConfigMap(ctx, diagnostics, kargo.KargoConfigMap, "kargo-cm"),
+		KargoSecret:    buildSecret(ctx, diagnostics, kargo.KargoSecret, "kargo-secret", nil),
 	}
 	return applyReq
 }

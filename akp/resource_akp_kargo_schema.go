@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -43,6 +44,21 @@ func getAKPKargoInstanceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Kargo instance configuration",
 			Attributes:          getKargoAttributes(),
 		},
+		"kargo_cm": schema.MapAttribute{
+			MarkdownDescription: "ConfigMap to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf",
+			ElementType:         types.StringType,
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Map{
+				mapplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"kargo_secret": schema.MapAttribute{
+			MarkdownDescription: "Secret to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf",
+			ElementType:         types.StringType,
+			Optional:            true,
+			Sensitive:           true,
+		},
 	}
 }
 
@@ -74,6 +90,27 @@ func getKargoSpecAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Kargo instance spec",
 			Required:            true,
 			Attributes:          getKargoSpecInstanceAttributes(),
+		},
+		"fqdn": schema.StringAttribute{
+			MarkdownDescription: "Fully qualified domain name",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"subdomain": schema.StringAttribute{
+			MarkdownDescription: "Subdomain of the Kargo instance",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"oidc_config": schema.SingleNestedAttribute{
+			MarkdownDescription: "OIDC configuration",
+			Optional:            true,
+			Attributes:          getKargoOidcConfigAttributes(),
 		},
 	}
 }
@@ -145,6 +182,96 @@ func getKargoAgentCustomizationAttributes() map[string]schema.Attribute {
 		"kustomization": schema.StringAttribute{
 			MarkdownDescription: "Kustomization that will be applied to the Kargo agent to generate agent installation manifests",
 			Optional:            true,
+		},
+	}
+}
+
+func getKargoOidcConfigAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"enabled": schema.BoolAttribute{
+			MarkdownDescription: "Whether OIDC is enabled",
+			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(false),
+		},
+		"dex_enabled": schema.BoolAttribute{
+			MarkdownDescription: "Whether DEX is enabled",
+			Optional:            true,
+			Computed:            true,
+			Default:             booldefault.StaticBool(false),
+		},
+		"dex_config": schema.StringAttribute{
+			MarkdownDescription: "DEX configuration",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"dex_config_secret": schema.MapAttribute{
+			MarkdownDescription: "DEX configuration secret",
+			Optional:            true,
+			Computed:            true,
+			ElementType:         types.StringType,
+		},
+		"issuer_url": schema.StringAttribute{
+			MarkdownDescription: "Issuer URL",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"client_id": schema.StringAttribute{
+			MarkdownDescription: "Client ID",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"cli_client_id": schema.StringAttribute{
+			MarkdownDescription: "CLI Client ID",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"admin_account": schema.SingleNestedAttribute{
+			MarkdownDescription: "Admin account",
+			Optional:            true,
+			Computed:            true,
+			Attributes:          getKargoPredefinedAccountAttributes(),
+		},
+		"viewer_account": schema.SingleNestedAttribute{
+			MarkdownDescription: "Viewer account",
+			Optional:            true,
+			Computed:            true,
+			Attributes:          getKargoPredefinedAccountAttributes(),
+		},
+		"additional_scopes": schema.ListAttribute{
+			MarkdownDescription: "Additional scopes",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
+	}
+}
+
+func getKargoPredefinedAccountAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"claims": schema.MapNestedAttribute{
+			MarkdownDescription: "Claims",
+			Optional:            true,
+			NestedObject: schema.NestedAttributeObject{
+				Attributes: map[string]schema.Attribute{
+					"values": schema.ListAttribute{
+						ElementType: types.StringType,
+						Optional:    true,
+						Computed:    true,
+					},
+				},
+			},
 		},
 	}
 }

@@ -17,6 +17,22 @@ type KargoSpec struct {
 	Description       types.String      `tfsdk:"description"`
 	Version           types.String      `tfsdk:"version"`
 	KargoInstanceSpec KargoInstanceSpec `tfsdk:"kargo_instance_spec"`
+	Fqdn              types.String      `tfsdk:"fqdn"`
+	Subdomain         types.String      `tfsdk:"subdomain"`
+	OidcConfig        *KargoOidcConfig  `tfsdk:"oidc_config"`
+}
+
+type KargoOidcConfig struct {
+	Enabled          types.Bool     `tfsdk:"enabled"`
+	DexEnabled       types.Bool     `tfsdk:"dex_enabled"`
+	DexConfig        types.String   `tfsdk:"dex_config"`
+	DexConfigSecret  types.Map      `tfsdk:"dex_config_secret"`
+	IssuerURL        types.String   `tfsdk:"issuer_url"`
+	ClientID         types.String   `tfsdk:"client_id"`
+	CliClientID      types.String   `tfsdk:"cli_client_id"`
+	AdminAccount     types.Object   `tfsdk:"admin_account"`
+	ViewerAccount    types.Object   `tfsdk:"viewer_account"`
+	AdditionalScopes []types.String `tfsdk:"additional_scopes"`
 }
 
 type KargoIPAllowListEntry struct {

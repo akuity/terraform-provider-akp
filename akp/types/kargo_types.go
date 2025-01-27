@@ -5,12 +5,15 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
+
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 
 	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
 	"github.com/akuity/terraform-provider-akp/akp/apis/v1alpha1"
@@ -68,6 +71,9 @@ func (k *Kargo) Update(ctx context.Context, diagnostics *diag.Diagnostics, kargo
 			GlobalCredentialsNs:        toStringArrayTFModel(kargo.Spec.KargoInstanceSpec.GlobalCredentialsNs),
 			GlobalServiceAccountNs:     toStringArrayTFModel(kargo.Spec.KargoInstanceSpec.GlobalServiceAccountNs),
 		},
+		Fqdn:       tftypes.StringValue(kargo.Spec.Fqdn),
+		Subdomain:  tftypes.StringValue(kargo.Spec.Subdomain),
+		OidcConfig: toKargoOidcConfigTFModel(ctx, kargo.Spec.OidcConfig),
 	}
 }
 
@@ -91,6 +97,9 @@ func (k *Kargo) ToKargoAPIModel(ctx context.Context, diag *diag.Diagnostics, nam
 				GlobalCredentialsNs:        toStringArrayAPIModel(k.Spec.KargoInstanceSpec.GlobalCredentialsNs),
 				GlobalServiceAccountNs:     toStringArrayAPIModel(k.Spec.KargoInstanceSpec.GlobalServiceAccountNs),
 			},
+			Fqdn:       k.Spec.Fqdn.ValueString(),
+			Subdomain:  k.Spec.Subdomain.ValueString(),
+			OidcConfig: toKargoOidcConfigAPIModel(ctx, k.Spec.OidcConfig),
 		},
 	}
 }
@@ -292,7 +301,179 @@ func toKargoAgentDataAPIModel(ctx context.Context, diagnostics *diag.Diagnostics
 		TargetVersion:       data.TargetVersion.ValueString(),
 		Kustomization:       raw,
 		RemoteArgocd:        data.RemoteArgocd.ValueString(),
-		AkuityManaged:       data.AkuityManaged.ValueBoolPointer(),
+		AkuityManaged:       data.AkuityManaged.ValueBool(),
 		ArgocdNamespace:     data.ArgocdNamespace.ValueString(),
 	}
+}
+
+func toKargoOidcConfigAPIModel(ctx context.Context, oidcConfig *KargoOidcConfig) *v1alpha1.KargoOidcConfig {
+	if oidcConfig == nil {
+		return nil
+	}
+	additionalScopes := []string{}
+	for _, scope := range oidcConfig.AdditionalScopes {
+		additionalScopes = append(additionalScopes, scope.ValueString())
+	}
+	return &v1alpha1.KargoOidcConfig{
+		Enabled:          oidcConfig.Enabled.ValueBoolPointer(),
+		DexEnabled:       oidcConfig.DexEnabled.ValueBoolPointer(),
+		DexConfig:        oidcConfig.DexConfig.ValueString(),
+		DexConfigSecret:  toKargoDexConfigSecretAPIModel(ctx, oidcConfig.DexConfigSecret),
+		IssuerURL:        oidcConfig.IssuerURL.ValueString(),
+		ClientID:         oidcConfig.ClientID.ValueString(),
+		CliClientID:      oidcConfig.CliClientID.ValueString(),
+		AdminAccount:     toKargoPredefinedAccountAPIModel(ctx, oidcConfig.AdminAccount),
+		ViewerAccount:    toKargoPredefinedAccountAPIModel(ctx, oidcConfig.ViewerAccount),
+		AdditionalScopes: additionalScopes,
+	}
+}
+
+func toKargoDexConfigSecretAPIModel(ctx context.Context, secret types.Map) map[string]v1alpha1.Value {
+	if secret.IsNull() {
+		return nil
+	}
+
+	cfg := map[string]v1alpha1.Value{}
+	data := map[string]string{}
+	if err := secret.ElementsAs(ctx, &data, true); err != nil {
+		return nil
+	}
+	for k, v := range data {
+		cfg[k] = v1alpha1.Value{Value: &v}
+	}
+	return cfg
+}
+
+func toKargoPredefinedAccountAPIModel(ctx context.Context, accounts types.Object) v1alpha1.KargoPredefinedAccountData {
+	result := v1alpha1.KargoPredefinedAccountData{}
+	if accounts.IsNull() {
+		return result
+	}
+
+	data := map[string]any{}
+	if err := accounts.As(ctx, &data, basetypes.ObjectAsOptions{}); err != nil {
+		return result
+	}
+
+	result.Claims = make(map[string]v1alpha1.KargoPredefinedAccountClaimValue)
+
+	if claims, ok := data["claims"].(map[string]any); ok {
+		for claimKey, claimValue := range claims {
+			claim, ok := claimValue.(map[string]any)
+			if !ok {
+				continue
+			}
+
+			values, ok := claim["values"].([]any)
+			if !ok {
+				continue
+			}
+
+			stringValues := make([]string, 0, len(values))
+			for _, v := range values {
+				if str, ok := v.(string); ok {
+					stringValues = append(stringValues, str)
+				}
+			}
+
+			result.Claims[claimKey] = v1alpha1.KargoPredefinedAccountClaimValue{
+				Values: stringValues,
+			}
+		}
+	}
+
+	return result
+}
+
+func toKargoOidcConfigTFModel(ctx context.Context, oidcConfig *v1alpha1.KargoOidcConfig) *KargoOidcConfig {
+	if oidcConfig == nil {
+		return nil
+	}
+	additionalScopes := make([]types.String, len(oidcConfig.AdditionalScopes))
+	for i, scope := range oidcConfig.AdditionalScopes {
+		additionalScopes[i] = types.StringValue(scope)
+	}
+
+	return &KargoOidcConfig{
+		Enabled:          tftypes.BoolPointerValue(oidcConfig.Enabled),
+		DexEnabled:       tftypes.BoolPointerValue(oidcConfig.DexEnabled),
+		DexConfig:        tftypes.StringValue(oidcConfig.DexConfig),
+		DexConfigSecret:  toKargoDexConfigSecretTFModel(ctx, oidcConfig.DexConfigSecret),
+		IssuerURL:        tftypes.StringValue(oidcConfig.IssuerURL),
+		ClientID:         tftypes.StringValue(oidcConfig.ClientID),
+		CliClientID:      tftypes.StringValue(oidcConfig.CliClientID),
+		AdminAccount:     toKargoPredefinedAccountTFModel(oidcConfig.AdminAccount),
+		ViewerAccount:    toKargoPredefinedAccountTFModel(oidcConfig.ViewerAccount),
+		AdditionalScopes: additionalScopes,
+	}
+}
+
+func toKargoDexConfigSecretTFModel(ctx context.Context, secret map[string]v1alpha1.Value) types.Map {
+	if secret == nil {
+		return types.MapNull(types.StringType)
+	}
+
+	secretData := make(map[string]string)
+	for k, v := range secret {
+		if v.Value == nil {
+			continue
+		}
+		secretData[k] = *v.Value
+	}
+	mapVal, _ := types.MapValueFrom(ctx, types.StringType, secretData)
+	return mapVal
+}
+
+func toKargoPredefinedAccountTFModel(account v1alpha1.KargoPredefinedAccountData) types.Object {
+	objectType := map[string]attr.Type{
+		"claims": types.MapType{
+			ElemType: types.ObjectType{
+				AttrTypes: map[string]attr.Type{
+					"values": types.ListType{
+						ElemType: types.StringType,
+					},
+				},
+			},
+		},
+	}
+
+	if len(account.Claims) == 0 {
+		return types.ObjectNull(objectType)
+	}
+
+	claimsMap := make(map[string]attr.Value)
+	for claimKey, claimValue := range account.Claims {
+		valuesList, _ := types.ListValueFrom(context.Background(), types.StringType, claimValue.Values)
+
+		claimObject := types.ObjectValueMust(
+			map[string]attr.Type{
+				"values": types.ListType{
+					ElemType: types.StringType,
+				},
+			},
+			map[string]attr.Value{
+				"values": valuesList,
+			},
+		)
+
+		claimsMap[claimKey] = claimObject
+	}
+
+	claimsAttr, _ := types.MapValueFrom(context.Background(),
+		types.ObjectType{
+			AttrTypes: map[string]attr.Type{
+				"values": types.ListType{
+					ElemType: types.StringType,
+				},
+			},
+		},
+		claimsMap,
+	)
+
+	return types.ObjectValueMust(
+		objectType,
+		map[string]attr.Value{
+			"claims": claimsAttr,
+		},
+	)
 }

@@ -31,6 +31,7 @@ resource "akp_kargo_instance" "example" {
     spec = {
       description = "test-description"
       version     = "v1.1.1"
+      subdomain   = "tt8i0kzlgu8rbzne"
       kargo_instance_spec = {
         backend_ip_allow_list_enabled = true
         ip_allow_list = [
@@ -57,7 +58,25 @@ EOT
         global_credentials_ns     = ["test1", "test2"]
         global_service_account_ns = ["test3", "test4"]
       }
+      oidc_config = {
+        enabled           = true
+        dex_enabled       = false
+        client_id         = "test-client-id"
+        cli_client_id     = "test-cli-client-id"
+        issuer_url        = "https://test.com"
+        additional_scopes = ["test-scope"]
+        dex_secret = {
+          name = "test-secret"
+        }
+      }
     }
+  }
+  kargo_cm = {
+    adminAccountEnabled  = "true"
+    adminAccountTokenTtl = "24h"
+  }
+  kargo_secret = {
+    adminAccountPasswordHash = "abcde"
   }
 }
 ```
@@ -69,6 +88,11 @@ EOT
 
 - `kargo` (Attributes) Kargo instance configuration (see [below for nested schema](#nestedatt--kargo))
 - `name` (String) Kargo Instance name
+
+### Optional
+
+- `kargo_cm` (Map of String) ConfigMap to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf
+- `kargo_secret` (Map of String, Sensitive) Secret to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf
 
 ### Read-Only
 
@@ -92,6 +116,9 @@ Required:
 Optional:
 
 - `description` (String) Description of the Kargo instance
+- `fqdn` (String) Fully qualified domain name
+- `oidc_config` (Attributes) OIDC configuration (see [below for nested schema](#nestedatt--kargo--spec--oidc_config))
+- `subdomain` (String) Subdomain of the Kargo instance
 
 <a id="nestedatt--kargo--spec--kargo_instance_spec"></a>
 ### Nested Schema for `kargo.spec.kargo_instance_spec`
@@ -124,6 +151,54 @@ Required:
 Optional:
 
 - `description` (String) Description
+
+
+
+<a id="nestedatt--kargo--spec--oidc_config"></a>
+### Nested Schema for `kargo.spec.oidc_config`
+
+Optional:
+
+- `additional_scopes` (List of String) Additional scopes
+- `admin_account` (Attributes) Admin account (see [below for nested schema](#nestedatt--kargo--spec--oidc_config--admin_account))
+- `cli_client_id` (String) CLI Client ID
+- `client_id` (String) Client ID
+- `dex_config` (String) DEX configuration
+- `dex_config_secret` (Map of String) DEX configuration secret
+- `dex_enabled` (Boolean) Whether DEX is enabled
+- `enabled` (Boolean) Whether OIDC is enabled
+- `issuer_url` (String) Issuer URL
+- `viewer_account` (Attributes) Viewer account (see [below for nested schema](#nestedatt--kargo--spec--oidc_config--viewer_account))
+
+<a id="nestedatt--kargo--spec--oidc_config--admin_account"></a>
+### Nested Schema for `kargo.spec.oidc_config.admin_account`
+
+Optional:
+
+- `claims` (Attributes Map) Claims (see [below for nested schema](#nestedatt--kargo--spec--oidc_config--admin_account--claims))
+
+<a id="nestedatt--kargo--spec--oidc_config--admin_account--claims"></a>
+### Nested Schema for `kargo.spec.oidc_config.admin_account.claims`
+
+Optional:
+
+- `values` (List of String)
+
+
+
+<a id="nestedatt--kargo--spec--oidc_config--viewer_account"></a>
+### Nested Schema for `kargo.spec.oidc_config.viewer_account`
+
+Optional:
+
+- `claims` (Attributes Map) Claims (see [below for nested schema](#nestedatt--kargo--spec--oidc_config--viewer_account--claims))
+
+<a id="nestedatt--kargo--spec--oidc_config--viewer_account--claims"></a>
+### Nested Schema for `kargo.spec.oidc_config.viewer_account.claims`
+
+Optional:
+
+- `values` (List of String)
 
 ## Import
 
