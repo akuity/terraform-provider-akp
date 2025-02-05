@@ -12,10 +12,10 @@ resource "akp_kargo_instance" "example" {
       description = "test-description"
       version     = "v1.1.1"
       // only set one of fqdn and subdomain
-      fqdn        = "fqdn.example.com"
-      subdomain   = ""
+      fqdn      = "fqdn.example.com"
+      subdomain = ""
       oidc_config = {
-        enabled = true
+        enabled     = true
         dex_enabled = false
         # client_id should be set only if dex_enabled is false
         client_id = "test-client-id"
@@ -93,8 +93,8 @@ images:
     newName: quay.io/akuityy/agent
 EOT
         }
-        default_shard_agent = "test"
-        global_credentials_ns = ["test1", "test2"]
+        default_shard_agent       = "test"
+        global_credentials_ns     = ["test1", "test2"]
         global_service_account_ns = ["test3", "test4"]
       }
     }

@@ -39,12 +39,16 @@ resource "akp_kargo_agent" "example-agent" {
   spec = {
     description = "test-description"
     data = {
-      target_version        = "0.5.52"
-      size                  = "small"
-      auto_upgrade_disabled = true
-      RemoteArgocd          = "test-argocd"
-      AkuityManaged         = true
-      ArgocdNamespace       = "test-argocd-namespace"
+      target_version = "0.5.53"
+      size           = "medium"
+      // Set this to false if the agent is self-hosted, and this should not be changed anymore once it is set.
+      akuity_managed = true
+      # this needs to be the ArgoCD instance ID, and once it is set, it should not be changed.
+      remote_argocd = "instance-id"
+      # this can be configured in self-hosted mode, if the remote argocd is not provided, and if this is provided, the remote argocd will be ignored.
+      argocd_namespace = "test-argocd-namespace"
+      # configure this based on the situation of self-hosted or not.
+      auto_upgrade_disabled = false
       kustomization         = <<-EOT
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
