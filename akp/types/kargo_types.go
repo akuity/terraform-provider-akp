@@ -9,11 +9,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
-
-	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 
 	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
 	"github.com/akuity/terraform-provider-akp/akp/apis/v1alpha1"
@@ -78,6 +77,12 @@ func (k *Kargo) Update(ctx context.Context, diagnostics *diag.Diagnostics, kargo
 }
 
 func (k *Kargo) ToKargoAPIModel(ctx context.Context, diag *diag.Diagnostics, name string) *v1alpha1.Kargo {
+	subdomain := k.Spec.Subdomain.ValueString()
+	fqdn := k.Spec.Fqdn.ValueString()
+	if subdomain != "" && fqdn != "" {
+		diag.AddError("subdomain and fqdn cannot be set at the same time", "subdomain and fqdn are mutually exclusive")
+		return nil
+	}
 	return &v1alpha1.Kargo{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Kargo",
@@ -97,9 +102,9 @@ func (k *Kargo) ToKargoAPIModel(ctx context.Context, diag *diag.Diagnostics, nam
 				GlobalCredentialsNs:        toStringArrayAPIModel(k.Spec.KargoInstanceSpec.GlobalCredentialsNs),
 				GlobalServiceAccountNs:     toStringArrayAPIModel(k.Spec.KargoInstanceSpec.GlobalServiceAccountNs),
 			},
-			Fqdn:       k.Spec.Fqdn.ValueString(),
-			Subdomain:  k.Spec.Subdomain.ValueString(),
-			OidcConfig: toKargoOidcConfigAPIModel(ctx, k.Spec.OidcConfig),
+			Fqdn:       fqdn,
+			Subdomain:  subdomain,
+			OidcConfig: toKargoOidcConfigAPIModel(ctx, diag, k.Spec.OidcConfig),
 		},
 	}
 }
@@ -306,7 +311,7 @@ func toKargoAgentDataAPIModel(ctx context.Context, diagnostics *diag.Diagnostics
 	}
 }
 
-func toKargoOidcConfigAPIModel(ctx context.Context, oidcConfig *KargoOidcConfig) *v1alpha1.KargoOidcConfig {
+func toKargoOidcConfigAPIModel(ctx context.Context, diag *diag.Diagnostics, oidcConfig *KargoOidcConfig) *v1alpha1.KargoOidcConfig {
 	if oidcConfig == nil {
 		return nil
 	}
@@ -322,8 +327,8 @@ func toKargoOidcConfigAPIModel(ctx context.Context, oidcConfig *KargoOidcConfig)
 		IssuerURL:        oidcConfig.IssuerURL.ValueString(),
 		ClientID:         oidcConfig.ClientID.ValueString(),
 		CliClientID:      oidcConfig.CliClientID.ValueString(),
-		AdminAccount:     toKargoPredefinedAccountAPIModel(ctx, oidcConfig.AdminAccount),
-		ViewerAccount:    toKargoPredefinedAccountAPIModel(ctx, oidcConfig.ViewerAccount),
+		AdminAccount:     toKargoPredefinedAccountAPIModel(ctx, diag, oidcConfig.AdminAccount),
+		ViewerAccount:    toKargoPredefinedAccountAPIModel(ctx, diag, oidcConfig.ViewerAccount),
 		AdditionalScopes: additionalScopes,
 	}
 }
@@ -344,41 +349,48 @@ func toKargoDexConfigSecretAPIModel(ctx context.Context, secret types.Map) map[s
 	return cfg
 }
 
-func toKargoPredefinedAccountAPIModel(ctx context.Context, accounts types.Object) v1alpha1.KargoPredefinedAccountData {
-	result := v1alpha1.KargoPredefinedAccountData{}
+func toKargoPredefinedAccountAPIModel(ctx context.Context, diag *diag.Diagnostics, accounts types.Object) v1alpha1.KargoPredefinedAccountData {
+	result := v1alpha1.KargoPredefinedAccountData{
+		Claims: make(map[string]v1alpha1.KargoPredefinedAccountClaimValue),
+	}
+
 	if accounts.IsNull() {
 		return result
 	}
 
-	data := map[string]any{}
-	if err := accounts.As(ctx, &data, basetypes.ObjectAsOptions{}); err != nil {
+	attrs := accounts.Attributes()
+	claims, ok := attrs["claims"]
+	if !ok {
 		return result
 	}
 
-	result.Claims = make(map[string]v1alpha1.KargoPredefinedAccountClaimValue)
+	claimsMap, ok := claims.(types.Map)
+	if !ok {
+		diag.AddError("invalid claims type", "claims must be a map")
+		return result
+	}
 
-	if claims, ok := data["claims"].(map[string]any); ok {
-		for claimKey, claimValue := range claims {
-			claim, ok := claimValue.(map[string]any)
-			if !ok {
-				continue
-			}
+	elements := claimsMap.Elements()
+	for key, value := range elements {
+		claimObj, ok := value.(types.Object)
+		if !ok {
+			diag.AddError("invalid claim type", fmt.Sprintf("claim %s must be an object", key))
+			continue
+		}
 
-			values, ok := claim["values"].([]any)
-			if !ok {
-				continue
-			}
+		claimAttrs := claimObj.Attributes()
+		valuesList, ok := claimAttrs["values"].(types.List)
+		if !ok {
+			continue
+		}
 
-			stringValues := make([]string, 0, len(values))
-			for _, v := range values {
-				if str, ok := v.(string); ok {
-					stringValues = append(stringValues, str)
-				}
-			}
+		var stringValues []string
+		for _, v := range valuesList.Elements() {
+			stringValues = append(stringValues, v.(basetypes.StringValue).ValueString())
+		}
 
-			result.Claims[claimKey] = v1alpha1.KargoPredefinedAccountClaimValue{
-				Values: stringValues,
-			}
+		result.Claims[key] = v1alpha1.KargoPredefinedAccountClaimValue{
+			Values: stringValues,
 		}
 	}
 
@@ -389,9 +401,13 @@ func toKargoOidcConfigTFModel(ctx context.Context, oidcConfig *v1alpha1.KargoOid
 	if oidcConfig == nil {
 		return nil
 	}
+
 	additionalScopes := make([]types.String, len(oidcConfig.AdditionalScopes))
 	for i, scope := range oidcConfig.AdditionalScopes {
 		additionalScopes[i] = types.StringValue(scope)
+	}
+	if len(additionalScopes) == 0 {
+		additionalScopes = nil
 	}
 
 	return &KargoOidcConfig{

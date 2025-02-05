@@ -2,6 +2,7 @@ package akp
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -17,7 +18,6 @@ import (
 	orgcv1 "github.com/akuity/api-client-go/pkg/api/gen/organization/v1"
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
 	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
-	"github.com/akuity/terraform-provider-akp/akp/marshal"
 	"github.com/akuity/terraform-provider-akp/akp/types"
 )
 
@@ -156,6 +156,9 @@ func (r *AkpKargoInstanceResource) upsert(ctx context.Context, diagnostics *diag
 		return errors.New("Default workspace not found")
 	}
 	apiReq := buildKargoApplyRequest(ctx, diagnostics, plan, r.akpCli.OrgId, workspaceId)
+	if diagnostics.HasError() {
+		return errors.New("Unable to build Kargo instance request")
+	}
 	tflog.Debug(ctx, fmt.Sprintf("Apply instance request: %s", apiReq))
 	_, err = r.akpCli.KargoCli.ApplyKargoInstance(ctx, apiReq)
 	if err != nil {
@@ -188,10 +191,31 @@ func buildKargoApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, 
 
 func buildKargo(ctx context.Context, diagnostics *diag.Diagnostics, kargo *types.KargoInstance) *structpb.Struct {
 	apiKargo := kargo.Kargo.ToKargoAPIModel(ctx, diagnostics, kargo.Name.ValueString())
-	s, err := marshal.ApiModelToPBStruct(apiKargo)
-	if err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Argo CD instance. %s", err))
+	if diagnostics.HasError() {
 		return nil
+	}
+	jsonBytes, err := json.Marshal(apiKargo)
+	if err != nil {
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to marshal Kargo instance. %s", err))
+		return nil
+	}
+
+	var rawMap map[string]any
+	if err = json.Unmarshal(jsonBytes, &rawMap); err != nil {
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to unmarshal Kargo instance. %s", err))
+		return nil
+	}
+
+	if spec, ok := rawMap["spec"].(map[string]any); ok {
+		_, fok := spec["fqdn"].(string)
+		if !fok {
+			spec["fqdn"] = ""
+		}
+	}
+
+	s, err := structpb.NewStruct(rawMap)
+	if err != nil {
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Kargo instance struct. %s", err))
 	}
 	return s
 }
