@@ -17,14 +17,15 @@ func TestAccKargoDataSource(t *testing.T) {
 					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "id", "5gjcg0rh8fjemhc0"),
 					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "name", "test-instance"),
 					// spec
-					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo.spec.version", "v1.1.1"),
+					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo.spec.version", "v1.2.2"),
 					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo.spec.kargo_instance_spec.ip_allow_list.#", "0"),
 					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo.spec.kargo_instance_spec.global_credentials_ns.#", "2"),
 					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo.spec.kargo_instance_spec.global_service_account_ns.#", "1"),
 					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo.spec.kargo_instance_spec.default_shard_agent", "kgbgel4pst55klf9"),
 					// cm
-					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo.kargo_cm.adminAccountEnabled", "true"),
-					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo.kargo_cm.adminAccountTokenTtl", "24h"),
+					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo.kargo_cm.%", "2"),
+					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo.kargo_cm.%[adminAccountEnabled]", "true"),
+					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo.kargo_cm.%[adminAccountTokenTtl]", "24h"),
 				),
 			},
 		},
