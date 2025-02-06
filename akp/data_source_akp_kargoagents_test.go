@@ -46,25 +46,25 @@ func testAccCheckKargoAgentAttributes(dataSourceName string, targetKargoAgentNam
 				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("kargo_agents.%d.instance_id", i), "5gjcg0rh8fjemhc0")(s); err != nil {
 					return err
 				}
-				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("clusters.%d.id", i), "kgbgel4pst55klf9")(s); err != nil {
+				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("kargo_agents.%d.id", i), "kgbgel4pst55klf9")(s); err != nil {
 					return err
 				}
-				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("clusters.%d.name", i), "test-agent")(s); err != nil {
+				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("kargo_agents.%d.name", i), "test-agent")(s); err != nil {
 					return err
 				}
-				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("clusters.%d.namespace", i), "akuity")(s); err != nil {
+				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("kargo_agents.%d.namespace", i), "akuity")(s); err != nil {
 					return err
 				}
-				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("clusters.%d.labels.app", i), "test")(s); err != nil {
+				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("kargo_agents.%d.labels.app", i), "test")(s); err != nil {
 					return err
 				}
-				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("clusters.%d.annotations.app", i), "test")(s); err != nil {
+				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("kargo_agents.%d.annotations.app", i), "test")(s); err != nil {
 					return err
 				}
-				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("clusters.%d.spec.data.size", i), "small")(s); err != nil {
+				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("kargo_agents.%d.spec.data.size", i), "small")(s); err != nil {
 					return err
 				}
-				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("clusters.%d.spec.data.target_version", i), "0.5.52")(s); err != nil {
+				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("kargo_agents.%d.spec.data.target_version", i), "0.5.54")(s); err != nil {
 					return err
 				}
 				return nil

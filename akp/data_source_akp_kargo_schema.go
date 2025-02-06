@@ -186,10 +186,10 @@ func getOIDCConfigDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			Attributes:          getKargoPredefinedAccountDataAttributes(),
 		},
-		"additional_scopes": schema.SingleNestedAttribute{
+		"additional_scopes": schema.ListAttribute{
 			MarkdownDescription: "Additional scopes",
 			Computed:            true,
-			Attributes:          getKargoPredefinedAccountDataAttributes(),
+			ElementType:         types.StringType,
 		},
 	}
 }
