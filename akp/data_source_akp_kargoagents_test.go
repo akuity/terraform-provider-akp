@@ -18,7 +18,7 @@ func TestAccKargoAgentsDataSource(t *testing.T) {
 			{
 				Config: providerConfig + testAccKargoAgentsDataSourceConfig,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					testAccCheckKargoAgentAttributes("data.akp_kargo_agents.test", "data-source-cluster"),
+					testAccCheckKargoAgentAttributes("data.akp_kargo_agents.test-agents", "test-agent"),
 				),
 			},
 		},
