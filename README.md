@@ -16,7 +16,7 @@ With this provider you can manage Argo CD instances and clusters on [Akuity Plat
 - [Terraform](https://www.terraform.io/downloads.html) >= 1.2
 
 ## Typical use case
- Add a new cluster `test-cluster` to the existing Argo CD instance `manualy-created` and install [the agent](https://docs.akuity.io/akuity-platform/agent) to the configured cluster.
+ Add a new cluster `test-cluster` to the existing Argo CD instance `manualy-created` and install [the agent](https://docs.akuity.io/argo-cd/clusters/) to the configured cluster.
 
 1. Create an API key for your organization
    * Use `Admin` role for the key
