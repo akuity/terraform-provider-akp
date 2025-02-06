@@ -22,7 +22,7 @@ func TestAccKargoAgentDataSource(t *testing.T) {
 					resource.TestCheckResourceAttr("data.akp_kargo_agent.test", "namespace", "akuity"),
 					resource.TestCheckResourceAttr("data.akp_kargo_agent.test", "labels.app", "test"),
 					resource.TestCheckResourceAttr("data.akp_kargo_agent.test", "annotations.app", "test"),
-					resource.TestCheckResourceAttr("data.akp_kargo_agent.test", "spec.data.target_version", "0.5.52"),
+					resource.TestCheckResourceAttr("data.akp_kargo_agent.test", "spec.data.target_version", "0.5.54"),
 				),
 			},
 		},
@@ -31,7 +31,6 @@ func TestAccKargoAgentDataSource(t *testing.T) {
 
 const testAccKargoAgentDataSourceConfig = `
 data "akp_kargo_agent" "test" {
-  instance_id = "5gjcg0rh8fjemhc0"
   name = "test-agent"
 }
 `
