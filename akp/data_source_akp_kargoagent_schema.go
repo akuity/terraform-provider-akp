@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-func (d *AkpKargoAgentDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+func (a *AkpKargoAgentDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Gets information about a cluster by its name and Argo CD instance ID",
 		Attributes:          getAKPKargoAgentDataSourceAttributes(),
@@ -27,7 +27,7 @@ func getAKPKargoAgentDataSourceAttributes() map[string]schema.Attribute {
 		},
 		"name": schema.StringAttribute{
 			MarkdownDescription: "The name of the Kargo agent",
-			Computed:            true,
+			Required:            true,
 		},
 		"namespace": schema.StringAttribute{
 			MarkdownDescription: "The namespace of the Kargo agent",
@@ -48,7 +48,7 @@ func getAKPKargoAgentDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			Attributes:          getAKPKargoAgentSpecDataSourceAttributes(),
 		},
-		"kubeconfig": schema.SingleNestedAttribute{
+		"kube_config": schema.SingleNestedAttribute{
 			MarkdownDescription: "The kubeconfig of the Kargo agent",
 			Computed:            true,
 			Attributes:          getKubeconfigDataSourceAttributes(),
@@ -92,7 +92,7 @@ func getAKPKargoAgentDataDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Kustomize configuration that will be applied to generated Kargo agent installation manifests",
 			Computed:            true,
 		},
-		"remote_argocd_instance_id": schema.StringAttribute{
+		"remote_argocd": schema.StringAttribute{
 			MarkdownDescription: "The ID of the remote Argo CD instance",
 			Computed:            true,
 		},

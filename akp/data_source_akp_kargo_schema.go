@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-func (d *AkpKargoDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+func (k *AkpKargoDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Gets information about a Kargo instance",
 		Attributes:          getAKPKargoDataSourceAttributes(),
@@ -23,7 +23,7 @@ func getAKPKargoDataSourceAttributes() map[string]schema.Attribute {
 		},
 		"name": schema.StringAttribute{
 			MarkdownDescription: "Kargo instance name",
-			Computed:            true,
+			Required:            true,
 		},
 		"kargo": schema.SingleNestedAttribute{
 			MarkdownDescription: "Specification of the Kargo instance",

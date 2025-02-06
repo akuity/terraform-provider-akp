@@ -12,22 +12,22 @@ import (
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
-var _ datasource.DataSource = &AkpInstanceDataSource{}
+var _ datasource.DataSource = &AkpKargoDataSource{}
 
 func NewAkpKargoDataSource() datasource.DataSource {
 	return &AkpKargoDataSource{}
 }
 
-// AkpInstanceDataSource defines the data source implementation.
+// AkpKargoDataSource defines the data source implementation.
 type AkpKargoDataSource struct {
 	akpCli *AkpCli
 }
 
-func (r *AkpKargoDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_kargo_schema"
+func (k *AkpKargoDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_kargo_instance"
 }
 
-func (r *AkpKargoDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+func (k *AkpKargoDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
 	// Prevent panic if the provider has not been configured.
 	if req.ProviderData == nil {
 		return
@@ -42,10 +42,10 @@ func (r *AkpKargoDataSource) Configure(ctx context.Context, req datasource.Confi
 
 		return
 	}
-	r.akpCli = akpCli
+	k.akpCli = akpCli
 }
 
-func (r *AkpKargoDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+func (k *AkpKargoDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	tflog.Debug(ctx, "Reading an Instance Datasource")
 	var data types.KargoInstance
 	// Read Terraform prior state data into the model
@@ -54,8 +54,8 @@ func (r *AkpKargoDataSource) Read(ctx context.Context, req datasource.ReadReques
 		return
 	}
 
-	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
+	ctx = httpctx.SetAuthorizationHeader(ctx, k.akpCli.Cred.Scheme(), k.akpCli.Cred.Credential())
 
-	refreshKargoState(ctx, &resp.Diagnostics, r.akpCli.KargoCli, &data, r.akpCli.OrgId)
+	refreshKargoState(ctx, &resp.Diagnostics, k.akpCli.KargoCli, &data, k.akpCli.OrgId)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
