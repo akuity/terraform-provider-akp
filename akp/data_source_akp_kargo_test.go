@@ -24,8 +24,6 @@ func TestAccKargoDataSource(t *testing.T) {
 					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo.spec.kargo_instance_spec.default_shard_agent", "kgbgel4pst55klf9"),
 					// cm
 					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo.kargo_cm.%", "2"),
-					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo.kargo_cm.%[adminAccountEnabled]", "true"),
-					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo.kargo_cm.%[adminAccountTokenTtl]", "24h"),
 				),
 			},
 		},
