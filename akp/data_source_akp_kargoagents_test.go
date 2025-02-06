@@ -16,7 +16,7 @@ func TestAccKargoAgentsDataSource(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: providerConfig + testAccClustersDataSourceConfig,
+				Config: providerConfig + testAccKargoAgentsDataSourceConfig,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					testAccCheckKargoAgentAttributes("data.akp_kargo_agents.test", "data-source-cluster"),
 				),
@@ -26,7 +26,7 @@ func TestAccKargoAgentsDataSource(t *testing.T) {
 }
 
 const testAccKargoAgentsDataSourceConfig = `
-data "akp_kargo_agents" "test" {
+data "akp_kargo_agents" "test-agents" {
   instance_id = "5gjcg0rh8fjemhc0"
 }
 `

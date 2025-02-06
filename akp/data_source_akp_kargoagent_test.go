@@ -32,5 +32,6 @@ func TestAccKargoAgentDataSource(t *testing.T) {
 const testAccKargoAgentDataSourceConfig = `
 data "akp_kargo_agent" "test" {
   name = "test-agent"
+  instance_id = "5gjcg0rh8fjemhc0"
 }
 `
