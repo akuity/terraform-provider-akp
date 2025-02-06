@@ -8,6 +8,7 @@ import (
 	"github.com/akuity/api-client-go/pkg/api/gateway/accesscontrol"
 	gwoption "github.com/akuity/api-client-go/pkg/api/gateway/option"
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
+	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
 	orgcv1 "github.com/akuity/api-client-go/pkg/api/gen/organization/v1"
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
 	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
@@ -36,9 +37,11 @@ type AkpProviderModel struct {
 }
 
 type AkpCli struct {
-	Cli   argocdv1.ArgoCDServiceGatewayClient
-	Cred  accesscontrol.ClientCredential
-	OrgId string
+	Cli      argocdv1.ArgoCDServiceGatewayClient
+	KargoCli kargov1.KargoServiceGatewayClient
+	Cred     accesscontrol.ClientCredential
+	OrgCli   orgcv1.OrganizationServiceGatewayClient
+	OrgId    string
 }
 
 func (p *AkpProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -154,10 +157,14 @@ func (p *AkpProvider) Configure(ctx context.Context, req provider.ConfigureReque
 	tflog.Info(ctx, "Connection successful", map[string]any{"org_id": orgID})
 
 	argoc := argocdv1.NewArgoCDServiceGatewayClient(gwc)
+	kargoc := kargov1.NewKargoServiceGatewayClient(gwc)
+	orgc = orgcv1.NewOrganizationServiceGatewayClient(gwc)
 	akpCli := &AkpCli{
-		Cli:   argoc,
-		Cred:  cred,
-		OrgId: orgID,
+		Cli:      argoc,
+		KargoCli: kargoc,
+		Cred:     cred,
+		OrgId:    orgID,
+		OrgCli:   orgc,
 	}
 	resp.DataSourceData = akpCli
 	resp.ResourceData = akpCli
@@ -167,6 +174,8 @@ func (p *AkpProvider) Resources(ctx context.Context) []func() resource.Resource 
 	return []func() resource.Resource{
 		NewAkpInstanceResource,
 		NewAkpClusterResource,
+		NewAkpKargoInstanceResource,
+		NewAkpKargoAgentResource,
 	}
 }
 
@@ -175,6 +184,9 @@ func (p *AkpProvider) DataSources(ctx context.Context) []func() datasource.DataS
 		NewAkpInstanceDataSource,
 		NewAkpClusterDataSource,
 		NewAkpClustersDataSource,
+		NewAkpKargoDataSource,
+		NewAkpKargoAgentDataSource,
+		NewAkpKargoAgentsDataSource,
 	}
 }
 
