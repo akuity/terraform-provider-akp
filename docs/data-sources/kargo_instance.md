@@ -87,7 +87,7 @@ Read-Only:
 
 Read-Only:
 
-- `additional_scopes` (Attributes) Additional scopes (see [below for nested schema](#nestedatt--kargo--spec--oidc_config--additional_scopes))
+- `additional_scopes` (List of String) Additional scopes
 - `admin_account` (Attributes) Admin account (see [below for nested schema](#nestedatt--kargo--spec--oidc_config--admin_account))
 - `cli_client_id` (String) CLI Client ID
 - `client_id` (String) Client ID
@@ -97,22 +97,6 @@ Read-Only:
 - `enabled` (Boolean) Whether OIDC is enabled
 - `issuer_url` (String) Issuer URL
 - `viewer_account` (Attributes) Viewer account (see [below for nested schema](#nestedatt--kargo--spec--oidc_config--viewer_account))
-
-<a id="nestedatt--kargo--spec--oidc_config--additional_scopes"></a>
-### Nested Schema for `kargo.spec.oidc_config.additional_scopes`
-
-Read-Only:
-
-- `claims` (Attributes Map) Claims (see [below for nested schema](#nestedatt--kargo--spec--oidc_config--additional_scopes--claims))
-
-<a id="nestedatt--kargo--spec--oidc_config--additional_scopes--claims"></a>
-### Nested Schema for `kargo.spec.oidc_config.additional_scopes.claims`
-
-Read-Only:
-
-- `values` (List of String)
-
-
 
 <a id="nestedatt--kargo--spec--oidc_config--admin_account"></a>
 ### Nested Schema for `kargo.spec.oidc_config.admin_account`

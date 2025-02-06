@@ -39,13 +39,13 @@ data "akp_kargo_agents" "examples" {
 
 Required:
 
+- `instance_id` (String) The ID of the Kargo instance
 - `name` (String) The name of the Kargo agent
 
 Read-Only:
 
 - `annotations` (Map of String) The annotations of the Kargo agent
 - `id` (String) The ID of the Kargo agent
-- `instance_id` (String) The ID of the Kargo instance
 - `kube_config` (Attributes) The kubeconfig of the Kargo agent (see [below for nested schema](#nestedatt--agents--kube_config))
 - `labels` (Map of String) The labels of the Kargo agent
 - `namespace` (String) The namespace of the Kargo agent
