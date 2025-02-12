@@ -222,7 +222,7 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 	c.Annotations = annotations
 
 	autoscalerConfig := toAutoScalerConfigTFModel(nil)
-	if plan != nil && plan.Spec.Data.Size.ValueString() == "auto" {
+	if plan != nil && plan.Spec != nil && plan.Spec.Data.Size.ValueString() == "auto" {
 		newAPIConfig := apiCluster.GetData().GetAutoscalerConfig()
 		if !plan.Spec.Data.AutoscalerConfig.IsNull() && !plan.Spec.Data.AutoscalerConfig.IsUnknown() && newAPIConfig != nil &&
 			newAPIConfig.RepoServer != nil && newAPIConfig.ApplicationController != nil {
