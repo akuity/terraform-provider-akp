@@ -221,8 +221,8 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 	c.Labels = labels
 	c.Annotations = annotations
 
-	var autoscalerConfig basetypes.ObjectValue
-	if c.Spec != nil && plan != nil {
+	autoscalerConfig := toAutoScalerConfigTFModel(nil)
+	if plan != nil && plan.Spec.Data.Size.ValueString() == "auto" {
 		newAPIConfig := apiCluster.GetData().GetAutoscalerConfig()
 		if !plan.Spec.Data.AutoscalerConfig.IsNull() && !plan.Spec.Data.AutoscalerConfig.IsUnknown() && newAPIConfig != nil &&
 			newAPIConfig.RepoServer != nil && newAPIConfig.ApplicationController != nil {
@@ -259,11 +259,6 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 		} else {
 			autoscalerConfig = toAutoScalerConfigTFModel(newAPIConfig)
 		}
-	} else {
-		if plan == nil || plan.Spec == nil || plan.Spec.Data.AutoscalerConfig.IsNull() {
-			autoscalerConfig = basetypes.ObjectValue{}
-		}
-		autoscalerConfig = toAutoScalerConfigTFModel(apiCluster.GetData().GetAutoscalerConfig())
 	}
 
 	c.Spec = &ClusterSpec{
@@ -1101,6 +1096,9 @@ func toAutoScalerConfigTFModel(cfg *argocdv1.AutoScalerConfig) basetypes.ObjectV
 	}
 
 	attributes := map[string]attr.Value{}
+	if cfg == nil {
+		return basetypes.NewObjectNull(attributeTypes)
+	}
 	if cfg.ApplicationController != nil {
 		attributes["application_controller"] = basetypes.NewObjectValueMust(
 			attributeTypes["application_controller"].(basetypes.ObjectType).AttrTypes,
