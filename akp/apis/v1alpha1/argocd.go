@@ -55,6 +55,32 @@ type CrossplaneExtension struct {
 	Resources []*CrossplaneExtensionResource `json:"resources,omitempty"`
 }
 
+type KubeVisionArgoExtension struct {
+	Enabled          *bool    `json:"enabled,omitempty"`
+	AllowedUsernames []string `json:"allowedUsernames,omitempty"`
+	AllowedGroups    []string `json:"allowedGroups,omitempty"`
+}
+
+type KubeVisionConfig struct {
+	CveScanConfig *CveScanConfig `json:"cveScanConfig,omitempty"`
+}
+
+type AppInAnyNamespaceConfig struct {
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+type CustomDeprecatedAPI struct {
+	ApiVersion                     string `json:"apiVersion,omitempty"`
+	NewApiVersion                  string `json:"newApiVersion,omitempty"`
+	DeprecatedInKubernetesVersion  string `json:"deprecatedInKubernetesVersion,omitempty"`
+	UnavailableInKubernetesVersion string `json:"unavailableInKubernetesVersion,omitempty"`
+}
+
+type CveScanConfig struct {
+	ScanEnabled    *bool  `json:"scanEnabled,omitempty"`
+	RescanInterval string `json:"rescanInterval,omitempty"`
+}
+
 type InstanceSpec struct {
 	IpAllowList                     []*IPAllowListEntry            `json:"ipAllowList,omitempty"`
 	Subdomain                       string                         `json:"subdomain,omitempty"`
@@ -73,8 +99,14 @@ type InstanceSpec struct {
 	AppsetPolicy                    *AppsetPolicy                  `json:"appsetPolicy,omitempty"`
 	HostAliases                     []*HostAliases                 `json:"hostAliases,omitempty"`
 	AgentPermissionsRules           []*AgentPermissionsRule        `json:"agentPermissionsRules,omitempty"`
-	Fqdn                            *string                        `json:"fqdn,omitempty"`
+	Fqdn                            string                         `json:"fqdn,omitempty"`
 	MultiClusterK8SDashboardEnabled *bool                          `json:"multiClusterK8sDashboardEnabled,omitempty"`
+	KubeVisionArgoExtension         *KubeVisionArgoExtension       `json:"kubeVisionArgoExtension,omitempty"`
+	ImageUpdaterVersion             string                         `json:"imageUpdaterVersion,omitempty"`
+	CustomDeprecatedApis            []*CustomDeprecatedAPI         `json:"customDeprecatedApis,omitempty"`
+	KubeVisionConfig                *KubeVisionConfig              `json:"kubeVisionConfig,omitempty"`
+	AppInAnyNamespaceConfig         *AppInAnyNamespaceConfig       `json:"appInAnyNamespaceConfig,omitempty"`
+	Basepath                        string                         `json:"basepath,omitempty"`
 }
 
 type ManagedCluster struct {
