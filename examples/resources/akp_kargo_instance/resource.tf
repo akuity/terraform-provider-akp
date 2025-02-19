@@ -30,20 +30,7 @@ resource "akp_kargo_instance" "example" {
           name = "test-secret"
         }
         # dex_config should be set only if dex_enabled is true
-        dex_config = <<-EOT
-connectors:
-# GitHub example
-- type: github
-  id: github
-  name: GitHub
-  config:
-    clientID: aabbccddeeff00112233
-    clientSecret: $GITHUB_CLIENT_SECRET
-    orgs:
-      - name: your-github-org
-        teams:
-        - red-team
-EOT
+        dex_config = ""
         admin_account = {
           claims = {
             groups = {
