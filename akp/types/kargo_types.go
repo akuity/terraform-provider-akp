@@ -398,7 +398,7 @@ func toKargoPredefinedAccountAPIModel(ctx context.Context, diag *diag.Diagnostic
 }
 
 func toKargoOidcConfigTFModel(ctx context.Context, oidcConfig *v1alpha1.KargoOidcConfig) *KargoOidcConfig {
-	if oidcConfig == nil {
+	if oidcConfig == nil || oidcConfig.Enabled == nil || !*oidcConfig.Enabled {
 		return nil
 	}
 
