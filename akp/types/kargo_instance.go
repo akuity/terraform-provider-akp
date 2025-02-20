@@ -34,6 +34,16 @@ func (k *KargoInstance) Update(ctx context.Context, diagnostics *diag.Diagnostic
 
 	// Convert ConfigMap values, ensuring booleans are converted to strings
 	configMap := exportResp.GetKargoConfigmap().AsMap()
+	if !k.KargoConfigMap.IsNull() {
+		existingConfigMap := k.KargoConfigMap.Elements()
+		for key, value := range existingConfigMap {
+			if _, exists := configMap[key]; !exists {
+				if strVal, ok := value.(types.String); ok {
+					configMap[key] = strVal.ValueString()
+				}
+			}
+		}
+	}
 	for k, v := range configMap {
 		switch val := v.(type) {
 		case bool:
