@@ -35,7 +35,7 @@ func getAKPKargoAgentResourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "The ID of the Kargo instance",
 			Required:            true,
 			PlanModifiers: []planmodifier.String{
-				stringplanmodifier.UseStateForUnknown(),
+				stringplanmodifier.RequiresReplace(),
 			},
 		},
 		"name": schema.StringAttribute{
@@ -150,7 +150,7 @@ func getAKPKargoAgentDataAttributes() map[string]schema.Attribute {
 			Optional:            true,
 			Computed:            true,
 			PlanModifiers: []planmodifier.String{
-				stringplanmodifier.UseStateForUnknown(),
+				stringplanmodifier.RequiresReplace(),
 			},
 		},
 		"akuity_managed": schema.BoolAttribute{
@@ -158,7 +158,7 @@ func getAKPKargoAgentDataAttributes() map[string]schema.Attribute {
 			Optional:            true,
 			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
-				boolplanmodifier.UseStateForUnknown(),
+				boolplanmodifier.RequiresReplace(),
 			},
 		},
 		"argocd_namespace": schema.StringAttribute{
