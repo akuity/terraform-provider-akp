@@ -10,7 +10,6 @@ description: |-
 
 {{ .Description | trimspace }}
 
-{{ if .HasExample -}}
 ## Example Usage (Basic)
 {{ tffile "./examples/resources/akp_kargo_agent/basic.tf" }}
 
@@ -19,7 +18,6 @@ description: |-
 
 ## Example Usage (Self hosted agent)
 {{ tffile "./examples/resources/akp_kargo_agent/self_hosted.tf" }}
-{{- end }}
 
 {{ .SchemaMarkdown | trimspace }}
 
