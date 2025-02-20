@@ -14,8 +14,11 @@ description: |-
 ## Example Usage (Basic)
 {{ tffile "./examples/resources/akp_kargo_agent/basic.tf" }}
 
-## Example Usage (Exhaustive)
-{{ tffile "./examples/resources/akp_kargo_agent/resource.tf" }}
+## Example Usage (Akuity managed agent)
+{{ tffile "./examples/resources/akp_kargo_agent/akuity_managed.tf" }}
+
+## Example Usage (Self hosted agent)
+{{ tffile "./examples/resources/akp_kargo_agent/self_hosted.tf" }}
 {{- end }}
 
 {{ .SchemaMarkdown | trimspace }}
