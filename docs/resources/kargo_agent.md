@@ -23,7 +23,7 @@ resource "akp_kargo_agent" "example-agent" {
 }
 ```
 
-## Example Usage (Akuity managed agent)
+## Example Usage (Akuity-managed agent)
 ```terraform
 resource "akp_kargo_agent" "example-agent" {
   instance_id = akp_kargo_instance.example.id
@@ -48,7 +48,7 @@ resource "akp_kargo_agent" "example-agent" {
 }
 ```
 
-## Example Usage (Self hosted agent)
+## Example Usage (Self-hosted agent)
 ```terraform
 resource "akp_kargo_agent" "example-agent" {
   instance_id = akp_kargo_instance.example.id
