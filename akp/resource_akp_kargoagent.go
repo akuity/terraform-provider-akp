@@ -160,7 +160,7 @@ func (r *AkpKargoAgentResource) Delete(ctx context.Context, req resource.DeleteR
 		return
 	}
 	// Give it some time to remove the cluster. This is useful when the terraform provider is performing a replace operation, to give it enough time to destroy the previous cluster.
-	time.Sleep(2 * time.Second)
+	time.Sleep(5 * time.Second)
 }
 
 func (r *AkpKargoAgentResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {

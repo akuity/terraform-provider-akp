@@ -17,8 +17,7 @@ resource "akp_kargo_agent" "example-agent" {
   name        = "test-agent"
   spec = {
     data = {
-      target_version = "0.5.52"
-      size           = "small"
+      size = "small"
     }
   }
 }

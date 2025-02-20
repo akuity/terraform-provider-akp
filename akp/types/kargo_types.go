@@ -239,6 +239,11 @@ func (ka *KargoAgent) Update(ctx context.Context, diagnostics *diag.Diagnostics,
 	ka.Labels = labels
 	ka.Annotations = annotations
 
+	argocdNs := apiKargoAgent.GetData().GetArgocdNamespace()
+	if apiKargoAgent.GetData().GetRemoteArgocd() == "" && !apiKargoAgent.GetData().GetAkuityManaged() {
+		argocdNs = plan.Spec.Data.ArgocdNamespace.ValueString()
+	}
+
 	size := tftypes.StringValue(KargoAgentSizeString[apiKargoAgent.GetData().GetSize()])
 	ka.Spec = &KargoAgentSpec{
 		Description: tftypes.StringValue(apiKargoAgent.GetDescription()),
@@ -249,7 +254,7 @@ func (ka *KargoAgent) Update(ctx context.Context, diagnostics *diag.Diagnostics,
 			Kustomization:       kustomization,
 			RemoteArgocd:        tftypes.StringValue(apiKargoAgent.GetData().GetRemoteArgocd()),
 			AkuityManaged:       tftypes.BoolValue(apiKargoAgent.GetData().GetAkuityManaged()),
-			ArgocdNamespace:     tftypes.StringValue(apiKargoAgent.GetData().GetArgocdNamespace()),
+			ArgocdNamespace:     tftypes.StringValue(argocdNs),
 		},
 	}
 }
