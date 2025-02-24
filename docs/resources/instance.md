@@ -162,9 +162,12 @@ resource "akp_instance" "example" {
     "ui.bannerpermanent"             = false
     "users.anonymous.enabled"        = true
 
-    "kustomize.buildOptions" = "--load_restrictor none"
-    "accounts.alice"         = "login"
-    "dex.config"             = <<-EOF
+    "kustomize.buildOptions"        = "--load_restrictor none"
+    "accounts.alice"                = "login"
+    "accounts.test-disable"         = "apiKey,login"
+    "accounts.test-disable.enabled" = false
+
+    "dex.config" = <<-EOF
         connectors:
           # GitHub example
           - type: github
