@@ -95,7 +95,7 @@ func (k *Kargo) ToKargoAPIModel(ctx context.Context, diag *diag.Diagnostics, nam
 			Description: k.Spec.Description.ValueString(),
 			Version:     k.Spec.Version.ValueString(),
 			KargoInstanceSpec: v1alpha1.KargoInstanceSpec{
-				BackendIpAllowListEnabled:  k.Spec.KargoInstanceSpec.BackendIpAllowListEnabled.ValueBoolPointer(),
+				BackendIpAllowListEnabled:  toBoolPointer(k.Spec.KargoInstanceSpec.BackendIpAllowListEnabled),
 				IpAllowList:                toKargoIpAllowListAPIModel(k.Spec.KargoInstanceSpec.IpAllowList),
 				AgentCustomizationDefaults: toKargoAgentCustomizationAPIModel(k.Spec.KargoInstanceSpec.AgentCustomizationDefaults, diag),
 				DefaultShardAgent:          k.Spec.KargoInstanceSpec.DefaultShardAgent.ValueString(),
@@ -139,7 +139,7 @@ func toKargoAgentCustomizationAPIModel(agentCustomizationDefaults *KargoAgentCus
 		}
 	}
 	return &v1alpha1.KargoAgentCustomization{
-		AutoUpgradeDisabled: agentCustomizationDefaults.AutoUpgradeDisabled.ValueBoolPointer(),
+		AutoUpgradeDisabled: toBoolPointer(agentCustomizationDefaults.AutoUpgradeDisabled),
 		Kustomization:       raw,
 	}
 }
@@ -307,7 +307,7 @@ func toKargoAgentDataAPIModel(ctx context.Context, diagnostics *diag.Diagnostics
 
 	return v1alpha1.KargoAgentData{
 		Size:                v1alpha1.KargoAgentSize(data.Size.ValueString()),
-		AutoUpgradeDisabled: data.AutoUpgradeDisabled.ValueBoolPointer(),
+		AutoUpgradeDisabled: toBoolPointer(data.AutoUpgradeDisabled),
 		TargetVersion:       data.TargetVersion.ValueString(),
 		Kustomization:       raw,
 		RemoteArgocd:        data.RemoteArgocd.ValueString(),
@@ -325,8 +325,8 @@ func toKargoOidcConfigAPIModel(ctx context.Context, diag *diag.Diagnostics, oidc
 		additionalScopes = append(additionalScopes, scope.ValueString())
 	}
 	return &v1alpha1.KargoOidcConfig{
-		Enabled:          oidcConfig.Enabled.ValueBoolPointer(),
-		DexEnabled:       oidcConfig.DexEnabled.ValueBoolPointer(),
+		Enabled:          toBoolPointer(oidcConfig.Enabled),
+		DexEnabled:       toBoolPointer(oidcConfig.DexEnabled),
 		DexConfig:        oidcConfig.DexConfig.ValueString(),
 		DexConfigSecret:  toKargoDexConfigSecretAPIModel(ctx, oidcConfig.DexConfigSecret),
 		IssuerURL:        oidcConfig.IssuerURL.ValueString(),
