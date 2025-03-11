@@ -121,26 +121,33 @@ func (a *ArgoCD) ToArgoCDAPIModel(ctx context.Context, diag *diag.Diagnostics, n
 			InstanceSpec: v1alpha1.InstanceSpec{
 				IpAllowList:                     toIPAllowListAPIModel(a.Spec.InstanceSpec.IpAllowList),
 				Subdomain:                       a.Spec.InstanceSpec.Subdomain.ValueString(),
-				DeclarativeManagementEnabled:    a.Spec.InstanceSpec.DeclarativeManagementEnabled.ValueBoolPointer(),
+				DeclarativeManagementEnabled:    toBoolPointer(a.Spec.InstanceSpec.DeclarativeManagementEnabled),
 				Extensions:                      toExtensionsAPIModel(a.Spec.InstanceSpec.Extensions),
 				ClusterCustomizationDefaults:    toClusterCustomizationAPIModel(ctx, diag, a.Spec.InstanceSpec.ClusterCustomizationDefaults),
-				ImageUpdaterEnabled:             a.Spec.InstanceSpec.ImageUpdaterEnabled.ValueBoolPointer(),
-				BackendIpAllowListEnabled:       a.Spec.InstanceSpec.BackendIpAllowListEnabled.ValueBoolPointer(),
+				ImageUpdaterEnabled:             toBoolPointer(a.Spec.InstanceSpec.ImageUpdaterEnabled),
+				BackendIpAllowListEnabled:       toBoolPointer(a.Spec.InstanceSpec.BackendIpAllowListEnabled),
 				RepoServerDelegate:              toRepoServerDelegateAPIModel(a.Spec.InstanceSpec.RepoServerDelegate),
-				AuditExtensionEnabled:           a.Spec.InstanceSpec.AuditExtensionEnabled.ValueBoolPointer(),
-				SyncHistoryExtensionEnabled:     a.Spec.InstanceSpec.SyncHistoryExtensionEnabled.ValueBoolPointer(),
+				AuditExtensionEnabled:           toBoolPointer(a.Spec.InstanceSpec.AuditExtensionEnabled),
+				SyncHistoryExtensionEnabled:     toBoolPointer(a.Spec.InstanceSpec.SyncHistoryExtensionEnabled),
 				CrossplaneExtension:             toCrossplaneExtensionAPIModel(a.Spec.InstanceSpec.CrossplaneExtension),
 				ImageUpdaterDelegate:            toImageUpdaterDelegateAPIModel(a.Spec.InstanceSpec.ImageUpdaterDelegate),
 				AppSetDelegate:                  toAppSetDelegateAPIModel(a.Spec.InstanceSpec.AppSetDelegate),
-				AssistantExtensionEnabled:       a.Spec.InstanceSpec.AssistantExtensionEnabled.ValueBoolPointer(),
+				AssistantExtensionEnabled:       toBoolPointer(a.Spec.InstanceSpec.AssistantExtensionEnabled),
 				AppsetPolicy:                    toAppsetPolicyAPIModel(ctx, diag, a.Spec.InstanceSpec.AppsetPolicy),
 				HostAliases:                     toHostAliasesAPIModel(a.Spec.InstanceSpec.HostAliases),
 				AgentPermissionsRules:           toAgentPermissionsRuleAPIModel(a.Spec.InstanceSpec.AgentPermissionsRules),
 				Fqdn:                            a.Spec.InstanceSpec.Fqdn.ValueStringPointer(),
-				MultiClusterK8SDashboardEnabled: a.Spec.InstanceSpec.MultiClusterK8SDashboardEnabled.ValueBoolPointer(),
+				MultiClusterK8SDashboardEnabled: toBoolPointer(a.Spec.InstanceSpec.MultiClusterK8SDashboardEnabled),
 			},
 		},
 	}
+}
+
+func toBoolPointer(b tftypes.Bool) *bool {
+	if b.IsUnknown() {
+		return nil
+	}
+	return b.ValueBoolPointer()
 }
 
 func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, apiCluster *argocdv1.Cluster, plan *Cluster) {
@@ -457,15 +464,15 @@ func toClusterDataAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, c
 	}
 	return v1alpha1.ClusterData{
 		Size:                            v1alpha1.ClusterSize(size),
-		AutoUpgradeDisabled:             clusterData.AutoUpgradeDisabled.ValueBoolPointer(),
+		AutoUpgradeDisabled:             toBoolPointer(clusterData.AutoUpgradeDisabled),
 		Kustomization:                   raw,
-		AppReplication:                  clusterData.AppReplication.ValueBoolPointer(),
+		AppReplication:                  toBoolPointer(clusterData.AppReplication),
 		TargetVersion:                   clusterData.TargetVersion.ValueString(),
-		RedisTunneling:                  clusterData.RedisTunneling.ValueBoolPointer(),
-		DatadogAnnotationsEnabled:       clusterData.DatadogAnnotationsEnabled.ValueBoolPointer(),
-		EksAddonEnabled:                 clusterData.EksAddonEnabled.ValueBoolPointer(),
+		RedisTunneling:                  toBoolPointer(clusterData.RedisTunneling),
+		DatadogAnnotationsEnabled:       toBoolPointer(clusterData.DatadogAnnotationsEnabled),
+		EksAddonEnabled:                 toBoolPointer(clusterData.EksAddonEnabled),
 		ManagedClusterConfig:            managedConfig,
-		MultiClusterK8SDashboardEnabled: clusterData.MultiClusterK8SDashboardEnabled.ValueBoolPointer(),
+		MultiClusterK8SDashboardEnabled: toBoolPointer(clusterData.MultiClusterK8SDashboardEnabled),
 		AutoscalerConfig:                autoscalerConfigAPI,
 	}
 }
@@ -475,7 +482,7 @@ func toRepoServerDelegateAPIModel(repoServerDelegate *RepoServerDelegate) *v1alp
 		return nil
 	}
 	return &v1alpha1.RepoServerDelegate{
-		ControlPlane:   repoServerDelegate.ControlPlane.ValueBoolPointer(),
+		ControlPlane:   toBoolPointer(repoServerDelegate.ControlPlane),
 		ManagedCluster: toManagedClusterAPIModel(repoServerDelegate.ManagedCluster),
 	}
 }
@@ -510,7 +517,7 @@ func toImageUpdaterDelegateAPIModel(imageUpdaterDelegate *ImageUpdaterDelegate) 
 		return nil
 	}
 	return &v1alpha1.ImageUpdaterDelegate{
-		ControlPlane:   imageUpdaterDelegate.ControlPlane.ValueBoolPointer(),
+		ControlPlane:   toBoolPointer(imageUpdaterDelegate.ControlPlane),
 		ManagedCluster: toManagedClusterAPIModel(imageUpdaterDelegate.ManagedCluster),
 	}
 }
@@ -547,10 +554,10 @@ func toClusterCustomizationAPIModel(ctx context.Context, diagnostics *diag.Diagn
 		diagnostics.AddError("failed unmarshal kustomization string to yaml", err.Error())
 	}
 	return &v1alpha1.ClusterCustomization{
-		AutoUpgradeDisabled: customization.AutoUpgradeDisabled.ValueBoolPointer(),
+		AutoUpgradeDisabled: toBoolPointer(customization.AutoUpgradeDisabled),
 		Kustomization:       raw,
-		AppReplication:      customization.AppReplication.ValueBoolPointer(),
-		RedisTunneling:      customization.RedisTunneling.ValueBoolPointer(),
+		AppReplication:      toBoolPointer(customization.AppReplication),
+		RedisTunneling:      toBoolPointer(customization.RedisTunneling),
 	}
 }
 
@@ -597,7 +604,7 @@ func toAppsetPolicyAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, 
 	}
 	return &v1alpha1.AppsetPolicy{
 		Policy:         policy.Policy.ValueString(),
-		OverridePolicy: policy.OverridePolicy.ValueBoolPointer(),
+		OverridePolicy: toBoolPointer(policy.OverridePolicy),
 	}
 }
 

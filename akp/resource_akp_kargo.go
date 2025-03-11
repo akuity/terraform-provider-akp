@@ -235,6 +235,7 @@ func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, clien
 	exportReq := &kargov1.ExportKargoInstanceRequest{
 		OrganizationId: orgID,
 		Id:             kargo.ID.ValueString(),
+		WorkspaceId:    resp.Instance.WorkspaceId,
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Export Kargo instance request: %s", exportReq))
 	exportResp, err := client.ExportKargoInstance(ctx, exportReq)
