@@ -10,15 +10,12 @@ import (
 )
 
 type KargoAgent struct {
-	ID                            types.String    `tfsdk:"id"`
-	InstanceID                    types.String    `tfsdk:"instance_id"`
-	Name                          types.String    `tfsdk:"name"`
-	Namespace                     types.String    `tfsdk:"namespace"`
-	Labels                        types.Map       `tfsdk:"labels"`
-	Annotations                   types.Map       `tfsdk:"annotations"`
-	Spec                          *KargoAgentSpec `tfsdk:"spec"`
-	Kubeconfig                    *Kubeconfig     `tfsdk:"kube_config"`
-	RemoveAgentResourcesOnDestroy types.Bool      `tfsdk:"remove_agent_resources_on_destroy"`
+	ID          types.String    `tfsdk:"id"`
+	InstanceID  types.String    `tfsdk:"instance_id"`
+	Name        types.String    `tfsdk:"name"`
+	Labels      types.Map       `tfsdk:"labels"`
+	Annotations types.Map       `tfsdk:"annotations"`
+	Spec        *KargoAgentSpec `tfsdk:"spec"`
 }
 
 type KargoAgents struct {
