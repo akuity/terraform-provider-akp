@@ -20,7 +20,7 @@ func ToFilteredConfigMapTFModel(ctx context.Context, diagnostics *diag.Diagnosti
 		}
 	}
 
-	oldMap := make(map[string]interface{})
+	oldMap := make(map[string]interface{}, len(oldCM.Elements()))
 	for k, v := range oldCM.Elements() {
 		oldMap[k] = v
 	}
@@ -30,8 +30,8 @@ func ToFilteredConfigMapTFModel(ctx context.Context, diagnostics *diag.Diagnosti
 	// Only include values which are a part of the original resource map. The reason for doing so is that the API returns
 	// a lot of fields which can cause TF to have an inconsistent state. We rely on the backend being able to do the right
 	// thing in regard to PATCH requests; we don't actually need to have all the fields which the API returns in the state.
-	for k, v := range oldMap {
-		if _, ok := m[k]; ok {
+	for k := range oldMap {
+		if v, ok := m[k]; ok {
 			switch t := v.(type) {
 			case string:
 				sortedValue, err := sortJSONString(t)
