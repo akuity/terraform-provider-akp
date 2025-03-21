@@ -231,6 +231,14 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 			Optional:            true,
 			Attributes:          getCustomAgentSizeConfigAttributes(),
 		},
+		"project": schema.StringAttribute{
+			MarkdownDescription: "Project name",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
 	}
 }
 

@@ -85,6 +85,7 @@ Read-Only:
 - `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
 - `managed_cluster_config` (Attributes) The config to access managed Kubernetes cluster. By default agent is using "in-cluster" config. (see [below for nested schema](#nestedatt--spec--data--managed_cluster_config))
 - `multi_cluster_k8s_dashboard_enabled` (Boolean) Enable the KubeVision feature on the managed cluster
+- `project` (String) Project name
 - `redis_tunneling` (Boolean) Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy
 - `size` (String) Cluster Size. One of `small`, `medium`, `large`, `custom` or `auto`
 - `target_version` (String) The version of the agent to install on your cluster
