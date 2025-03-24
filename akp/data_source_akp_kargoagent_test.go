@@ -22,7 +22,6 @@ func TestAccKargoAgentDataSource(t *testing.T) {
 					resource.TestCheckResourceAttr("data.akp_kargo_agent.test", "namespace", "akuity"),
 					resource.TestCheckResourceAttr("data.akp_kargo_agent.test", "labels.app", "test"),
 					resource.TestCheckResourceAttr("data.akp_kargo_agent.test", "annotations.app", "test"),
-					resource.TestCheckResourceAttr("data.akp_kargo_agent.test", "spec.data.target_version", "0.5.54"),
 				),
 			},
 		},

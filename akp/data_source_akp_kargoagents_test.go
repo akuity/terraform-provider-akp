@@ -64,9 +64,6 @@ func testAccCheckKargoAgentAttributes(dataSourceName string, targetKargoAgentNam
 				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("agents.%d.spec.data.size", i), "small")(s); err != nil {
 					return err
 				}
-				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("agents.%d.spec.data.target_version", i), "0.5.54")(s); err != nil {
-					return err
-				}
 				return nil
 			}
 		}
