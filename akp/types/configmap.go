@@ -13,6 +13,44 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+func ToFilteredConfigMapTFModel(ctx context.Context, diagnostics *diag.Diagnostics, data *structpb.Struct, oldCM tftypes.Map) tftypes.Map {
+	if data == nil || len(data.AsMap()) == 0 {
+		if !oldCM.IsUnknown() && (oldCM.IsNull() || len(oldCM.Elements()) == 0) {
+			return oldCM
+		}
+	}
+
+	oldMap := make(map[string]interface{}, len(oldCM.Elements()))
+	for k, v := range oldCM.Elements() {
+		oldMap[k] = v
+	}
+
+	m := data.AsMap()
+
+	// Only include values which are a part of the original resource map. The reason for doing so is that the API returns
+	// a lot of fields which can cause TF to have an inconsistent state. We rely on the backend being able to do the right
+	// thing in regard to PATCH requests; we don't actually need to have all the fields which the API returns in the state.
+	for k := range oldMap {
+		if v, ok := m[k]; ok {
+			switch t := v.(type) {
+			case string:
+				sortedValue, err := sortJSONString(t)
+				if err != nil {
+					diagnostics.AddError("Client Error", fmt.Sprintf("Unable to sort JSON keys for key %s. %s", k, err))
+					return tftypes.MapNull(tftypes.StringType)
+				}
+				oldMap[k] = sortedValue
+			default:
+				oldMap[k] = v
+			}
+		}
+	}
+
+	newData, diag := tftypes.MapValueFrom(ctx, tftypes.StringType, &oldMap)
+	diagnostics.Append(diag...)
+	return newData
+}
+
 func ToConfigMapTFModel(ctx context.Context, diagnostics *diag.Diagnostics, data *structpb.Struct, oldCM tftypes.Map) tftypes.Map {
 	if data == nil || len(data.AsMap()) == 0 {
 		if !oldCM.IsUnknown() && (oldCM.IsNull() || len(oldCM.Elements()) == 0) {

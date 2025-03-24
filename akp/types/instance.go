@@ -70,7 +70,7 @@ func (i *Instance) Update(ctx context.Context, diagnostics *diag.Diagnostics, ex
 		argoCD.Spec.InstanceSpec.Fqdn = &fqdn
 	}
 	i.ArgoCD.Update(ctx, diagnostics, argoCD)
-	i.ArgoCDConfigMap = ToConfigMapTFModel(ctx, diagnostics, exportResp.ArgocdConfigmap, i.ArgoCDConfigMap)
+	i.ArgoCDConfigMap = ToFilteredConfigMapTFModel(ctx, diagnostics, exportResp.ArgocdConfigmap, i.ArgoCDConfigMap)
 	i.ArgoCDRBACConfigMap = ToConfigMapTFModel(ctx, diagnostics, exportResp.ArgocdRbacConfigmap, i.ArgoCDRBACConfigMap)
 	i.NotificationsConfigMap = ToConfigMapTFModel(ctx, diagnostics, exportResp.NotificationsConfigmap, i.NotificationsConfigMap)
 	i.ImageUpdaterConfigMap = ToConfigMapTFModel(ctx, diagnostics, exportResp.ImageUpdaterConfigmap, i.ImageUpdaterConfigMap)
