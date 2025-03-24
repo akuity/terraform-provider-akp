@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"reflect"
 	"strconv"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -12,6 +13,7 @@ import (
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"google.golang.org/protobuf/types/known/structpb"
+	yamlv3 "gopkg.in/yaml.v3"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -87,7 +89,7 @@ func (a *ArgoCD) Update(ctx context.Context, diagnostics *diag.Diagnostics, cd *
 			Subdomain:                       tftypes.StringValue(cd.Spec.InstanceSpec.Subdomain),
 			DeclarativeManagementEnabled:    tftypes.BoolValue(declarativeManagementEnabled),
 			Extensions:                      toExtensionsTFModel(cd.Spec.InstanceSpec.Extensions),
-			ClusterCustomizationDefaults:    toClusterCustomizationTFModel(ctx, diagnostics, cd.Spec.InstanceSpec.ClusterCustomizationDefaults),
+			ClusterCustomizationDefaults:    a.toClusterCustomizationTFModel(ctx, diagnostics, cd.Spec.InstanceSpec.ClusterCustomizationDefaults),
 			ImageUpdaterEnabled:             tftypes.BoolValue(imageUpdaterEnabled),
 			BackendIpAllowListEnabled:       tftypes.BoolValue(backendIpAllowListEnabled),
 			RepoServerDelegate:              toRepoServerDelegateTFModel(cd.Spec.InstanceSpec.RepoServerDelegate),
@@ -767,13 +769,29 @@ func toManagedClusterTFModel(cluster *v1alpha1.ManagedCluster) *ManagedCluster {
 	}
 }
 
-func toClusterCustomizationTFModel(ctx context.Context, diagnostics *diag.Diagnostics, customization *v1alpha1.ClusterCustomization) tftypes.Object {
+func (a *ArgoCD) toClusterCustomizationTFModel(ctx context.Context, diagnostics *diag.Diagnostics, customization *v1alpha1.ClusterCustomization) tftypes.Object {
 	if customization == nil {
 		return tftypes.ObjectNull(clusterCustomizationAttrTypes)
 	}
 	yamlData, err := yaml.JSONToYAML(customization.Kustomization.Raw)
 	if err != nil {
 		diagnostics.AddError("failed to convert json to yaml", err.Error())
+	}
+
+	if !a.Spec.InstanceSpec.ClusterCustomizationDefaults.IsNull() && !a.Spec.InstanceSpec.ClusterCustomizationDefaults.IsUnknown() {
+		var existingCustomization ClusterCustomization
+		diagnostics.Append(a.Spec.InstanceSpec.ClusterCustomizationDefaults.As(ctx, &existingCustomization, basetypes.ObjectAsOptions{
+			UnhandledNullAsEmpty:    true,
+			UnhandledUnknownAsEmpty: true,
+		})...)
+
+		if !diagnostics.HasError() {
+			existingYaml := existingCustomization.Kustomization.ValueString()
+			newYaml := string(yamlData)
+			if yamlEqual(existingYaml, newYaml) {
+				yamlData = []byte(existingYaml)
+			}
+		}
 	}
 
 	autoUpgradeDisabled := false
@@ -1604,4 +1622,15 @@ func areResourcesValid(min, max string) bool {
 		return true
 	}
 	return minQ.Cmp(maxQ) <= 0
+}
+
+func yamlEqual(a, b string) bool {
+	var objA, objB any
+	if err := yamlv3.Unmarshal([]byte(a), &objA); err != nil {
+		return false
+	}
+	if err := yamlv3.Unmarshal([]byte(b), &objB); err != nil {
+		return false
+	}
+	return reflect.DeepEqual(objA, objB)
 }
