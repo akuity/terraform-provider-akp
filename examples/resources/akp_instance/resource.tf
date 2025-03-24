@@ -46,11 +46,8 @@ resource "akp_instance" "example" {
     }
   }
   argocd_cm = {
-    # When configuring the `argocd_cm`, make sure to specify the following keys (from "admin.enabled", to "users.anonymous.enabled") since those keys are added by Akuity Platform by default.
-    # If they are not defined, you may see inconsistent results and errors from the provider.
-    # Feel free to customize the values based on your usage, but the keys themselves must be specified.
-    # Note that "admin.enabled" cannot be set to true independently, and an "accounts.admin" key is required, like the "accounts.alice" key below, once you add that, remove the "admin.enabled" key.
-    "admin.enabled"                  = false
+    # When configuring `argocd_cm`, there is generally no need to need to set all of these keys. If you do not set a key, the API will set suitable default values.
+    # Please note that the API will disallow the setting of certain keys (such as "admin.enabled", or any key which isn't a known configuration option in `argocd-cm`).
     "exec.enabled"                   = true
     "ga.anonymizeusers"              = false
     "helm.enabled"                   = true
