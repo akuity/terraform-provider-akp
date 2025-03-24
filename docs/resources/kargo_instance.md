@@ -52,7 +52,7 @@ resource "akp_kargo_instance" "example" {
         issuer_url = "https://test.com"
         # additional_scopes should be set only if dex_enabled is false
         additional_scopes = ["test-scope"]
-        # index_secret should be set only if dex_enabled is false
+        # dex_secret should be set only if dex_enabled is false
         dex_secret = {
           name = "test-secret"
         }
