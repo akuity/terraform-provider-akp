@@ -66,4 +66,5 @@ type ClusterData struct {
 
 	MultiClusterK8SDashboardEnabled *bool             `json:"multiClusterK8sDashboardEnabled,omitempty"`
 	AutoscalerConfig                *AutoScalerConfig `json:"autoscalerConfig,omitempty"`
+	Project                         string            `json:"project,omitempty"`
 }

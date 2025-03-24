@@ -5,7 +5,7 @@ go 1.23.0
 toolchain go1.23.1
 
 require (
-	github.com/akuity/api-client-go v0.20.1
+	github.com/akuity/api-client-go v0.21.3
 	github.com/akuity/grpc-gateway-client v0.0.0-20240912082144-55a48e8b4b89
 	github.com/hashicorp/terraform-plugin-docs v0.20.1
 	github.com/hashicorp/terraform-plugin-framework v1.14.1

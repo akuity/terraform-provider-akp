@@ -286,6 +286,7 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 			MultiClusterK8SDashboardEnabled: tftypes.BoolValue(apiCluster.GetData().GetMultiClusterK8SDashboardEnabled()),
 			AutoscalerConfig:                autoscalerConfig,
 			CustomAgentSizeConfig:           customConfig,
+			Project:                         tftypes.StringValue(apiCluster.GetData().GetProject()),
 		},
 	}
 }
@@ -476,6 +477,7 @@ func toClusterDataAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, c
 		ManagedClusterConfig:            managedConfig,
 		MultiClusterK8SDashboardEnabled: toBoolPointer(clusterData.MultiClusterK8SDashboardEnabled),
 		AutoscalerConfig:                autoscalerConfigAPI,
+		Project:                         clusterData.Project.ValueString(),
 	}
 }
 

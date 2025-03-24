@@ -131,6 +131,10 @@ func getClusterDataDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			Attributes:          getCustomAgentSizeConfigDataSourceAttributes(),
 		},
+		"project": schema.StringAttribute{
+			MarkdownDescription: "Project name",
+			Computed:            true,
+		},
 	}
 }
 
