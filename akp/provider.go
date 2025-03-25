@@ -12,7 +12,6 @@ import (
 	orgcv1 "github.com/akuity/api-client-go/pkg/api/gen/organization/v1"
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
 	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
-	"github.com/pkg/errors"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -35,16 +34,14 @@ type AkpProviderModel struct {
 	ApiKeySecret     types.String `tfsdk:"api_key_secret"`
 	OrganizationName types.String `tfsdk:"org_name"`
 	SkipTLSVerify    types.Bool   `tfsdk:"skip_tls_verify"`
-	WorkspaceName    types.String `tfsdk:"workspace_name"`
 }
 
 type AkpCli struct {
-	Cli       argocdv1.ArgoCDServiceGatewayClient
-	KargoCli  kargov1.KargoServiceGatewayClient
-	Cred      accesscontrol.ClientCredential
-	OrgCli    orgcv1.OrganizationServiceGatewayClient
-	OrgId     string
-	Workspace *orgcv1.Workspace
+	Cli      argocdv1.ArgoCDServiceGatewayClient
+	KargoCli kargov1.KargoServiceGatewayClient
+	Cred     accesscontrol.ClientCredential
+	OrgCli   orgcv1.OrganizationServiceGatewayClient
+	OrgId    string
 }
 
 func (p *AkpProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -77,10 +74,6 @@ func (p *AkpProvider) Schema(ctx context.Context, req provider.SchemaRequest, re
 				Optional:            true,
 				Sensitive:           true,
 			},
-			"workspace_name": schema.StringAttribute{
-				MarkdownDescription: "Name of the Workspace to use. Default value is the default workspace.",
-				Optional:            true,
-			},
 		},
 	}
 }
@@ -112,7 +105,6 @@ func (p *AkpProvider) Configure(ctx context.Context, req provider.ConfigureReque
 	if ServerUrl == "" {
 		ServerUrl = "https://akuity.cloud"
 	}
-	workspace := config.WorkspaceName.ValueString()
 
 	if apiKeyID == "" {
 		resp.Diagnostics.AddAttributeError(
@@ -139,7 +131,6 @@ func (p *AkpProvider) Configure(ctx context.Context, req provider.ConfigureReque
 	ctx = tflog.SetField(ctx, "skip_tls_verify", skipTLSVerify)
 	ctx = tflog.SetField(ctx, "api_key_id", apiKeyID)
 	ctx = tflog.SetField(ctx, "org_name", orgName)
-	ctx = tflog.SetField(ctx, "workspace", workspace)
 
 	tflog.Debug(ctx, "Getting Organization ID by name")
 
@@ -169,23 +160,13 @@ func (p *AkpProvider) Configure(ctx context.Context, req provider.ConfigureReque
 	argoc := argocdv1.NewArgoCDServiceGatewayClient(gwc)
 	kargoc := kargov1.NewKargoServiceGatewayClient(gwc)
 	orgc = orgcv1.NewOrganizationServiceGatewayClient(gwc)
-	ws, err := getWorkspace(ctx, orgc, orgID, workspace)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			fmt.Sprintf("Unable to get Workspace %s", workspace),
-			fmt.Sprintf("An unexpected error occurred when fetching the %s workspace.\n", workspace)+
-				"Akuity Platform Client Error: "+err.Error(),
-		)
-		return
-	}
 
 	akpCli := &AkpCli{
-		Cli:       argoc,
-		KargoCli:  kargoc,
-		Cred:      cred,
-		OrgId:     orgID,
-		OrgCli:    orgc,
-		Workspace: ws,
+		Cli:      argoc,
+		KargoCli: kargoc,
+		Cred:     cred,
+		OrgId:    orgID,
+		OrgCli:   orgc,
 	}
 	resp.DataSourceData = akpCli
 	resp.ResourceData = akpCli
@@ -217,24 +198,4 @@ func New(version string) func() provider.Provider {
 			version: version,
 		}
 	}
-}
-
-func getWorkspace(ctx context.Context, orgc orgcv1.OrganizationServiceGatewayClient, orgid, name string) (*orgcv1.Workspace, error) {
-	workspaces, err := orgc.ListWorkspaces(ctx, &orgcv1.ListWorkspacesRequest{
-		OrganizationId: orgid,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "Unable to read org workspaces")
-	}
-	for _, w := range workspaces.GetWorkspaces() {
-		if name == "" && w.IsDefault {
-			// if no workspace name is provided, return the default workspace
-			return w, nil
-		}
-		if w.Name == name {
-			return w, nil
-		}
-	}
-
-	return nil, fmt.Errorf("Workspace %s not found", name)
 }

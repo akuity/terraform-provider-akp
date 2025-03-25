@@ -35,6 +35,7 @@ data "akp_kargo_agent" "example" {
 - `namespace` (String) The namespace of the Kargo agent
 - `remove_agent_resources_on_destroy` (Boolean) Whether to remove agent resources on destroy
 - `spec` (Attributes) The spec of the Kargo agent (see [below for nested schema](#nestedatt--spec))
+- `workspace` (String) Workspace name for the Kargo agent
 
 <a id="nestedatt--kube_config"></a>
 ### Nested Schema for `kube_config`

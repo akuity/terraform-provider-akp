@@ -179,7 +179,12 @@ func (r *AkpKargoAgentResource) ImportState(ctx context.Context, req resource.Im
 func (r *AkpKargoAgentResource) upsert(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.KargoAgent, isCreate bool) (*types.KargoAgent, error) {
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 
-	apiReq := buildKargoAgentApplyRequest(ctx, diagnostics, plan, r.akpCli.OrgId, r.akpCli.Workspace.Id)
+	workspace, err := getWorkspace(ctx, r.akpCli.OrgCli, r.akpCli.OrgId, plan.Workspace.ValueString())
+	if err != nil {
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get workspace. %s", err))
+		return nil, errors.New("Unable to get workspace")
+	}
+	apiReq := buildKargoAgentApplyRequest(ctx, diagnostics, plan, r.akpCli.OrgId, workspace.Id)
 	if diagnostics.HasError() {
 		return nil, nil
 	}

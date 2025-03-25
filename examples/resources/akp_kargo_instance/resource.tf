@@ -1,5 +1,5 @@
 resource "akp_kargo_instance" "example" {
-  name = "test"
+  name      = "test"
   workspace = "kargo-workspace"
   kargo_cm = {
     adminAccountEnabled  = "true"
