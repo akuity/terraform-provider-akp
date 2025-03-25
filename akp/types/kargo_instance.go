@@ -20,6 +20,7 @@ type KargoInstance struct {
 	Kargo          *Kargo       `tfsdk:"kargo"`
 	KargoConfigMap types.Map    `tfsdk:"kargo_cm"`
 	KargoSecret    types.Map    `tfsdk:"kargo_secret"`
+	Workspace      types.String `tfsdk:"workspace"`
 }
 
 func (k *KargoInstance) Update(ctx context.Context, diagnostics *diag.Diagnostics, exportResp *kargov1.ExportKargoInstanceResponse) error {

@@ -59,6 +59,14 @@ func getAKPKargoInstanceAttributes() map[string]schema.Attribute {
 			Optional:            true,
 			Sensitive:           true,
 		},
+		"workspace": schema.StringAttribute{
+			Optional:            true,
+			Computed:            true,
+			MarkdownDescription: "Workspace name for the Kargo instance",
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
 	}
 }
 
