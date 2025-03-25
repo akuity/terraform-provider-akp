@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/slices"
@@ -191,6 +192,10 @@ func (r *AkpKargoAgentResource) upsert(ctx context.Context, diagnostics *diag.Di
 	result, err := r.applyKargoInstance(ctx, plan, apiReq, isCreate, r.akpCli.KargoCli.ApplyKargoInstance, r.upsertKubeConfig)
 	if err != nil {
 		return result, err
+	}
+
+	if plan.Workspace.ValueString() == "" {
+		plan.Workspace = tftypes.StringValue(workspace.GetName())
 	}
 	return result, refreshKargoAgentState(ctx, diagnostics, r.akpCli.KargoCli, result, r.akpCli.OrgId, nil, plan)
 }

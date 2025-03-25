@@ -156,6 +156,9 @@ func (r *AkpKargoInstanceResource) upsert(ctx context.Context, diagnostics *diag
 		return errors.Wrap(err, "Unable to upsert Kargo instance")
 	}
 
+	if plan.Workspace.ValueString() == "" {
+		plan.Workspace = tftypes.StringValue(workspace.GetName())
+	}
 	return refreshKargoState(ctx, diagnostics, r.akpCli.KargoCli, plan, r.akpCli.OrgId)
 }
 
