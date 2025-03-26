@@ -26,7 +26,8 @@ resource "akp_kargo_instance" "example" {
 ## Example Usage (Exhaustive)
 ```terraform
 resource "akp_kargo_instance" "example" {
-  name = "test"
+  name      = "test"
+  workspace = "kargo-workspace"
   kargo_cm = {
     adminAccountEnabled  = "true"
     adminAccountTokenTtl = "24h"
@@ -128,6 +129,7 @@ EOT
 
 - `kargo_cm` (Map of String) ConfigMap to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf
 - `kargo_secret` (Map of String, Sensitive) Secret to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf
+- `workspace` (String) Workspace name for the Kargo instance
 
 ### Read-Only
 

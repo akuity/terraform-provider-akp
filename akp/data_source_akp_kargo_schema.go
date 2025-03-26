@@ -40,6 +40,10 @@ func getAKPKargoDataSourceAttributes() map[string]schema.Attribute {
 			ElementType:         types.StringType,
 			Computed:            true,
 		},
+		"workspace": schema.StringAttribute{
+			MarkdownDescription: "Workspace name for the Kargo instance",
+			Computed:            true,
+		},
 	}
 }
 

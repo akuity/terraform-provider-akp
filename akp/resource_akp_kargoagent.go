@@ -10,13 +10,13 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/slices"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
-	orgcv1 "github.com/akuity/api-client-go/pkg/api/gen/organization/v1"
 	healthv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/health/v1"
 	reconv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/reconciliation/v1"
 	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
@@ -179,29 +179,23 @@ func (r *AkpKargoAgentResource) ImportState(ctx context.Context, req resource.Im
 
 func (r *AkpKargoAgentResource) upsert(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.KargoAgent, isCreate bool) (*types.KargoAgent, error) {
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
-	workspaces, err := r.akpCli.OrgCli.ListWorkspaces(ctx, &orgcv1.ListWorkspacesRequest{
-		OrganizationId: r.akpCli.OrgId,
-	})
+
+	workspace, err := getWorkspace(ctx, r.akpCli.OrgCli, r.akpCli.OrgId, plan.Workspace.ValueString())
 	if err != nil {
-		return nil, errors.Wrap(err, "Unable to read workspaces")
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get workspace. %s", err))
+		return nil, errors.New("Unable to get workspace")
 	}
-	var workspaceId string
-	for _, w := range workspaces.GetWorkspaces() {
-		if w.GetIsDefault() {
-			workspaceId = w.GetId()
-			break
-		}
-	}
-	if workspaceId == "" {
-		return nil, errors.New("Default workspace not found")
-	}
-	apiReq := buildKargoAgentApplyRequest(ctx, diagnostics, plan, r.akpCli.OrgId, workspaceId)
+	apiReq := buildKargoAgentApplyRequest(ctx, diagnostics, plan, r.akpCli.OrgId, workspace.Id)
 	if diagnostics.HasError() {
 		return nil, nil
 	}
 	result, err := r.applyKargoInstance(ctx, plan, apiReq, isCreate, r.akpCli.KargoCli.ApplyKargoInstance, r.upsertKubeConfig)
 	if err != nil {
 		return result, err
+	}
+
+	if plan.Workspace.ValueString() == "" {
+		plan.Workspace = tftypes.StringValue(workspace.GetName())
 	}
 	return result, refreshKargoAgentState(ctx, diagnostics, r.akpCli.KargoCli, result, r.akpCli.OrgId, nil, plan)
 }

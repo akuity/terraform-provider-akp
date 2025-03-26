@@ -139,32 +139,26 @@ func (r *AkpKargoInstanceResource) ImportState(ctx context.Context, req resource
 
 func (r *AkpKargoInstanceResource) upsert(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.KargoInstance) error {
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
-	workspaces, err := r.akpCli.OrgCli.ListWorkspaces(ctx, &orgcv1.ListWorkspacesRequest{
-		OrganizationId: r.akpCli.OrgId,
-	})
+
+	workspace, err := getWorkspace(ctx, r.akpCli.OrgCli, r.akpCli.OrgId, plan.Workspace.ValueString())
 	if err != nil {
-		return errors.Wrap(err, "Unable to read workspaces")
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get workspace. %s", err))
+		return errors.New("Unable to get workspace")
 	}
-	var workspaceId string
-	for _, w := range workspaces.GetWorkspaces() {
-		if w.GetIsDefault() {
-			workspaceId = w.GetId()
-			break
-		}
-	}
-	if workspaceId == "" {
-		return errors.New("Default workspace not found")
-	}
-	apiReq := buildKargoApplyRequest(ctx, diagnostics, plan, r.akpCli.OrgId, workspaceId)
+	apiReq := buildKargoApplyRequest(ctx, diagnostics, plan, r.akpCli.OrgId, workspace.GetId())
 	if diagnostics.HasError() {
 		return errors.New("Unable to build Kargo instance request")
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Apply instance request: %s", apiReq))
+
 	_, err = r.akpCli.KargoCli.ApplyKargoInstance(ctx, apiReq)
 	if err != nil {
 		return errors.Wrap(err, "Unable to upsert Kargo instance")
 	}
 
+	if plan.Workspace.ValueString() == "" {
+		plan.Workspace = tftypes.StringValue(workspace.GetName())
+	}
 	return refreshKargoState(ctx, diagnostics, r.akpCli.KargoCli, plan, r.akpCli.OrgId)
 }
 
@@ -244,4 +238,24 @@ func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, clien
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Export Kargo instance response: %s", exportResp))
 	return kargo.Update(ctx, diagnostics, exportResp)
+}
+
+func getWorkspace(ctx context.Context, orgc orgcv1.OrganizationServiceGatewayClient, orgid, name string) (*orgcv1.Workspace, error) {
+	workspaces, err := orgc.ListWorkspaces(ctx, &orgcv1.ListWorkspacesRequest{
+		OrganizationId: orgid,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to read org workspaces")
+	}
+	for _, w := range workspaces.GetWorkspaces() {
+		if name == "" && w.IsDefault {
+			// if no workspace name is provided, return the default workspace
+			return w, nil
+		}
+		if w.Name == name {
+			return w, nil
+		}
+	}
+
+	return nil, fmt.Errorf("workspace %s not found", name)
 }

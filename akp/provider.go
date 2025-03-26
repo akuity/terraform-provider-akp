@@ -105,6 +105,7 @@ func (p *AkpProvider) Configure(ctx context.Context, req provider.ConfigureReque
 	if ServerUrl == "" {
 		ServerUrl = "https://akuity.cloud"
 	}
+
 	if apiKeyID == "" {
 		resp.Diagnostics.AddAttributeError(
 			path.Root("api_key_id"),
@@ -159,6 +160,7 @@ func (p *AkpProvider) Configure(ctx context.Context, req provider.ConfigureReque
 	argoc := argocdv1.NewArgoCDServiceGatewayClient(gwc)
 	kargoc := kargov1.NewKargoServiceGatewayClient(gwc)
 	orgc = orgcv1.NewOrganizationServiceGatewayClient(gwc)
+
 	akpCli := &AkpCli{
 		Cli:      argoc,
 		KargoCli: kargoc,

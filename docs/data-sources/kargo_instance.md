@@ -31,6 +31,7 @@ data "akp_kargo_instance" "example" {
 - `kargo` (Attributes) Specification of the Kargo instance (see [below for nested schema](#nestedatt--kargo))
 - `kargo_cm` (Map of String) ConfigMap to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf
 - `kargo_secret` (Map of String) Secret to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf
+- `workspace` (String) Workspace name for the Kargo instance
 
 <a id="nestedatt--kargo"></a>
 ### Nested Schema for `kargo`

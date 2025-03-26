@@ -25,6 +25,10 @@ func getAKPKargoAgentDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "The ID of the Kargo instance",
 			Required:            true,
 		},
+		"workspace": schema.StringAttribute{
+			MarkdownDescription: "Workspace name for the Kargo agent",
+			Computed:            true,
+		},
 		"name": schema.StringAttribute{
 			MarkdownDescription: "The name of the Kargo agent",
 			Required:            true,

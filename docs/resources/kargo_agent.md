@@ -29,6 +29,7 @@ resource "akp_kargo_agent" "example-agent" {
   instance_id = akp_kargo_instance.example.id
   name        = "test-agent"
   namespace   = "test-namespace"
+  workspace   = "kargo-workspace"
   labels = {
     "app" = "kargo"
   }
@@ -54,6 +55,7 @@ resource "akp_kargo_agent" "example-agent" {
   instance_id = akp_kargo_instance.example.id
   name        = "test-agent"
   namespace   = "test-namespace"
+  workspace   = "kargo-workspace"
   labels = {
     "app" = "kargo"
   }
@@ -105,6 +107,7 @@ EOT
 - `labels` (Map of String) Labels
 - `namespace` (String) The namespace of the Kargo agent
 - `remove_agent_resources_on_destroy` (Boolean) Remove agent Kubernetes resources from the managed cluster when destroying cluster, default to `true`
+- `workspace` (String) Workspace name for the Kargo agent
 
 ### Read-Only
 
