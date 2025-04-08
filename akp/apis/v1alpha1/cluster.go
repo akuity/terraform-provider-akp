@@ -52,6 +52,10 @@ type RepoServerAutoScalingConfig struct {
 	ReplicaMinimum  int32      `json:"replicaMinimum,omitempty"`
 }
 
+type ClusterCompatibility struct {
+	Ipv6Only bool `json:"ipv6Only,omitempty"`
+}
+
 type ClusterData struct {
 	Size                ClusterSize          `json:"size,omitempty"`
 	AutoUpgradeDisabled *bool                `json:"autoUpgradeDisabled,omitempty"`
@@ -64,7 +68,8 @@ type ClusterData struct {
 	EksAddonEnabled           *bool                 `json:"eksAddonEnabled,omitempty"`
 	ManagedClusterConfig      *ManagedClusterConfig `json:"managedClusterConfig,omitempty"`
 
-	MultiClusterK8SDashboardEnabled *bool             `json:"multiClusterK8sDashboardEnabled,omitempty"`
-	AutoscalerConfig                *AutoScalerConfig `json:"autoscalerConfig,omitempty"`
-	Project                         string            `json:"project,omitempty"`
+	MultiClusterK8SDashboardEnabled *bool                 `json:"multiClusterK8sDashboardEnabled,omitempty"`
+	AutoscalerConfig                *AutoScalerConfig     `json:"autoscalerConfig,omitempty"`
+	Project                         string                `json:"project,omitempty"`
+	Compatibility                   *ClusterCompatibility `json:"compatibility,omitempty"`
 }
