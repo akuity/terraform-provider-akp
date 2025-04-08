@@ -12,9 +12,7 @@ import (
 type KargoAgent struct {
 	ID                            types.String    `tfsdk:"id"`
 	InstanceID                    types.String    `tfsdk:"instance_id"`
-	Workspace                     types.String    `tfsdk:"workspace"`
 	Name                          types.String    `tfsdk:"name"`
-	Namespace                     types.String    `tfsdk:"namespace"`
 	Labels                        types.Map       `tfsdk:"labels"`
 	Annotations                   types.Map       `tfsdk:"annotations"`
 	Spec                          *KargoAgentSpec `tfsdk:"spec"`
