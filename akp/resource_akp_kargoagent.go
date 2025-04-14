@@ -137,7 +137,7 @@ func (r *AkpKargoAgentResource) Delete(ctx context.Context, req resource.DeleteR
 
 	// Delete the manifests
 	if kubeconfig != nil && plan.RemoveAgentResourcesOnDestroy.ValueBool() {
-		manifests, err := getKargoManifests(ctx, r.akpCli.KargoCli, r.akpCli.OrgId, &plan)
+		manifests, _, err := getKargoManifests(ctx, r.akpCli.KargoCli, r.akpCli.OrgId, &plan)
 		if err != nil {
 			resp.Diagnostics.AddError("Client Error", err.Error())
 			return
@@ -215,7 +215,7 @@ func (r *AkpKargoAgentResource) applyKargoInstance(ctx context.Context, plan *ty
 		if err != nil {
 			// Ensure kubeconfig won't be committed to state by setting it to nil
 			plan.Kubeconfig = nil
-			return plan, fmt.Errorf("unable to apply manifests: %s", err)
+			return plan, fmt.Errorf("unable to apply kargo manifests: %s", err)
 		}
 	}
 
@@ -231,9 +231,12 @@ func (r *AkpKargoAgentResource) upsertKubeConfig(ctx context.Context, plan *type
 
 	// Apply the manifests
 	if kubeconfig != nil && isCreate {
-		manifests, err := getKargoManifests(ctx, r.akpCli.KargoCli, r.akpCli.OrgId, plan)
+		manifests, id, err := getKargoManifests(ctx, r.akpCli.KargoCli, r.akpCli.OrgId, plan)
 		if err != nil {
 			return err
+		}
+		if plan.ID.ValueString() == "" {
+			plan.ID = tftypes.StringValue(id)
 		}
 
 		err = applyManifests(ctx, manifests, kubeconfig)
@@ -292,19 +295,28 @@ func buildKargoAgents(ctx context.Context, diagnostics *diag.Diagnostics, kargoA
 	return cs
 }
 
-func getKargoManifests(ctx context.Context, client kargov1.KargoServiceGatewayClient, orgId string, kargoAgent *types.KargoAgent) (string, error) {
-	kargoAgentReq := &kargov1.GetKargoInstanceAgentRequest{
+func getKargoManifests(ctx context.Context, client kargov1.KargoServiceGatewayClient, orgId string, kargoAgent *types.KargoAgent) (string, string, error) {
+	agents, err := client.ListKargoInstanceAgents(ctx, &kargov1.ListKargoInstanceAgentsRequest{
 		OrganizationId: orgId,
 		InstanceId:     kargoAgent.InstanceID.ValueString(),
-		Id:             kargoAgent.Name.ValueString(),
-	}
-	kargoAgentResp, err := client.GetKargoInstanceAgent(ctx, kargoAgentReq)
+	})
 	if err != nil {
-		return "", errors.Wrap(err, "Unable to read instance kargo agent")
+		return "", "", errors.Wrap(err, "Unable to read Kargo agents")
 	}
-	k, err := waitKargoAgentReconStatus(ctx, client, kargoAgentResp.GetAgent(), orgId, kargoAgent.InstanceID.ValueString())
+	var agent *kargov1.KargoAgent
+	for _, a := range agents.GetAgents() {
+		if a.GetName() == kargoAgent.Name.ValueString() {
+			agent = a
+			break
+		}
+	}
+	if agent == nil {
+		return "", "", errors.New("Unable to find Kargo agent")
+	}
+
+	k, err := waitKargoAgentReconStatus(ctx, client, agent, orgId, kargoAgent.InstanceID.ValueString())
 	if err != nil {
-		return "", errors.Wrap(err, "Unable to check kargo agent health status")
+		return "", "", errors.Wrap(err, "Unable to check kargo agent health status")
 	}
 	apiReq := &kargov1.GetKargoInstanceAgentManifestsRequest{
 		OrganizationId: orgId,
@@ -313,14 +325,14 @@ func getKargoManifests(ctx context.Context, client kargov1.KargoServiceGatewayCl
 	}
 	resChan, errChan, err := client.GetKargoInstanceAgentManifests(ctx, apiReq)
 	if err != nil {
-		return "", errors.Wrap(err, "Unable to download manifests")
+		return "", "", errors.Wrap(err, "Unable to download manifests")
 	}
 	res, err := readStream(resChan, errChan)
 	if err != nil {
-		return "", errors.Wrap(err, "Unable to parse manifests")
+		return "", "", errors.Wrap(err, "Unable to parse manifests")
 	}
 
-	return string(res), nil
+	return string(res), k.Id, nil
 }
 
 func waitKargoAgentHealthStatus(ctx context.Context, client kargov1.KargoServiceGatewayClient, orgID string, c *types.KargoAgent) error {
@@ -333,7 +345,7 @@ func waitKargoAgentHealthStatus(ctx context.Context, client kargov1.KargoService
 		apiResp, err := client.GetKargoInstanceAgent(ctx, &kargov1.GetKargoInstanceAgentRequest{
 			OrganizationId: orgID,
 			InstanceId:     c.InstanceID.ValueString(),
-			Id:             c.Name.ValueString(),
+			Id:             c.ID.ValueString(),
 		})
 		if err != nil {
 			return err
