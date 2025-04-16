@@ -41,6 +41,16 @@ resource "akp_instance" "example" {
           }
         ]
         fqdn = "test.example.com"
+        appset_plugins = [
+          {
+            # name needs to start with plugin-
+            name = "plugin-test"
+            # the secret that refers to
+            token           = "$application-set-secret:token"
+            base_url        = "https://example.com"
+            request_timeout = 30
+          }
+        ]
       }
       version = "v2.11.4"
     }
