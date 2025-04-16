@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
@@ -339,6 +340,38 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"appset_plugins": schema.ListNestedAttribute{
+			MarkdownDescription: "Application Set plugins",
+			Optional:            true,
+			NestedObject: schema.NestedAttributeObject{
+				Attributes: getAppsetPluginsAttributes(),
+			},
+		},
+	}
+}
+
+func getAppsetPluginsAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"name": schema.StringAttribute{
+			MarkdownDescription: "Plugin name",
+			Required:            true,
+		},
+		"token": schema.StringAttribute{
+			MarkdownDescription: "Plugin token",
+			Required:            true,
+		},
+		"base_url": schema.StringAttribute{
+			MarkdownDescription: "Plugin base URL",
+			Required:            true,
+		},
+		"request_timeout": schema.Int64Attribute{
+			MarkdownDescription: "Plugin request timeout",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Int64{
+				int64planmodifier.UseStateForUnknown(),
 			},
 		},
 	}

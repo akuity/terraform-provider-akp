@@ -75,6 +75,14 @@ type InstanceSpec struct {
 	AgentPermissionsRules           []*AgentPermissionsRule        `json:"agentPermissionsRules,omitempty"`
 	Fqdn                            *string                        `json:"fqdn,omitempty"`
 	MultiClusterK8SDashboardEnabled *bool                          `json:"multiClusterK8sDashboardEnabled,omitempty"`
+	AppsetPlugins                   []*AppsetPlugins               `json:"appsetPlugins,omitempty"`
+}
+
+type AppsetPlugins struct {
+	Name           string `json:"name,omitempty"`
+	Token          string `json:"token,omitempty"`
+	BaseUrl        string `json:"baseUrl,omitempty"`
+	RequestTimeout int32  `json:"requestTimeout,omitempty"`
 }
 
 type ManagedCluster struct {

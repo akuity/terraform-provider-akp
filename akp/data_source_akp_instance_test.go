@@ -34,6 +34,10 @@ func TestAccInstanceDataSource(t *testing.T) {
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.host_aliases.0.hostnames.#", "2"),
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.host_aliases.0.hostnames.0", "test-1"),
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.host_aliases.0.hostnames.1", "test-2"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.appset_plugins.#", "1"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.appset_plugins.0.name", "plugin-test"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.appset_plugins.0.token", "random-token"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.appset_plugins.0.base_url", "http://random-test.xp"),
 
 					// argocd_cm, all fields should be computed.
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd_cm.%", "0"),
