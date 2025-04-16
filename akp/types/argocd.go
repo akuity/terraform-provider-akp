@@ -70,6 +70,14 @@ type InstanceSpec struct {
 	AgentPermissionsRules           []*AgentPermissionsRule `tfsdk:"agent_permissions_rules"`
 	Fqdn                            types.String            `tfsdk:"fqdn"`
 	MultiClusterK8SDashboardEnabled types.Bool              `tfsdk:"multi_cluster_k8s_dashboard_enabled"`
+	AppsetPlugins                   []*AppsetPlugins        `tfsdk:"appset_plugins"`
+}
+
+type AppsetPlugins struct {
+	Name           types.String `tfsdk:"name"`
+	Token          types.String `tfsdk:"token"`
+	BaseUrl        types.String `tfsdk:"base_url"`
+	RequestTimeout types.Int64  `tfsdk:"request_timeout"`
 }
 
 type ManagedCluster struct {

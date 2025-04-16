@@ -143,6 +143,16 @@ resource "akp_instance" "example" {
           }
         ]
         fqdn = "test.example.com"
+        appset_plugins = [
+          {
+            # name needs to start with plugin-
+            name = "plugin-test"
+            # the secret that refers to
+            token           = "$application-set-secret:token"
+            base_url        = "https://example.com"
+            request_timeout = 30
+          }
+        ]
       }
       version = "v2.11.4"
     }
@@ -397,6 +407,7 @@ Optional:
 
 - `agent_permissions_rules` (Attributes List) The ability to configure agent permissions rules. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--agent_permissions_rules))
 - `app_set_delegate` (Attributes) Select cluster in which you want to Install Application Set controller (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--app_set_delegate))
+- `appset_plugins` (Attributes List) Application Set plugins (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--appset_plugins))
 - `appset_policy` (Attributes) Configures Application Set policy settings. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--appset_policy))
 - `assistant_extension_enabled` (Boolean) Enable Powerful AI-powered assistant Extension. It helps analyze Kubernetes resources behavior and provides suggestions about resolving issues.
 - `audit_extension_enabled` (Boolean) Enable Audit Extension. Set this to `true` to install Audit Extension to Argo CD instance.
@@ -439,6 +450,20 @@ Required:
 
 - `cluster_name` (String) Cluster name
 
+
+
+<a id="nestedatt--argocd--spec--instance_spec--appset_plugins"></a>
+### Nested Schema for `argocd.spec.instance_spec.appset_plugins`
+
+Required:
+
+- `base_url` (String) Plugin base URL
+- `name` (String) Plugin name
+- `token` (String) Plugin token
+
+Optional:
+
+- `request_timeout` (Number) Plugin request timeout
 
 
 <a id="nestedatt--argocd--spec--instance_spec--appset_policy"></a>

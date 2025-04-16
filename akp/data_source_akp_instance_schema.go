@@ -229,6 +229,34 @@ func getInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Enable the KubeVision feature",
 			Computed:            true,
 		},
+		"appset_plugins": schema.ListNestedAttribute{
+			MarkdownDescription: "Application Set plugins",
+			Computed:            true,
+			NestedObject: schema.NestedAttributeObject{
+				Attributes: getAppsetPluginsDataSourceAttributes(),
+			},
+		},
+	}
+}
+
+func getAppsetPluginsDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"name": schema.StringAttribute{
+			MarkdownDescription: "Plugin name",
+			Computed:            true,
+		},
+		"token": schema.StringAttribute{
+			MarkdownDescription: "Plugin token",
+			Computed:            true,
+		},
+		"base_url": schema.StringAttribute{
+			MarkdownDescription: "Plugin base URL",
+			Computed:            true,
+		},
+		"request_timeout": schema.Int64Attribute{
+			MarkdownDescription: "Plugin request timeout",
+			Computed:            true,
+		},
 	}
 }
 

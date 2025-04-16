@@ -104,6 +104,7 @@ func (a *ArgoCD) Update(ctx context.Context, diagnostics *diag.Diagnostics, cd *
 			AgentPermissionsRules:           toAgentPermissionsRulesTFModel(cd.Spec.InstanceSpec.AgentPermissionsRules),
 			Fqdn:                            types.StringValue(fqdn),
 			MultiClusterK8SDashboardEnabled: tftypes.BoolValue(multiClusterK8SDashboardEnabled),
+			AppsetPlugins:                   toAppsetPluginsTFModel(cd.Spec.InstanceSpec.AppsetPlugins),
 		},
 	}
 }
@@ -140,6 +141,7 @@ func (a *ArgoCD) ToArgoCDAPIModel(ctx context.Context, diag *diag.Diagnostics, n
 				AgentPermissionsRules:           toAgentPermissionsRuleAPIModel(a.Spec.InstanceSpec.AgentPermissionsRules),
 				Fqdn:                            a.Spec.InstanceSpec.Fqdn.ValueStringPointer(),
 				MultiClusterK8SDashboardEnabled: toBoolPointer(a.Spec.InstanceSpec.MultiClusterK8SDashboardEnabled),
+				AppsetPlugins:                   toAppsetPluginsAPIModel(a.Spec.InstanceSpec.AppsetPlugins),
 			},
 		},
 	}
@@ -1633,4 +1635,30 @@ func yamlEqual(a, b string) bool {
 		return false
 	}
 	return reflect.DeepEqual(objA, objB)
+}
+
+func toAppsetPluginsTFModel(plugins []*v1alpha1.AppsetPlugins) []*AppsetPlugins {
+	var tfPlugins []*AppsetPlugins
+	for _, plugin := range plugins {
+		tfPlugins = append(tfPlugins, &AppsetPlugins{
+			Name:           types.StringValue(plugin.Name),
+			Token:          types.StringValue(plugin.Token),
+			BaseUrl:        types.StringValue(plugin.BaseUrl),
+			RequestTimeout: types.Int64Value(int64(plugin.RequestTimeout)),
+		})
+	}
+	return tfPlugins
+}
+
+func toAppsetPluginsAPIModel(plugins []*AppsetPlugins) []*v1alpha1.AppsetPlugins {
+	var apiPlugins []*v1alpha1.AppsetPlugins
+	for _, plugin := range plugins {
+		apiPlugins = append(apiPlugins, &v1alpha1.AppsetPlugins{
+			Name:           plugin.Name.ValueString(),
+			Token:          plugin.Token.ValueString(),
+			BaseUrl:        plugin.BaseUrl.ValueString(),
+			RequestTimeout: int32(plugin.RequestTimeout.ValueInt64()),
+		})
+	}
+	return apiPlugins
 }

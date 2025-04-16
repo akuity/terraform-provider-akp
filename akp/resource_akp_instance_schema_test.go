@@ -32,6 +32,7 @@ func TestNoNewArgoCDFields(t *testing.T) {
 	assert.Equal(t, reflect.TypeOf(types.ManagedCluster{}).NumField(), len(getManagedClusterAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.AppsetPolicy{}).NumField(), len(getAppsetPolicyAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.HostAliases{}).NumField(), len(getAppsetPolicyAttributes()))
+	assert.Equal(t, reflect.TypeOf(types.AppsetPlugins{}).NumField(), len(getAppsetPluginsAttributes()))
 }
 
 // If this test fails, a field has been added/removed to the ConfigManagementPlugin related type.
