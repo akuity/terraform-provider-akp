@@ -7,7 +7,6 @@ package types
 
 import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 )
 
 type Cluster struct {
@@ -26,6 +25,22 @@ type Clusters struct {
 	ID         types.String `tfsdk:"id"`
 	InstanceID types.String `tfsdk:"instance_id"`
 	Clusters   []Cluster    `tfsdk:"clusters"`
+}
+
+type CustomAgentSizeConfig struct {
+	ApplicationController *AppControllerCustomAgentSizeConfig `tfsdk:"application_controller"`
+	RepoServer            *RepoServerCustomAgentSizeConfig    `tfsdk:"repo_server"`
+}
+
+type AppControllerCustomAgentSizeConfig struct {
+	Memory types.String `tfsdk:"memory"`
+	Cpu    types.String `tfsdk:"cpu"`
+}
+
+type RepoServerCustomAgentSizeConfig struct {
+	Memory   types.String `tfsdk:"memory"`
+	Cpu      types.String `tfsdk:"cpu"`
+	Replicas types.Int64  `tfsdk:"replicas"`
 }
 
 type ClusterSpec struct {
@@ -61,20 +76,8 @@ type RepoServerAutoScalingConfig struct {
 	ReplicasMinimum types.Int64 `tfsdk:"replicas_minimum"`
 }
 
-type CustomAgentSizeConfig struct {
-	ApplicationController *AppControllerCustomAgentSizeConfig `tfsdk:"application_controller"`
-	RepoServer            *RepoServerCustomAgentSizeConfig    `tfsdk:"repo_server"`
-}
-
-type AppControllerCustomAgentSizeConfig struct {
-	Memory types.String `tfsdk:"memory"`
-	Cpu    types.String `tfsdk:"cpu"`
-}
-
-type RepoServerCustomAgentSizeConfig struct {
-	Memory   types.String `tfsdk:"memory"`
-	Cpu      types.String `tfsdk:"cpu"`
-	Replicas types.Int64  `tfsdk:"replicas"`
+type ClusterCompatibility struct {
+	Ipv6Only types.Bool `tfsdk:"ipv6_only"`
 }
 
 type ClusterData struct {
@@ -89,6 +92,7 @@ type ClusterData struct {
 	ManagedClusterConfig            *ManagedClusterConfig  `tfsdk:"managed_cluster_config"`
 	MultiClusterK8SDashboardEnabled types.Bool             `tfsdk:"multi_cluster_k8s_dashboard_enabled"`
 	CustomAgentSizeConfig           *CustomAgentSizeConfig `tfsdk:"custom_agent_size_config"`
-	AutoscalerConfig                basetypes.ObjectValue  `tfsdk:"auto_agent_size_config"`
+	AutoscalerConfig                basetypes.ObjectValue  `tfsdk:"autoscaler_config"`
 	Project                         types.String           `tfsdk:"project"`
+	Compatibility                   *ClusterCompatibility  `tfsdk:"compatibility"`
 }
