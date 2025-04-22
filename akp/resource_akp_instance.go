@@ -19,6 +19,7 @@ import (
 
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
+	healthv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/health/v1"
 	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
 	"github.com/akuity/terraform-provider-akp/akp/types"
 )
@@ -152,7 +153,96 @@ func (r *AkpInstanceResource) upsert(ctx context.Context, diagnostics *diag.Diag
 		return errors.Wrap(err, "Unable to upsert Argo CD instance")
 	}
 
+	instanceID := plan.ID.ValueString()
+	instanceName := plan.Name.ValueString()
+
+	if instanceID == "" {
+		tflog.Debug(ctx, fmt.Sprintf("Instance ID not found in plan for %s, attempting to retrieve it", instanceName))
+		retryAttempts := 10
+		retryDelay := 2 * time.Second
+		var getErr error
+		for i := 0; i < retryAttempts; i++ {
+			getInstanceReq := &argocdv1.GetInstanceRequest{
+				OrganizationId: r.akpCli.OrgId,
+				IdType:         idv1.Type_NAME,
+				Id:             instanceName,
+			}
+			getInstanceResp, err := r.akpCli.Cli.GetInstance(ctx, getInstanceReq)
+			getErr = err
+			if err == nil && getInstanceResp != nil && getInstanceResp.Instance != nil && getInstanceResp.Instance.Id != "" {
+				instanceID = getInstanceResp.Instance.Id
+				plan.ID = tftypes.StringValue(instanceID)
+				tflog.Debug(ctx, fmt.Sprintf("Retrieved ID for instance %s: %s", instanceName, instanceID))
+				getErr = nil
+				break
+			}
+			tflog.Debug(ctx, fmt.Sprintf("Attempt %d/%d: Failed to get ID for instance %s, retrying in %v... (Error: %v)", i+1, retryAttempts, instanceName, retryDelay, getErr))
+			time.Sleep(retryDelay)
+		}
+
+		if getErr != nil {
+			return errors.Wrapf(getErr, "failed to retrieve ID for newly applied instance %s after %d attempts", instanceName, retryAttempts)
+		}
+		if instanceID == "" {
+			return errors.Errorf("could not retrieve ID for newly applied instance %s", instanceName)
+		}
+	}
+
+	if err := waitInstanceReady(ctx, r.akpCli.Cli, r.akpCli.OrgId, instanceID, instanceName); err != nil {
+		diagnostics.AddError("Instance Wait Error", fmt.Sprintf("Instance '%s' did not become healthy: %s", instanceName, err.Error()))
+		return err
+	}
+
 	return refreshState(ctx, diagnostics, r.akpCli.Cli, plan, r.akpCli.OrgId)
+}
+
+func waitInstanceReady(ctx context.Context, client argocdv1.ArgoCDServiceGatewayClient, orgID string, instanceID string, instanceName string) error {
+	tflog.Debug(ctx, fmt.Sprintf("Waiting for instance %s (%s) to become healthy", instanceName, instanceID))
+	waitCtx := ctx
+	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
+		var cancel context.CancelFunc
+		waitCtx, cancel = context.WithTimeout(ctx, 5*time.Minute)
+		defer cancel()
+	}
+
+	for {
+		select {
+		case <-waitCtx.Done():
+			if errors.Is(waitCtx.Err(), context.DeadlineExceeded) {
+				return errors.Errorf("timed out waiting for instance %s (%s) to become healthy", instanceName, instanceID)
+			}
+			return errors.Wrapf(waitCtx.Err(), "context cancelled/done while waiting for instance %s (%s) health", instanceName, instanceID)
+		default:
+		}
+
+		apiResp, err := client.GetInstance(waitCtx, &argocdv1.GetInstanceRequest{
+			OrganizationId: orgID,
+			Id:             instanceID,
+			IdType:         idv1.Type_ID,
+		})
+		if err != nil {
+			return errors.Wrapf(err, "failed to get instance %s (%s) status during wait", instanceName, instanceID)
+		}
+
+		if apiResp.Instance == nil {
+			return errors.Errorf("GetInstance returned nil instance for %s (%s) during wait", instanceName, instanceID)
+		}
+
+		healthStatus := apiResp.Instance.GetHealthStatus()
+		statusCode := healthStatus.GetCode()
+		tflog.Debug(ctx, fmt.Sprintf("Instance %s (%s) health status: %s (%s)", instanceName, instanceID, statusCode.String(), healthStatus.GetMessage()))
+
+		if statusCode == healthv1.StatusCode_STATUS_CODE_HEALTHY {
+			tflog.Info(ctx, fmt.Sprintf("Instance %s (%s) is healthy.", instanceName, instanceID))
+			return nil
+		}
+
+		select {
+		case <-time.After(10 * time.Second):
+		case <-waitCtx.Done():
+			continue
+		}
+	}
 }
 
 func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, instance *types.Instance, orgID string) *argocdv1.ApplyInstanceRequest {
