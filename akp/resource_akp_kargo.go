@@ -17,6 +17,7 @@ import (
 	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
 	orgcv1 "github.com/akuity/api-client-go/pkg/api/gen/organization/v1"
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
+	healthv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/health/v1"
 	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
 	"github.com/akuity/terraform-provider-akp/akp/types"
 )
@@ -159,6 +160,38 @@ func (r *AkpKargoInstanceResource) upsert(ctx context.Context, diagnostics *diag
 	if plan.Workspace.ValueString() == "" {
 		plan.Workspace = tftypes.StringValue(workspace.GetName())
 	}
+
+	getResourceFunc := func(ctx context.Context) (*kargov1.GetKargoInstanceResponse, error) {
+		return r.akpCli.KargoCli.GetKargoInstance(ctx, &kargov1.GetKargoInstanceRequest{
+			OrganizationId: r.akpCli.OrgId,
+			Name:           plan.Name.ValueString(),
+			WorkspaceId:    plan.Workspace.ValueString(),
+		})
+	}
+
+	getStatusFunc := func(resp *kargov1.GetKargoInstanceResponse) healthv1.StatusCode {
+		if resp == nil || resp.Instance == nil {
+			return healthv1.StatusCode_STATUS_CODE_UNKNOWN
+		}
+		return resp.Instance.GetHealthStatus().GetCode()
+	}
+
+	waitErr := waitForStatus(
+		ctx,
+		getResourceFunc,
+		getStatusFunc,
+		[]healthv1.StatusCode{healthv1.StatusCode_STATUS_CODE_HEALTHY},
+		10*time.Second,
+		5*time.Minute,
+		fmt.Sprintf("Instance %s", plan.Name.ValueString()),
+		"health",
+	)
+
+	if waitErr != nil {
+		diagnostics.AddError("Instance Wait Error", fmt.Sprintf("Instance '%s' did not become healthy: %s", plan.Name.ValueString(), waitErr.Error()))
+		return waitErr
+	}
+
 	return refreshKargoState(ctx, diagnostics, r.akpCli.KargoCli, plan, r.akpCli.OrgId)
 }
 

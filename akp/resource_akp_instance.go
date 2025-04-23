@@ -19,6 +19,7 @@ import (
 
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
+	healthv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/health/v1"
 	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
 	"github.com/akuity/terraform-provider-akp/akp/types"
 )
@@ -150,6 +151,39 @@ func (r *AkpInstanceResource) upsert(ctx context.Context, diagnostics *diag.Diag
 	_, err := r.akpCli.Cli.ApplyInstance(ctx, apiReq)
 	if err != nil {
 		return errors.Wrap(err, "Unable to upsert Argo CD instance")
+	}
+
+	instanceName := plan.Name.ValueString()
+
+	getResourceFunc := func(ctx context.Context) (*argocdv1.GetInstanceResponse, error) {
+		return r.akpCli.Cli.GetInstance(ctx, &argocdv1.GetInstanceRequest{
+			OrganizationId: r.akpCli.OrgId,
+			Id:             instanceName,
+			IdType:         idv1.Type_NAME,
+		})
+	}
+
+	getStatusFunc := func(resp *argocdv1.GetInstanceResponse) healthv1.StatusCode {
+		if resp == nil || resp.Instance == nil {
+			return healthv1.StatusCode_STATUS_CODE_UNKNOWN
+		}
+		return resp.Instance.GetHealthStatus().GetCode()
+	}
+
+	waitErr := waitForStatus(
+		ctx,
+		getResourceFunc,
+		getStatusFunc,
+		[]healthv1.StatusCode{healthv1.StatusCode_STATUS_CODE_HEALTHY},
+		10*time.Second,
+		5*time.Minute,
+		fmt.Sprintf("Instance %s", instanceName),
+		"health",
+	)
+
+	if waitErr != nil {
+		diagnostics.AddError("Instance Wait Error", fmt.Sprintf("Instance '%s' did not become healthy: %s", instanceName, waitErr.Error()))
+		return waitErr
 	}
 
 	return refreshState(ctx, diagnostics, r.akpCli.Cli, plan, r.akpCli.OrgId)
