@@ -188,61 +188,38 @@ func (r *AkpInstanceResource) upsert(ctx context.Context, diagnostics *diag.Diag
 		}
 	}
 
-	if err := waitInstanceReady(ctx, r.akpCli.Cli, r.akpCli.OrgId, instanceID, instanceName); err != nil {
-		diagnostics.AddError("Instance Wait Error", fmt.Sprintf("Instance '%s' did not become healthy: %s", instanceName, err.Error()))
-		return err
-	}
-
-	return refreshState(ctx, diagnostics, r.akpCli.Cli, plan, r.akpCli.OrgId)
-}
-
-func waitInstanceReady(ctx context.Context, client argocdv1.ArgoCDServiceGatewayClient, orgID string, instanceID string, instanceName string) error {
-	tflog.Debug(ctx, fmt.Sprintf("Waiting for instance %s (%s) to become healthy", instanceName, instanceID))
-	waitCtx := ctx
-	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
-		var cancel context.CancelFunc
-		waitCtx, cancel = context.WithTimeout(ctx, 5*time.Minute)
-		defer cancel()
-	}
-
-	for {
-		select {
-		case <-waitCtx.Done():
-			if errors.Is(waitCtx.Err(), context.DeadlineExceeded) {
-				return errors.Errorf("timed out waiting for instance %s (%s) to become healthy", instanceName, instanceID)
-			}
-			return errors.Wrapf(waitCtx.Err(), "context cancelled/done while waiting for instance %s (%s) health", instanceName, instanceID)
-		default:
-		}
-
-		apiResp, err := client.GetInstance(waitCtx, &argocdv1.GetInstanceRequest{
-			OrganizationId: orgID,
+	getResourceFunc := func(ctx context.Context) (*argocdv1.GetInstanceResponse, error) {
+		return r.akpCli.Cli.GetInstance(ctx, &argocdv1.GetInstanceRequest{
+			OrganizationId: r.akpCli.OrgId,
 			Id:             instanceID,
 			IdType:         idv1.Type_ID,
 		})
-		if err != nil {
-			return errors.Wrapf(err, "failed to get instance %s (%s) status during wait", instanceName, instanceID)
-		}
-
-		if apiResp.Instance == nil {
-			return errors.Errorf("GetInstance returned nil instance for %s (%s) during wait", instanceName, instanceID)
-		}
-
-		healthStatus := apiResp.Instance.GetHealthStatus()
-		statusCode := healthStatus.GetCode()
-		tflog.Debug(ctx, fmt.Sprintf("Instance %s (%s) health status: %s (%s)", instanceName, instanceID, statusCode.String(), healthStatus.GetMessage()))
-
-		if statusCode == healthv1.StatusCode_STATUS_CODE_HEALTHY {
-			tflog.Info(ctx, fmt.Sprintf("Instance %s (%s) is healthy.", instanceName, instanceID))
-			return nil
-		}
-
-		select {
-		case <-time.After(10 * time.Second):
-		case <-waitCtx.Done():
-			continue
-		}
 	}
+
+	getStatusFunc := func(resp *argocdv1.GetInstanceResponse) healthv1.StatusCode {
+		if resp == nil || resp.Instance == nil {
+			return healthv1.StatusCode_STATUS_CODE_UNKNOWN
+		}
+		return resp.Instance.GetHealthStatus().GetCode()
+	}
+
+	waitErr := waitForStatus(
+		ctx,
+		getResourceFunc,
+		getStatusFunc,
+		[]healthv1.StatusCode{healthv1.StatusCode_STATUS_CODE_HEALTHY},
+		10*time.Second,
+		5*time.Minute,
+		fmt.Sprintf("Instance %s (%s)", instanceName, instanceID),
+		"health",
+	)
+
+	if waitErr != nil {
+		diagnostics.AddError("Instance Wait Error", fmt.Sprintf("Instance '%s' did not become healthy: %s", instanceName, waitErr.Error()))
+		return waitErr
+	}
+
+	return refreshState(ctx, diagnostics, r.akpCli.Cli, plan, r.akpCli.OrgId)
 }
 
 func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, instance *types.Instance, orgID string) *argocdv1.ApplyInstanceRequest {
