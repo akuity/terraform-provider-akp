@@ -153,46 +153,13 @@ func (r *AkpInstanceResource) upsert(ctx context.Context, diagnostics *diag.Diag
 		return errors.Wrap(err, "Unable to upsert Argo CD instance")
 	}
 
-	instanceID := plan.ID.ValueString()
 	instanceName := plan.Name.ValueString()
-
-	if instanceID == "" {
-		tflog.Debug(ctx, fmt.Sprintf("Instance ID not found in plan for %s, attempting to retrieve it", instanceName))
-		retryAttempts := 10
-		retryDelay := 2 * time.Second
-		var getErr error
-		for i := 0; i < retryAttempts; i++ {
-			getInstanceReq := &argocdv1.GetInstanceRequest{
-				OrganizationId: r.akpCli.OrgId,
-				IdType:         idv1.Type_NAME,
-				Id:             instanceName,
-			}
-			getInstanceResp, err := r.akpCli.Cli.GetInstance(ctx, getInstanceReq)
-			getErr = err
-			if err == nil && getInstanceResp != nil && getInstanceResp.Instance != nil && getInstanceResp.Instance.Id != "" {
-				instanceID = getInstanceResp.Instance.Id
-				plan.ID = tftypes.StringValue(instanceID)
-				tflog.Debug(ctx, fmt.Sprintf("Retrieved ID for instance %s: %s", instanceName, instanceID))
-				getErr = nil
-				break
-			}
-			tflog.Debug(ctx, fmt.Sprintf("Attempt %d/%d: Failed to get ID for instance %s, retrying in %v... (Error: %v)", i+1, retryAttempts, instanceName, retryDelay, getErr))
-			time.Sleep(retryDelay)
-		}
-
-		if getErr != nil {
-			return errors.Wrapf(getErr, "failed to retrieve ID for newly applied instance %s after %d attempts", instanceName, retryAttempts)
-		}
-		if instanceID == "" {
-			return errors.Errorf("could not retrieve ID for newly applied instance %s", instanceName)
-		}
-	}
 
 	getResourceFunc := func(ctx context.Context) (*argocdv1.GetInstanceResponse, error) {
 		return r.akpCli.Cli.GetInstance(ctx, &argocdv1.GetInstanceRequest{
 			OrganizationId: r.akpCli.OrgId,
-			Id:             instanceID,
-			IdType:         idv1.Type_ID,
+			Id:             instanceName,
+			IdType:         idv1.Type_NAME,
 		})
 	}
 
@@ -210,7 +177,7 @@ func (r *AkpInstanceResource) upsert(ctx context.Context, diagnostics *diag.Diag
 		[]healthv1.StatusCode{healthv1.StatusCode_STATUS_CODE_HEALTHY},
 		10*time.Second,
 		5*time.Minute,
-		fmt.Sprintf("Instance %s (%s)", instanceName, instanceID),
+		fmt.Sprintf("Instance %s", instanceName),
 		"health",
 	)
 
