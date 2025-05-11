@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/structpb"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
 	orgcv1 "github.com/akuity/api-client-go/pkg/api/gen/organization/v1"
@@ -213,7 +214,92 @@ func buildKargoApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, 
 		KargoConfigmap: buildConfigMap(ctx, diagnostics, kargo.KargoConfigMap, "kargo-cm"),
 		KargoSecret:    buildSecret(ctx, diagnostics, kargo.KargoSecret, "kargo-secret", nil),
 	}
+
+	if !kargo.KargoResources.IsNull() && !kargo.KargoResources.IsUnknown() {
+		var kargoResourceItems []unstructured.Unstructured
+		diags := kargo.KargoResources.ElementsAs(ctx, &kargoResourceItems, false)
+		diagnostics.Append(diags...)
+		if diagnostics.HasError() {
+			return applyReq
+		}
+
+		for i, resourceItem := range kargoResourceItems {
+			if err := isKargoResourceValid(&resourceItem); err != nil {
+				diagnostics.AddError(fmt.Sprintf("Invalid Kargo Resource %d", i), err.Error())
+				continue
+			}
+
+			resourceStructPb, err := structpb.NewStruct(resourceItem.Object)
+			if err != nil {
+				diagnostics.AddError("Kargo Resource Conversion Error", fmt.Sprintf("Failed to convert resource %s (%s) to StructPb: %s", resourceItem.GetName(), resourceItem.GetKind(), err.Error()))
+				continue
+			}
+
+			kargoResourceGroups[resourceItem.GetKind()].appendFunc(applyReq, resourceStructPb)
+		}
+	}
+
 	return applyReq
+}
+
+var kargoResourceGroups = map[string]struct {
+	appendFunc func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct)
+}{
+	"Project": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.Projects = append(req.Projects, item)
+		},
+	},
+	"Warehouse": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.Warehouses = append(req.Warehouses, item)
+		},
+	},
+	"Stage": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.Stages = append(req.Stages, item)
+		},
+	},
+	"AnalysisTemplate": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.AnalysisTemplates = append(req.AnalysisTemplates, item)
+		},
+	},
+	"RepoCredential": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.RepoCredentials = append(req.RepoCredentials, item)
+		},
+	},
+	"PromotionTask": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.PromotionTasks = append(req.PromotionTasks, item)
+		},
+	},
+	"ClusterPromotionTask": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.ClusterPromotionTasks = append(req.ClusterPromotionTasks, item)
+		},
+	},
+}
+
+func isKargoResourceValid(un *unstructured.Unstructured) error {
+	if un == nil {
+		return errors.New("unstructured is nil")
+	}
+
+	if un.GetAPIVersion() != "kargo.akuity.io/v1alpha1" {
+		return errors.New("unsupported apiVersion")
+	}
+
+	if _, ok := kargoResourceGroups[un.GetKind()]; !ok {
+		return errors.New("unsupported kind")
+	}
+
+	if un.GetName() == "" {
+		return errors.New("name is required")
+	}
+
+	return nil
 }
 
 func buildKargo(ctx context.Context, diagnostics *diag.Diagnostics, kargo *types.KargoInstance) *structpb.Struct {

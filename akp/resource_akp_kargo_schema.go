@@ -67,6 +67,11 @@ func getAKPKargoInstanceAttributes() map[string]schema.Attribute {
 				stringplanmodifier.UseStateForUnknown(),
 			},
 		},
+		"kargo_resources": schema.ListAttribute{
+			MarkdownDescription: "List of Kargo custom resources to be managed alongside the Kargo instance.",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
 	}
 }
 
