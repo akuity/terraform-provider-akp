@@ -140,7 +140,7 @@ func (k *KargoInstance) syncKargoResources(
 		}
 
 		unObj := unstructured.Unstructured{Object: objMap}
-		key, _, err := extractResourceMetadata(unObj)
+		key, _, err := extractResourceMetadata(unObj.Object)
 		if err != nil {
 			continue
 		}

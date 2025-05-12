@@ -215,12 +215,24 @@ func buildKargoApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, 
 		KargoSecret:    buildSecret(ctx, diagnostics, kargo.KargoSecret, "kargo-secret", nil),
 	}
 
-	if !kargo.KargoResources.IsNull() && !kargo.KargoResources.IsUnknown() {
-		var kargoResourceItems []unstructured.Unstructured
-		diags := kargo.KargoResources.ElementsAs(ctx, &kargoResourceItems, false)
+	if !kargo.KargoResources.IsUnknown() {
+		var stringItems []tftypes.String
+		diags := kargo.KargoResources.ElementsAs(ctx, &stringItems, false)
 		diagnostics.Append(diags...)
 		if diagnostics.HasError() {
 			return applyReq
+		}
+
+		kargoResourceItems := make([]unstructured.Unstructured, 0, len(stringItems))
+		for _, strItem := range stringItems {
+			if strItem.IsNull() || strItem.IsUnknown() {
+				continue
+			}
+			var objMap map[string]any
+			if err := json.Unmarshal([]byte(strItem.ValueString()), &objMap); err != nil {
+				continue
+			}
+			kargoResourceItems = append(kargoResourceItems, unstructured.Unstructured{Object: objMap})
 		}
 
 		for i, resourceItem := range kargoResourceItems {

@@ -38,7 +38,7 @@ resource "akp_kargo_instance" "example" {
   kargo = {
     spec = {
       description = "test-description"
-      version     = "v1.1.1"
+      version     = "v1.4.3"
       // only set one of fqdn and subdomain
       fqdn      = "fqdn.example.com"
       subdomain = ""
@@ -114,6 +114,94 @@ EOT
       }
     }
   }
+  kargo_resources = [
+    jsonencode(yamldecode(<<-YAML
+      apiVersion: kargo.akuity.io/v1alpha1
+      kind: Project
+      metadata:
+        name: kargo-demo
+    YAML
+    )),
+    jsonencode(yamldecode(<<-YAML
+      apiVersion: kargo.akuity.io/v1alpha1
+      kind: Warehouse
+      metadata:
+        name: kargo-demo
+        namespace: kargo-demo
+      spec:
+        subscriptions:
+        - image:
+            repoURL: public.ecr.aws/nginx/nginx
+            semverConstraint: ^1.26.0
+            discoveryLimit: 5
+    YAML
+    )),
+    jsonencode(yamldecode(<<-YAML
+      apiVersion: kargo.akuity.io/v1alpha1
+      kind: PromotionTask
+      metadata:
+        name: demo-promo-process
+        namespace: kargo-demo
+      spec:
+        vars:
+        - name: gitopsRepo
+          value: "https://hxp.github.com/test"
+        - name: imageRepo
+          value: public.ecr.aws/nginx/nginx
+        steps:
+        - uses: git-clone
+          config:
+            repoURL: \$${{ vars.gitopsRepo }}
+            checkout:
+            - branch: main
+              path: ./src
+            - branch: stage/\$${{ ctx.stage }}
+              create: true
+              path: ./out
+        - uses: git-clear
+          config:
+            path: ./out
+        - uses: kustomize-set-image
+          as: update-image
+          config:
+            path: ./src/base
+            images:
+            - image: \$${{ vars.imageRepo }}
+              tag: \$${{ imageFrom(vars.imageRepo).Tag }}
+        - uses: kustomize-build
+          config:
+            path: ./src/stages/\$${{ ctx.stage }}
+            outPath: ./out
+        - uses: git-commit
+          as: commit
+          config:
+            path: ./out
+            messageFromSteps:
+            - update-image
+    YAML
+    )),
+    jsonencode(yamldecode(<<-YAML
+      apiVersion: kargo.akuity.io/v1alpha1
+      kind: Stage
+      metadata:
+        name: test
+        namespace: kargo-demo
+      spec:
+        requestedFreight:
+        - origin:
+            kind: Warehouse
+            name: kargo-demo
+          sources:
+            direct: true
+        promotionTemplate:
+          spec:
+            steps:
+            - task:
+                name: demo-promo-process
+              as: promo-process
+    YAML
+    ))
+  ]
 }
 ```
 
@@ -128,6 +216,7 @@ EOT
 ### Optional
 
 - `kargo_cm` (Map of String) ConfigMap to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf
+- `kargo_resources` (List of String) List of Kargo custom resources to be managed alongside the Kargo instance.
 - `kargo_secret` (Map of String, Sensitive) Secret to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf
 - `workspace` (String) Workspace name for the Kargo instance
 
