@@ -81,6 +81,18 @@ func (a *ArgoCD) Update(ctx context.Context, diagnostics *diag.Diagnostics, cd *
 	if cd.Spec.InstanceSpec.MultiClusterK8SDashboardEnabled != nil {
 		multiClusterK8SDashboardEnabled = *cd.Spec.InstanceSpec.MultiClusterK8SDashboardEnabled
 	}
+
+	var appInAnyNamespaceConfig *AppInAnyNamespaceConfig
+	if a.Spec.InstanceSpec.AppInAnyNamespaceConfig != nil &&
+		!a.Spec.InstanceSpec.AppInAnyNamespaceConfig.Enabled.ValueBool() &&
+		(cd.Spec.InstanceSpec.AppInAnyNamespaceConfig == nil ||
+			cd.Spec.InstanceSpec.AppInAnyNamespaceConfig.Enabled == nil ||
+			!*cd.Spec.InstanceSpec.AppInAnyNamespaceConfig.Enabled) {
+		appInAnyNamespaceConfig = a.Spec.InstanceSpec.AppInAnyNamespaceConfig
+	} else {
+		appInAnyNamespaceConfig = toAppInAnyNamespaceConfigTFModel(cd.Spec.InstanceSpec.AppInAnyNamespaceConfig)
+	}
+
 	a.Spec = ArgoCDSpec{
 		Description: tftypes.StringValue(cd.Spec.Description),
 		Version:     tftypes.StringValue(cd.Spec.Version),
@@ -104,6 +116,7 @@ func (a *ArgoCD) Update(ctx context.Context, diagnostics *diag.Diagnostics, cd *
 			AgentPermissionsRules:           toAgentPermissionsRulesTFModel(cd.Spec.InstanceSpec.AgentPermissionsRules),
 			Fqdn:                            types.StringValue(fqdn),
 			MultiClusterK8SDashboardEnabled: tftypes.BoolValue(multiClusterK8SDashboardEnabled),
+			AppInAnyNamespaceConfig:         appInAnyNamespaceConfig,
 			AppsetPlugins:                   toAppsetPluginsTFModel(cd.Spec.InstanceSpec.AppsetPlugins),
 		},
 	}
@@ -141,6 +154,7 @@ func (a *ArgoCD) ToArgoCDAPIModel(ctx context.Context, diag *diag.Diagnostics, n
 				AgentPermissionsRules:           toAgentPermissionsRuleAPIModel(a.Spec.InstanceSpec.AgentPermissionsRules),
 				Fqdn:                            a.Spec.InstanceSpec.Fqdn.ValueStringPointer(),
 				MultiClusterK8SDashboardEnabled: toBoolPointer(a.Spec.InstanceSpec.MultiClusterK8SDashboardEnabled),
+				AppInAnyNamespaceConfig:         toAppInAnyNamespaceConfigAPIModel(a.Spec.InstanceSpec.AppInAnyNamespaceConfig),
 				AppsetPlugins:                   toAppsetPluginsAPIModel(a.Spec.InstanceSpec.AppsetPlugins),
 			},
 		},
@@ -1051,6 +1065,18 @@ func toAgentPermissionsRulesTFModel(rules []*v1alpha1.AgentPermissionsRule) []*A
 	return agentPermissionsRules
 }
 
+func toAppInAnyNamespaceConfigTFModel(config *v1alpha1.AppInAnyNamespaceConfig) *AppInAnyNamespaceConfig {
+	if config == nil {
+		return nil
+	}
+	if config.Enabled == nil {
+		return nil
+	}
+	return &AppInAnyNamespaceConfig{
+		Enabled: tftypes.BoolValue(*config.Enabled),
+	}
+}
+
 func convertSlice[T any, U any](s []T, conv func(T) U) []U {
 	var tfSlice []U
 	for _, item := range s {
@@ -1661,4 +1687,13 @@ func toAppsetPluginsAPIModel(plugins []*AppsetPlugins) []*v1alpha1.AppsetPlugins
 		})
 	}
 	return apiPlugins
+}
+
+func toAppInAnyNamespaceConfigAPIModel(config *AppInAnyNamespaceConfig) *v1alpha1.AppInAnyNamespaceConfig {
+	if config == nil {
+		return nil
+	}
+	return &v1alpha1.AppInAnyNamespaceConfig{
+		Enabled: config.Enabled.ValueBoolPointer(),
+	}
 }

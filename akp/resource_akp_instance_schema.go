@@ -342,6 +342,11 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 				boolplanmodifier.UseStateForUnknown(),
 			},
 		},
+		"app_in_any_namespace_config": schema.SingleNestedAttribute{
+			MarkdownDescription: "App in any namespace config",
+			Optional:            true,
+			Attributes:          getAppInAnyNamespaceConfigAttributes(),
+		},
 		"appset_plugins": schema.ListNestedAttribute{
 			MarkdownDescription: "Application Set plugins",
 			Optional:            true,
@@ -741,6 +746,15 @@ func getCrossplaneExtensionResourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"group": schema.StringAttribute{
 			MarkdownDescription: "Glob pattern of the group to match.",
+			Optional:            true,
+		},
+	}
+}
+
+func getAppInAnyNamespaceConfigAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"enabled": schema.BoolAttribute{
+			MarkdownDescription: "Whether the app in any namespace config is enabled or not.",
 			Optional:            true,
 		},
 	}
