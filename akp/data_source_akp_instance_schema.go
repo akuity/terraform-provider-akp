@@ -229,6 +229,11 @@ func getInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Enable the KubeVision feature",
 			Computed:            true,
 		},
+		"app_in_any_namespace_config": schema.SingleNestedAttribute{
+			MarkdownDescription: "App in any namespace config",
+			Computed:            true,
+			Attributes:          getAppInAnyNamespaceConfigDataSourceAttributes(),
+		},
 		"appset_plugins": schema.ListNestedAttribute{
 			MarkdownDescription: "Application Set plugins",
 			Computed:            true,
@@ -592,6 +597,15 @@ func getAgentPermissionsRuleDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Verbs of the rule.",
 			Computed:            true,
 			ElementType:         types.StringType,
+		},
+	}
+}
+
+func getAppInAnyNamespaceConfigDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"enabled": schema.BoolAttribute{
+			MarkdownDescription: "Whether the app in any namespace config is enabled or not.",
+			Computed:            true,
 		},
 	}
 }
