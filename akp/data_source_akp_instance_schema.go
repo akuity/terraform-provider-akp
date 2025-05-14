@@ -102,6 +102,11 @@ func getAKPInstanceDataSourceAttributes() map[string]schema.Attribute {
 				Attributes: getAKPConfigManagementPluginDataSourceAttributes(),
 			},
 		},
+		"argo_resources": schema.ListAttribute{
+			MarkdownDescription: "List of Argo resources",
+			Computed:            true,
+			ElementType:         types.StringType,
+		},
 	}
 }
 

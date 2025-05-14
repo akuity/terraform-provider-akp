@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -27,6 +28,26 @@ import (
 // Ensure provider defined types fully satisfy framework interfaces
 var _ resource.Resource = &AkpInstanceResource{}
 var _ resource.ResourceWithImportState = &AkpInstanceResource{}
+
+var argoResourceGroups = map[string]struct {
+	appendFunc func(req *argocdv1.ApplyInstanceRequest, item *structpb.Struct)
+}{
+	"Application": {
+		appendFunc: func(req *argocdv1.ApplyInstanceRequest, item *structpb.Struct) {
+			req.Applications = append(req.Applications, item)
+		},
+	},
+	"ApplicationSet": {
+		appendFunc: func(req *argocdv1.ApplyInstanceRequest, item *structpb.Struct) {
+			req.ApplicationSets = append(req.ApplicationSets, item)
+		},
+	},
+	"AppProject": {
+		appendFunc: func(req *argocdv1.ApplyInstanceRequest, item *structpb.Struct) {
+			req.AppProjects = append(req.AppProjects, item)
+		},
+	},
+}
 
 func NewAkpInstanceResource() resource.Resource {
 	return &AkpInstanceResource{}
@@ -219,7 +240,63 @@ func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, insta
 		ConfigManagementPlugins:       buildCMPs(ctx, diagnostics, instance.ConfigManagementPlugins),
 		PruneResourceTypes:            []argocdv1.PruneResourceType{argocdv1.PruneResourceType_PRUNE_RESOURCE_TYPE_CONFIG_MANAGEMENT_PLUGINS},
 	}
+
+	if !instance.ArgoResources.IsUnknown() {
+		var stringItems []tftypes.String
+		diags := instance.ArgoResources.ElementsAs(ctx, &stringItems, false)
+		diagnostics.Append(diags...)
+		if diagnostics.HasError() {
+			return applyReq
+		}
+
+		argoResourceItems := make([]unstructured.Unstructured, 0, len(stringItems))
+		for _, strItem := range stringItems {
+			if strItem.IsNull() || strItem.IsUnknown() {
+				continue
+			}
+			var objMap map[string]any
+			if err := json.Unmarshal([]byte(strItem.ValueString()), &objMap); err != nil {
+				continue
+			}
+			argoResourceItems = append(argoResourceItems, unstructured.Unstructured{Object: objMap})
+		}
+
+		for i, resourceItem := range argoResourceItems {
+			if err := isArgoResourceValid(&resourceItem); err != nil {
+				diagnostics.AddError(fmt.Sprintf("Invalid Argo Resource %d", i), err.Error())
+				continue
+			}
+
+			resourceStructPb, err := structpb.NewStruct(resourceItem.Object)
+			if err != nil {
+				diagnostics.AddError("argo Resource Conversion Error", fmt.Sprintf("Failed to convert resource %s (%s) to StructPb: %s", resourceItem.GetName(), resourceItem.GetKind(), err.Error()))
+				continue
+			}
+
+			argoResourceGroups[resourceItem.GetKind()].appendFunc(applyReq, resourceStructPb)
+		}
+	}
 	return applyReq
+}
+
+func isArgoResourceValid(unstructured *unstructured.Unstructured) error {
+	if unstructured == nil {
+		return errors.New("unstructured is nil")
+	}
+	jsonBytes, err := unstructured.MarshalJSON()
+	if err != nil {
+		return errors.New("failed to marshal unstructured to json")
+	}
+
+	if unstructured.GetAPIVersion() != "argoproj.io/v1alpha1" {
+		return errors.New("unsupported apiVersion:" + unstructured.GetAPIVersion() + " json: \n" + string(jsonBytes))
+	}
+
+	if unstructured.GetName() == "" {
+		return errors.New("name is required")
+	}
+
+	return nil
 }
 
 func buildArgoCD(ctx context.Context, diag *diag.Diagnostics, instance *types.Instance) *structpb.Struct {

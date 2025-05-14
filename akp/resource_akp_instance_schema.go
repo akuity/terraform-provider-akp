@@ -163,6 +163,11 @@ func getAKPInstanceAttributes() map[string]schema.Attribute {
 				Attributes: getAKPConfigManagementPluginAttributes(),
 			},
 		},
+		"argo_resources": schema.ListAttribute{
+			MarkdownDescription: "List of Argo resources to be managed alongside the Argo CD instance.",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
 	}
 }
 
