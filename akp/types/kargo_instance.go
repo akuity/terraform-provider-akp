@@ -126,8 +126,7 @@ func (k *KargoInstance) syncKargoResources(
 		return errors.New("error processing resources from export response, cannot reliably sync")
 	}
 
-	// 3. Identify keys of resources already present in k.KargoResources
-	seenResourceKeys := make(map[string]bool)
+	elementsToAdd := make([]attr.Value, 0)
 	for _, attrVal := range k.KargoResources.Elements() {
 		resourceStrVal, ok := attrVal.(types.String)
 		if !ok {
@@ -144,34 +143,21 @@ func (k *KargoInstance) syncKargoResources(
 		if err != nil {
 			continue
 		}
-		seenResourceKeys[key] = true
-	}
 
-	// 4. Determine which exported resources are new and need to be added
-	elementsToAdd := make([]attr.Value, 0)
-	for key, resStruct := range exportedResourceMap {
-		if _, seen := seenResourceKeys[key]; !seen {
-			jsonBytes, err := json.Marshal(resStruct)
-			if err != nil {
-				continue
-			}
-			elementsToAdd = append(elementsToAdd, types.StringValue(string(jsonBytes)))
+		if _, ok := exportedResourceMap[key]; !ok {
+			continue
 		}
+
+		elementsToAdd = append(elementsToAdd, attrVal)
 	}
 
-	// 5. Update k.KargoResources if new elements were found
-	if len(elementsToAdd) > 0 {
-		currentElements := k.KargoResources.Elements()
-		finalElements := append(currentElements, elementsToAdd...)
+	newList, listDiags := types.ListValueFrom(ctx, types.StringType, elementsToAdd)
+	diagnostics.Append(listDiags...)
 
-		newList, listDiags := types.ListValueFrom(ctx, types.StringType, finalElements)
-		diagnostics.Append(listDiags...)
-
-		if listDiags.HasError() {
-			return errors.New("error creating updated KargoResources list")
-		}
-		k.KargoResources = newList
+	if listDiags.HasError() {
+		return errors.New("error creating updated KargoResources list")
 	}
+	k.KargoResources = newList
 
 	return nil
 }
