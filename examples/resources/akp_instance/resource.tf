@@ -250,6 +250,34 @@ vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOf
   argo_resources = local.argo_resources
 }
 
+# Choose a directory that contains argo resource manifests.
+# For example, here we have argo.yaml in the argo-manifests directory, and the data is like:
+# ---------------------------------------------
+# apiVersion: argoproj.io/v1alpha1
+# kind: Application
+# metadata:
+#   name: app1
+#   namespace: argocd
+# spec:
+#   destination:
+#     namespace: default
+#     server: http://cluster-my-cluster:8001
+#   project: default
+#   source:
+#     path: helm-guestbook
+#     repoURL: https://github.com/argoproj/argocd-example-apps.git
+#     targetRevision: HEAD
+#   syncPolicy:
+#     automated: {}
+#     syncOptions:
+#     - CreateNamespace=true
+# ---
+# ...
+# ---------------------------------------------
+#
+# The following expression can parse the provided YAMLs into JSON strings for the provider to be validated and applied correctly.
+# Remember to put the parsed argo resources into `akp_instance.argo_resources` field.
+
 locals {
   yaml_files = fileset("${path.module}/argo-manifests", "*.yaml")
 

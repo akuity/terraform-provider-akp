@@ -3,6 +3,7 @@ package akp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -86,13 +87,13 @@ func BuildInstance[T any](
 	apiModel := toAPIModel(ctx, diagnostics, name)
 	jsonBytes, err := json.Marshal(apiModel)
 	if err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to marshal instance. %s", err))
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to marshal %s instance. %s", name, err))
 		return nil
 	}
 
 	var rawMap map[string]any
 	if err = json.Unmarshal(jsonBytes, &rawMap); err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to unmarshal instance. %s", err))
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to unmarshal %s instance. %s", name, err))
 		return nil
 	}
 
@@ -102,8 +103,31 @@ func BuildInstance[T any](
 
 	s, err := structpb.NewStruct(rawMap)
 	if err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create instance struct. %s", err))
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create %s instance struct. %s", name, err))
 		return nil
 	}
 	return s
+}
+
+// ValidateResource validates a resource with the given API version and resource groups
+func ValidateResource(un *unstructured.Unstructured, apiVersion string, resourceGroups map[string]struct {
+	appendFunc ResourceGroupAppender
+}) error {
+	if un == nil {
+		return errors.New("unstructured is nil")
+	}
+
+	if un.GetAPIVersion() != apiVersion {
+		return errors.New("unsupported apiVersion")
+	}
+
+	if _, ok := resourceGroups[un.GetKind()]; !ok {
+		return errors.New("unsupported kind")
+	}
+
+	if un.GetName() == "" {
+		return errors.New("name is required")
+	}
+
+	return nil
 }

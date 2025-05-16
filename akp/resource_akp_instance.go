@@ -354,40 +354,9 @@ func refreshState(ctx context.Context, diagnostics *diag.Diagnostics, client arg
 		return errors.Wrap(err, "Unable to export Argo CD instance")
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Export instance response: %s", exportResp))
-	return syncArgoResources(ctx, diagnostics, instance, exportResp)
+	return instance.Update(ctx, diagnostics, exportResp)
 }
 
-func syncArgoResources(ctx context.Context, diagnostics *diag.Diagnostics, instance *types.Instance, exportResp *argocdv1.ExportInstanceResponse) error {
-	appliedResources := make([]*structpb.Struct, 0)
-	appliedResources = append(appliedResources, exportResp.Applications...)
-	appliedResources = append(appliedResources, exportResp.ApplicationSets...)
-	appliedResources = append(appliedResources, exportResp.AppProjects...)
-
-	return types.SyncResources(
-		ctx,
-		diagnostics,
-		instance.ArgoResources,
-		appliedResources,
-		"Argo",
-	)
-}
-
-func isArgoResourceValid(unstructured *unstructured.Unstructured) error {
-	if unstructured == nil {
-		return errors.New("unstructured is nil")
-	}
-	jsonBytes, err := unstructured.MarshalJSON()
-	if err != nil {
-		return errors.New("failed to marshal unstructured to json")
-	}
-
-	if unstructured.GetAPIVersion() != "argoproj.io/v1alpha1" {
-		return errors.New("unsupported apiVersion:" + unstructured.GetAPIVersion() + " json: \n" + string(jsonBytes))
-	}
-
-	if unstructured.GetName() == "" {
-		return errors.New("name is required")
-	}
-
-	return nil
+func isArgoResourceValid(un *unstructured.Unstructured) error {
+	return ValidateResource(un, "argoproj.io/v1alpha1", argoResourceGroups)
 }

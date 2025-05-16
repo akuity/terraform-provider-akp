@@ -278,23 +278,7 @@ var kargoResourceGroups = map[string]struct {
 }
 
 func isKargoResourceValid(un *unstructured.Unstructured) error {
-	if un == nil {
-		return errors.New("unstructured is nil")
-	}
-
-	if un.GetAPIVersion() != "kargo.akuity.io/v1alpha1" {
-		return errors.New("unsupported apiVersion")
-	}
-
-	if _, ok := kargoResourceGroups[un.GetKind()]; !ok {
-		return errors.New("unsupported kind")
-	}
-
-	if un.GetName() == "" {
-		return errors.New("name is required")
-	}
-
-	return nil
+	return ValidateResource(un, "kargo.akuity.io/v1alpha1", kargoResourceGroups)
 }
 
 func buildKargo(ctx context.Context, diagnostics *diag.Diagnostics, kargo *types.KargoInstance) *structpb.Struct {
@@ -359,22 +343,4 @@ func getWorkspace(ctx context.Context, orgc orgcv1.OrganizationServiceGatewayCli
 	}
 
 	return nil, fmt.Errorf("workspace %s not found", name)
-}
-
-func syncKargoResources(ctx context.Context, diagnostics *diag.Diagnostics, kargo *types.KargoInstance, exportResp *kargov1.ExportKargoInstanceResponse) error {
-	appliedResources := make([]*structpb.Struct, 0)
-	appliedResources = append(appliedResources, exportResp.AnalysisTemplates...)
-	appliedResources = append(appliedResources, exportResp.PromotionTasks...)
-	appliedResources = append(appliedResources, exportResp.ClusterPromotionTasks...)
-	appliedResources = append(appliedResources, exportResp.Projects...)
-	appliedResources = append(appliedResources, exportResp.Warehouses...)
-	appliedResources = append(appliedResources, exportResp.Stages...)
-
-	return types.SyncResources(
-		ctx,
-		diagnostics,
-		kargo.KargoResources,
-		appliedResources,
-		"Kargo",
-	)
 }

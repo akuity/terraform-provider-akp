@@ -1,4 +1,33 @@
 apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: apps-from-git
+  namespace: argocd
+spec:
+  generators:
+  - git:
+      repoURL: https://github.com/argoproj/argocd-example-apps.git
+      revision: HEAD
+      directories:
+      - path: '*'
+  template:
+    metadata:
+      name: '{{path.basename}}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/argoproj/argocd-example-apps.git
+        targetRevision: HEAD
+        path: '{{path}}'
+      destination:
+        server: http://cluster-my-cluster:8001
+        namespace: default
+      syncPolicy:
+        automated: {}
+        syncOptions:
+        - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: app1
@@ -6,7 +35,7 @@ metadata:
 spec:
   destination:
     namespace: default
-    server: http://my-cluster:8001
+    server: http://cluster-my-cluster:8001
   project: default
   source:
     path: helm-guestbook
