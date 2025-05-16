@@ -258,26 +258,6 @@ func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, insta
 	return applyReq
 }
 
-func isArgoResourceValid(unstructured *unstructured.Unstructured) error {
-	if unstructured == nil {
-		return errors.New("unstructured is nil")
-	}
-	jsonBytes, err := unstructured.MarshalJSON()
-	if err != nil {
-		return errors.New("failed to marshal unstructured to json")
-	}
-
-	if unstructured.GetAPIVersion() != "argoproj.io/v1alpha1" {
-		return errors.New("unsupported apiVersion:" + unstructured.GetAPIVersion() + " json: \n" + string(jsonBytes))
-	}
-
-	if unstructured.GetName() == "" {
-		return errors.New("name is required")
-	}
-
-	return nil
-}
-
 func buildArgoCD(ctx context.Context, diagnostics *diag.Diagnostics, instance *types.Instance) *structpb.Struct {
 	return BuildInstance(
 		ctx,
@@ -390,4 +370,24 @@ func syncArgoResources(ctx context.Context, diagnostics *diag.Diagnostics, insta
 		appliedResources,
 		"Argo",
 	)
+}
+
+func isArgoResourceValid(unstructured *unstructured.Unstructured) error {
+	if unstructured == nil {
+		return errors.New("unstructured is nil")
+	}
+	jsonBytes, err := unstructured.MarshalJSON()
+	if err != nil {
+		return errors.New("failed to marshal unstructured to json")
+	}
+
+	if unstructured.GetAPIVersion() != "argoproj.io/v1alpha1" {
+		return errors.New("unsupported apiVersion:" + unstructured.GetAPIVersion() + " json: \n" + string(jsonBytes))
+	}
+
+	if unstructured.GetName() == "" {
+		return errors.New("name is required")
+	}
+
+	return nil
 }

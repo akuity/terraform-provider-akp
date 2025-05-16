@@ -18,6 +18,80 @@ import (
 	"github.com/akuity/terraform-provider-akp/akp/marshal"
 )
 
+type KargoInstance struct {
+	ID             types.String `tfsdk:"id"`
+	Name           types.String `tfsdk:"name"`
+	Kargo          *Kargo       `tfsdk:"kargo"`
+	KargoConfigMap types.Map    `tfsdk:"kargo_cm"`
+	KargoSecret    types.Map    `tfsdk:"kargo_secret"`
+	Workspace      types.String `tfsdk:"workspace"`
+	KargoResources types.List   `tfsdk:"kargo_resources"`
+}
+
+func (k *KargoInstance) Update(ctx context.Context, diagnostics *diag.Diagnostics, exportResp *kargov1.ExportKargoInstanceResponse) error {
+	var kargo *v1alpha1.Kargo
+	err := marshal.RemarshalTo(exportResp.GetKargo().AsMap(), &kargo)
+	if err != nil {
+		return errors.Wrap(err, "Unable to get Kargo instance")
+	}
+	if k.Kargo == nil {
+		k.Kargo = &Kargo{}
+	}
+
+	// Convert ConfigMap values, ensuring booleans are converted to strings
+	configMap := exportResp.GetKargoConfigmap().AsMap()
+	if !k.KargoConfigMap.IsNull() {
+		existingConfigMap := k.KargoConfigMap.Elements()
+		for key, value := range existingConfigMap {
+			if _, exists := configMap[key]; !exists {
+				if strVal, ok := value.(types.String); ok {
+					configMap[key] = strVal.ValueString()
+				}
+			}
+		}
+	}
+	for k, v := range configMap {
+		switch val := v.(type) {
+		case bool:
+			configMap[k] = fmt.Sprintf("%t", val)
+		}
+	}
+	configMapStruct, err := structpb.NewStruct(configMap)
+	if err != nil {
+		return errors.Wrap(err, "Unable to convert ConfigMap to struct")
+	}
+	k.KargoConfigMap = ToConfigMapTFModel(ctx, diagnostics, configMapStruct, k.KargoConfigMap)
+	k.Kargo.Update(ctx, diagnostics, kargo)
+
+	if err := k.syncKargoResources(ctx, exportResp, diagnostics); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (k *KargoInstance) syncKargoResources(
+	ctx context.Context,
+	exportResp *kargov1.ExportKargoInstanceResponse,
+	diagnostics *diag.Diagnostics,
+) error {
+	appliedResources := make([]*structpb.Struct, 0)
+	appliedResources = append(appliedResources, exportResp.AnalysisTemplates...)
+	appliedResources = append(appliedResources, exportResp.PromotionTasks...)
+	appliedResources = append(appliedResources, exportResp.ClusterPromotionTasks...)
+	appliedResources = append(appliedResources, exportResp.Projects...)
+	appliedResources = append(appliedResources, exportResp.Warehouses...)
+	appliedResources = append(appliedResources, exportResp.Stages...)
+
+	return SyncResources(
+		ctx,
+		diagnostics,
+		k.KargoResources,
+		appliedResources,
+		"Kargo",
+	)
+}
+
 // ExtractResourceMetadata extracts metadata from a resource
 func ExtractResourceMetadata(resource any) (key string, kindStr string, err error) {
 	if m, ok := resource.(map[string]any); ok {
@@ -107,78 +181,4 @@ func SyncResources(
 	}
 
 	return nil
-}
-
-type KargoInstance struct {
-	ID             types.String `tfsdk:"id"`
-	Name           types.String `tfsdk:"name"`
-	Kargo          *Kargo       `tfsdk:"kargo"`
-	KargoConfigMap types.Map    `tfsdk:"kargo_cm"`
-	KargoSecret    types.Map    `tfsdk:"kargo_secret"`
-	Workspace      types.String `tfsdk:"workspace"`
-	KargoResources types.List   `tfsdk:"kargo_resources"`
-}
-
-func (k *KargoInstance) Update(ctx context.Context, diagnostics *diag.Diagnostics, exportResp *kargov1.ExportKargoInstanceResponse) error {
-	var kargo *v1alpha1.Kargo
-	err := marshal.RemarshalTo(exportResp.GetKargo().AsMap(), &kargo)
-	if err != nil {
-		return errors.Wrap(err, "Unable to get Kargo instance")
-	}
-	if k.Kargo == nil {
-		k.Kargo = &Kargo{}
-	}
-
-	// Convert ConfigMap values, ensuring booleans are converted to strings
-	configMap := exportResp.GetKargoConfigmap().AsMap()
-	if !k.KargoConfigMap.IsNull() {
-		existingConfigMap := k.KargoConfigMap.Elements()
-		for key, value := range existingConfigMap {
-			if _, exists := configMap[key]; !exists {
-				if strVal, ok := value.(types.String); ok {
-					configMap[key] = strVal.ValueString()
-				}
-			}
-		}
-	}
-	for k, v := range configMap {
-		switch val := v.(type) {
-		case bool:
-			configMap[k] = fmt.Sprintf("%t", val)
-		}
-	}
-	configMapStruct, err := structpb.NewStruct(configMap)
-	if err != nil {
-		return errors.Wrap(err, "Unable to convert ConfigMap to struct")
-	}
-	k.KargoConfigMap = ToConfigMapTFModel(ctx, diagnostics, configMapStruct, k.KargoConfigMap)
-	k.Kargo.Update(ctx, diagnostics, kargo)
-
-	if err := k.syncKargoResources(ctx, exportResp, diagnostics); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (k *KargoInstance) syncKargoResources(
-	ctx context.Context,
-	exportResp *kargov1.ExportKargoInstanceResponse,
-	diagnostics *diag.Diagnostics,
-) error {
-	appliedResources := make([]*structpb.Struct, 0)
-	appliedResources = append(appliedResources, exportResp.AnalysisTemplates...)
-	appliedResources = append(appliedResources, exportResp.PromotionTasks...)
-	appliedResources = append(appliedResources, exportResp.ClusterPromotionTasks...)
-	appliedResources = append(appliedResources, exportResp.Projects...)
-	appliedResources = append(appliedResources, exportResp.Warehouses...)
-	appliedResources = append(appliedResources, exportResp.Stages...)
-
-	return SyncResources(
-		ctx,
-		diagnostics,
-		k.KargoResources,
-		appliedResources,
-		"Kargo",
-	)
 }
