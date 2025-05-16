@@ -96,11 +96,16 @@ func (i *Instance) syncArgoResources(
 	appliedResources = append(appliedResources, exportResp.ApplicationSets...)
 	appliedResources = append(appliedResources, exportResp.AppProjects...)
 
-	return SyncResources(
+	newList, err := SyncResources(
 		ctx,
 		diagnostics,
 		i.ArgoResources,
 		appliedResources,
 		"Argo",
 	)
+	if err != nil {
+		return err
+	}
+	i.ArgoResources = newList
+	return nil
 }

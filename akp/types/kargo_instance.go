@@ -83,13 +83,18 @@ func (k *KargoInstance) syncKargoResources(
 	appliedResources = append(appliedResources, exportResp.Warehouses...)
 	appliedResources = append(appliedResources, exportResp.Stages...)
 
-	return SyncResources(
+	newList, err := SyncResources(
 		ctx,
 		diagnostics,
 		k.KargoResources,
 		appliedResources,
 		"Kargo",
 	)
+	if err != nil {
+		return err
+	}
+	k.KargoResources = newList
+	return nil
 }
 
 // ExtractResourceMetadata extracts metadata from a resource
@@ -118,9 +123,9 @@ func SyncResources(
 	resources types.List,
 	exportedResources []*structpb.Struct,
 	resourceType string,
-) error {
+) (types.List, error) {
 	if resources.IsUnknown() {
-		return nil
+		return resources, nil
 	}
 
 	exportedResourceMap := make(map[string]*structpb.Struct)
@@ -145,7 +150,7 @@ func SyncResources(
 	}
 
 	if diagnostics.HasError() {
-		return errors.New("error processing resources from export response, cannot reliably sync")
+		return resources, errors.New("error processing resources from export response, cannot reliably sync")
 	}
 
 	elementsToAdd := make([]attr.Value, 0)
@@ -173,12 +178,12 @@ func SyncResources(
 		elementsToAdd = append(elementsToAdd, attrVal)
 	}
 
-	_, listDiags := types.ListValueFrom(ctx, types.StringType, elementsToAdd)
+	newList, listDiags := types.ListValueFrom(ctx, types.StringType, elementsToAdd)
 	diagnostics.Append(listDiags...)
 
 	if listDiags.HasError() {
-		return errors.New(fmt.Sprintf("error creating updated %s Resources list", resourceType))
+		return resources, errors.New(fmt.Sprintf("error creating updated %s Resources list", resourceType))
 	}
 
-	return nil
+	return newList, nil
 }
