@@ -349,6 +349,18 @@ vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOf
       }
     },
   }
+  argo_resources = local.argo_resources
+}
+
+locals {
+  yaml_files = fileset("${path.module}/argo-manifests", "*.yaml")
+
+  argo_resources = flatten([
+    for file_name in local.yaml_files : [
+      for resource in split("\n---\n", file("${path.module}/argo-manifests/${file_name}")) :
+      jsonencode(yamldecode(resource))
+    ]
+  ])
 }
 ```
 
