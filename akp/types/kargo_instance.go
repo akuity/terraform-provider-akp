@@ -18,17 +18,8 @@ import (
 	"github.com/akuity/terraform-provider-akp/akp/marshal"
 )
 
-type KargoInstance struct {
-	ID             types.String `tfsdk:"id"`
-	Name           types.String `tfsdk:"name"`
-	Kargo          *Kargo       `tfsdk:"kargo"`
-	KargoConfigMap types.Map    `tfsdk:"kargo_cm"`
-	KargoSecret    types.Map    `tfsdk:"kargo_secret"`
-	Workspace      types.String `tfsdk:"workspace"`
-	KargoResources types.List   `tfsdk:"kargo_resources"`
-}
-
-func extractResourceMetadata(resource any) (key string, kindStr string, err error) {
+// ExtractResourceMetadata extracts metadata from a resource
+func ExtractResourceMetadata(resource any) (key string, kindStr string, err error) {
 	if m, ok := resource.(map[string]any); ok {
 		kindVal, _ := m["kind"].(string)
 		apiVersionVal, _ := m["apiVersion"].(string)
@@ -44,6 +35,88 @@ func extractResourceMetadata(resource any) (key string, kindStr string, err erro
 	}
 
 	return "", "", fmt.Errorf("extractResourceMetadata: unsupported type %T or insufficient data to form key/kind", resource)
+}
+
+// SyncResources synchronizes resources between the current state and the exported state
+func SyncResources(
+	ctx context.Context,
+	diagnostics *diag.Diagnostics,
+	resources types.List,
+	exportedResources []*structpb.Struct,
+	resourceType string,
+) error {
+	if resources.IsUnknown() {
+		return nil
+	}
+
+	exportedResourceMap := make(map[string]*structpb.Struct)
+	for _, resStruct := range exportedResources {
+		var unstrObj unstructured.Unstructured
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(resStruct.AsMap(), &unstrObj); err != nil {
+			diagnostics.AddError(
+				"Exported Resource Conversion Error",
+				fmt.Sprintf("Error converting exported resource to unstructured: %s. Resource: %v", err.Error(), resStruct),
+			)
+			continue
+		}
+		key, _, err := ExtractResourceMetadata(unstrObj.Object)
+		if err != nil {
+			diagnostics.AddError(
+				"Exported Resource Metadata Error",
+				fmt.Sprintf("Error extracting metadata from exported resource: %s. Resource: %v", err.Error(), unstrObj.Object),
+			)
+			continue
+		}
+		exportedResourceMap[key] = resStruct
+	}
+
+	if diagnostics.HasError() {
+		return errors.New("error processing resources from export response, cannot reliably sync")
+	}
+
+	elementsToAdd := make([]attr.Value, 0)
+	for _, attrVal := range resources.Elements() {
+		resourceStrVal, ok := attrVal.(types.String)
+		if !ok {
+			continue
+		}
+
+		var objMap map[string]any
+		if err := json.Unmarshal([]byte(resourceStrVal.ValueString()), &objMap); err != nil {
+			continue
+		}
+
+		unObj := unstructured.Unstructured{Object: objMap}
+		key, _, err := ExtractResourceMetadata(unObj.Object)
+		if err != nil {
+			continue
+		}
+
+		if _, ok := exportedResourceMap[key]; !ok {
+			continue
+		}
+
+		elementsToAdd = append(elementsToAdd, attrVal)
+	}
+
+	_, listDiags := types.ListValueFrom(ctx, types.StringType, elementsToAdd)
+	diagnostics.Append(listDiags...)
+
+	if listDiags.HasError() {
+		return errors.New(fmt.Sprintf("error creating updated %s Resources list", resourceType))
+	}
+
+	return nil
+}
+
+type KargoInstance struct {
+	ID             types.String `tfsdk:"id"`
+	Name           types.String `tfsdk:"name"`
+	Kargo          *Kargo       `tfsdk:"kargo"`
+	KargoConfigMap types.Map    `tfsdk:"kargo_cm"`
+	KargoSecret    types.Map    `tfsdk:"kargo_secret"`
+	Workspace      types.String `tfsdk:"workspace"`
+	KargoResources types.List   `tfsdk:"kargo_resources"`
 }
 
 func (k *KargoInstance) Update(ctx context.Context, diagnostics *diag.Diagnostics, exportResp *kargov1.ExportKargoInstanceResponse) error {
@@ -101,63 +174,11 @@ func (k *KargoInstance) syncKargoResources(
 	appliedResources = append(appliedResources, exportResp.Warehouses...)
 	appliedResources = append(appliedResources, exportResp.Stages...)
 
-	exportedResourceMap := make(map[string]*structpb.Struct)
-	for _, resStruct := range appliedResources {
-		var unstrObj unstructured.Unstructured
-		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(resStruct.AsMap(), &unstrObj); err != nil {
-			diagnostics.AddError(
-				"Exported Resource Conversion Error",
-				fmt.Sprintf("Error converting exported resource to unstructured: %s. Resource: %v", err.Error(), resStruct),
-			)
-			continue
-		}
-		key, _, err := extractResourceMetadata(unstrObj.Object)
-		if err != nil {
-			diagnostics.AddError(
-				"Exported Resource Metadata Error",
-				fmt.Sprintf("Error extracting metadata from exported resource: %s. Resource: %v", err.Error(), unstrObj.Object),
-			)
-			continue
-		}
-		exportedResourceMap[key] = resStruct
-	}
-
-	if diagnostics.HasError() {
-		return errors.New("error processing resources from export response, cannot reliably sync")
-	}
-
-	elementsToAdd := make([]attr.Value, 0)
-	for _, attrVal := range k.KargoResources.Elements() {
-		resourceStrVal, ok := attrVal.(types.String)
-		if !ok {
-			continue
-		}
-
-		var objMap map[string]any
-		if err := json.Unmarshal([]byte(resourceStrVal.ValueString()), &objMap); err != nil {
-			continue
-		}
-
-		unObj := unstructured.Unstructured{Object: objMap}
-		key, _, err := extractResourceMetadata(unObj.Object)
-		if err != nil {
-			continue
-		}
-
-		if _, ok := exportedResourceMap[key]; !ok {
-			continue
-		}
-
-		elementsToAdd = append(elementsToAdd, attrVal)
-	}
-
-	newList, listDiags := types.ListValueFrom(ctx, types.StringType, elementsToAdd)
-	diagnostics.Append(listDiags...)
-
-	if listDiags.HasError() {
-		return errors.New("error creating updated KargoResources list")
-	}
-	k.KargoResources = newList
-
-	return nil
+	return SyncResources(
+		ctx,
+		diagnostics,
+		k.KargoResources,
+		appliedResources,
+		"Kargo",
+	)
 }

@@ -2,7 +2,6 @@ package akp
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -22,6 +21,7 @@ import (
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
 	healthv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/health/v1"
 	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
+	"github.com/akuity/terraform-provider-akp/akp/apis/v1alpha1"
 	"github.com/akuity/terraform-provider-akp/akp/types"
 )
 
@@ -30,21 +30,24 @@ var _ resource.Resource = &AkpInstanceResource{}
 var _ resource.ResourceWithImportState = &AkpInstanceResource{}
 
 var argoResourceGroups = map[string]struct {
-	appendFunc func(req *argocdv1.ApplyInstanceRequest, item *structpb.Struct)
+	appendFunc ResourceGroupAppender
 }{
 	"Application": {
-		appendFunc: func(req *argocdv1.ApplyInstanceRequest, item *structpb.Struct) {
-			req.Applications = append(req.Applications, item)
+		appendFunc: func(req interface{}, item *structpb.Struct) {
+			applyReq := req.(*argocdv1.ApplyInstanceRequest)
+			applyReq.Applications = append(applyReq.Applications, item)
 		},
 	},
 	"ApplicationSet": {
-		appendFunc: func(req *argocdv1.ApplyInstanceRequest, item *structpb.Struct) {
-			req.ApplicationSets = append(req.ApplicationSets, item)
+		appendFunc: func(req interface{}, item *structpb.Struct) {
+			applyReq := req.(*argocdv1.ApplyInstanceRequest)
+			applyReq.ApplicationSets = append(applyReq.ApplicationSets, item)
 		},
 	},
 	"AppProject": {
-		appendFunc: func(req *argocdv1.ApplyInstanceRequest, item *structpb.Struct) {
-			req.AppProjects = append(req.AppProjects, item)
+		appendFunc: func(req interface{}, item *structpb.Struct) {
+			applyReq := req.(*argocdv1.ApplyInstanceRequest)
+			applyReq.AppProjects = append(applyReq.AppProjects, item)
 		},
 	},
 }
@@ -242,39 +245,15 @@ func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, insta
 	}
 
 	if !instance.ArgoResources.IsUnknown() {
-		var stringItems []tftypes.String
-		diags := instance.ArgoResources.ElementsAs(ctx, &stringItems, false)
-		diagnostics.Append(diags...)
-		if diagnostics.HasError() {
-			return applyReq
-		}
-
-		argoResourceItems := make([]unstructured.Unstructured, 0, len(stringItems))
-		for _, strItem := range stringItems {
-			if strItem.IsNull() || strItem.IsUnknown() {
-				continue
-			}
-			var objMap map[string]any
-			if err := json.Unmarshal([]byte(strItem.ValueString()), &objMap); err != nil {
-				continue
-			}
-			argoResourceItems = append(argoResourceItems, unstructured.Unstructured{Object: objMap})
-		}
-
-		for i, resourceItem := range argoResourceItems {
-			if err := isArgoResourceValid(&resourceItem); err != nil {
-				diagnostics.AddError(fmt.Sprintf("Invalid Argo Resource %d", i), err.Error())
-				continue
-			}
-
-			resourceStructPb, err := structpb.NewStruct(resourceItem.Object)
-			if err != nil {
-				diagnostics.AddError("argo Resource Conversion Error", fmt.Sprintf("Failed to convert resource %s (%s) to StructPb: %s", resourceItem.GetName(), resourceItem.GetKind(), err.Error()))
-				continue
-			}
-
-			argoResourceGroups[resourceItem.GetKind()].appendFunc(applyReq, resourceStructPb)
-		}
+		ProcessResources(
+			ctx,
+			diagnostics,
+			instance.ArgoResources,
+			argoResourceGroups,
+			isArgoResourceValid,
+			applyReq,
+			"Argo",
+		)
 	}
 	return applyReq
 }
@@ -299,34 +278,23 @@ func isArgoResourceValid(unstructured *unstructured.Unstructured) error {
 	return nil
 }
 
-func buildArgoCD(ctx context.Context, diag *diag.Diagnostics, instance *types.Instance) *structpb.Struct {
-	apiArgoCD := instance.ArgoCD.ToArgoCDAPIModel(ctx, diag, instance.Name.ValueString())
-	jsonBytes, err := json.Marshal(apiArgoCD)
-	if err != nil {
-		diag.AddError("Client Error", fmt.Sprintf("Unable to marshal Argo CD instance. %s", err))
-		return nil
-	}
-
-	var rawMap map[string]any
-	if err = json.Unmarshal(jsonBytes, &rawMap); err != nil {
-		diag.AddError("Client Error", fmt.Sprintf("Unable to unmarshal Argo CD instance. %s", err))
-		return nil
-	}
-
-	if spec, ok := rawMap["spec"].(map[string]any); ok {
-		if instanceSpec, ok := spec["instanceSpec"].(map[string]any); ok {
-			if _, exists := instanceSpec["extensions"]; !exists && apiArgoCD.Spec.InstanceSpec.Extensions != nil {
-				instanceSpec["extensions"] = []any{}
+func buildArgoCD(ctx context.Context, diagnostics *diag.Diagnostics, instance *types.Instance) *structpb.Struct {
+	return BuildInstance(
+		ctx,
+		diagnostics,
+		instance,
+		instance.Name.ValueString(),
+		func(ctx context.Context, diagnostics *diag.Diagnostics, name string) *v1alpha1.ArgoCD {
+			return instance.ArgoCD.ToArgoCDAPIModel(ctx, diagnostics, name)
+		},
+		func(spec map[string]any, apiModel interface{}) {
+			if instanceSpec, ok := spec["instanceSpec"].(map[string]any); ok {
+				if _, exists := instanceSpec["extensions"]; !exists && apiModel.(*v1alpha1.ArgoCD).Spec.InstanceSpec.Extensions != nil {
+					instanceSpec["extensions"] = []any{}
+				}
 			}
-		}
-	}
-
-	s, err := structpb.NewStruct(rawMap)
-	if err != nil {
-		diag.AddError("Client Error", fmt.Sprintf("Unable to create Argo CD instance struct. %s", err))
-		return nil
-	}
-	return s
+		},
+	)
 }
 
 func buildSecrets(ctx context.Context, diagnostics *diag.Diagnostics, secrets tftypes.Map, labels map[string]string) []*structpb.Struct {
@@ -406,5 +374,20 @@ func refreshState(ctx context.Context, diagnostics *diag.Diagnostics, client arg
 		return errors.Wrap(err, "Unable to export Argo CD instance")
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Export instance response: %s", exportResp))
-	return instance.Update(ctx, diagnostics, exportResp)
+	return syncArgoResources(ctx, diagnostics, instance, exportResp)
+}
+
+func syncArgoResources(ctx context.Context, diagnostics *diag.Diagnostics, instance *types.Instance, exportResp *argocdv1.ExportInstanceResponse) error {
+	appliedResources := make([]*structpb.Struct, 0)
+	appliedResources = append(appliedResources, exportResp.Applications...)
+	appliedResources = append(appliedResources, exportResp.ApplicationSets...)
+	appliedResources = append(appliedResources, exportResp.AppProjects...)
+
+	return types.SyncResources(
+		ctx,
+		diagnostics,
+		instance.ArgoResources,
+		appliedResources,
+		"Argo",
+	)
 }

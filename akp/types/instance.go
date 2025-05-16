@@ -2,15 +2,10 @@ package types
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/structpb"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
@@ -101,76 +96,11 @@ func (i *Instance) syncArgoResources(
 	appliedResources = append(appliedResources, exportResp.ApplicationSets...)
 	appliedResources = append(appliedResources, exportResp.AppProjects...)
 
-	exportedResourceMap := make(map[string]*structpb.Struct)
-	for _, resStruct := range appliedResources {
-		var unstrObj unstructured.Unstructured
-		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(resStruct.AsMap(), &unstrObj); err != nil {
-			diagnostics.AddError(
-				"Exported Resource Conversion Error",
-				fmt.Sprintf("Error converting exported resource to unstructured: %s. Resource: %v", err.Error(), resStruct),
-			)
-			continue
-		}
-		key, _, err := extractResourceMetadata(unstrObj.Object)
-		if err != nil {
-			diagnostics.AddError(
-				"Exported Resource Metadata Error",
-				fmt.Sprintf("Error extracting metadata from exported resource: %s. Resource: %v", err.Error(), unstrObj.Object),
-			)
-			continue
-		}
-		exportedResourceMap[key] = resStruct
-	}
-
-	if diagnostics.HasError() {
-		return errors.New("error processing resources from export response, cannot reliably sync")
-	}
-
-	elementsToAdd := make([]attr.Value, 0)
-	for _, attrVal := range i.ArgoResources.Elements() {
-		resourceStrVal, ok := attrVal.(types.String)
-		if !ok {
-			continue
-		}
-
-		var objMap map[string]any
-		if err := json.Unmarshal([]byte(resourceStrVal.ValueString()), &objMap); err != nil {
-			continue
-		}
-
-		unObj := unstructured.Unstructured{Object: objMap}
-		key, _, err := extractResourceMetadata(unObj.Object)
-		if err != nil {
-			continue
-		}
-
-		if _, ok := exportedResourceMap[key]; !ok {
-			continue
-		}
-
-		elementsToAdd = append(elementsToAdd, attrVal)
-	}
-
-	newList, listDiags := types.ListValueFrom(ctx, types.StringType, elementsToAdd)
-	diagnostics.Append(listDiags...)
-
-	if listDiags.HasError() {
-		return errors.New("error creating updated ArgoResources list")
-	}
-	i.ArgoResources = newList
-	return nil
-}
-
-func extractResourceMetadata(obj map[string]any) (string, string, error) {
-	metadata, ok := obj["metadata"].(map[string]any)
-	if !ok {
-		return "", "", errors.New("metadata not found in resource")
-	}
-
-	name, ok := metadata["name"].(string)
-	if !ok {
-		return "", "", errors.New("name not found in metadata")
-	}
-
-	return name, metadata["namespace"].(string), nil
+	return SyncResources(
+		ctx,
+		diagnostics,
+		i.ArgoResources,
+		appliedResources,
+		"Argo",
+	)
 }

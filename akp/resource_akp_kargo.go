@@ -2,7 +2,6 @@ package akp
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -20,6 +19,7 @@ import (
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
 	healthv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/health/v1"
 	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
+	"github.com/akuity/terraform-provider-akp/akp/apis/v1alpha1"
 	"github.com/akuity/terraform-provider-akp/akp/types"
 )
 
@@ -216,80 +216,63 @@ func buildKargoApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, 
 	}
 
 	if !kargo.KargoResources.IsUnknown() {
-		var stringItems []tftypes.String
-		diags := kargo.KargoResources.ElementsAs(ctx, &stringItems, false)
-		diagnostics.Append(diags...)
-		if diagnostics.HasError() {
-			return applyReq
-		}
-
-		kargoResourceItems := make([]unstructured.Unstructured, 0, len(stringItems))
-		for _, strItem := range stringItems {
-			if strItem.IsNull() || strItem.IsUnknown() {
-				continue
-			}
-			var objMap map[string]any
-			if err := json.Unmarshal([]byte(strItem.ValueString()), &objMap); err != nil {
-				continue
-			}
-			kargoResourceItems = append(kargoResourceItems, unstructured.Unstructured{Object: objMap})
-		}
-
-		for i, resourceItem := range kargoResourceItems {
-			if err := isKargoResourceValid(&resourceItem); err != nil {
-				diagnostics.AddError(fmt.Sprintf("Invalid Kargo Resource %d", i), err.Error())
-				continue
-			}
-
-			resourceStructPb, err := structpb.NewStruct(resourceItem.Object)
-			if err != nil {
-				diagnostics.AddError("Kargo Resource Conversion Error", fmt.Sprintf("Failed to convert resource %s (%s) to StructPb: %s", resourceItem.GetName(), resourceItem.GetKind(), err.Error()))
-				continue
-			}
-
-			kargoResourceGroups[resourceItem.GetKind()].appendFunc(applyReq, resourceStructPb)
-		}
+		ProcessResources(
+			ctx,
+			diagnostics,
+			kargo.KargoResources,
+			kargoResourceGroups,
+			isKargoResourceValid,
+			applyReq,
+			"Kargo",
+		)
 	}
 
 	return applyReq
 }
 
 var kargoResourceGroups = map[string]struct {
-	appendFunc func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct)
+	appendFunc ResourceGroupAppender
 }{
 	"Project": {
-		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
-			req.Projects = append(req.Projects, item)
+		appendFunc: func(req interface{}, item *structpb.Struct) {
+			applyReq := req.(*kargov1.ApplyKargoInstanceRequest)
+			applyReq.Projects = append(applyReq.Projects, item)
 		},
 	},
 	"Warehouse": {
-		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
-			req.Warehouses = append(req.Warehouses, item)
+		appendFunc: func(req interface{}, item *structpb.Struct) {
+			applyReq := req.(*kargov1.ApplyKargoInstanceRequest)
+			applyReq.Warehouses = append(applyReq.Warehouses, item)
 		},
 	},
 	"Stage": {
-		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
-			req.Stages = append(req.Stages, item)
+		appendFunc: func(req interface{}, item *structpb.Struct) {
+			applyReq := req.(*kargov1.ApplyKargoInstanceRequest)
+			applyReq.Stages = append(applyReq.Stages, item)
 		},
 	},
 	"AnalysisTemplate": {
-		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
-			req.AnalysisTemplates = append(req.AnalysisTemplates, item)
+		appendFunc: func(req interface{}, item *structpb.Struct) {
+			applyReq := req.(*kargov1.ApplyKargoInstanceRequest)
+			applyReq.AnalysisTemplates = append(applyReq.AnalysisTemplates, item)
 		},
 	},
 	"RepoCredential": {
-		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
-			req.RepoCredentials = append(req.RepoCredentials, item)
+		appendFunc: func(req interface{}, item *structpb.Struct) {
+			applyReq := req.(*kargov1.ApplyKargoInstanceRequest)
+			applyReq.RepoCredentials = append(applyReq.RepoCredentials, item)
 		},
 	},
 	"PromotionTask": {
-		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
-			req.PromotionTasks = append(req.PromotionTasks, item)
+		appendFunc: func(req interface{}, item *structpb.Struct) {
+			applyReq := req.(*kargov1.ApplyKargoInstanceRequest)
+			applyReq.PromotionTasks = append(applyReq.PromotionTasks, item)
 		},
 	},
 	"ClusterPromotionTask": {
-		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
-			req.ClusterPromotionTasks = append(req.ClusterPromotionTasks, item)
+		appendFunc: func(req interface{}, item *structpb.Struct) {
+			applyReq := req.(*kargov1.ApplyKargoInstanceRequest)
+			applyReq.ClusterPromotionTasks = append(applyReq.ClusterPromotionTasks, item)
 		},
 	},
 }
@@ -315,34 +298,21 @@ func isKargoResourceValid(un *unstructured.Unstructured) error {
 }
 
 func buildKargo(ctx context.Context, diagnostics *diag.Diagnostics, kargo *types.KargoInstance) *structpb.Struct {
-	apiKargo := kargo.Kargo.ToKargoAPIModel(ctx, diagnostics, kargo.Name.ValueString())
-	if diagnostics.HasError() {
-		return nil
-	}
-	jsonBytes, err := json.Marshal(apiKargo)
-	if err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to marshal Kargo instance. %s", err))
-		return nil
-	}
-
-	var rawMap map[string]any
-	if err = json.Unmarshal(jsonBytes, &rawMap); err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to unmarshal Kargo instance. %s", err))
-		return nil
-	}
-
-	if spec, ok := rawMap["spec"].(map[string]any); ok {
-		_, fok := spec["fqdn"].(string)
-		if !fok {
-			spec["fqdn"] = ""
-		}
-	}
-
-	s, err := structpb.NewStruct(rawMap)
-	if err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Kargo instance struct. %s", err))
-	}
-	return s
+	return BuildInstance(
+		ctx,
+		diagnostics,
+		kargo,
+		kargo.Name.ValueString(),
+		func(ctx context.Context, diagnostics *diag.Diagnostics, name string) *v1alpha1.Kargo {
+			return kargo.Kargo.ToKargoAPIModel(ctx, diagnostics, name)
+		},
+		func(spec map[string]any, apiModel interface{}) {
+			_, fok := spec["fqdn"].(string)
+			if !fok {
+				spec["fqdn"] = ""
+			}
+		},
+	)
 }
 
 func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, client kargov1.KargoServiceGatewayClient, kargo *types.KargoInstance, orgID string) error {
@@ -389,4 +359,22 @@ func getWorkspace(ctx context.Context, orgc orgcv1.OrganizationServiceGatewayCli
 	}
 
 	return nil, fmt.Errorf("workspace %s not found", name)
+}
+
+func syncKargoResources(ctx context.Context, diagnostics *diag.Diagnostics, kargo *types.KargoInstance, exportResp *kargov1.ExportKargoInstanceResponse) error {
+	appliedResources := make([]*structpb.Struct, 0)
+	appliedResources = append(appliedResources, exportResp.AnalysisTemplates...)
+	appliedResources = append(appliedResources, exportResp.PromotionTasks...)
+	appliedResources = append(appliedResources, exportResp.ClusterPromotionTasks...)
+	appliedResources = append(appliedResources, exportResp.Projects...)
+	appliedResources = append(appliedResources, exportResp.Warehouses...)
+	appliedResources = append(appliedResources, exportResp.Stages...)
+
+	return types.SyncResources(
+		ctx,
+		diagnostics,
+		kargo.KargoResources,
+		appliedResources,
+		"Kargo",
+	)
 }
