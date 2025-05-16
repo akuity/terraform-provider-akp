@@ -163,6 +163,11 @@ func getAKPInstanceAttributes() map[string]schema.Attribute {
 				Attributes: getAKPConfigManagementPluginAttributes(),
 			},
 		},
+		"argo_resources": schema.ListAttribute{
+			MarkdownDescription: "List of Argo custom resources to be managed alongside the Argo instance. Currently supported resources are: `ApplicationSet`, `Application`, `AppProject`. Should all be in the apiVersion `argoproj.io/v1alpha1`.",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
 	}
 }
 
