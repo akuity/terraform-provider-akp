@@ -153,6 +153,9 @@ resource "akp_instance" "example" {
             request_timeout = 30
           }
         ]
+        app_in_any_namespace_config = {
+          enabled = true
+        }
       }
       version = "v2.11.4"
     }
@@ -406,6 +409,7 @@ Optional:
 Optional:
 
 - `agent_permissions_rules` (Attributes List) The ability to configure agent permissions rules. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--agent_permissions_rules))
+- `app_in_any_namespace_config` (Attributes) App in any namespace config (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--app_in_any_namespace_config))
 - `app_set_delegate` (Attributes) Select cluster in which you want to Install Application Set controller (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--app_set_delegate))
 - `appset_plugins` (Attributes List) Application Set plugins (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--appset_plugins))
 - `appset_policy` (Attributes) Configures Application Set policy settings. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--appset_policy))
@@ -434,6 +438,14 @@ Optional:
 - `api_groups` (List of String) API groups of the rule.
 - `resources` (List of String) Resources of the rule.
 - `verbs` (List of String) Verbs of the rule.
+
+
+<a id="nestedatt--argocd--spec--instance_spec--app_in_any_namespace_config"></a>
+### Nested Schema for `argocd.spec.instance_spec.app_in_any_namespace_config`
+
+Optional:
+
+- `enabled` (Boolean) Whether the app in any namespace config is enabled or not.
 
 
 <a id="nestedatt--argocd--spec--instance_spec--app_set_delegate"></a>
