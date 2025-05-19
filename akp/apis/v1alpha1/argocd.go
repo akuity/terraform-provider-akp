@@ -55,6 +55,10 @@ type CrossplaneExtension struct {
 	Resources []*CrossplaneExtensionResource `json:"resources,omitempty"`
 }
 
+type AppInAnyNamespaceConfig struct {
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
 type InstanceSpec struct {
 	IpAllowList                     []*IPAllowListEntry            `json:"ipAllowList,omitempty"`
 	Subdomain                       string                         `json:"subdomain,omitempty"`
@@ -75,6 +79,7 @@ type InstanceSpec struct {
 	AgentPermissionsRules           []*AgentPermissionsRule        `json:"agentPermissionsRules,omitempty"`
 	Fqdn                            *string                        `json:"fqdn,omitempty"`
 	MultiClusterK8SDashboardEnabled *bool                          `json:"multiClusterK8sDashboardEnabled,omitempty"`
+	AppInAnyNamespaceConfig         *AppInAnyNamespaceConfig       `json:"appInAnyNamespaceConfig,omitempty"`
 	AppsetPlugins                   []*AppsetPlugins               `json:"appsetPlugins,omitempty"`
 }
 

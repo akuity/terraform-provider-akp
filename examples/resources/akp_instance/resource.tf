@@ -51,6 +51,9 @@ resource "akp_instance" "example" {
             request_timeout = 30
           }
         ]
+        app_in_any_namespace_config = {
+          enabled = true
+        }
       }
       version = "v2.11.4"
     }
