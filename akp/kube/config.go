@@ -1,7 +1,11 @@
 package kube
 
 import (
+	"context"
 	"fmt"
+	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"strings"
 
 	"github.com/mitchellh/go-homedir"
 	apimachineryschema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -38,7 +42,7 @@ func NewKubectl(config *rest.Config) (*Kubectl, error) {
 
 // Adapted github.com/gavinbunney/terraform-provider-kubectl/kubernetes/provider.go functions
 
-func InitializeConfiguration(k *types.Kubeconfig) (*rest.Config, error) {
+func InitializeConfiguration(ctx context.Context, k *types.Kubeconfig) (*rest.Config, error) {
 	overrides := &clientcmd.ConfigOverrides{}
 	loader := &clientcmd.ClientConfigLoadingRules{}
 	configPaths := []string{}
@@ -127,6 +131,34 @@ func InitializeConfiguration(k *types.Kubeconfig) (*rest.Config, error) {
 	}
 	if v := k.ProxyUrl.ValueString(); v != "" {
 		overrides.ClusterDefaults.ProxyURL = v
+	}
+	if k.Exec != nil {
+		tflog.Debug(ctx, fmt.Sprintf("Using exec configuration, %+v", k.Exec))
+
+		execConfig := &clientcmdapi.ExecConfig{
+			APIVersion:      k.Exec.APIVersion.ValueString(),
+			Command:         k.Exec.Command.ValueString(),
+			InteractiveMode: clientcmdapi.IfAvailableExecInteractiveMode,
+		}
+
+		if elems := k.Exec.Env.Elements(); len(elems) > 0 {
+			for key, val := range elems {
+				execConfig.Env = append(execConfig.Env, clientcmdapi.ExecEnvVar{
+					Name:  key,
+					Value: val.(tftypes.String).ValueString(),
+				})
+			}
+		}
+
+		if v := k.Exec.Args.Elements(); len(v) > 0 {
+			for _, val := range v {
+				execConfig.Args = append(execConfig.Args, val.(tftypes.String).ValueString())
+			}
+		}
+
+		overrides.AuthInfo.Exec = execConfig
+
+		tflog.Debug(ctx, fmt.Sprintf("Final exec command: %s %s", execConfig.Command, strings.Join(execConfig.Args, " ")))
 	}
 
 	cc := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loader, overrides)

@@ -17,4 +17,12 @@ type Kubeconfig struct {
 	ConfigContextCluster  types.String `tfsdk:"config_context_cluster"`
 	Token                 types.String `tfsdk:"token"`
 	ProxyUrl              types.String `tfsdk:"proxy_url"`
+	Exec                  *Exec        `tfsdk:"exec"`
+}
+
+type Exec struct {
+	APIVersion types.String `tfsdk:"api_version"`
+	Command    types.String `tfsdk:"command"`
+	Args       types.List   `tfsdk:"args"`
+	Env        types.Map    `tfsdk:"env"`
 }
