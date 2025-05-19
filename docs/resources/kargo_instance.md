@@ -38,7 +38,7 @@ resource "akp_kargo_instance" "example" {
   kargo = {
     spec = {
       description = "test-description"
-      version     = "v1.1.1"
+      version     = "v1.4.3"
       // only set one of fqdn and subdomain
       fqdn      = "fqdn.example.com"
       subdomain = ""
@@ -114,6 +114,43 @@ EOT
       }
     }
   }
+  kargo_resources = local.kargo_resources
+}
+
+# Choose a directory that contains Kargo resource manifests.
+# For example, here we have kargo.yaml in the kargo-manifests directory, and the data is like:
+# ---------------------------------------------
+# apiVersion: kargo.akuity.io/v1alpha1
+# kind: Project
+# metadata:
+#   name: kargo-demo
+# ---
+# apiVersion: kargo.akuity.io/v1alpha1
+# kind: Warehouse
+# metadata:
+#   name: kargo-demo
+#   namespace: kargo-demo
+# spec:
+#   subscriptions:
+#   - image:
+#       repoURL: public.ecr.aws/nginx/nginx
+#       semverConstraint: ^1.28.0
+#       discoveryLimit: 5
+# ---
+# ...
+# ---------------------------------------------
+#
+# The following expression can parse the provided YAMLs into JSON strings for the provider to be validated and applied correctly.
+# Remember to put the parsed kargo resources into `akp_kargo_instance.kargo_resources` field.
+locals {
+  yaml_files = fileset("${path.module}/kargo-manifests", "*.yaml")
+
+  kargo_resources = flatten([
+    for file_name in local.yaml_files : [
+      for resource in split("\n---\n", file("${path.module}/kargo-manifests/${file_name}")) :
+      jsonencode(yamldecode(resource))
+    ]
+  ])
 }
 ```
 
@@ -128,6 +165,7 @@ EOT
 ### Optional
 
 - `kargo_cm` (Map of String) ConfigMap to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf
+- `kargo_resources` (List of String) List of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`, `ClusterPromotionTask`, `Stage`, `Warehouse`, `AnalysisTemplate`, `PromotionTask`. Should all be in the apiVersion `kargo.akuity.io/v1alpha1`.
 - `kargo_secret` (Map of String, Sensitive) Secret to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf
 - `workspace` (String) Workspace name for the Kargo instance
 
