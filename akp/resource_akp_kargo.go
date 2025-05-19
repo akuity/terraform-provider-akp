@@ -216,7 +216,7 @@ func buildKargoApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, 
 	}
 
 	if !kargo.KargoResources.IsUnknown() {
-		ProcessResources(
+		processResources(
 			ctx,
 			diagnostics,
 			kargo.KargoResources,
@@ -231,61 +231,53 @@ func buildKargoApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, 
 }
 
 var kargoResourceGroups = map[string]struct {
-	appendFunc ResourceGroupAppender
+	appendFunc resourceGroupAppender[*kargov1.ApplyKargoInstanceRequest]
 }{
 	"Project": {
-		appendFunc: func(req interface{}, item *structpb.Struct) {
-			applyReq := req.(*kargov1.ApplyKargoInstanceRequest)
-			applyReq.Projects = append(applyReq.Projects, item)
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.Projects = append(req.Projects, item)
 		},
 	},
 	"Warehouse": {
-		appendFunc: func(req interface{}, item *structpb.Struct) {
-			applyReq := req.(*kargov1.ApplyKargoInstanceRequest)
-			applyReq.Warehouses = append(applyReq.Warehouses, item)
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.Warehouses = append(req.Warehouses, item)
 		},
 	},
 	"Stage": {
-		appendFunc: func(req interface{}, item *structpb.Struct) {
-			applyReq := req.(*kargov1.ApplyKargoInstanceRequest)
-			applyReq.Stages = append(applyReq.Stages, item)
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.Stages = append(req.Stages, item)
 		},
 	},
 	"AnalysisTemplate": {
-		appendFunc: func(req interface{}, item *structpb.Struct) {
-			applyReq := req.(*kargov1.ApplyKargoInstanceRequest)
-			applyReq.AnalysisTemplates = append(applyReq.AnalysisTemplates, item)
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.AnalysisTemplates = append(req.AnalysisTemplates, item)
 		},
 	},
 	"RepoCredential": {
-		appendFunc: func(req interface{}, item *structpb.Struct) {
-			applyReq := req.(*kargov1.ApplyKargoInstanceRequest)
-			applyReq.RepoCredentials = append(applyReq.RepoCredentials, item)
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.RepoCredentials = append(req.RepoCredentials, item)
 		},
 	},
 	"PromotionTask": {
-		appendFunc: func(req interface{}, item *structpb.Struct) {
-			applyReq := req.(*kargov1.ApplyKargoInstanceRequest)
-			applyReq.PromotionTasks = append(applyReq.PromotionTasks, item)
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.PromotionTasks = append(req.PromotionTasks, item)
 		},
 	},
 	"ClusterPromotionTask": {
-		appendFunc: func(req interface{}, item *structpb.Struct) {
-			applyReq := req.(*kargov1.ApplyKargoInstanceRequest)
-			applyReq.ClusterPromotionTasks = append(applyReq.ClusterPromotionTasks, item)
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.ClusterPromotionTasks = append(req.ClusterPromotionTasks, item)
 		},
 	},
 }
 
 func isKargoResourceValid(un *unstructured.Unstructured) error {
-	return ValidateResource(un, "kargo.akuity.io/v1alpha1", kargoResourceGroups)
+	return validateResource(un, "kargo.akuity.io/v1alpha1", kargoResourceGroups)
 }
 
 func buildKargo(ctx context.Context, diagnostics *diag.Diagnostics, kargo *types.KargoInstance) *structpb.Struct {
-	return BuildInstance(
+	return buildInstance(
 		ctx,
 		diagnostics,
-		kargo,
 		kargo.Name.ValueString(),
 		func(ctx context.Context, diagnostics *diag.Diagnostics, name string) *v1alpha1.Kargo {
 			return kargo.Kargo.ToKargoAPIModel(ctx, diagnostics, name)

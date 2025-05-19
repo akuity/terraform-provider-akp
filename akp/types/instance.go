@@ -96,7 +96,7 @@ func (i *Instance) syncArgoResources(
 	appliedResources = append(appliedResources, exportResp.ApplicationSets...)
 	appliedResources = append(appliedResources, exportResp.AppProjects...)
 
-	newList, err := SyncResources(
+	newList, err := syncResources(
 		ctx,
 		diagnostics,
 		i.ArgoResources,

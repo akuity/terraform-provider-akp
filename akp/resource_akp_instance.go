@@ -30,24 +30,21 @@ var _ resource.Resource = &AkpInstanceResource{}
 var _ resource.ResourceWithImportState = &AkpInstanceResource{}
 
 var argoResourceGroups = map[string]struct {
-	appendFunc ResourceGroupAppender
+	appendFunc resourceGroupAppender[*argocdv1.ApplyInstanceRequest]
 }{
 	"Application": {
-		appendFunc: func(req interface{}, item *structpb.Struct) {
-			applyReq := req.(*argocdv1.ApplyInstanceRequest)
-			applyReq.Applications = append(applyReq.Applications, item)
+		appendFunc: func(req *argocdv1.ApplyInstanceRequest, item *structpb.Struct) {
+			req.Applications = append(req.Applications, item)
 		},
 	},
 	"ApplicationSet": {
-		appendFunc: func(req interface{}, item *structpb.Struct) {
-			applyReq := req.(*argocdv1.ApplyInstanceRequest)
-			applyReq.ApplicationSets = append(applyReq.ApplicationSets, item)
+		appendFunc: func(req *argocdv1.ApplyInstanceRequest, item *structpb.Struct) {
+			req.ApplicationSets = append(req.ApplicationSets, item)
 		},
 	},
 	"AppProject": {
-		appendFunc: func(req interface{}, item *structpb.Struct) {
-			applyReq := req.(*argocdv1.ApplyInstanceRequest)
-			applyReq.AppProjects = append(applyReq.AppProjects, item)
+		appendFunc: func(req *argocdv1.ApplyInstanceRequest, item *structpb.Struct) {
+			req.AppProjects = append(req.AppProjects, item)
 		},
 	},
 }
@@ -245,7 +242,7 @@ func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, insta
 	}
 
 	if !instance.ArgoResources.IsUnknown() {
-		ProcessResources(
+		processResources(
 			ctx,
 			diagnostics,
 			instance.ArgoResources,
@@ -259,10 +256,9 @@ func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, insta
 }
 
 func buildArgoCD(ctx context.Context, diagnostics *diag.Diagnostics, instance *types.Instance) *structpb.Struct {
-	return BuildInstance(
+	return buildInstance(
 		ctx,
 		diagnostics,
-		instance,
 		instance.Name.ValueString(),
 		func(ctx context.Context, diagnostics *diag.Diagnostics, name string) *v1alpha1.ArgoCD {
 			return instance.ArgoCD.ToArgoCDAPIModel(ctx, diagnostics, name)
@@ -358,5 +354,5 @@ func refreshState(ctx context.Context, diagnostics *diag.Diagnostics, client arg
 }
 
 func isArgoResourceValid(un *unstructured.Unstructured) error {
-	return ValidateResource(un, "argoproj.io/v1alpha1", argoResourceGroups)
+	return validateResource(un, "argoproj.io/v1alpha1", argoResourceGroups)
 }

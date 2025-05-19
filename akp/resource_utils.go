@@ -12,22 +12,22 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-// ResourceGroupAppender is a function type that appends a resource to a request
-type ResourceGroupAppender func(req interface{}, item *structpb.Struct)
+// resourceGroupAppender is a function type that appends a resource to a request
+type resourceGroupAppender[T any] func(req T, item *structpb.Struct)
 
-// ResourceValidator is a function type that validates a resource
-type ResourceValidator func(un *unstructured.Unstructured) error
+// resourceValidator is a function type that validates a resource
+type resourceValidator func(un *unstructured.Unstructured) error
 
-// ProcessResources processes a list of resources and appends them to the request
-func ProcessResources(
+// processResources processes a list of resources and appends them to the request
+func processResources[T any](
 	ctx context.Context,
 	diagnostics *diag.Diagnostics,
 	resources types.List,
 	resourceGroups map[string]struct {
-		appendFunc ResourceGroupAppender
+		appendFunc resourceGroupAppender[T]
 	},
-	validateFunc ResourceValidator,
-	req interface{},
+	validateFunc resourceValidator,
+	req T,
 	resourceType string,
 ) {
 	if resources.IsUnknown() {
@@ -75,11 +75,10 @@ type InstanceBuilder[T any] func(ctx context.Context, diag *diag.Diagnostics, na
 // SpecProcessor is a function type that processes the spec map
 type SpecProcessor func(spec map[string]any, apiModel interface{})
 
-// BuildInstance is a generic function that builds an instance struct
-func BuildInstance[T any](
+// buildInstance is a generic function that builds an instance struct
+func buildInstance[T any](
 	ctx context.Context,
 	diagnostics *diag.Diagnostics,
-	instance interface{},
 	name string,
 	toAPIModel InstanceBuilder[T],
 	processSpec SpecProcessor,
@@ -109,8 +108,8 @@ func BuildInstance[T any](
 	return s
 }
 
-// ValidateResource validates a resource with the given API version and resource groups
-func ValidateResource(un *unstructured.Unstructured, apiVersion string, resourceGroups map[string]struct {
+// validateResource validates a resource with the given API version and resource groups
+func validateResource(un *unstructured.Unstructured, apiVersion string, resourceGroups map[string]struct {
 	appendFunc ResourceGroupAppender
 }) error {
 	if un == nil {

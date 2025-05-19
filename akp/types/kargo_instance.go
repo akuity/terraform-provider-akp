@@ -83,7 +83,7 @@ func (k *KargoInstance) syncKargoResources(
 	appliedResources = append(appliedResources, exportResp.Warehouses...)
 	appliedResources = append(appliedResources, exportResp.Stages...)
 
-	newList, err := SyncResources(
+	newList, err := syncResources(
 		ctx,
 		diagnostics,
 		k.KargoResources,
@@ -97,8 +97,8 @@ func (k *KargoInstance) syncKargoResources(
 	return nil
 }
 
-// ExtractResourceMetadata extracts metadata from a resource
-func ExtractResourceMetadata(resource any) (key string, kindStr string, err error) {
+// extractResourceMetadata extracts metadata from a resource
+func extractResourceMetadata(resource any) (key string, kindStr string, err error) {
 	if m, ok := resource.(map[string]any); ok {
 		kindVal, _ := m["kind"].(string)
 		apiVersionVal, _ := m["apiVersion"].(string)
@@ -116,8 +116,8 @@ func ExtractResourceMetadata(resource any) (key string, kindStr string, err erro
 	return "", "", fmt.Errorf("extractResourceMetadata: unsupported type %T or insufficient data to form key/kind", resource)
 }
 
-// SyncResources synchronizes resources between the current state and the exported state
-func SyncResources(
+// syncResources synchronizes resources between the current state and the exported state
+func syncResources(
 	ctx context.Context,
 	diagnostics *diag.Diagnostics,
 	resources types.List,
@@ -138,7 +138,7 @@ func SyncResources(
 			)
 			continue
 		}
-		key, _, err := ExtractResourceMetadata(unstrObj.Object)
+		key, _, err := extractResourceMetadata(unstrObj.Object)
 		if err != nil {
 			diagnostics.AddError(
 				"Exported Resource Metadata Error",
@@ -166,7 +166,7 @@ func SyncResources(
 		}
 
 		unObj := unstructured.Unstructured{Object: objMap}
-		key, _, err := ExtractResourceMetadata(unObj.Object)
+		key, _, err := extractResourceMetadata(unObj.Object)
 		if err != nil {
 			continue
 		}
