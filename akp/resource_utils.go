@@ -69,48 +69,9 @@ func processResources[T any](
 	}
 }
 
-// InstanceBuilder is a function type that converts an instance to its API model
-type InstanceBuilder[T any] func(ctx context.Context, diag *diag.Diagnostics, name string) T
-
-// SpecProcessor is a function type that processes the spec map
-type SpecProcessor func(spec map[string]any, apiModel interface{})
-
-// buildInstance is a generic function that builds an instance struct
-func buildInstance[T any](
-	ctx context.Context,
-	diagnostics *diag.Diagnostics,
-	name string,
-	toAPIModel InstanceBuilder[T],
-	processSpec SpecProcessor,
-) *structpb.Struct {
-	apiModel := toAPIModel(ctx, diagnostics, name)
-	jsonBytes, err := json.Marshal(apiModel)
-	if err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to marshal %s instance. %s", name, err))
-		return nil
-	}
-
-	var rawMap map[string]any
-	if err = json.Unmarshal(jsonBytes, &rawMap); err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to unmarshal %s instance. %s", name, err))
-		return nil
-	}
-
-	if spec, ok := rawMap["spec"].(map[string]any); ok {
-		processSpec(spec, apiModel)
-	}
-
-	s, err := structpb.NewStruct(rawMap)
-	if err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create %s instance struct. %s", name, err))
-		return nil
-	}
-	return s
-}
-
 // validateResource validates a resource with the given API version and resource groups
-func validateResource(un *unstructured.Unstructured, apiVersion string, resourceGroups map[string]struct {
-	appendFunc ResourceGroupAppender
+func validateResource[T any](un *unstructured.Unstructured, apiVersion string, resourceGroups map[string]struct {
+	appendFunc resourceGroupAppender[T]
 }) error {
 	if un == nil {
 		return errors.New("unstructured is nil")

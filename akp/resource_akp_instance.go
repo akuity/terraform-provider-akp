@@ -2,6 +2,7 @@ package akp
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -21,7 +22,6 @@ import (
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
 	healthv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/health/v1"
 	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
-	"github.com/akuity/terraform-provider-akp/akp/apis/v1alpha1"
 	"github.com/akuity/terraform-provider-akp/akp/types"
 )
 
@@ -255,22 +255,33 @@ func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, insta
 	return applyReq
 }
 
-func buildArgoCD(ctx context.Context, diagnostics *diag.Diagnostics, instance *types.Instance) *structpb.Struct {
-	return buildInstance(
-		ctx,
-		diagnostics,
-		instance.Name.ValueString(),
-		func(ctx context.Context, diagnostics *diag.Diagnostics, name string) *v1alpha1.ArgoCD {
-			return instance.ArgoCD.ToArgoCDAPIModel(ctx, diagnostics, name)
-		},
-		func(spec map[string]any, apiModel interface{}) {
-			if instanceSpec, ok := spec["instanceSpec"].(map[string]any); ok {
-				if _, exists := instanceSpec["extensions"]; !exists && apiModel.(*v1alpha1.ArgoCD).Spec.InstanceSpec.Extensions != nil {
-					instanceSpec["extensions"] = []any{}
-				}
+func buildArgoCD(ctx context.Context, diag *diag.Diagnostics, instance *types.Instance) *structpb.Struct {
+	apiArgoCD := instance.ArgoCD.ToArgoCDAPIModel(ctx, diag, instance.Name.ValueString())
+	jsonBytes, err := json.Marshal(apiArgoCD)
+	if err != nil {
+		diag.AddError("Client Error", fmt.Sprintf("Unable to marshal Argo CD instance. %s", err))
+		return nil
+	}
+
+	var rawMap map[string]any
+	if err = json.Unmarshal(jsonBytes, &rawMap); err != nil {
+		diag.AddError("Client Error", fmt.Sprintf("Unable to unmarshal Argo CD instance. %s", err))
+		return nil
+	}
+	if spec, ok := rawMap["spec"].(map[string]any); ok {
+		if instanceSpec, ok := spec["instanceSpec"].(map[string]any); ok {
+			if _, exists := instanceSpec["extensions"]; !exists && apiArgoCD.Spec.InstanceSpec.Extensions != nil {
+				instanceSpec["extensions"] = []any{}
 			}
-		},
-	)
+		}
+	}
+
+	s, err := structpb.NewStruct(rawMap)
+	if err != nil {
+		diag.AddError("Client Error", fmt.Sprintf("Unable to create Argo CD instance struct. %s", err))
+		return nil
+	}
+	return s
 }
 
 func buildSecrets(ctx context.Context, diagnostics *diag.Diagnostics, secrets tftypes.Map, labels map[string]string) []*structpb.Struct {

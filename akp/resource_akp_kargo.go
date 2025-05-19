@@ -2,6 +2,7 @@ package akp
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -19,7 +20,6 @@ import (
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
 	healthv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/health/v1"
 	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
-	"github.com/akuity/terraform-provider-akp/akp/apis/v1alpha1"
 	"github.com/akuity/terraform-provider-akp/akp/types"
 )
 
@@ -275,20 +275,34 @@ func isKargoResourceValid(un *unstructured.Unstructured) error {
 }
 
 func buildKargo(ctx context.Context, diagnostics *diag.Diagnostics, kargo *types.KargoInstance) *structpb.Struct {
-	return buildInstance(
-		ctx,
-		diagnostics,
-		kargo.Name.ValueString(),
-		func(ctx context.Context, diagnostics *diag.Diagnostics, name string) *v1alpha1.Kargo {
-			return kargo.Kargo.ToKargoAPIModel(ctx, diagnostics, name)
-		},
-		func(spec map[string]any, apiModel interface{}) {
-			_, fok := spec["fqdn"].(string)
-			if !fok {
-				spec["fqdn"] = ""
-			}
-		},
-	)
+	apiKargo := kargo.Kargo.ToKargoAPIModel(ctx, diagnostics, kargo.Name.ValueString())
+	if diagnostics.HasError() {
+		return nil
+	}
+	jsonBytes, err := json.Marshal(apiKargo)
+	if err != nil {
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to marshal Kargo instance. %s", err))
+		return nil
+	}
+
+	var rawMap map[string]any
+	if err = json.Unmarshal(jsonBytes, &rawMap); err != nil {
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to unmarshal Kargo instance. %s", err))
+		return nil
+	}
+
+	if spec, ok := rawMap["spec"].(map[string]any); ok {
+		_, fok := spec["fqdn"].(string)
+		if !fok {
+			spec["fqdn"] = ""
+		}
+	}
+
+	s, err := structpb.NewStruct(rawMap)
+	if err != nil {
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Kargo instance struct. %s", err))
+	}
+	return s
 }
 
 func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, client kargov1.KargoServiceGatewayClient, kargo *types.KargoInstance, orgID string) error {
