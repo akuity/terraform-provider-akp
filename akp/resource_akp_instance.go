@@ -249,7 +249,7 @@ func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, insta
 			argoResourceGroups,
 			isArgoResourceValid,
 			applyReq,
-			"Argo",
+			"ArgoCD",
 		)
 	}
 	return applyReq

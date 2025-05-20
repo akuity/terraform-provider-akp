@@ -41,6 +41,11 @@ func TestAccInstanceDataSource(t *testing.T) {
 
 					// argocd_cm, all fields should be computed.
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd_cm.%", "0"),
+
+					// Test Argo Resources
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argo_resources.#", "2"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argo_resources.0", `{"apiVersion":"argoproj.io/v1alpha1","kind":"Application","metadata":{"name":"test-app","namespace":"argocd"},"spec":{"source":{"repoURL":"https://github.com/argoproj/argocd-example-apps","targetRevision":"HEAD","path":"guestbook"},"destination":{"server":"https://kubernetes.default.svc","namespace":"guestbook"},"project":"default"}}`),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argo_resources.1", `{"apiVersion":"argoproj.io/v1alpha1","kind":"AppProject","metadata":{"name":"test-project","namespace":"argocd"},"spec":{"sourceRepos":["*"],"destinations":[{"namespace":"*","server":"*"}]}}`),
 				),
 			},
 		},
