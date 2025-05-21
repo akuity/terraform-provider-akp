@@ -1,6 +1,8 @@
 package akp
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -24,81 +26,30 @@ func TestAccKargoDataSource(t *testing.T) {
 					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo.spec.kargo_instance_spec.default_shard_agent", "kgbgel4pst55klf9"),
 					// cm
 					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo_cm.%", "2"),
-				),
-			},
-		},
-	})
-}
-
-func TestAccKargoInstanceDataSource(t *testing.T) {
-	resource.Test(t, resource.TestCase{
-		PreCheck:                 func() { testAccPreCheck(t) },
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		Steps: []resource.TestStep{
-			// Read testing
-			{
-				Config: providerConfig + testAccKargoInstanceDataSourceConfig,
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.akp_kargo.test", "id", "test-kargo"),
-					resource.TestCheckResourceAttr("data.akp_kargo.test", "name", "test-kargo"),
-					resource.TestCheckResourceAttr("data.akp_kargo.test", "workspace", "test-workspace"),
 
 					// Test Kargo Resources
-					resource.TestCheckResourceAttr("data.akp_kargo.test", "kargo_resources.#", "3"),
-					// Test Project resource
-					resource.TestCheckResourceAttr("data.akp_kargo.test", "kargo_resources.0", `{
-						"apiVersion": "kargo.akuity.io/v1alpha1",
-						"kind": "Project",
-						"metadata": {
-							"name": "test-project",
-							"namespace": "kargo-system"
-						},
-						"spec": {
-							"description": "Test project for Kargo"
+					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo_resources.#", "6"),
+					resource.TestCheckResourceAttrWith("data.akp_kargo_instance.test-instance", "kargo_resources.0", func(value string) error {
+						if !strings.Contains(value, `key:"apiVersion" value:{string_value:"kargo.akuity.io/v1alpha1"}`) {
+							return fmt.Errorf("expected to contain apiVersion")
 						}
-					}`),
-					// Test Warehouse resource
-					resource.TestCheckResourceAttr("data.akp_kargo.test", "kargo_resources.1", `{
-						"apiVersion": "kargo.akuity.io/v1alpha1",
-						"kind": "Warehouse",
-						"metadata": {
-							"name": "test-warehouse",
-							"namespace": "kargo-system"
-						},
-						"spec": {
-							"freight": {
-								"repos": [
-									{
-										"repo": "https://github.com/akuity/kargo-example-apps",
-										"branch": "main"
-									}
-								]
-							}
+						if !strings.Contains(value, `key:"kind" value:{string_value:"PromotionTask"}`) {
+							return fmt.Errorf("expected to contain kind")
 						}
-					}`),
-					// Test Stage resource
-					resource.TestCheckResourceAttr("data.akp_kargo.test", "kargo_resources.2", `{
-						"apiVersion": "kargo.akuity.io/v1alpha1",
-						"kind": "Stage",
-						"metadata": {
-							"name": "test-stage",
-							"namespace": "kargo-system"
-						},
-						"spec": {
-							"subscribes": {
-								"warehouse": "test-warehouse"
-							},
-							"promotionMechanisms": {
-								"gitRepoUpdates": [
-									{
-										"repoURL": "https://github.com/akuity/kargo-example-apps",
-										"readBranch": "main",
-										"writeBranch": "staging"
-									}
-								]
-							}
+						if !strings.Contains(value, `key:"name" value:{string_value:"demo-promo-process"}`) {
+							return fmt.Errorf("expected to contain name")
 						}
-					}`),
+						return nil
+					}),
+					resource.TestCheckResourceAttrWith("data.akp_kargo_instance.test-instance", "kargo_resources.1", func(value string) error {
+						if !strings.Contains(value, `key:"kind" value:{string_value:"Project"}`) {
+							return fmt.Errorf("expected to contain kind")
+						}
+						if !strings.Contains(value, `key:"name" value:{string_value:"kargo-demo"}`) {
+							return fmt.Errorf("expected to contain name")
+						}
+						return nil
+					}),
 				),
 			},
 		},
@@ -108,11 +59,5 @@ func TestAccKargoInstanceDataSource(t *testing.T) {
 const testAccKargoDataSourceConfig = `
 data "akp_kargo_instance" "test-instance" {
   name = "test-instance"
-}
-`
-
-const testAccKargoInstanceDataSourceConfig = `
-data "akp_kargo" "test" {
-	name = "test-kargo"
 }
 `
