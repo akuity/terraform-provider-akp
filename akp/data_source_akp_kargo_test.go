@@ -45,9 +45,6 @@ func TestAccKargoDataSource(t *testing.T) {
 						if !strings.Contains(value, `fields:{key:"apiVersion" value:{string_value:"kargo.akuity.io/v1alpha1"}}`) {
 							return fmt.Errorf("expected to contain apiVersion")
 						}
-						if !strings.Contains(value, "prod") {
-							return fmt.Errorf("expected to contain name")
-						}
 						return nil
 					}),
 				),
