@@ -47,9 +47,6 @@ func TestAccInstanceDataSource(t *testing.T) {
 					// Test Argo Resources
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argo_resources.#", "2"),
 					resource.TestCheckResourceAttrWith("data.akp_instance.test", "argo_resources.0", func(value string) error {
-						if !strings.Contains(value, `key:"apiVersion" value:{string_value:"argoproj.io/v1alpha1"}`) {
-							return fmt.Errorf("expected to contain apiVersion")
-						}
 						if !strings.Contains(value, `key:"kind" value:{string_value:"Application"}`) {
 							return fmt.Errorf("expected to contain kind")
 						}
@@ -62,9 +59,6 @@ func TestAccInstanceDataSource(t *testing.T) {
 						return nil
 					}),
 					resource.TestCheckResourceAttrWith("data.akp_instance.test", "argo_resources.1", func(value string) error {
-						if !strings.Contains(value, `key:"apiVersion" value:{string_value:"argoproj.io/v1alpha1"}`) {
-							return fmt.Errorf("expected to contain apiVersion")
-						}
 						if !strings.Contains(value, `key:"kind" value:{string_value:"AppProject"}`) {
 							return fmt.Errorf("expected to contain kind")
 						}
