@@ -30,6 +30,7 @@ func TestAccKargoDataSource(t *testing.T) {
 					// Test Kargo Resources
 					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo_resources.#", "6"),
 					resource.TestCheckResourceAttrWith("data.akp_kargo_instance.test-instance", "kargo_resources.0", func(value string) error {
+						t.Logf("kargo_resources.0 value: %s", value)
 						if !strings.Contains(value, `key:"apiVersion" value:{string_value:"kargo.akuity.io/v1alpha1"}`) {
 							return fmt.Errorf("expected to contain apiVersion")
 						}
@@ -42,6 +43,7 @@ func TestAccKargoDataSource(t *testing.T) {
 						return nil
 					}),
 					resource.TestCheckResourceAttrWith("data.akp_kargo_instance.test-instance", "kargo_resources.1", func(value string) error {
+						t.Logf("kargo_resources.1 value: %s", value)
 						if !strings.Contains(value, `key:"name" value:{string_value:"kargo-demo"}`) {
 							return fmt.Errorf("expected to contain name")
 						}
