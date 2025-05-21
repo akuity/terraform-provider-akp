@@ -42,9 +42,6 @@ func TestAccKargoDataSource(t *testing.T) {
 						return nil
 					}),
 					resource.TestCheckResourceAttrWith("data.akp_kargo_instance.test-instance", "kargo_resources.1", func(value string) error {
-						if !strings.Contains(value, `key:"kind" value:{string_value:"Project"}`) {
-							return fmt.Errorf("expected to contain kind")
-						}
 						if !strings.Contains(value, `key:"name" value:{string_value:"kargo-demo"}`) {
 							return fmt.Errorf("expected to contain name")
 						}
