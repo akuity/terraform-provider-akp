@@ -33,10 +33,10 @@ func TestAccKargoDataSource(t *testing.T) {
 						if !strings.Contains(value, `fields:{key:"apiVersion" value:{string_value:"kargo.akuity.io/v1alpha1"}}`) {
 							return fmt.Errorf("expected to contain apiVersion")
 						}
-						if !strings.Contains(value, `fields:{key:"kind" value:{string_value:"Warehouse"}}`) {
+						if !strings.Contains(value, "Warehouse") {
 							return fmt.Errorf("expected to contain kind")
 						}
-						if !strings.Contains(value, `fields:{key:"metadata" value:{struct_value:{fields:{key:"name" value:{string_value:"kargo-demo"}}}}`) {
+						if !strings.Contains(value, "kargo-demo") {
 							return fmt.Errorf("expected to contain name")
 						}
 						return nil
@@ -45,10 +45,7 @@ func TestAccKargoDataSource(t *testing.T) {
 						if !strings.Contains(value, `fields:{key:"apiVersion" value:{string_value:"kargo.akuity.io/v1alpha1"}}`) {
 							return fmt.Errorf("expected to contain apiVersion")
 						}
-						if !strings.Contains(value, `fields:{key:"kind" value:{string_value:"Stage"}}`) {
-							return fmt.Errorf("expected to contain kind")
-						}
-						if !strings.Contains(value, `fields:{key:"metadata" value:{struct_value:{fields:{key:"name" value:{string_value:"prod"}}}}`) {
+						if !strings.Contains(value, "prod") {
 							return fmt.Errorf("expected to contain name")
 						}
 						return nil

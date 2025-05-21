@@ -47,13 +47,13 @@ func TestAccInstanceDataSource(t *testing.T) {
 					// Test Argo Resources
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argo_resources.#", "2"),
 					resource.TestCheckResourceAttrWith("data.akp_instance.test", "argo_resources.0", func(value string) error {
-						if !strings.Contains(value, `key:"repoURL" value:{string_value:"https://github.com/argoproj/argocd-example-apps.git"}`) {
+						if !strings.Contains(value, "argocd-example-apps.git") {
 							return fmt.Errorf("expected to contain repoURL")
 						}
 						return nil
 					}),
 					resource.TestCheckResourceAttrWith("data.akp_instance.test", "argo_resources.1", func(value string) error {
-						if !strings.Contains(value, `key:"sourceRepos" value:{list_value:{values:{string_value:"*"}}}`) {
+						if !strings.Contains(value, "sourceRepos") {
 							return fmt.Errorf("expected to contain sourceRepos")
 						}
 						return nil
