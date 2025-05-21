@@ -154,28 +154,34 @@ func syncResources(
 	}
 
 	elementsToAdd := make([]attr.Value, 0)
-	for _, attrVal := range resources.Elements() {
-		resourceStrVal, ok := attrVal.(types.String)
-		if !ok {
-			continue
+	if len(resources.Elements()) == 0 {
+		for _, obj := range exportedResourceMap {
+			elementsToAdd = append(elementsToAdd, types.StringValue(obj.String()))
 		}
+	} else {
+		for _, attrVal := range resources.Elements() {
+			resourceStrVal, ok := attrVal.(types.String)
+			if !ok {
+				continue
+			}
 
-		var objMap map[string]any
-		if err := json.Unmarshal([]byte(resourceStrVal.ValueString()), &objMap); err != nil {
-			continue
+			var objMap map[string]any
+			if err := json.Unmarshal([]byte(resourceStrVal.ValueString()), &objMap); err != nil {
+				continue
+			}
+
+			unObj := unstructured.Unstructured{Object: objMap}
+			key, _, err := extractResourceMetadata(unObj.Object)
+			if err != nil {
+				continue
+			}
+
+			if _, ok := exportedResourceMap[key]; !ok {
+				continue
+			}
+
+			elementsToAdd = append(elementsToAdd, attrVal)
 		}
-
-		unObj := unstructured.Unstructured{Object: objMap}
-		key, _, err := extractResourceMetadata(unObj.Object)
-		if err != nil {
-			continue
-		}
-
-		if _, ok := exportedResourceMap[key]; !ok {
-			continue
-		}
-
-		elementsToAdd = append(elementsToAdd, attrVal)
 	}
 
 	newList, listDiags := types.ListValueFrom(ctx, types.StringType, elementsToAdd)

@@ -101,7 +101,7 @@ func (i *Instance) syncArgoResources(
 		diagnostics,
 		i.ArgoResources,
 		appliedResources,
-		"Argo",
+		"ArgoCD",
 	)
 	if err != nil {
 		return err

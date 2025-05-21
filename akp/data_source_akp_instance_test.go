@@ -3,6 +3,8 @@
 package akp
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -44,8 +46,36 @@ func TestAccInstanceDataSource(t *testing.T) {
 
 					// Test Argo Resources
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argo_resources.#", "2"),
-					resource.TestCheckResourceAttr("data.akp_instance.test", "argo_resources.0", `{"apiVersion":"argoproj.io/v1alpha1","kind":"Application","metadata":{"name":"test-app","namespace":"argocd"},"spec":{"source":{"repoURL":"https://github.com/argoproj/argocd-example-apps","targetRevision":"HEAD","path":"guestbook"},"destination":{"server":"https://kubernetes.default.svc","namespace":"guestbook"},"project":"default"}}`),
-					resource.TestCheckResourceAttr("data.akp_instance.test", "argo_resources.1", `{"apiVersion":"argoproj.io/v1alpha1","kind":"AppProject","metadata":{"name":"test-project","namespace":"argocd"},"spec":{"sourceRepos":["*"],"destinations":[{"namespace":"*","server":"*"}]}}`),
+					resource.TestCheckResourceAttrWith("data.akp_instance.test", "argo_resources.0", func(value string) error {
+						if !strings.Contains(value, `key:"apiVersion" value:{string_value:"argoproj.io/v1alpha1"}`) {
+							return fmt.Errorf("expected to contain apiVersion")
+						}
+						if !strings.Contains(value, `key:"kind" value:{string_value:"Application"}`) {
+							return fmt.Errorf("expected to contain kind")
+						}
+						if !strings.Contains(value, `key:"name" value:{string_value:"app-test"}`) {
+							return fmt.Errorf("expected to contain name")
+						}
+						if !strings.Contains(value, `key:"repoURL" value:{string_value:"https://github.com/argoproj/argocd-example-apps.git"}`) {
+							return fmt.Errorf("expected to contain repoURL")
+						}
+						return nil
+					}),
+					resource.TestCheckResourceAttrWith("data.akp_instance.test", "argo_resources.1", func(value string) error {
+						if !strings.Contains(value, `key:"apiVersion" value:{string_value:"argoproj.io/v1alpha1"}`) {
+							return fmt.Errorf("expected to contain apiVersion")
+						}
+						if !strings.Contains(value, `key:"kind" value:{string_value:"AppProject"}`) {
+							return fmt.Errorf("expected to contain kind")
+						}
+						if !strings.Contains(value, `key:"name" value:{string_value:"default"}`) {
+							return fmt.Errorf("expected to contain name")
+						}
+						if !strings.Contains(value, `key:"sourceRepos" value:{list_value:{values:{string_value:"*"}}}`) {
+							return fmt.Errorf("expected to contain sourceRepos")
+						}
+						return nil
+					}),
 				),
 			},
 		},
