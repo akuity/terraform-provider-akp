@@ -216,46 +216,22 @@ func buildKargoApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, 
 	}
 
 	if !kargo.KargoResources.IsUnknown() {
-		var stringItems []tftypes.String
-		diags := kargo.KargoResources.ElementsAs(ctx, &stringItems, false)
-		diagnostics.Append(diags...)
-		if diagnostics.HasError() {
-			return applyReq
-		}
-
-		kargoResourceItems := make([]unstructured.Unstructured, 0, len(stringItems))
-		for _, strItem := range stringItems {
-			if strItem.IsNull() || strItem.IsUnknown() {
-				continue
-			}
-			var objMap map[string]any
-			if err := json.Unmarshal([]byte(strItem.ValueString()), &objMap); err != nil {
-				continue
-			}
-			kargoResourceItems = append(kargoResourceItems, unstructured.Unstructured{Object: objMap})
-		}
-
-		for i, resourceItem := range kargoResourceItems {
-			if err := isKargoResourceValid(&resourceItem); err != nil {
-				diagnostics.AddError(fmt.Sprintf("Invalid Kargo Resource %d", i), err.Error())
-				continue
-			}
-
-			resourceStructPb, err := structpb.NewStruct(resourceItem.Object)
-			if err != nil {
-				diagnostics.AddError("Kargo Resource Conversion Error", fmt.Sprintf("Failed to convert resource %s (%s) to StructPb: %s", resourceItem.GetName(), resourceItem.GetKind(), err.Error()))
-				continue
-			}
-
-			kargoResourceGroups[resourceItem.GetKind()].appendFunc(applyReq, resourceStructPb)
-		}
+		processResources(
+			ctx,
+			diagnostics,
+			kargo.KargoResources,
+			kargoResourceGroups,
+			isKargoResourceValid,
+			applyReq,
+			"Kargo",
+		)
 	}
 
 	return applyReq
 }
 
 var kargoResourceGroups = map[string]struct {
-	appendFunc func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct)
+	appendFunc resourceGroupAppender[*kargov1.ApplyKargoInstanceRequest]
 }{
 	"Project": {
 		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
@@ -295,23 +271,7 @@ var kargoResourceGroups = map[string]struct {
 }
 
 func isKargoResourceValid(un *unstructured.Unstructured) error {
-	if un == nil {
-		return errors.New("unstructured is nil")
-	}
-
-	if un.GetAPIVersion() != "kargo.akuity.io/v1alpha1" {
-		return errors.New("unsupported apiVersion")
-	}
-
-	if _, ok := kargoResourceGroups[un.GetKind()]; !ok {
-		return errors.New("unsupported kind")
-	}
-
-	if un.GetName() == "" {
-		return errors.New("name is required")
-	}
-
-	return nil
+	return validateResource(un, "kargo.akuity.io/v1alpha1", kargoResourceGroups)
 }
 
 func buildKargo(ctx context.Context, diagnostics *diag.Diagnostics, kargo *types.KargoInstance) *structpb.Struct {

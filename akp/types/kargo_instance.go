@@ -28,24 +28,6 @@ type KargoInstance struct {
 	KargoResources types.List   `tfsdk:"kargo_resources"`
 }
 
-func extractResourceMetadata(resource any) (key string, kindStr string, err error) {
-	if m, ok := resource.(map[string]any); ok {
-		kindVal, _ := m["kind"].(string)
-		apiVersionVal, _ := m["apiVersion"].(string)
-		nameVal := ""
-		namespaceVal := ""
-		if metadataMap, okMeta := m["metadata"].(map[string]any); okMeta {
-			nameVal, _ = metadataMap["name"].(string)
-			namespaceVal, _ = metadataMap["namespace"].(string)
-		}
-		if kindVal != "" && nameVal != "" {
-			return fmt.Sprintf("%s/%s/%s/%s", apiVersionVal, kindVal, namespaceVal, nameVal), kindVal, nil
-		}
-	}
-
-	return "", "", fmt.Errorf("extractResourceMetadata: unsupported type %T or insufficient data to form key/kind", resource)
-}
-
 func (k *KargoInstance) Update(ctx context.Context, diagnostics *diag.Diagnostics, exportResp *kargov1.ExportKargoInstanceResponse) error {
 	var kargo *v1alpha1.Kargo
 	err := marshal.RemarshalTo(exportResp.GetKargo().AsMap(), &kargo)
@@ -101,8 +83,53 @@ func (k *KargoInstance) syncKargoResources(
 	appliedResources = append(appliedResources, exportResp.Warehouses...)
 	appliedResources = append(appliedResources, exportResp.Stages...)
 
+	newList, err := syncResources(
+		ctx,
+		diagnostics,
+		k.KargoResources,
+		appliedResources,
+		"Kargo",
+	)
+	if err != nil {
+		return err
+	}
+	k.KargoResources = newList
+	return nil
+}
+
+// extractResourceMetadata extracts metadata from a resource
+func extractResourceMetadata(resource any) (key string, kindStr string, err error) {
+	if m, ok := resource.(map[string]any); ok {
+		kindVal, _ := m["kind"].(string)
+		apiVersionVal, _ := m["apiVersion"].(string)
+		nameVal := ""
+		namespaceVal := ""
+		if metadataMap, okMeta := m["metadata"].(map[string]any); okMeta {
+			nameVal, _ = metadataMap["name"].(string)
+			namespaceVal, _ = metadataMap["namespace"].(string)
+		}
+		if kindVal != "" && nameVal != "" {
+			return fmt.Sprintf("%s/%s/%s/%s", apiVersionVal, kindVal, namespaceVal, nameVal), kindVal, nil
+		}
+	}
+
+	return "", "", fmt.Errorf("extractResourceMetadata: unsupported type %T or insufficient data to form key/kind", resource)
+}
+
+// syncResources synchronizes resources between the current state and the exported state
+func syncResources(
+	ctx context.Context,
+	diagnostics *diag.Diagnostics,
+	resources types.List,
+	exportedResources []*structpb.Struct,
+	resourceType string,
+) (types.List, error) {
+	if resources.IsUnknown() {
+		return resources, nil
+	}
+
 	exportedResourceMap := make(map[string]*structpb.Struct)
-	for _, resStruct := range appliedResources {
+	for _, resStruct := range exportedResources {
 		var unstrObj unstructured.Unstructured
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(resStruct.AsMap(), &unstrObj); err != nil {
 			diagnostics.AddError(
@@ -123,41 +150,46 @@ func (k *KargoInstance) syncKargoResources(
 	}
 
 	if diagnostics.HasError() {
-		return errors.New("error processing resources from export response, cannot reliably sync")
+		return resources, errors.New("error processing resources from export response, cannot reliably sync")
 	}
 
 	elementsToAdd := make([]attr.Value, 0)
-	for _, attrVal := range k.KargoResources.Elements() {
-		resourceStrVal, ok := attrVal.(types.String)
-		if !ok {
-			continue
+	if len(resources.Elements()) == 0 {
+		for _, obj := range exportedResourceMap {
+			elementsToAdd = append(elementsToAdd, types.StringValue(obj.String()))
 		}
+	} else {
+		for _, attrVal := range resources.Elements() {
+			resourceStrVal, ok := attrVal.(types.String)
+			if !ok {
+				continue
+			}
 
-		var objMap map[string]any
-		if err := json.Unmarshal([]byte(resourceStrVal.ValueString()), &objMap); err != nil {
-			continue
+			var objMap map[string]any
+			if err := json.Unmarshal([]byte(resourceStrVal.ValueString()), &objMap); err != nil {
+				continue
+			}
+
+			unObj := unstructured.Unstructured{Object: objMap}
+			key, _, err := extractResourceMetadata(unObj.Object)
+			if err != nil {
+				continue
+			}
+
+			if _, ok := exportedResourceMap[key]; !ok {
+				continue
+			}
+
+			elementsToAdd = append(elementsToAdd, attrVal)
 		}
-
-		unObj := unstructured.Unstructured{Object: objMap}
-		key, _, err := extractResourceMetadata(unObj.Object)
-		if err != nil {
-			continue
-		}
-
-		if _, ok := exportedResourceMap[key]; !ok {
-			continue
-		}
-
-		elementsToAdd = append(elementsToAdd, attrVal)
 	}
 
 	newList, listDiags := types.ListValueFrom(ctx, types.StringType, elementsToAdd)
 	diagnostics.Append(listDiags...)
 
 	if listDiags.HasError() {
-		return errors.New("error creating updated KargoResources list")
+		return resources, errors.New(fmt.Sprintf("error creating updated %s Resources list", resourceType))
 	}
-	k.KargoResources = newList
 
-	return nil
+	return newList, nil
 }

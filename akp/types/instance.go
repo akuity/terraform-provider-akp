@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -31,6 +32,7 @@ type Instance struct {
 	RepoCredentialSecrets         types.Map                          `tfsdk:"repo_credential_secrets"`
 	RepoTemplateCredentialSecrets types.Map                          `tfsdk:"repo_template_credential_secrets"`
 	ConfigManagementPlugins       map[string]*ConfigManagementPlugin `tfsdk:"config_management_plugins"`
+	ArgoResources                 types.List                         `tfsdk:"argo_resources"`
 }
 
 func (i *Instance) GetSensitiveStrings(ctx context.Context, diagnostics *diag.Diagnostics) []string {
@@ -78,5 +80,32 @@ func (i *Instance) Update(ctx context.Context, diagnostics *diag.Diagnostics, ex
 	i.ArgoCDTLSCertsConfigMap = ToConfigMapTFModel(ctx, diagnostics, exportResp.ArgocdTlsCertsConfigmap, i.ArgoCDTLSCertsConfigMap)
 	i.ArgoCDKnownHostsConfigMap = ToConfigMapTFModel(ctx, diagnostics, exportResp.ArgocdKnownHostsConfigmap, i.ArgoCDKnownHostsConfigMap)
 	i.ConfigManagementPlugins = ToConfigManagementPluginsTFModel(ctx, diagnostics, exportResp.ConfigManagementPlugins, i.ConfigManagementPlugins)
+	if err := i.syncArgoResources(ctx, exportResp, diagnostics); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (i *Instance) syncArgoResources(
+	ctx context.Context,
+	exportResp *argocdv1.ExportInstanceResponse,
+	diagnostics *diag.Diagnostics,
+) error {
+	appliedResources := make([]*structpb.Struct, 0)
+	appliedResources = append(appliedResources, exportResp.Applications...)
+	appliedResources = append(appliedResources, exportResp.ApplicationSets...)
+	appliedResources = append(appliedResources, exportResp.AppProjects...)
+
+	newList, err := syncResources(
+		ctx,
+		diagnostics,
+		i.ArgoResources,
+		appliedResources,
+		"ArgoCD",
+	)
+	if err != nil {
+		return err
+	}
+	i.ArgoResources = newList
 	return nil
 }

@@ -1,6 +1,8 @@
 package akp
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -24,6 +26,16 @@ func TestAccKargoDataSource(t *testing.T) {
 					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo.spec.kargo_instance_spec.default_shard_agent", "kgbgel4pst55klf9"),
 					// cm
 					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo_cm.%", "2"),
+
+					// Test Kargo Resources
+					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo_resources.#", "6"),
+
+					resource.TestCheckResourceAttrWith("data.akp_kargo_instance.test-instance", "kargo_resources.0", func(value string) error {
+						if !strings.Contains(value, "kargo-demo") {
+							return fmt.Errorf("expected to contain name: %s", value)
+						}
+						return nil
+					}),
 				),
 			},
 		},
