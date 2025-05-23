@@ -48,6 +48,9 @@ resource "akp_cluster" "my-cluster" {
       api_version = "client.authentication.k8s.io/v1"
       args        = ["eks", "get-token", "--cluster-name", "some-cluster"]
       command     = "aws"
+      env = {
+        AWS_REGION = "us-west-2"
+      }
     }
   }
   name      = "my-cluster"
