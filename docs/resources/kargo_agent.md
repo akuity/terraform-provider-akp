@@ -155,12 +155,26 @@ Optional:
 - `config_context_cluster` (String)
 - `config_path` (String) Path to the kube config file.
 - `config_paths` (List of String) A list of paths to kube config files.
+- `exec` (Attributes) Configuration for the Kubernetes client authentication exec‐plugin (see [below for nested schema](#nestedatt--kube_config--exec))
 - `host` (String) The hostname (in form of URI) of Kubernetes master.
 - `insecure` (Boolean) Whether server should be accessed without verifying the TLS certificate.
 - `password` (String, Sensitive) The password to use for HTTP basic authentication when accessing the Kubernetes master endpoint.
 - `proxy_url` (String) URL to the proxy to be used for all API requests
 - `token` (String, Sensitive) Token to authenticate an service account
 - `username` (String) The username to use for HTTP basic authentication when accessing the Kubernetes master endpoint.
+
+<a id="nestedatt--kube_config--exec"></a>
+### Nested Schema for `kube_config.exec`
+
+Required:
+
+- `api_version` (String)
+- `command` (String) The exec plugin binary to call
+
+Optional:
+
+- `args` (List of String) Arguments to pass to the exec plugin
+- `env` (Map of String) Environment variables for the exec plugin
 
 ## Import
 

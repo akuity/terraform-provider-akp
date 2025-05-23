@@ -129,7 +129,7 @@ func (r *AkpKargoAgentResource) Delete(ctx context.Context, req resource.DeleteR
 	}
 
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
-	kubeconfig, err := getKubeconfig(plan.Kubeconfig)
+	kubeconfig, err := getKubeconfig(ctx, plan.Kubeconfig)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", err.Error())
 		return
@@ -224,7 +224,7 @@ func (r *AkpKargoAgentResource) applyKargoInstance(ctx context.Context, plan *ty
 
 func (r *AkpKargoAgentResource) upsertKubeConfig(ctx context.Context, plan *types.KargoAgent, isCreate bool) error {
 	// Apply agent manifests to clusters if the kubeconfig is specified for cluster.
-	kubeconfig, err := getKubeconfig(plan.Kubeconfig)
+	kubeconfig, err := getKubeconfig(ctx, plan.Kubeconfig)
 	if err != nil {
 		return err
 	}

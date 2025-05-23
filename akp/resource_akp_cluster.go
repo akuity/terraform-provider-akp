@@ -136,7 +136,7 @@ func (r *AkpClusterResource) Delete(ctx context.Context, req resource.DeleteRequ
 	}
 
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
-	kubeconfig, err := getKubeconfig(plan.Kubeconfig)
+	kubeconfig, err := getKubeconfig(ctx, plan.Kubeconfig)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", err.Error())
 		return
@@ -221,7 +221,7 @@ func (r *AkpClusterResource) applyInstance(ctx context.Context, plan *types.Clus
 
 func (r *AkpClusterResource) upsertKubeConfig(ctx context.Context, plan *types.Cluster, isCreate bool) error {
 	// Apply agent manifests to clusters if the kubeconfig is specified for cluster.
-	kubeconfig, err := getKubeconfig(plan.Kubeconfig)
+	kubeconfig, err := getKubeconfig(ctx, plan.Kubeconfig)
 	if err != nil {
 		return err
 	}
@@ -287,11 +287,11 @@ func buildClusters(ctx context.Context, diagnostics *diag.Diagnostics, cluster *
 	return cs
 }
 
-func getKubeconfig(kubeConfig *types.Kubeconfig) (*rest.Config, error) {
+func getKubeconfig(ctx context.Context, kubeConfig *types.Kubeconfig) (*rest.Config, error) {
 	if kubeConfig == nil {
 		return nil, nil
 	}
-	kcfg, err := kube.InitializeConfiguration(kubeConfig)
+	kcfg, err := kube.InitializeConfiguration(ctx, kubeConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Cannot initialize Kubectl. Please check kubernetes configuration")
 	}

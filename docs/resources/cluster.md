@@ -36,6 +36,33 @@ resource "akp_cluster" "my-cluster" {
 
 For a complete working example using a GKE cluster, see [akuity/examples](https://github.com/akuity/examples/tree/main/terraform/akuity).
 
+## Example Usage (using a k8s exec plugin)
+```terraform
+resource "akp_cluster" "my-cluster" {
+  instance_id = akp_instance.argocd.id
+  kube_config = {
+    host                   = "https://${cluster.my-cluster.endpoint}"
+    cluster_ca_certificate = "${base64decode(cluster.my-cluster.master_auth.0.cluster_ca_certificate)}"
+    // No need to hardcode a token!
+    exec = {
+      api_version = "client.authentication.k8s.io/v1"
+      args        = ["eks", "get-token", "--cluster-name", "some-cluster"]
+      command     = "aws"
+      env = {
+        AWS_REGION = "us-west-2"
+      }
+    }
+  }
+  name      = "my-cluster"
+  namespace = "akuity"
+  spec = {
+    data = {
+      size = "small"
+    }
+  }
+}
+```
+
 ## Example Usage (Custom agent size)
 ```terraform
 data "akp_instance" "example" {
@@ -377,12 +404,26 @@ Optional:
 - `config_context_cluster` (String)
 - `config_path` (String) Path to the kube config file.
 - `config_paths` (List of String) A list of paths to kube config files.
+- `exec` (Attributes) Configuration for the Kubernetes client authentication exec‐plugin (see [below for nested schema](#nestedatt--kube_config--exec))
 - `host` (String) The hostname (in form of URI) of Kubernetes master.
 - `insecure` (Boolean) Whether server should be accessed without verifying the TLS certificate.
 - `password` (String, Sensitive) The password to use for HTTP basic authentication when accessing the Kubernetes master endpoint.
 - `proxy_url` (String) URL to the proxy to be used for all API requests
 - `token` (String, Sensitive) Token to authenticate an service account
 - `username` (String) The username to use for HTTP basic authentication when accessing the Kubernetes master endpoint.
+
+<a id="nestedatt--kube_config--exec"></a>
+### Nested Schema for `kube_config.exec`
+
+Required:
+
+- `api_version` (String)
+- `command` (String) The exec plugin binary to call
+
+Optional:
+
+- `args` (List of String) Arguments to pass to the exec plugin
+- `env` (Map of String) Environment variables for the exec plugin
 
 ## Import
 

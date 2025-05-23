@@ -242,6 +242,27 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 	}
 }
 
+// execAPIVersionValidator emits a warning if user specifies v1alpha1.
+type execAPIVersionValidator struct{}
+
+func (v execAPIVersionValidator) Description(ctx context.Context) string {
+	return "Warn if api_version == client.authentication.k8s.io/v1alpha1"
+}
+
+func (v execAPIVersionValidator) MarkdownDescription(ctx context.Context) string {
+	return "Warns that v1alpha1 of the client authentication API is deprecated and will be removed in v1.24+."
+}
+
+func (v execAPIVersionValidator) ValidateString(ctx context.Context, req validator.StringRequest, resp *validator.StringResponse) {
+	if req.ConfigValue.Equal(types.StringValue("client.authentication.k8s.io/v1alpha1")) {
+		resp.Diagnostics.AddWarning(
+			"Deprecated API Version",
+			"v1alpha1 of the client authentication API is deprecated; use v1beta1 or above. "+
+				"It will be removed in Kubernetes client versions 1.24 and above.",
+		)
+	}
+}
+
 func getKubeconfigAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"host": schema.StringAttribute{
@@ -344,6 +365,30 @@ func getKubeconfigAttributes() map[string]schema.Attribute {
 			Description: "URL to the proxy to be used for all API requests",
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"exec": schema.SingleNestedAttribute{
+			Description: "Configuration for the Kubernetes client authentication exec‐plugin",
+			Optional:    true,
+			Attributes: map[string]schema.Attribute{
+				"api_version": schema.StringAttribute{
+					Required:   true,
+					Validators: []validator.String{execAPIVersionValidator{}},
+				},
+				"command": schema.StringAttribute{
+					Required:    true,
+					Description: "The exec plugin binary to call",
+				},
+				"args": schema.ListAttribute{
+					ElementType: types.StringType,
+					Optional:    true,
+					Description: "Arguments to pass to the exec plugin",
+				},
+				"env": schema.MapAttribute{
+					ElementType: types.StringType,
+					Optional:    true,
+					Description: "Environment variables for the exec plugin",
+				},
 			},
 		},
 	}
