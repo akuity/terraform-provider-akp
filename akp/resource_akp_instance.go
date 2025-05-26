@@ -241,11 +241,11 @@ func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, insta
 		PruneResourceTypes:            []argocdv1.PruneResourceType{argocdv1.PruneResourceType_PRUNE_RESOURCE_TYPE_CONFIG_MANAGEMENT_PLUGINS},
 	}
 
-	if !instance.ArgoResources.IsUnknown() {
+	if !instance.ArgoCDResources.IsUnknown() {
 		processResources(
 			ctx,
 			diagnostics,
-			instance.ArgoResources,
+			instance.ArgoCDResources,
 			argoResourceGroups,
 			isArgoResourceValid,
 			applyReq,

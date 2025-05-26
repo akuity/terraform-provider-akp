@@ -145,12 +145,13 @@ EOT
 locals {
   yaml_files = fileset("${path.module}/kargo-manifests", "*.yaml")
 
-  kargo_resources = flatten([
-    for file_name in local.yaml_files : [
-      for resource in split("\n---\n", file("${path.module}/kargo-manifests/${file_name}")) :
-      jsonencode(yamldecode(resource))
-    ]
-  ])
+  kargo_resources = merge([
+    for file_name in local.yaml_files : {
+      for idx, resource_yaml in split("\n---\n", file("${path.module}/kargo-manifests/${file_name}")) :
+      "${yamldecode(resource_yaml).apiVersion}/${yamldecode(resource_yaml).kind}/${try(yamldecode(resource_yaml).metadata.namespace, "")}/${yamldecode(resource_yaml).metadata.name}" => jsonencode(yamldecode(resource_yaml))
+      if trimspace(resource_yaml) != ""
+    }
+  ]...)
 }
 ```
 
@@ -165,7 +166,7 @@ locals {
 ### Optional
 
 - `kargo_cm` (Map of String) ConfigMap to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf
-- `kargo_resources` (List of String) List of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`, `ClusterPromotionTask`, `Stage`, `Warehouse`, `AnalysisTemplate`, `PromotionTask`. Should all be in the apiVersion `kargo.akuity.io/v1alpha1`.
+- `kargo_resources` (Map of String) Map of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`, `ClusterPromotionTask`, `Stage`, `Warehouse`, `AnalysisTemplate`, `PromotionTask`. Should all be in the apiVersion `kargo.akuity.io/v1alpha1`.
 - `kargo_secret` (Map of String, Sensitive) Secret to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf
 - `workspace` (String) Workspace name for the Kargo instance
 

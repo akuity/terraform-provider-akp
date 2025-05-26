@@ -250,7 +250,7 @@ vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOf
       }
     },
   }
-  argo_resources = local.argo_resources
+  argocd_resources = local.argocd_resources
 }
 
 # Choose a directory that contains argo resource manifests.
@@ -279,15 +279,16 @@ vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOf
 # ---------------------------------------------
 #
 # The following expression can parse the provided YAMLs into JSON strings for the provider to be validated and applied correctly.
-# Remember to put the parsed argo resources into `akp_instance.argo_resources` field.
+# Remember to put the parsed argo resources into `akp_instance.argocd_resources` field.
 
 locals {
-  yaml_files = fileset("${path.module}/argo-manifests", "*.yaml")
+  yaml_files = fileset("${path.module}/argocd-manifests", "*.yaml")
 
-  argo_resources = flatten([
-    for file_name in local.yaml_files : [
-      for resource in split("\n---\n", file("${path.module}/argo-manifests/${file_name}")) :
-      jsonencode(yamldecode(resource))
-    ]
-  ])
+  argocd_resources = merge([
+    for file_name in local.yaml_files : {
+      for idx, resource_yaml in split("\n---\n", file("${path.module}/argocd-manifests/${file_name}")) :
+      "${yamldecode(resource_yaml).apiVersion}/${yamldecode(resource_yaml).kind}/${try(yamldecode(resource_yaml).metadata.namespace, "")}/${yamldecode(resource_yaml).metadata.name}" => yamldecode(resource_yaml)
+      if trimspace(resource_yaml) != ""
+    }
+  ]...)
 }

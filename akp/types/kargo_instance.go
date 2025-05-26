@@ -2,7 +2,6 @@ package types
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -25,7 +24,7 @@ type KargoInstance struct {
 	KargoConfigMap types.Map    `tfsdk:"kargo_cm"`
 	KargoSecret    types.Map    `tfsdk:"kargo_secret"`
 	Workspace      types.String `tfsdk:"workspace"`
-	KargoResources types.List   `tfsdk:"kargo_resources"`
+	KargoResources types.Map    `tfsdk:"kargo_resources"`
 }
 
 func (k *KargoInstance) Update(ctx context.Context, diagnostics *diag.Diagnostics, exportResp *kargov1.ExportKargoInstanceResponse) error {
@@ -83,7 +82,7 @@ func (k *KargoInstance) syncKargoResources(
 	appliedResources = append(appliedResources, exportResp.Warehouses...)
 	appliedResources = append(appliedResources, exportResp.Stages...)
 
-	newList, err := syncResources(
+	newMap, err := syncResources(
 		ctx,
 		diagnostics,
 		k.KargoResources,
@@ -93,7 +92,7 @@ func (k *KargoInstance) syncKargoResources(
 	if err != nil {
 		return err
 	}
-	k.KargoResources = newList
+	k.KargoResources = newMap
 	return nil
 }
 
@@ -106,7 +105,9 @@ func extractResourceMetadata(resource any) (key string, kindStr string, err erro
 		namespaceVal := ""
 		if metadataMap, okMeta := m["metadata"].(map[string]any); okMeta {
 			nameVal, _ = metadataMap["name"].(string)
-			namespaceVal, _ = metadataMap["namespace"].(string)
+			if v, ok := metadataMap["namespace"]; ok {
+				namespaceVal, _ = v.(string)
+			}
 		}
 		if kindVal != "" && nameVal != "" {
 			return fmt.Sprintf("%s/%s/%s/%s", apiVersionVal, kindVal, namespaceVal, nameVal), kindVal, nil
@@ -120,10 +121,10 @@ func extractResourceMetadata(resource any) (key string, kindStr string, err erro
 func syncResources(
 	ctx context.Context,
 	diagnostics *diag.Diagnostics,
-	resources types.List,
+	resources types.Map,
 	exportedResources []*structpb.Struct,
 	resourceType string,
-) (types.List, error) {
+) (types.Map, error) {
 	if resources.IsUnknown() {
 		return resources, nil
 	}
@@ -153,43 +154,25 @@ func syncResources(
 		return resources, errors.New("error processing resources from export response, cannot reliably sync")
 	}
 
-	elementsToAdd := make([]attr.Value, 0)
+	elementsToAdd := make(map[string]attr.Value)
 	if len(resources.Elements()) == 0 {
-		for _, obj := range exportedResourceMap {
-			elementsToAdd = append(elementsToAdd, types.StringValue(obj.String()))
+		for key, obj := range exportedResourceMap {
+			elementsToAdd[key] = types.StringValue(obj.String())
 		}
 	} else {
-		for _, attrVal := range resources.Elements() {
-			resourceStrVal, ok := attrVal.(types.String)
-			if !ok {
-				continue
+		for key, attrVal := range resources.Elements() {
+			if _, ok := exportedResourceMap[key]; ok {
+				elementsToAdd[key] = attrVal
 			}
-
-			var objMap map[string]any
-			if err := json.Unmarshal([]byte(resourceStrVal.ValueString()), &objMap); err != nil {
-				continue
-			}
-
-			unObj := unstructured.Unstructured{Object: objMap}
-			key, _, err := extractResourceMetadata(unObj.Object)
-			if err != nil {
-				continue
-			}
-
-			if _, ok := exportedResourceMap[key]; !ok {
-				continue
-			}
-
-			elementsToAdd = append(elementsToAdd, attrVal)
 		}
 	}
 
-	newList, listDiags := types.ListValueFrom(ctx, types.StringType, elementsToAdd)
-	diagnostics.Append(listDiags...)
+	newMap, mapDiags := types.MapValueFrom(ctx, types.StringType, elementsToAdd)
+	diagnostics.Append(mapDiags...)
 
-	if listDiags.HasError() {
-		return resources, errors.New(fmt.Sprintf("error creating updated %s Resources list", resourceType))
+	if mapDiags.HasError() {
+		return resources, errors.New(fmt.Sprintf("error creating updated %s Resources map", resourceType))
 	}
 
-	return newList, nil
+	return newMap, nil
 }
