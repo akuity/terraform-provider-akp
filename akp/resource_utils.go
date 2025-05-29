@@ -18,14 +18,14 @@ type resourceGroupAppender[T any] func(req T, item *structpb.Struct)
 // resourceValidator is a function type that validates a resource
 type resourceValidator func(un *unstructured.Unstructured) error
 
-// processResources processes a list of resources and appends them to the request
+// processResources processes a map of resources and appends them to the request
 func processResources[T any](
 	ctx context.Context,
 	diagnostics *diag.Diagnostics,
-	resources types.List,
+	resources types.Map,
 	resourceGroups map[string]struct {
-		appendFunc resourceGroupAppender[T]
-	},
+	appendFunc resourceGroupAppender[T]
+},
 	validateFunc resourceValidator,
 	req T,
 	resourceType string,
@@ -34,7 +34,7 @@ func processResources[T any](
 		return
 	}
 
-	var stringItems []types.String
+	stringItems := make(map[string]types.String)
 	diags := resources.ElementsAs(ctx, &stringItems, false)
 	diagnostics.Append(diags...)
 	if diagnostics.HasError() {

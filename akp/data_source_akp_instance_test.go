@@ -45,14 +45,14 @@ func TestAccInstanceDataSource(t *testing.T) {
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd_cm.%", "0"),
 
 					// Test Argo Resources
-					resource.TestCheckResourceAttr("data.akp_instance.test", "argo_resources.#", "2"),
-					resource.TestCheckResourceAttrWith("data.akp_instance.test", "argo_resources.0", func(value string) error {
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd_resources.%", "2"),
+					resource.TestCheckResourceAttrWith("data.akp_instance.test", "argocd_resources.argoproj.io/v1alpha1/Application/argocd/app-test", func(value string) error {
 						if !strings.Contains(value, "argocd-example-apps.git") {
 							return fmt.Errorf("expected to contain repoURL")
 						}
 						return nil
 					}),
-					resource.TestCheckResourceAttrWith("data.akp_instance.test", "argo_resources.1", func(value string) error {
+					resource.TestCheckResourceAttrWith("data.akp_instance.test", "argocd_resources.argoproj.io/v1alpha1/AppProject/argocd/default", func(value string) error {
 						if !strings.Contains(value, "sourceRepos") {
 							return fmt.Errorf("expected to contain sourceRepos")
 						}

@@ -32,7 +32,7 @@ type Instance struct {
 	RepoCredentialSecrets         types.Map                          `tfsdk:"repo_credential_secrets"`
 	RepoTemplateCredentialSecrets types.Map                          `tfsdk:"repo_template_credential_secrets"`
 	ConfigManagementPlugins       map[string]*ConfigManagementPlugin `tfsdk:"config_management_plugins"`
-	ArgoResources                 types.List                         `tfsdk:"argo_resources"`
+	ArgoCDResources               types.Map                          `tfsdk:"argocd_resources"`
 }
 
 func (i *Instance) GetSensitiveStrings(ctx context.Context, diagnostics *diag.Diagnostics) []string {
@@ -96,16 +96,16 @@ func (i *Instance) syncArgoResources(
 	appliedResources = append(appliedResources, exportResp.ApplicationSets...)
 	appliedResources = append(appliedResources, exportResp.AppProjects...)
 
-	newList, err := syncResources(
+	newMap, err := syncResources(
 		ctx,
 		diagnostics,
-		i.ArgoResources,
+		i.ArgoCDResources,
 		appliedResources,
 		"ArgoCD",
 	)
 	if err != nil {
 		return err
 	}
-	i.ArgoResources = newList
+	i.ArgoCDResources = newMap
 	return nil
 }

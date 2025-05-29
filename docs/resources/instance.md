@@ -352,7 +352,7 @@ vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOf
       }
     },
   }
-  argo_resources = local.argo_resources
+  argocd_resources = local.argocd_resources
 }
 
 # Choose a directory that contains argo resource manifests.
@@ -381,17 +381,18 @@ vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOf
 # ---------------------------------------------
 #
 # The following expression can parse the provided YAMLs into JSON strings for the provider to be validated and applied correctly.
-# Remember to put the parsed argo resources into `akp_instance.argo_resources` field.
+# Remember to put the parsed argo resources into `akp_instance.argocd_resources` field.
 
 locals {
-  yaml_files = fileset("${path.module}/argo-manifests", "*.yaml")
+  yaml_files = fileset("${path.module}/argocd-manifests", "*.yaml")
 
-  argo_resources = flatten([
-    for file_name in local.yaml_files : [
-      for resource in split("\n---\n", file("${path.module}/argo-manifests/${file_name}")) :
-      jsonencode(yamldecode(resource))
-    ]
-  ])
+  argocd_resources = merge([
+    for file_name in local.yaml_files : {
+      for idx, resource_yaml in split("\n---\n", file("${path.module}/argocd-manifests/${file_name}")) :
+      "${yamldecode(resource_yaml).apiVersion}/${yamldecode(resource_yaml).kind}/${try(yamldecode(resource_yaml).metadata.namespace, "")}/${yamldecode(resource_yaml).metadata.name}" => jsonencode(yamldecode(resource_yaml))
+      if trimspace(resource_yaml) != ""
+    }
+  ]...)
 }
 ```
 
@@ -406,7 +407,6 @@ locals {
 ### Optional
 
 - `application_set_secret` (Map of String, Sensitive) stores secret key-value that will be used by `ApplicationSet`. For an example of how to use this in your ApplicationSet's pull request generator, see [here](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/applicationset/Generators-Pull-Request.md#github). In this example, `tokenRef.secretName` would be application-set-secret.
-- `argo_resources` (List of String) List of Argo custom resources to be managed alongside the Argo instance. Currently supported resources are: `ApplicationSet`, `Application`, `AppProject`. Should all be in the apiVersion `argoproj.io/v1alpha1`.
 - `argocd_cm` (Map of String) is aligned with the options in `argocd-cm` ConfigMap as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-cm-yaml/).
 - `argocd_image_updater_config` (Map of String) configures Argo CD image updater, and it is aligned with `argocd-image-updater-config` ConfigMap of Argo CD, for available options and examples, refer to [this documentation](https://argocd-image-updater.readthedocs.io/en/stable/).
 - `argocd_image_updater_secret` (Map of String, Sensitive) contains sensitive data (e.g., credentials for image updater to access registries) of Argo CD image updater, for available options and examples, refer to [this documentation](https://argocd-image-updater.readthedocs.io/en/stable/).
@@ -414,6 +414,7 @@ locals {
 - `argocd_notifications_cm` (Map of String) configures Argo CD notifications, and it is aligned with `argocd-notifications-cm` ConfigMap of Argo CD, for more details and examples, refer to [this documentation](https://argocd-notifications.readthedocs.io/en/stable/).
 - `argocd_notifications_secret` (Map of String, Sensitive) contains sensitive data of Argo CD notifications, and it is aligned with `argocd-notifications-secret` Secret of Argo CD, for more details and examples, refer to [this documentation](https://argocd-notifications.readthedocs.io/en/stable/services/overview/#sensitive-data).
 - `argocd_rbac_cm` (Map of String) is aligned with the options in `argocd-rbac-cm` ConfigMap as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-rbac-cm-yaml/).
+- `argocd_resources` (Map of String) Map of ArgoCD custom resources to be managed alongside the ArgoCD instance. Currently supported resources are: `ApplicationSet`, `Application`, `AppProject`. Should all be in the apiVersion `argoproj.io/v1alpha1`.
 - `argocd_secret` (Map of String, Sensitive) is aligned with the options in `argocd-secret` Secret as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-secret-yaml/).
 - `argocd_ssh_known_hosts_cm` (Map of String) is aligned with the options in `argocd-ssh-known-hosts-cm` ConfigMap as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-ssh-known-hosts-cm-yaml/).
 - `argocd_tls_certs_cm` (Map of String) is aligned with the options in `argocd-tls-certs-cm` ConfigMap as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-tls-certs-cm-yaml/).

@@ -118,10 +118,11 @@ EOT
 locals {
   yaml_files = fileset("${path.module}/kargo-manifests", "*.yaml")
 
-  kargo_resources = flatten([
-    for file_name in local.yaml_files : [
-      for resource in split("\n---\n", file("${path.module}/kargo-manifests/${file_name}")) :
-      jsonencode(yamldecode(resource))
-    ]
-  ])
+  kargo_resources = merge([
+    for file_name in local.yaml_files : {
+      for idx, resource_yaml in split("\n---\n", file("${path.module}/kargo-manifests/${file_name}")) :
+      "${yamldecode(resource_yaml).apiVersion}/${yamldecode(resource_yaml).kind}/${try(yamldecode(resource_yaml).metadata.namespace, "")}/${yamldecode(resource_yaml).metadata.name}" => jsonencode(yamldecode(resource_yaml))
+      if trimspace(resource_yaml) != ""
+    }
+  ]...)
 }
