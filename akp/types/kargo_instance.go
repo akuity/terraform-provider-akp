@@ -157,10 +157,7 @@ func syncResources(
 		return resources, errors.New("error processing resources from export response, cannot reliably sync")
 	}
 
-	var elementsToAdd map[string]attr.Value
-	if len(resources.Elements()) > 0 {
-		elementsToAdd = make(map[string]attr.Value)
-	}
+	elementsToAdd := make(map[string]attr.Value)
 	if isDataSource {
 		// For data sources: if no existing resources, add all exported resources
 		for key, obj := range exportedResourceMap {
@@ -173,6 +170,9 @@ func syncResources(
 				elementsToAdd[key] = attrVal
 			}
 		}
+	}
+	if len(elementsToAdd) == 0 {
+		return resources, nil
 	}
 
 	newMap, mapDiags := types.MapValueFrom(ctx, types.StringType, elementsToAdd)
