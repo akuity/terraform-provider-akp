@@ -86,7 +86,7 @@ func (r *AkpKargoInstanceResource) Read(ctx context.Context, req resource.ReadRe
 
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 
-	err := refreshKargoState(ctx, &resp.Diagnostics, r.akpCli.KargoCli, &data, r.akpCli.OrgId)
+	err := refreshKargoState(ctx, &resp.Diagnostics, r.akpCli.KargoCli, &data, r.akpCli.OrgId, false)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", err.Error())
 	} else {
@@ -193,7 +193,7 @@ func (r *AkpKargoInstanceResource) upsert(ctx context.Context, diagnostics *diag
 		return waitErr
 	}
 
-	return refreshKargoState(ctx, diagnostics, r.akpCli.KargoCli, plan, r.akpCli.OrgId)
+	return refreshKargoState(ctx, diagnostics, r.akpCli.KargoCli, plan, r.akpCli.OrgId, false)
 }
 
 func buildKargoApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, kargo *types.KargoInstance, orgID, workspaceID string) *kargov1.ApplyKargoInstanceRequest {
@@ -305,7 +305,7 @@ func buildKargo(ctx context.Context, diagnostics *diag.Diagnostics, kargo *types
 	return s
 }
 
-func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, client kargov1.KargoServiceGatewayClient, kargo *types.KargoInstance, orgID string) error {
+func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, client kargov1.KargoServiceGatewayClient, kargo *types.KargoInstance, orgID string, isDataSource bool) error {
 	req := &kargov1.GetKargoInstanceRequest{
 		OrganizationId: orgID,
 		Name:           kargo.Name.ValueString(),
@@ -328,7 +328,7 @@ func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, clien
 		return errors.Wrap(err, "Unable to export Kargo instance")
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Export Kargo instance response: %s", exportResp))
-	return kargo.Update(ctx, diagnostics, exportResp)
+	return kargo.Update(ctx, diagnostics, exportResp, isDataSource)
 }
 
 func getWorkspace(ctx context.Context, orgc orgcv1.OrganizationServiceGatewayClient, orgid, name string) (*orgcv1.Workspace, error) {

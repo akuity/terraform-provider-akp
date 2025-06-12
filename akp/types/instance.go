@@ -58,7 +58,7 @@ func (i *Instance) GetSensitiveStrings(ctx context.Context, diagnostics *diag.Di
 	return res
 }
 
-func (i *Instance) Update(ctx context.Context, diagnostics *diag.Diagnostics, exportResp *argocdv1.ExportInstanceResponse) error {
+func (i *Instance) Update(ctx context.Context, diagnostics *diag.Diagnostics, exportResp *argocdv1.ExportInstanceResponse, isDataSource bool) error {
 	var argoCD *v1alpha1.ArgoCD
 	err := marshal.RemarshalTo(exportResp.Argocd.AsMap(), &argoCD)
 	if err != nil {
@@ -80,7 +80,7 @@ func (i *Instance) Update(ctx context.Context, diagnostics *diag.Diagnostics, ex
 	i.ArgoCDTLSCertsConfigMap = ToConfigMapTFModel(ctx, diagnostics, exportResp.ArgocdTlsCertsConfigmap, i.ArgoCDTLSCertsConfigMap)
 	i.ArgoCDKnownHostsConfigMap = ToConfigMapTFModel(ctx, diagnostics, exportResp.ArgocdKnownHostsConfigmap, i.ArgoCDKnownHostsConfigMap)
 	i.ConfigManagementPlugins = ToConfigManagementPluginsTFModel(ctx, diagnostics, exportResp.ConfigManagementPlugins, i.ConfigManagementPlugins)
-	if err := i.syncArgoResources(ctx, exportResp, diagnostics); err != nil {
+	if err := i.syncArgoResources(ctx, exportResp, diagnostics, isDataSource); err != nil {
 		return err
 	}
 	return nil
@@ -90,6 +90,7 @@ func (i *Instance) syncArgoResources(
 	ctx context.Context,
 	exportResp *argocdv1.ExportInstanceResponse,
 	diagnostics *diag.Diagnostics,
+	isDataSource bool,
 ) error {
 	appliedResources := make([]*structpb.Struct, 0)
 	appliedResources = append(appliedResources, exportResp.Applications...)
@@ -102,6 +103,7 @@ func (i *Instance) syncArgoResources(
 		i.ArgoCDResources,
 		appliedResources,
 		"ArgoCD",
+		isDataSource,
 	)
 	if err != nil {
 		return err
