@@ -27,7 +27,7 @@ type KargoInstance struct {
 	KargoResources types.Map    `tfsdk:"kargo_resources"`
 }
 
-func (k *KargoInstance) Update(ctx context.Context, diagnostics *diag.Diagnostics, exportResp *kargov1.ExportKargoInstanceResponse) error {
+func (k *KargoInstance) Update(ctx context.Context, diagnostics *diag.Diagnostics, exportResp *kargov1.ExportKargoInstanceResponse, isDataSource bool) error {
 	var kargo *v1alpha1.Kargo
 	err := marshal.RemarshalTo(exportResp.GetKargo().AsMap(), &kargo)
 	if err != nil {
@@ -62,7 +62,7 @@ func (k *KargoInstance) Update(ctx context.Context, diagnostics *diag.Diagnostic
 	k.KargoConfigMap = ToConfigMapTFModel(ctx, diagnostics, configMapStruct, k.KargoConfigMap)
 	k.Kargo.Update(ctx, diagnostics, kargo)
 
-	if err := k.syncKargoResources(ctx, exportResp, diagnostics); err != nil {
+	if err := k.syncKargoResources(ctx, exportResp, diagnostics, isDataSource); err != nil {
 		return err
 	}
 
@@ -73,6 +73,7 @@ func (k *KargoInstance) syncKargoResources(
 	ctx context.Context,
 	exportResp *kargov1.ExportKargoInstanceResponse,
 	diagnostics *diag.Diagnostics,
+	isDataSource bool,
 ) error {
 	appliedResources := make([]*structpb.Struct, 0)
 	appliedResources = append(appliedResources, exportResp.AnalysisTemplates...)
@@ -88,6 +89,7 @@ func (k *KargoInstance) syncKargoResources(
 		k.KargoResources,
 		appliedResources,
 		"Kargo",
+		isDataSource,
 	)
 	if err != nil {
 		return err
@@ -124,6 +126,7 @@ func syncResources(
 	resources types.Map,
 	exportedResources []*structpb.Struct,
 	resourceType string,
+	isDataSource bool,
 ) (types.Map, error) {
 	if resources.IsUnknown() {
 		return resources, nil
@@ -155,16 +158,21 @@ func syncResources(
 	}
 
 	elementsToAdd := make(map[string]attr.Value)
-	if len(resources.Elements()) == 0 {
+	if isDataSource {
+		// For data sources: if no existing resources, add all exported resources
 		for key, obj := range exportedResourceMap {
 			elementsToAdd[key] = types.StringValue(obj.String())
 		}
 	} else {
+		// For resources: only keep existing resources that are also in the exported map
 		for key, attrVal := range resources.Elements() {
 			if _, ok := exportedResourceMap[key]; ok {
 				elementsToAdd[key] = attrVal
 			}
 		}
+	}
+	if len(elementsToAdd) == 0 {
+		return resources, nil
 	}
 
 	newMap, mapDiags := types.MapValueFrom(ctx, types.StringType, elementsToAdd)

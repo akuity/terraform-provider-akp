@@ -56,6 +56,6 @@ func (k *AkpKargoDataSource) Read(ctx context.Context, req datasource.ReadReques
 
 	ctx = httpctx.SetAuthorizationHeader(ctx, k.akpCli.Cred.Scheme(), k.akpCli.Cred.Credential())
 
-	refreshKargoState(ctx, &resp.Diagnostics, k.akpCli.KargoCli, &data, k.akpCli.OrgId)
+	refreshKargoState(ctx, &resp.Diagnostics, k.akpCli.KargoCli, &data, k.akpCli.OrgId, true)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }

@@ -109,7 +109,7 @@ func (r *AkpInstanceResource) Read(ctx context.Context, req resource.ReadRequest
 	tflog.MaskLogStrings(ctx, data.GetSensitiveStrings(ctx, &resp.Diagnostics)...)
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 
-	err := refreshState(ctx, &resp.Diagnostics, r.akpCli.Cli, &data, r.akpCli.OrgId)
+	err := refreshState(ctx, &resp.Diagnostics, r.akpCli.Cli, &data, r.akpCli.OrgId, false)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", err.Error())
 	} else {
@@ -207,7 +207,7 @@ func (r *AkpInstanceResource) upsert(ctx context.Context, diagnostics *diag.Diag
 		return waitErr
 	}
 
-	return refreshState(ctx, diagnostics, r.akpCli.Cli, plan, r.akpCli.OrgId)
+	return refreshState(ctx, diagnostics, r.akpCli.Cli, plan, r.akpCli.OrgId, false)
 }
 
 func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, instance *types.Instance, orgID string) *argocdv1.ApplyInstanceRequest {
@@ -337,7 +337,7 @@ func buildCMPs(ctx context.Context, diagnostics *diag.Diagnostics, cmps map[stri
 	return res
 }
 
-func refreshState(ctx context.Context, diagnostics *diag.Diagnostics, client argocdv1.ArgoCDServiceGatewayClient, instance *types.Instance, orgID string) error {
+func refreshState(ctx context.Context, diagnostics *diag.Diagnostics, client argocdv1.ArgoCDServiceGatewayClient, instance *types.Instance, orgID string, isDataSource bool) error {
 	getInstanceReq := &argocdv1.GetInstanceRequest{
 		OrganizationId: orgID,
 		IdType:         idv1.Type_NAME,
@@ -361,7 +361,7 @@ func refreshState(ctx context.Context, diagnostics *diag.Diagnostics, client arg
 		return errors.Wrap(err, "Unable to export Argo CD instance")
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Export instance response: %s", exportResp))
-	return instance.Update(ctx, diagnostics, exportResp)
+	return instance.Update(ctx, diagnostics, exportResp, isDataSource)
 }
 
 func isArgoResourceValid(un *unstructured.Unstructured) error {
