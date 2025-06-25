@@ -55,7 +55,92 @@ type CrossplaneExtension struct {
 	Resources []*CrossplaneExtensionResource `json:"resources,omitempty"`
 }
 
+type KubeVisionArgoExtension struct {
+	Enabled          *bool    `json:"enabled,omitempty"`
+	AllowedUsernames []string `json:"allowedUsernames,omitempty"`
+	AllowedGroups    []string `json:"allowedGroups,omitempty"`
+}
+
+type IncidentSubscription struct {
+	ArgocdApplications []string `json:"argocdApplications,omitempty"`
+	K8SNamespaces      []string `json:"k8sNamespaces,omitempty"`
+	Clusters           []string `json:"clusters,omitempty"`
+	Runbooks           []string `json:"runbooks,omitempty"`
+}
+
+type Runbook struct {
+	Name    string `json:"name,omitempty"`
+	Content string `json:"content,omitempty"`
+}
+
+type IncidentWebhookConfig struct {
+	Name                      string `json:"name,omitempty"`
+	DescriptionPath           string `json:"descriptionPath,omitempty"`
+	ClusterPath               string `json:"clusterPath,omitempty"`
+	K8SNamespacePath          string `json:"k8sNamespacePath,omitempty"`
+	ArgocdApplicationNamePath string `json:"argocdApplicationNamePath,omitempty"`
+}
+
+type IncidentsConfig struct {
+	DegradedArgocdApps    *bool                    `json:"degradedArgocdApps,omitempty"`
+	DegradedK8SNamespaces *bool                    `json:"degradedK8sNamespaces,omitempty"`
+	Subscriptions         []*IncidentSubscription  `json:"subscriptions,omitempty"`
+	Webhooks              []*IncidentWebhookConfig `json:"webhooks,omitempty"`
+}
+
+type AIConfig struct {
+	Runbooks  []*Runbook       `json:"runbooks,omitempty"`
+	Incidents *IncidentsConfig `json:"incidents,omitempty"`
+}
+
+type KubeVisionConfig struct {
+	CveScanConfig *CveScanConfig `json:"cveScanConfig,omitempty"`
+	AiConfig      *AIConfig      `json:"aiConfig,omitempty"`
+}
+
 type AppInAnyNamespaceConfig struct {
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+type CustomDeprecatedAPI struct {
+	ApiVersion                     string `json:"apiVersion,omitempty"`
+	NewApiVersion                  string `json:"newApiVersion,omitempty"`
+	DeprecatedInKubernetesVersion  string `json:"deprecatedInKubernetesVersion,omitempty"`
+	UnavailableInKubernetesVersion string `json:"unavailableInKubernetesVersion,omitempty"`
+}
+
+type CveScanConfig struct {
+	ScanEnabled    *bool  `json:"scanEnabled,omitempty"`
+	RescanInterval string `json:"rescanInterval,omitempty"`
+}
+
+type ObjectSelector struct {
+	MatchLabels      map[string]string           `json:"matchLabels,omitempty"`
+	MatchExpressions []*LabelSelectorRequirement `json:"matchExpressions,omitempty"`
+}
+
+type LabelSelectorRequirement struct {
+	Key      *string  `json:"key,omitempty"`
+	Operator *string  `json:"operator,omitempty"`
+	Values   []string `json:"values,omitempty"`
+}
+
+type ClusterSecretMapping struct {
+	Clusters *ObjectSelector `json:"clusters,omitempty"`
+	Secrets  *ObjectSelector `json:"secrets,omitempty"`
+}
+
+type SecretsManagementConfig struct {
+	Sources      []*ClusterSecretMapping `json:"sources,omitempty"`
+	Destinations []*ClusterSecretMapping `json:"destinations,omitempty"`
+}
+
+type AISupportEngineerExtension struct {
+	Enabled      *bool  `json:"enabled,omitempty"`
+	ModelVersion string `json:"modelVersion,omitempty"`
+}
+
+type ApplicationSetExtension struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
@@ -79,8 +164,17 @@ type InstanceSpec struct {
 	AgentPermissionsRules           []*AgentPermissionsRule        `json:"agentPermissionsRules,omitempty"`
 	Fqdn                            *string                        `json:"fqdn,omitempty"`
 	MultiClusterK8SDashboardEnabled *bool                          `json:"multiClusterK8sDashboardEnabled,omitempty"`
+	KubeVisionArgoExtension         *KubeVisionArgoExtension       `json:"kubeVisionArgoExtension,omitempty"`
+	ImageUpdaterVersion             string                         `json:"imageUpdaterVersion,omitempty"`
+	CustomDeprecatedApis            []*CustomDeprecatedAPI         `json:"customDeprecatedApis,omitempty"`
+	KubeVisionConfig                *KubeVisionConfig              `json:"kubeVisionConfig,omitempty"`
 	AppInAnyNamespaceConfig         *AppInAnyNamespaceConfig       `json:"appInAnyNamespaceConfig,omitempty"`
+	Basepath                        string                         `json:"basepath,omitempty"`
+	AppsetProgressiveSyncsEnabled   *bool                          `json:"appsetProgressiveSyncsEnabled,omitempty"`
+	AiSupportEngineerExtension      *AISupportEngineerExtension    `json:"aiSupportEngineerExtension,omitempty"`
+	Secrets                         *SecretsManagementConfig       `json:"secrets,omitempty"`
 	AppsetPlugins                   []*AppsetPlugins               `json:"appsetPlugins,omitempty"`
+	ApplicationSetExtension         *ApplicationSetExtension       `json:"applicationSetExtension,omitempty"`
 }
 
 type AppsetPlugins struct {
