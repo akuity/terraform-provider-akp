@@ -25,7 +25,15 @@ resource "akp_cluster" "example" {
       }
       eks_addon_enabled           = true
       datadog_annotations_enabled = true
-      kustomization               = <<EOF
+      compatibility = {
+        # enable IPv6 Compatible
+        ipv6_only = true
+      }
+      argocd_notifications_settings = {
+        # default will be control plane. "true" means source is agent host
+        in_cluster_settings = true
+      }
+      kustomization = <<EOF
   apiVersion: kustomize.config.k8s.io/v1beta1
   kind: Kustomization
   patches:

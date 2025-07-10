@@ -303,6 +303,8 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 			AutoscalerConfig:                autoscalerConfig,
 			CustomAgentSizeConfig:           customConfig,
 			Project:                         tftypes.StringValue(apiCluster.GetData().GetProject()),
+			Compatibility:                   toCompatibilityTFModel(plan, apiCluster.GetData().GetCompatibility()),
+			ArgocdNotificationsSettings:     toArgoCDNotificationsSettingsTFModel(plan, apiCluster.GetData().GetArgocdNotificationsSettings()),
 		},
 	}
 }
@@ -494,6 +496,8 @@ func toClusterDataAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, c
 		MultiClusterK8SDashboardEnabled: toBoolPointer(clusterData.MultiClusterK8SDashboardEnabled),
 		AutoscalerConfig:                autoscalerConfigAPI,
 		Project:                         clusterData.Project.ValueString(),
+		Compatibility:                   toCompatibilityAPIModel(clusterData.Compatibility),
+		ArgocdNotificationsSettings:     toArgoCDNotificationsSettingsAPIModel(clusterData.ArgocdNotificationsSettings),
 	}
 }
 
@@ -1695,5 +1699,52 @@ func toAppInAnyNamespaceConfigAPIModel(config *AppInAnyNamespaceConfig) *v1alpha
 	}
 	return &v1alpha1.AppInAnyNamespaceConfig{
 		Enabled: config.Enabled.ValueBoolPointer(),
+	}
+}
+
+func toCompatibilityTFModel(plan *Cluster, cfg *argocdv1.ClusterCompatibility) *ClusterCompatibility {
+	if plan != nil && plan.Spec != nil {
+		if plan.Spec.Data.Compatibility == nil {
+			if cfg == nil || !cfg.Ipv6Only {
+				return nil
+			}
+		}
+	}
+	return &ClusterCompatibility{
+		Ipv6Only: types.BoolValue(cfg.Ipv6Only),
+	}
+}
+
+func toCompatibilityAPIModel(cfg *ClusterCompatibility) *v1alpha1.ClusterCompatibility {
+	if cfg == nil {
+		return nil
+	}
+	if !cfg.Ipv6Only.ValueBool() {
+		return nil
+	}
+	return &v1alpha1.ClusterCompatibility{
+		Ipv6Only: cfg.Ipv6Only.ValueBool(),
+	}
+}
+
+func toArgoCDNotificationsSettingsTFModel(plan *Cluster, cfg *argocdv1.ClusterArgoCDNotificationsSettings) *ClusterArgoCDNotificationsSettings {
+	if plan != nil && plan.Spec != nil {
+		if plan.Spec.Data.ArgocdNotificationsSettings == nil {
+			if cfg == nil || !cfg.InClusterSettings {
+				return nil
+			}
+		}
+	}
+	return &ClusterArgoCDNotificationsSettings{
+		InClusterSettings: types.BoolValue(cfg.InClusterSettings),
+	}
+}
+
+func toArgoCDNotificationsSettingsAPIModel(cfg *ClusterArgoCDNotificationsSettings) *v1alpha1.ClusterArgoCDNotificationsSettings {
+	if cfg == nil {
+		return nil
+	}
+	return &v1alpha1.ClusterArgoCDNotificationsSettings{
+		InClusterSettings: cfg.InClusterSettings.ValueBool(),
 	}
 }

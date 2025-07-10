@@ -239,6 +239,16 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 				stringplanmodifier.UseStateForUnknown(),
 			},
 		},
+		"compatibility": schema.SingleNestedAttribute{
+			MarkdownDescription: "Cluster compatibility settings",
+			Optional:            true,
+			Attributes:          getCompatibilityAttributes(),
+		},
+		"argocd_notifications_settings": schema.SingleNestedAttribute{
+			MarkdownDescription: "ArgoCD notifications settings",
+			Optional:            true,
+			Attributes:          getArgoCDNotificationsSettingsAttributes(),
+		},
 	}
 }
 
@@ -579,6 +589,32 @@ func getResourcesAttributes() map[string]schema.Attribute {
 			Computed:    true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+	}
+}
+
+func getCompatibilityAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"ipv6_only": schema.BoolAttribute{
+			Description: "IPv6 only configuration",
+			Optional:    true,
+			Computed:    true,
+			PlanModifiers: []planmodifier.Bool{
+				boolplanmodifier.UseStateForUnknown(),
+			},
+		},
+	}
+}
+
+func getArgoCDNotificationsSettingsAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"in_cluster_settings": schema.BoolAttribute{
+			Description: "Enable in-cluster settings for ArgoCD notifications",
+			Optional:    true,
+			Computed:    true,
+			PlanModifiers: []planmodifier.Bool{
+				boolplanmodifier.UseStateForUnknown(),
 			},
 		},
 	}

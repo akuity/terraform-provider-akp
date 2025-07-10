@@ -77,18 +77,28 @@ type RepoServerCustomAgentSizeConfig struct {
 	Replicas types.Int64  `tfsdk:"replicas"`
 }
 
+type ClusterCompatibility struct {
+	Ipv6Only types.Bool `tfsdk:"ipv6_only"`
+}
+
+type ClusterArgoCDNotificationsSettings struct {
+	InClusterSettings types.Bool `tfsdk:"in_cluster_settings"`
+}
+
 type ClusterData struct {
-	Size                            types.String           `tfsdk:"size"`
-	AutoUpgradeDisabled             types.Bool             `tfsdk:"auto_upgrade_disabled"`
-	Kustomization                   types.String           `tfsdk:"kustomization"`
-	AppReplication                  types.Bool             `tfsdk:"app_replication"`
-	TargetVersion                   types.String           `tfsdk:"target_version"`
-	RedisTunneling                  types.Bool             `tfsdk:"redis_tunneling"`
-	DatadogAnnotationsEnabled       types.Bool             `tfsdk:"datadog_annotations_enabled"`
-	EksAddonEnabled                 types.Bool             `tfsdk:"eks_addon_enabled"`
-	ManagedClusterConfig            *ManagedClusterConfig  `tfsdk:"managed_cluster_config"`
-	MultiClusterK8SDashboardEnabled types.Bool             `tfsdk:"multi_cluster_k8s_dashboard_enabled"`
-	CustomAgentSizeConfig           *CustomAgentSizeConfig `tfsdk:"custom_agent_size_config"`
-	AutoscalerConfig                basetypes.ObjectValue  `tfsdk:"auto_agent_size_config"`
-	Project                         types.String           `tfsdk:"project"`
+	Size                            types.String                        `tfsdk:"size"`
+	AutoUpgradeDisabled             types.Bool                          `tfsdk:"auto_upgrade_disabled"`
+	Kustomization                   types.String                        `tfsdk:"kustomization"`
+	AppReplication                  types.Bool                          `tfsdk:"app_replication"`
+	TargetVersion                   types.String                        `tfsdk:"target_version"`
+	RedisTunneling                  types.Bool                          `tfsdk:"redis_tunneling"`
+	DatadogAnnotationsEnabled       types.Bool                          `tfsdk:"datadog_annotations_enabled"`
+	EksAddonEnabled                 types.Bool                          `tfsdk:"eks_addon_enabled"`
+	ManagedClusterConfig            *ManagedClusterConfig               `tfsdk:"managed_cluster_config"`
+	MultiClusterK8SDashboardEnabled types.Bool                          `tfsdk:"multi_cluster_k8s_dashboard_enabled"`
+	CustomAgentSizeConfig           *CustomAgentSizeConfig              `tfsdk:"custom_agent_size_config"`
+	AutoscalerConfig                basetypes.ObjectValue               `tfsdk:"auto_agent_size_config"`
+	Project                         types.String                        `tfsdk:"project"`
+	Compatibility                   *ClusterCompatibility               `tfsdk:"compatibility"`
+	ArgocdNotificationsSettings     *ClusterArgoCDNotificationsSettings `tfsdk:"argocd_notifications_settings"`
 }
