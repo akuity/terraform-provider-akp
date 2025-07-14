@@ -135,6 +135,16 @@ func getClusterDataDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Project name",
 			Computed:            true,
 		},
+		"compatibility": schema.SingleNestedAttribute{
+			MarkdownDescription: "Cluster compatibility settings",
+			Computed:            true,
+			Attributes:          getCompatibilityDataSourceAttributes(),
+		},
+		"argocd_notifications_settings": schema.SingleNestedAttribute{
+			MarkdownDescription: "ArgoCD notifications settings",
+			Computed:            true,
+			Attributes:          getArgoCDNotificationsSettingsDataSourceAttributes(),
+		},
 	}
 }
 
@@ -322,6 +332,24 @@ func getResourcesDataSourceAttributes() map[string]schema.Attribute {
 		},
 		"cpu": schema.StringAttribute{
 			Description: "CPU",
+			Computed:    true,
+		},
+	}
+}
+
+func getCompatibilityDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"ipv6_only": schema.BoolAttribute{
+			Description: "IPv6 only configuration",
+			Computed:    true,
+		},
+	}
+}
+
+func getArgoCDNotificationsSettingsDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"in_cluster_settings": schema.BoolAttribute{
+			Description: "Enable in-cluster settings for ArgoCD notifications",
 			Computed:    true,
 		},
 	}
