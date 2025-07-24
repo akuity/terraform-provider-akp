@@ -97,7 +97,7 @@ type ClusterData struct {
 	ManagedClusterConfig            *ManagedClusterConfig               `tfsdk:"managed_cluster_config"`
 	MultiClusterK8SDashboardEnabled types.Bool                          `tfsdk:"multi_cluster_k8s_dashboard_enabled"`
 	CustomAgentSizeConfig           *CustomAgentSizeConfig              `tfsdk:"custom_agent_size_config"`
-	AutoscalerConfig                basetypes.ObjectValue               `tfsdk:"auto_agent_size_config"`
+	AutoscalerConfig                basetypes.ObjectValue               `tfsdk:"autoscaler_config"`
 	Project                         types.String                        `tfsdk:"project"`
 	Compatibility                   *ClusterCompatibility               `tfsdk:"compatibility"`
 	ArgocdNotificationsSettings     *ClusterArgoCDNotificationsSettings `tfsdk:"argocd_notifications_settings"`
