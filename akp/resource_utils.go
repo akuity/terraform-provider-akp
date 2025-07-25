@@ -24,8 +24,8 @@ func processResources[T any](
 	diagnostics *diag.Diagnostics,
 	resources types.Map,
 	resourceGroups map[string]struct {
-	appendFunc resourceGroupAppender[T]
-},
+		appendFunc resourceGroupAppender[T]
+	},
 	validateFunc resourceValidator,
 	req T,
 	resourceType string,
@@ -72,7 +72,8 @@ func processResources[T any](
 // validateResource validates a resource with the given API version and resource groups
 func validateResource[T any](un *unstructured.Unstructured, apiVersion string, resourceGroups map[string]struct {
 	appendFunc resourceGroupAppender[T]
-}) error {
+},
+) error {
 	if un == nil {
 		return errors.New("unstructured is nil")
 	}

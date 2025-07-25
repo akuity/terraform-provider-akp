@@ -22,16 +22,24 @@ type KargoSpec struct {
 	OidcConfig        *KargoOidcConfig  `tfsdk:"oidc_config"`
 }
 
+type KargoPredefinedAccountClaimValue struct {
+	Values []types.String `tfsdk:"values"`
+}
+
+type KargoPredefinedAccountData struct {
+	Claims types.Map `tfsdk:"claims" schemaGen:"KargoPredefinedAccountClaimValue"`
+}
+
 type KargoOidcConfig struct {
 	Enabled          types.Bool     `tfsdk:"enabled"`
 	DexEnabled       types.Bool     `tfsdk:"dex_enabled"`
 	DexConfig        types.String   `tfsdk:"dex_config"`
-	DexConfigSecret  types.Map      `tfsdk:"dex_config_secret"`
+	DexConfigSecret  types.Map      `tfsdk:"dex_config_secret" schemaGen:"Value"`
 	IssuerURL        types.String   `tfsdk:"issuer_url"`
 	ClientID         types.String   `tfsdk:"client_id"`
 	CliClientID      types.String   `tfsdk:"cli_client_id"`
-	AdminAccount     types.Object   `tfsdk:"admin_account"`
-	ViewerAccount    types.Object   `tfsdk:"viewer_account"`
+	AdminAccount     types.Object   `tfsdk:"admin_account" schemaGen:"KargoPredefinedAccountData"`
+	ViewerAccount    types.Object   `tfsdk:"viewer_account" schemaGen:"KargoPredefinedAccountData"`
 	AdditionalScopes []types.String `tfsdk:"additional_scopes"`
 }
 

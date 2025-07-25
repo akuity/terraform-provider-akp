@@ -120,7 +120,7 @@ func toKargoIpAllowListAPIModel(ipAllowList []*KargoIPAllowListEntry) []*v1alpha
 	return ipAllowListAPIModel
 }
 
-func toStringArrayAPIModel(strings []types.String) []string {
+func toStringArrayAPIModel(strings []tftypes.String) []string {
 	ss := make([]string, len(strings))
 	for i, s := range strings {
 		ss[i] = s.ValueString()
@@ -166,7 +166,7 @@ func toKargoAgentCustomizationTFModel(agentCustomizationDefaults *v1alpha1.Kargo
 	if agentCustomizationDefaults.AutoUpgradeDisabled != nil {
 		autoUpgradeDisabled = *agentCustomizationDefaults.AutoUpgradeDisabled
 	}
-	var kustomization types.String
+	var kustomization tftypes.String
 	if len(agentCustomizationDefaults.Kustomization.Raw) == 0 {
 		kustomization = tftypes.StringNull()
 	} else {
@@ -182,13 +182,13 @@ func toKargoAgentCustomizationTFModel(agentCustomizationDefaults *v1alpha1.Kargo
 	}
 }
 
-func toStringArrayTFModel(strings []string) []types.String {
+func toStringArrayTFModel(strings []string) []tftypes.String {
 	if len(strings) == 0 {
 		return nil
 	}
-	nss := make([]types.String, len(strings))
+	nss := make([]tftypes.String, len(strings))
 	for i, s := range strings {
-		nss[i] = types.StringValue(s)
+		nss[i] = tftypes.StringValue(s)
 	}
 	return nss
 }
@@ -212,11 +212,11 @@ func (ka *KargoAgent) Update(ctx context.Context, diagnostics *diag.Diagnostics,
 	diagnostics.Append(d...)
 	jsonData, err := apiKargoAgent.GetData().GetKustomization().MarshalJSON()
 	if err != nil {
-		diagnostics.AddError("getting kargo agent kustomization", fmt.Sprintf("%s", err.Error()))
+		diagnostics.AddError("getting kargo agent kustomization", err.Error())
 	}
 	yamlData, err := yaml.JSONToYAML(jsonData)
 	if err != nil {
-		diagnostics.AddError("getting kargo agent kustomization", fmt.Sprintf("%s", err.Error()))
+		diagnostics.AddError("getting kargo agent kustomization", err.Error())
 	}
 
 	kustomization := tftypes.StringValue(string(yamlData))
@@ -277,12 +277,12 @@ func (ka *KargoAgent) ToKargoAgentAPIModel(ctx context.Context, diagnostics *dia
 		},
 		Spec: v1alpha1.KargoAgentSpec{
 			Description: ka.Spec.Description.ValueString(),
-			Data:        toKargoAgentDataAPIModel(ctx, diagnostics, ka.Spec.Data),
+			Data:        toKargoAgentDataAPIModel(diagnostics, ka.Spec.Data),
 		},
 	}
 }
 
-func toKargoAgentDataAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, data KargoAgentData) v1alpha1.KargoAgentData {
+func toKargoAgentDataAPIModel(diagnostics *diag.Diagnostics, data KargoAgentData) v1alpha1.KargoAgentData {
 	var existingConfig map[string]any
 	raw := runtime.RawExtension{}
 	if data.Kustomization.ValueString() != "" {
@@ -338,7 +338,7 @@ func toKargoOidcConfigAPIModel(ctx context.Context, diag *diag.Diagnostics, oidc
 	}
 }
 
-func toKargoDexConfigSecretAPIModel(ctx context.Context, secret types.Map) map[string]v1alpha1.Value {
+func toKargoDexConfigSecretAPIModel(ctx context.Context, secret tftypes.Map) map[string]v1alpha1.Value {
 	if secret.IsNull() {
 		return nil
 	}
@@ -407,9 +407,9 @@ func toKargoOidcConfigTFModel(ctx context.Context, oidcConfig *v1alpha1.KargoOid
 		return nil
 	}
 
-	additionalScopes := make([]types.String, len(oidcConfig.AdditionalScopes))
+	additionalScopes := make([]tftypes.String, len(oidcConfig.AdditionalScopes))
 	for i, scope := range oidcConfig.AdditionalScopes {
-		additionalScopes[i] = types.StringValue(scope)
+		additionalScopes[i] = tftypes.StringValue(scope)
 	}
 	if len(additionalScopes) == 0 {
 		additionalScopes = nil
@@ -429,9 +429,9 @@ func toKargoOidcConfigTFModel(ctx context.Context, oidcConfig *v1alpha1.KargoOid
 	}
 }
 
-func toKargoDexConfigSecretTFModel(ctx context.Context, secret map[string]v1alpha1.Value) types.Map {
+func toKargoDexConfigSecretTFModel(ctx context.Context, secret map[string]v1alpha1.Value) tftypes.Map {
 	if secret == nil {
-		return types.MapNull(types.StringType)
+		return tftypes.MapNull(tftypes.StringType)
 	}
 
 	secretData := make(map[string]string)
@@ -441,17 +441,17 @@ func toKargoDexConfigSecretTFModel(ctx context.Context, secret map[string]v1alph
 		}
 		secretData[k] = *v.Value
 	}
-	mapVal, _ := types.MapValueFrom(ctx, types.StringType, secretData)
+	mapVal, _ := tftypes.MapValueFrom(ctx, tftypes.StringType, secretData)
 	return mapVal
 }
 
-func toKargoPredefinedAccountTFModel(account v1alpha1.KargoPredefinedAccountData) types.Object {
+func toKargoPredefinedAccountTFModel(account v1alpha1.KargoPredefinedAccountData) tftypes.Object {
 	objectType := map[string]attr.Type{
-		"claims": types.MapType{
-			ElemType: types.ObjectType{
+		"claims": tftypes.MapType{
+			ElemType: tftypes.ObjectType{
 				AttrTypes: map[string]attr.Type{
-					"values": types.ListType{
-						ElemType: types.StringType,
+					"values": tftypes.ListType{
+						ElemType: tftypes.StringType,
 					},
 				},
 			},
@@ -459,17 +459,17 @@ func toKargoPredefinedAccountTFModel(account v1alpha1.KargoPredefinedAccountData
 	}
 
 	if len(account.Claims) == 0 {
-		return types.ObjectNull(objectType)
+		return tftypes.ObjectNull(objectType)
 	}
 
 	claimsMap := make(map[string]attr.Value)
 	for claimKey, claimValue := range account.Claims {
-		valuesList, _ := types.ListValueFrom(context.Background(), types.StringType, claimValue.Values)
+		valuesList, _ := tftypes.ListValueFrom(context.Background(), tftypes.StringType, claimValue.Values)
 
-		claimObject := types.ObjectValueMust(
+		claimObject := tftypes.ObjectValueMust(
 			map[string]attr.Type{
-				"values": types.ListType{
-					ElemType: types.StringType,
+				"values": tftypes.ListType{
+					ElemType: tftypes.StringType,
 				},
 			},
 			map[string]attr.Value{
@@ -480,18 +480,18 @@ func toKargoPredefinedAccountTFModel(account v1alpha1.KargoPredefinedAccountData
 		claimsMap[claimKey] = claimObject
 	}
 
-	claimsAttr, _ := types.MapValueFrom(context.Background(),
-		types.ObjectType{
+	claimsAttr, _ := tftypes.MapValueFrom(context.Background(),
+		tftypes.ObjectType{
 			AttrTypes: map[string]attr.Type{
-				"values": types.ListType{
-					ElemType: types.StringType,
+				"values": tftypes.ListType{
+					ElemType: tftypes.StringType,
 				},
 			},
 		},
 		claimsMap,
 	)
 
-	return types.ObjectValueMust(
+	return tftypes.ObjectValueMust(
 		objectType,
 		map[string]attr.Value{
 			"claims": claimsAttr,

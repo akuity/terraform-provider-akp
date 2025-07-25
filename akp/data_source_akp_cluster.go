@@ -54,7 +54,14 @@ func (d *AkpClusterDataSource) Read(ctx context.Context, req datasource.ReadRequ
 		return
 	}
 	ctx = httpctx.SetAuthorizationHeader(ctx, d.akpCli.Cred.Scheme(), d.akpCli.Cred.Credential())
-	refreshClusterState(ctx, &resp.Diagnostics, d.akpCli.Cli, &data, d.akpCli.OrgId, &resp.State, &data)
+	err := refreshClusterState(ctx, &resp.Diagnostics, d.akpCli.Cli, &data, d.akpCli.OrgId, &resp.State, &data)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error refreshing cluster state",
+			fmt.Sprintf("Could not read cluster: %s", err),
+		)
+		return
+	}
 	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }

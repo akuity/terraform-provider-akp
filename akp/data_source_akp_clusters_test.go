@@ -31,7 +31,7 @@ data "akp_clusters" "test" {
 }
 `
 
-func testAccCheckClusterAttributes(dataSourceName string, targetClusterName string) resource.TestCheckFunc {
+func testAccCheckClusterAttributes(dataSourceName, targetClusterName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[dataSourceName]
 		if !ok {

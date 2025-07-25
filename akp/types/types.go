@@ -9,7 +9,6 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/types"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -27,17 +26,9 @@ import (
 )
 
 var (
-	clusterCustomizationAttrTypes = map[string]attr.Type{
-		"auto_upgrade_disabled": tftypes.BoolType,
-		"kustomization":         tftypes.StringType,
-		"app_replication":       tftypes.BoolType,
-		"redis_tunneling":       tftypes.BoolType,
-	}
+	clusterCustomizationAttrTypes = map[string]attr.Type{}
 
-	appsetPolicyAttrTypes = map[string]attr.Type{
-		"policy":          tftypes.StringType,
-		"override_policy": tftypes.BoolType,
-	}
+	appsetPolicyAttrTypes = map[string]attr.Type{}
 
 	ClusterSizeString = map[argocdv1.ClusterSize]string{
 		argocdv1.ClusterSize_CLUSTER_SIZE_SMALL:       "small",
@@ -48,31 +39,71 @@ var (
 	}
 )
 
+func init() {
+	clusterCustomizationAttrTypes = generateAttrMap(ClusterCustomization{})
+	appsetPolicyAttrTypes = generateAttrMap(AppsetPolicy{})
+}
+
+func generateAttrMap(forType any) map[string]attr.Type {
+	outputTypes := make(map[string]attr.Type)
+	for _, field := range reflect.VisibleFields(reflect.TypeOf(forType)) {
+		if !field.IsExported() {
+			continue
+		}
+		tag, ok := field.Tag.Lookup("tfsdk")
+		if !ok {
+			continue
+		}
+		fieldType := field.Type
+
+		// Handle pointer types
+		if fieldType.Kind() == reflect.Ptr {
+			fieldType = fieldType.Elem()
+		}
+
+		ty := mapReflectTypeToAttrType(reflect.Zero(fieldType))
+		if ty == nil {
+			continue
+		}
+		outputTypes[tag] = ty
+	}
+	return outputTypes
+}
+
+func mapReflectTypeToAttrType(ty reflect.Value) attr.Type {
+	switch ty.Interface().(type) {
+	case tftypes.String:
+		return tftypes.StringType
+	case tftypes.Bool:
+		return tftypes.BoolType
+	case tftypes.Int64:
+		return tftypes.Int64Type
+	case tftypes.Float64:
+		return tftypes.Float64Type
+	case tftypes.Int32:
+		return tftypes.Int32Type
+	case tftypes.Float32:
+		return tftypes.Float32Type
+	case tftypes.Number:
+		return tftypes.NumberType
+	default:
+		return nil
+	}
+}
+
 func (a *ArgoCD) Update(ctx context.Context, diagnostics *diag.Diagnostics, cd *v1alpha1.ArgoCD) {
-	declarativeManagementEnabled := false
-	if cd.Spec.InstanceSpec.DeclarativeManagementEnabled != nil && *cd.Spec.InstanceSpec.DeclarativeManagementEnabled {
-		declarativeManagementEnabled = true
-	}
-	imageUpdaterEnabled := false
-	if cd.Spec.InstanceSpec.ImageUpdaterEnabled != nil && *cd.Spec.InstanceSpec.ImageUpdaterEnabled {
-		imageUpdaterEnabled = true
-	}
-	backendIpAllowListEnabled := false
-	if cd.Spec.InstanceSpec.BackendIpAllowListEnabled != nil && *cd.Spec.InstanceSpec.BackendIpAllowListEnabled {
-		backendIpAllowListEnabled = true
-	}
-	auditExtensionEnabled := false
-	if cd.Spec.InstanceSpec.AuditExtensionEnabled != nil && *cd.Spec.InstanceSpec.AuditExtensionEnabled {
-		auditExtensionEnabled = true
-	}
-	syncHistoryExtensionEnabled := false
-	if cd.Spec.InstanceSpec.SyncHistoryExtensionEnabled != nil && *cd.Spec.InstanceSpec.SyncHistoryExtensionEnabled {
-		syncHistoryExtensionEnabled = true
-	}
-	assistantExtensionEnabled := false
-	if cd.Spec.InstanceSpec.AssistantExtensionEnabled != nil && *cd.Spec.InstanceSpec.AssistantExtensionEnabled {
-		assistantExtensionEnabled = true
-	}
+	declarativeManagementEnabled := cd.Spec.InstanceSpec.DeclarativeManagementEnabled != nil && *cd.Spec.InstanceSpec.DeclarativeManagementEnabled
+
+	imageUpdaterEnabled := cd.Spec.InstanceSpec.ImageUpdaterEnabled != nil && *cd.Spec.InstanceSpec.ImageUpdaterEnabled
+
+	backendIpAllowListEnabled := cd.Spec.InstanceSpec.BackendIpAllowListEnabled != nil && *cd.Spec.InstanceSpec.BackendIpAllowListEnabled
+
+	auditExtensionEnabled := cd.Spec.InstanceSpec.AuditExtensionEnabled != nil && *cd.Spec.InstanceSpec.AuditExtensionEnabled
+
+	syncHistoryExtensionEnabled := cd.Spec.InstanceSpec.SyncHistoryExtensionEnabled != nil && *cd.Spec.InstanceSpec.SyncHistoryExtensionEnabled
+
+	assistantExtensionEnabled := cd.Spec.InstanceSpec.AssistantExtensionEnabled != nil && *cd.Spec.InstanceSpec.AssistantExtensionEnabled
+
 	fqdn := ""
 	if cd.Spec.InstanceSpec.Fqdn != nil {
 		fqdn = *cd.Spec.InstanceSpec.Fqdn
@@ -114,7 +145,7 @@ func (a *ArgoCD) Update(ctx context.Context, diagnostics *diag.Diagnostics, cd *
 			AppsetPolicy:                    toAppsetPolicyTFModel(ctx, diagnostics, cd.Spec.InstanceSpec.AppsetPolicy),
 			HostAliases:                     toHostAliasesTFModel(cd.Spec.InstanceSpec.HostAliases),
 			AgentPermissionsRules:           toAgentPermissionsRulesTFModel(cd.Spec.InstanceSpec.AgentPermissionsRules),
-			Fqdn:                            types.StringValue(fqdn),
+			Fqdn:                            tftypes.StringValue(fqdn),
 			MultiClusterK8SDashboardEnabled: tftypes.BoolValue(multiClusterK8SDashboardEnabled),
 			AppInAnyNamespaceConfig:         appInAnyNamespaceConfig,
 			AppsetPlugins:                   toAppsetPluginsTFModel(cd.Spec.InstanceSpec.AppsetPlugins),
@@ -171,7 +202,7 @@ func toBoolPointer(b tftypes.Bool) *bool {
 func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, apiCluster *argocdv1.Cluster, plan *Cluster) {
 	c.ID = tftypes.StringValue(apiCluster.GetId())
 	c.Name = tftypes.StringValue(apiCluster.GetName())
-	c.Namespace = tftypes.StringValue(apiCluster.GetNamespace())
+	c.Namespace = tftypes.StringValue(apiCluster.GetData().Namespace)
 	if c.RemoveAgentResourcesOnDestroy.IsUnknown() || c.RemoveAgentResourcesOnDestroy.IsNull() {
 		c.RemoveAgentResourcesOnDestroy = tftypes.BoolValue(true)
 	}
@@ -187,11 +218,11 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 	diagnostics.Append(d...)
 	jsonData, err := apiCluster.GetData().GetKustomization().MarshalJSON()
 	if err != nil {
-		diagnostics.AddError("getting cluster kustomization", fmt.Sprintf("%s", err.Error()))
+		diagnostics.AddError("getting cluster kustomization", err.Error())
 	}
 	yamlData, err := yaml.JSONToYAML(jsonData)
 	if err != nil {
-		diagnostics.AddError("getting cluster kustomization", fmt.Sprintf("%s", err.Error()))
+		diagnostics.AddError("getting cluster kustomization", err.Error())
 	}
 
 	kustomization := tftypes.StringValue(string(yamlData))
@@ -217,11 +248,11 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 	if err := yaml.Unmarshal(yamlData, &existingConfig); err == nil && plan != nil && plan.Spec != nil && plan.Spec.Data.CustomAgentSizeConfig != nil {
 		extractedCustomConfig := extractCustomSizeConfig(existingConfig)
 		if extractedCustomConfig != nil {
-			if plan != nil && plan.Spec != nil && plan.Spec.Data.CustomAgentSizeConfig != nil {
+			if plan.Spec != nil && plan.Spec.Data.CustomAgentSizeConfig != nil {
 				if areCustomAgentConfigsEquivalent(plan.Spec.Data.CustomAgentSizeConfig, extractedCustomConfig) {
 					customConfig = plan.Spec.Data.CustomAgentSizeConfig
 				} else {
-					customConfig = plan.Spec.Data.CustomAgentSizeConfig
+					customConfig = extractedCustomConfig
 				}
 				existingConfig.Patches = filterNonSizePatchesKustomize(existingConfig.Patches)
 				existingConfig.Replicas = filterNonRepoServerReplicasKustomize(existingConfig.Replicas)
@@ -251,7 +282,6 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 		newAPIConfig := apiCluster.GetData().GetAutoscalerConfig()
 		if !plan.Spec.Data.AutoscalerConfig.IsNull() && !plan.Spec.Data.AutoscalerConfig.IsUnknown() && newAPIConfig != nil &&
 			newAPIConfig.RepoServer != nil && newAPIConfig.ApplicationController != nil {
-			autoscalerConfig = plan.Spec.Data.AutoscalerConfig
 			newConfig := &AutoScalerConfig{
 				ApplicationController: &AppControllerAutoScalingConfig{
 					ResourceMinimum: &Resources{
@@ -288,7 +318,7 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 
 	c.Spec = &ClusterSpec{
 		Description:     tftypes.StringValue(apiCluster.GetDescription()),
-		NamespaceScoped: tftypes.BoolValue(apiCluster.GetNamespaceScoped()),
+		NamespaceScoped: tftypes.BoolValue(apiCluster.GetData().NamespaceScoped),
 		Data: ClusterData{
 			Size:                            size,
 			AutoUpgradeDisabled:             tftypes.BoolValue(apiCluster.GetData().GetAutoUpgradeDisabled()),
@@ -339,7 +369,7 @@ func (c *ConfigManagementPlugin) Update(ctx context.Context, diagnostics *diag.D
 		version = tftypes.StringValue(cmp.Spec.Version)
 	}
 	c.Enabled = tftypes.BoolValue(cmp.Annotations[v1alpha1.AnnotationCMPEnabled] == "true")
-	c.Image = types.StringValue(cmp.Annotations[v1alpha1.AnnotationCMPImage])
+	c.Image = tftypes.StringValue(cmp.Annotations[v1alpha1.AnnotationCMPImage])
 	c.Spec = &PluginSpec{
 		Version:          version,
 		Init:             toCommandTFModel(cmp.Spec.Init),
@@ -747,10 +777,8 @@ func toRepoServerDelegateTFModel(repoServerDelegate *v1alpha1.RepoServerDelegate
 	if repoServerDelegate == nil {
 		return nil
 	}
-	controlPlane := false
-	if repoServerDelegate.ControlPlane != nil && *repoServerDelegate.ControlPlane {
-		controlPlane = true
-	}
+	controlPlane := repoServerDelegate.ControlPlane != nil && *repoServerDelegate.ControlPlane
+
 	return &RepoServerDelegate{
 		ControlPlane:   tftypes.BoolValue(controlPlane),
 		ManagedCluster: toManagedClusterTFModel(repoServerDelegate.ManagedCluster),
@@ -761,10 +789,8 @@ func toImageUpdaterDelegateTFModel(imageUpdaterDelegate *v1alpha1.ImageUpdaterDe
 	if imageUpdaterDelegate == nil {
 		return nil
 	}
-	controlPlane := false
-	if imageUpdaterDelegate.ControlPlane != nil && *imageUpdaterDelegate.ControlPlane {
-		controlPlane = true
-	}
+	controlPlane := imageUpdaterDelegate.ControlPlane != nil && *imageUpdaterDelegate.ControlPlane
+
 	return &ImageUpdaterDelegate{
 		ControlPlane:   tftypes.BoolValue(controlPlane),
 		ManagedCluster: toManagedClusterTFModel(imageUpdaterDelegate.ManagedCluster),
@@ -851,26 +877,26 @@ func toIPAllowListTFModel(entries []*v1alpha1.IPAllowListEntry) []*IPAllowListEn
 	return ipAllowList
 }
 
-func toExtensionsTFModel(entries []*v1alpha1.ArgoCDExtensionInstallEntry) types.List {
+func toExtensionsTFModel(entries []*v1alpha1.ArgoCDExtensionInstallEntry) tftypes.List {
 	extensions := make([]attr.Value, 0, len(entries))
 	for _, entry := range entries {
-		extensions = append(extensions, types.ObjectValueMust(
+		extensions = append(extensions, tftypes.ObjectValueMust(
 			map[string]attr.Type{
-				"id":      types.StringType,
-				"version": types.StringType,
+				"id":      tftypes.StringType,
+				"version": tftypes.StringType,
 			},
 			map[string]attr.Value{
-				"id":      types.StringValue(entry.Id),
-				"version": types.StringValue(entry.Version),
+				"id":      tftypes.StringValue(entry.Id),
+				"version": tftypes.StringValue(entry.Version),
 			},
 		))
 	}
 
-	return types.ListValueMust(
-		types.ObjectType{
+	return tftypes.ListValueMust(
+		tftypes.ObjectType{
 			AttrTypes: map[string]attr.Type{
-				"id":      types.StringType,
-				"version": types.StringType,
+				"id":      tftypes.StringType,
+				"version": tftypes.StringType,
 			},
 		},
 		extensions,
@@ -1081,7 +1107,7 @@ func toAppInAnyNamespaceConfigTFModel(config *v1alpha1.AppInAnyNamespaceConfig) 
 	}
 }
 
-func convertSlice[T any, U any](s []T, conv func(T) U) []U {
+func convertSlice[T, U any](s []T, conv func(T) U) []U {
 	var tfSlice []U
 	for _, item := range s {
 		tfSlice = append(tfSlice, conv(item))
@@ -1111,45 +1137,45 @@ func toManagedClusterConfigTFModel(cfg *argocdv1.ManagedClusterConfig) *ManagedC
 		return nil
 	}
 	return &ManagedClusterConfig{
-		SecretName: types.StringValue(cfg.SecretName),
-		SecretKey:  types.StringValue(cfg.SecretKey),
+		SecretName: tftypes.StringValue(cfg.SecretName),
+		SecretKey:  tftypes.StringValue(cfg.SecretKey),
 	}
 }
 
-func toAutoScalerConfigTFModel(cfg *argocdv1.AutoScalerConfig) basetypes.ObjectValue {
+func toAutoScalerConfigTFModel(cfg *argocdv1.AutoScalerConfig) tftypes.Object {
 	attributeTypes := map[string]attr.Type{
-		"application_controller": basetypes.ObjectType{
+		"application_controller": tftypes.ObjectType{
 			AttrTypes: map[string]attr.Type{
-				"resource_minimum": basetypes.ObjectType{
+				"resource_minimum": tftypes.ObjectType{
 					AttrTypes: map[string]attr.Type{
-						"memory": types.StringType,
-						"cpu":    types.StringType,
+						"memory": tftypes.StringType,
+						"cpu":    tftypes.StringType,
 					},
 				},
-				"resource_maximum": basetypes.ObjectType{
+				"resource_maximum": tftypes.ObjectType{
 					AttrTypes: map[string]attr.Type{
-						"memory": types.StringType,
-						"cpu":    types.StringType,
+						"memory": tftypes.StringType,
+						"cpu":    tftypes.StringType,
 					},
 				},
 			},
 		},
-		"repo_server": basetypes.ObjectType{
+		"repo_server": tftypes.ObjectType{
 			AttrTypes: map[string]attr.Type{
-				"resource_minimum": basetypes.ObjectType{
+				"resource_minimum": tftypes.ObjectType{
 					AttrTypes: map[string]attr.Type{
-						"memory": types.StringType,
-						"cpu":    types.StringType,
+						"memory": tftypes.StringType,
+						"cpu":    tftypes.StringType,
 					},
 				},
-				"resource_maximum": basetypes.ObjectType{
+				"resource_maximum": tftypes.ObjectType{
 					AttrTypes: map[string]attr.Type{
-						"memory": types.StringType,
-						"cpu":    types.StringType,
+						"memory": tftypes.StringType,
+						"cpu":    tftypes.StringType,
 					},
 				},
-				"replicas_maximum": types.Int64Type,
-				"replicas_minimum": types.Int64Type,
+				"replicas_maximum": tftypes.Int64Type,
+				"replicas_minimum": tftypes.Int64Type,
 			},
 		},
 	}
@@ -1160,17 +1186,17 @@ func toAutoScalerConfigTFModel(cfg *argocdv1.AutoScalerConfig) basetypes.ObjectV
 	}
 	if cfg.ApplicationController != nil {
 		attributes["application_controller"] = basetypes.NewObjectValueMust(
-			attributeTypes["application_controller"].(basetypes.ObjectType).AttrTypes,
+			attributeTypes["application_controller"].(tftypes.ObjectType).AttrTypes,
 			map[string]attr.Value{
 				"resource_minimum": basetypes.NewObjectValueMust(
-					attributeTypes["application_controller"].(basetypes.ObjectType).AttrTypes["resource_minimum"].(basetypes.ObjectType).AttrTypes,
+					attributeTypes["application_controller"].(tftypes.ObjectType).AttrTypes["resource_minimum"].(tftypes.ObjectType).AttrTypes,
 					map[string]attr.Value{
 						"memory": basetypes.NewStringValue(cfg.ApplicationController.ResourceMinimum.Mem),
 						"cpu":    basetypes.NewStringValue(cfg.ApplicationController.ResourceMinimum.Cpu),
 					},
 				),
 				"resource_maximum": basetypes.NewObjectValueMust(
-					attributeTypes["application_controller"].(basetypes.ObjectType).AttrTypes["resource_maximum"].(basetypes.ObjectType).AttrTypes,
+					attributeTypes["application_controller"].(tftypes.ObjectType).AttrTypes["resource_maximum"].(tftypes.ObjectType).AttrTypes,
 					map[string]attr.Value{
 						"memory": basetypes.NewStringValue(cfg.ApplicationController.ResourceMaximum.Mem),
 						"cpu":    basetypes.NewStringValue(cfg.ApplicationController.ResourceMaximum.Cpu),
@@ -1180,17 +1206,17 @@ func toAutoScalerConfigTFModel(cfg *argocdv1.AutoScalerConfig) basetypes.ObjectV
 	}
 	if cfg.RepoServer != nil {
 		attributes["repo_server"] = basetypes.NewObjectValueMust(
-			attributeTypes["repo_server"].(basetypes.ObjectType).AttrTypes,
+			attributeTypes["repo_server"].(tftypes.ObjectType).AttrTypes,
 			map[string]attr.Value{
 				"resource_minimum": basetypes.NewObjectValueMust(
-					attributeTypes["repo_server"].(basetypes.ObjectType).AttrTypes["resource_minimum"].(basetypes.ObjectType).AttrTypes,
+					attributeTypes["repo_server"].(tftypes.ObjectType).AttrTypes["resource_minimum"].(tftypes.ObjectType).AttrTypes,
 					map[string]attr.Value{
 						"memory": basetypes.NewStringValue(cfg.RepoServer.ResourceMinimum.Mem),
 						"cpu":    basetypes.NewStringValue(cfg.RepoServer.ResourceMinimum.Cpu),
 					},
 				),
 				"resource_maximum": basetypes.NewObjectValueMust(
-					attributeTypes["repo_server"].(basetypes.ObjectType).AttrTypes["resource_maximum"].(basetypes.ObjectType).AttrTypes,
+					attributeTypes["repo_server"].(tftypes.ObjectType).AttrTypes["resource_maximum"].(tftypes.ObjectType).AttrTypes,
 					map[string]attr.Value{
 						"memory": basetypes.NewStringValue(cfg.RepoServer.ResourceMaximum.Mem),
 						"cpu":    basetypes.NewStringValue(cfg.RepoServer.ResourceMaximum.Cpu),
@@ -1671,10 +1697,10 @@ func toAppsetPluginsTFModel(plugins []*v1alpha1.AppsetPlugins) []*AppsetPlugins 
 	var tfPlugins []*AppsetPlugins
 	for _, plugin := range plugins {
 		tfPlugins = append(tfPlugins, &AppsetPlugins{
-			Name:           types.StringValue(plugin.Name),
-			Token:          types.StringValue(plugin.Token),
-			BaseUrl:        types.StringValue(plugin.BaseUrl),
-			RequestTimeout: types.Int64Value(int64(plugin.RequestTimeout)),
+			Name:           tftypes.StringValue(plugin.Name),
+			Token:          tftypes.StringValue(plugin.Token),
+			BaseUrl:        tftypes.StringValue(plugin.BaseUrl),
+			RequestTimeout: tftypes.Int64Value(int64(plugin.RequestTimeout)),
 		})
 	}
 	return tfPlugins
@@ -1711,7 +1737,7 @@ func toCompatibilityTFModel(plan *Cluster, cfg *argocdv1.ClusterCompatibility) *
 		}
 	}
 	return &ClusterCompatibility{
-		Ipv6Only: types.BoolValue(cfg.Ipv6Only),
+		Ipv6Only: tftypes.BoolValue(cfg.Ipv6Only),
 	}
 }
 
@@ -1736,7 +1762,7 @@ func toArgoCDNotificationsSettingsTFModel(plan *Cluster, cfg *argocdv1.ClusterAr
 		}
 	}
 	return &ClusterArgoCDNotificationsSettings{
-		InClusterSettings: types.BoolValue(cfg.InClusterSettings),
+		InClusterSettings: tftypes.BoolValue(cfg.InClusterSettings),
 	}
 }
 

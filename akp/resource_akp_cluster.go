@@ -6,13 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"github.com/pkg/errors"
 	"golang.org/x/exp/slices"
 	"google.golang.org/genproto/googleapis/api/httpbody"
 	"google.golang.org/grpc/codes"
@@ -31,8 +30,10 @@ import (
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
-var _ resource.Resource = &AkpClusterResource{}
-var _ resource.ResourceWithImportState = &AkpClusterResource{}
+var (
+	_ resource.Resource                = &AkpClusterResource{}
+	_ resource.ResourceWithImportState = &AkpClusterResource{}
+)
 
 func NewAkpClusterResource() resource.Resource {
 	return &AkpClusterResource{}
@@ -136,7 +137,7 @@ func (r *AkpClusterResource) Delete(ctx context.Context, req resource.DeleteRequ
 	}
 
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
-	kubeconfig, err := getKubeconfig(ctx, plan.Kubeconfig)
+	kubeconfig, err := getKubeconfig(ctx, plan.KubeConfig)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", err.Error())
 		return
@@ -198,8 +199,8 @@ func (r *AkpClusterResource) upsert(ctx context.Context, diagnostics *diag.Diagn
 }
 
 func (r *AkpClusterResource) applyInstance(ctx context.Context, plan *types.Cluster, apiReq *argocdv1.ApplyInstanceRequest, isCreate bool, applyInstance func(context.Context, *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error), upsertKubeConfig func(ctx context.Context, plan *types.Cluster, isCreate bool) error) (*types.Cluster, error) {
-	kubeconfig := plan.Kubeconfig
-	plan.Kubeconfig = nil
+	kubeconfig := plan.KubeConfig
+	plan.KubeConfig = nil
 	tflog.Debug(ctx, fmt.Sprintf("Apply cluster request: %s", apiReq))
 	_, err := applyInstance(ctx, apiReq)
 	if err != nil {
@@ -207,11 +208,11 @@ func (r *AkpClusterResource) applyInstance(ctx context.Context, plan *types.Clus
 	}
 
 	if kubeconfig != nil {
-		plan.Kubeconfig = kubeconfig
+		plan.KubeConfig = kubeconfig
 		err = upsertKubeConfig(ctx, plan, isCreate)
 		if err != nil {
 			// Ensure kubeconfig won't be committed to state by setting it to nil
-			plan.Kubeconfig = nil
+			plan.KubeConfig = nil
 			return plan, fmt.Errorf("unable to apply manifests: %s", err)
 		}
 	}
@@ -221,7 +222,7 @@ func (r *AkpClusterResource) applyInstance(ctx context.Context, plan *types.Clus
 
 func (r *AkpClusterResource) upsertKubeConfig(ctx context.Context, plan *types.Cluster, isCreate bool) error {
 	// Apply agent manifests to clusters if the kubeconfig is specified for cluster.
-	kubeconfig, err := getKubeconfig(ctx, plan.Kubeconfig)
+	kubeconfig, err := getKubeconfig(ctx, plan.KubeConfig)
 	if err != nil {
 		return err
 	}
@@ -243,7 +244,8 @@ func (r *AkpClusterResource) upsertKubeConfig(ctx context.Context, plan *types.C
 }
 
 func refreshClusterState(ctx context.Context, diagnostics *diag.Diagnostics, client argocdv1.ArgoCDServiceGatewayClient, cluster *types.Cluster,
-	orgID string, state *tfsdk.State, plan *types.Cluster) error {
+	orgID string, state *tfsdk.State, plan *types.Cluster,
+) error {
 	clusterReq := &argocdv1.GetInstanceClusterRequest{
 		OrganizationId: orgID,
 		InstanceId:     cluster.InstanceID.ValueString(),
@@ -287,7 +289,7 @@ func buildClusters(ctx context.Context, diagnostics *diag.Diagnostics, cluster *
 	return cs
 }
 
-func getKubeconfig(ctx context.Context, kubeConfig *types.Kubeconfig) (*rest.Config, error) {
+func getKubeconfig(ctx context.Context, kubeConfig *types.KubeConfig) (*rest.Config, error) {
 	if kubeConfig == nil {
 		return nil, nil
 	}
@@ -343,7 +345,7 @@ func applyManifests(ctx context.Context, manifests string, cfg *rest.Config) err
 	for _, un := range resources {
 		msg, err := kubectl.ApplyResource(ctx, &un, kube.ApplyOpts{})
 		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("failed to apply manifest"))
+			return errors.Wrap(err, "failed to apply manifest")
 		}
 		tflog.Debug(ctx, msg)
 	}

@@ -14,5 +14,5 @@ import (
 // If this test fails, a field has been added/removed to the Clusters related type.
 // Update the schema attribute accordingly.
 func TestNoNewKargoAgentsDataSourceFields(t *testing.T) {
-	assert.Equal(t, reflect.TypeOf(types.KargoAgents{}).NumField(), len(getAKPKargoAgentsDataSourceAttributes()))
+	assert.Equal(t, reflect.TypeOf(types.KargoAgents{}).NumField(), len(types.KargoAgentsDataSourceSchema.Attributes))
 }

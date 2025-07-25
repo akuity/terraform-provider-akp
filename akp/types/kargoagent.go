@@ -18,7 +18,7 @@ type KargoAgent struct {
 	Labels                        types.Map       `tfsdk:"labels"`
 	Annotations                   types.Map       `tfsdk:"annotations"`
 	Spec                          *KargoAgentSpec `tfsdk:"spec"`
-	Kubeconfig                    *Kubeconfig     `tfsdk:"kube_config"`
+	KubeConfig                    *KubeConfig     `tfsdk:"kube_config"`
 	RemoveAgentResourcesOnDestroy types.Bool      `tfsdk:"remove_agent_resources_on_destroy"`
 }
 
@@ -34,11 +34,12 @@ type KargoAgentSpec struct {
 }
 
 type KargoAgentData struct {
-	Size                types.String `tfsdk:"size"`
-	AutoUpgradeDisabled types.Bool   `tfsdk:"auto_upgrade_disabled"`
-	TargetVersion       types.String `tfsdk:"target_version"`
-	Kustomization       types.String `tfsdk:"kustomization"`
-	RemoteArgocd        types.String `tfsdk:"remote_argocd"`
-	AkuityManaged       types.Bool   `tfsdk:"akuity_managed"`
-	ArgocdNamespace     types.String `tfsdk:"argocd_namespace"`
+	Size                 types.String `tfsdk:"size" schemaGen:"KargoAgentSize"`
+	AutoUpgradeDisabled  types.Bool   `tfsdk:"auto_upgrade_disabled"`
+	TargetVersion        types.String `tfsdk:"target_version"`
+	Kustomization        types.String `tfsdk:"kustomization"`
+	RemoteArgocd         types.String `tfsdk:"remote_argocd"`
+	AkuityManaged        types.Bool   `tfsdk:"akuity_managed"`
+	ArgocdNamespace      types.String `tfsdk:"argocd_namespace"`
+	SelfManagedArgocdUrl types.String `tfsdk:"self_managed_argocd_url"`
 }

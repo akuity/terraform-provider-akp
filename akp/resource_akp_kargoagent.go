@@ -25,8 +25,10 @@ import (
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
-var _ resource.Resource = &AkpKargoAgentResource{}
-var _ resource.ResourceWithImportState = &AkpKargoAgentResource{}
+var (
+	_ resource.Resource                = &AkpKargoAgentResource{}
+	_ resource.ResourceWithImportState = &AkpKargoAgentResource{}
+)
 
 func NewAkpKargoAgentResource() resource.Resource {
 	return &AkpKargoAgentResource{}
@@ -129,7 +131,7 @@ func (r *AkpKargoAgentResource) Delete(ctx context.Context, req resource.DeleteR
 	}
 
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
-	kubeconfig, err := getKubeconfig(ctx, plan.Kubeconfig)
+	kubeconfig, err := getKubeconfig(ctx, plan.KubeConfig)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", err.Error())
 		return
@@ -201,8 +203,8 @@ func (r *AkpKargoAgentResource) upsert(ctx context.Context, diagnostics *diag.Di
 }
 
 func (r *AkpKargoAgentResource) applyKargoInstance(ctx context.Context, plan *types.KargoAgent, apiReq *kargov1.ApplyKargoInstanceRequest, isCreate bool, applyKargoInstance func(context.Context, *kargov1.ApplyKargoInstanceRequest) (*kargov1.ApplyKargoInstanceResponse, error), upsertKubeConfig func(ctx context.Context, plan *types.KargoAgent, isCreate bool) error) (*types.KargoAgent, error) {
-	kubeconfig := plan.Kubeconfig
-	plan.Kubeconfig = nil
+	kubeconfig := plan.KubeConfig
+	plan.KubeConfig = nil
 	tflog.Debug(ctx, fmt.Sprintf("Apply Kargo agent request: %s", apiReq))
 	_, err := applyKargoInstance(ctx, apiReq)
 	if err != nil {
@@ -210,11 +212,11 @@ func (r *AkpKargoAgentResource) applyKargoInstance(ctx context.Context, plan *ty
 	}
 
 	if kubeconfig != nil {
-		plan.Kubeconfig = kubeconfig
+		plan.KubeConfig = kubeconfig
 		err = upsertKubeConfig(ctx, plan, isCreate)
 		if err != nil {
 			// Ensure kubeconfig won't be committed to state by setting it to nil
-			plan.Kubeconfig = nil
+			plan.KubeConfig = nil
 			return plan, fmt.Errorf("unable to apply kargo manifests: %s", err)
 		}
 	}
@@ -224,7 +226,7 @@ func (r *AkpKargoAgentResource) applyKargoInstance(ctx context.Context, plan *ty
 
 func (r *AkpKargoAgentResource) upsertKubeConfig(ctx context.Context, plan *types.KargoAgent, isCreate bool) error {
 	// Apply agent manifests to clusters if the kubeconfig is specified for cluster.
-	kubeconfig, err := getKubeconfig(ctx, plan.Kubeconfig)
+	kubeconfig, err := getKubeconfig(ctx, plan.KubeConfig)
 	if err != nil {
 		return err
 	}
@@ -249,7 +251,8 @@ func (r *AkpKargoAgentResource) upsertKubeConfig(ctx context.Context, plan *type
 }
 
 func refreshKargoAgentState(ctx context.Context, diagnostics *diag.Diagnostics, client kargov1.KargoServiceGatewayClient, kargoAgent *types.KargoAgent,
-	orgID string, state *tfsdk.State, plan *types.KargoAgent) error {
+	orgID string, state *tfsdk.State, plan *types.KargoAgent,
+) error {
 	agents, err := client.ListKargoInstanceAgents(ctx, &kargov1.ListKargoInstanceAgentsRequest{
 		OrganizationId: orgID,
 		InstanceId:     kargoAgent.InstanceID.ValueString(),

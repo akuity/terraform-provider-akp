@@ -3,160 +3,15 @@
 page_title: "akp_cluster Resource - akp"
 subcategory: ""
 description: |-
-  Manages a cluster attached to an Argo CD instance.
+  
 ---
 
 # akp_cluster (Resource)
 
-Manages a cluster attached to an Argo CD instance.
 
-## Example Usage (Basic)
-```terraform
-resource "akp_cluster" "my-cluster" {
-  instance_id = akp_instance.argocd.id
-  kube_config = {
-    host                   = "https://${cluster.my-cluster.endpoint}"
-    token                  = var.my_token
-    client_certificate     = "${base64decode(cluster.my-cluster.master_auth.0.client_certificate)}"
-    client_key             = "${base64decode(cluster.my-cluster.master_auth.0.client_key)}"
-    cluster_ca_certificate = "${base64decode(cluster.my-cluster.master_auth.0.cluster_ca_certificate)}"
-  }
-  name      = "my-cluster"
-  namespace = "akuity"
-  spec = {
-    data = {
-      size = "small"
-    }
-  }
-}
-```
 
-- The `instance_id` assumes you have an `akp_instance` resource named `argocd`.
-- The `kube_config` assumes you have a resource named `cluster.my-cluster` that provides the `host`, `token`, `client_certificate`, `client_key`, `cluster_ca_certificate` of the Kubernetes cluster to deploy the agent into.
+## Example Usage
 
-For a complete working example using a GKE cluster, see [akuity/examples](https://github.com/akuity/examples/tree/main/terraform/akuity).
-
-## Example Usage (using a k8s exec plugin)
-```terraform
-resource "akp_cluster" "my-cluster" {
-  instance_id = akp_instance.argocd.id
-  kube_config = {
-    host                   = "https://${cluster.my-cluster.endpoint}"
-    cluster_ca_certificate = "${base64decode(cluster.my-cluster.master_auth.0.cluster_ca_certificate)}"
-    // No need to hardcode a token!
-    exec = {
-      api_version = "client.authentication.k8s.io/v1"
-      args        = ["eks", "get-token", "--cluster-name", "some-cluster"]
-      command     = "aws"
-      env = {
-        AWS_REGION = "us-west-2"
-      }
-    }
-  }
-  name      = "my-cluster"
-  namespace = "akuity"
-  spec = {
-    data = {
-      size = "small"
-    }
-  }
-}
-```
-
-## Example Usage (Custom agent size)
-```terraform
-data "akp_instance" "example" {
-  name = "test"
-}
-
-resource "akp_cluster" "example" {
-  instance_id = data.akp_instance.example.id
-  name        = "test-cluster"
-  namespace   = "test"
-  labels = {
-    test-label = true
-  }
-  annotations = {
-    test-annotation = false
-  }
-  spec = {
-    namespace_scoped = true
-    description      = "test-description"
-    data = {
-      size                  = "custom"
-      auto_upgrade_disabled = false
-      custom_agent_size_config = {
-        application_controller = {
-          cpu    = "1000m"
-          memory = "2Gi"
-        }
-        repo_server = {
-          replicas = 3,
-          cpu      = "1000m"
-          memory   = "2Gi"
-        }
-      }
-    }
-  }
-}
-```
-
-## Example Usage (Auto agent size)
-```terraform
-data "akp_instance" "example" {
-  name = "test"
-}
-
-resource "akp_cluster" "example" {
-  instance_id = data.akp_instance.example.id
-  name        = "test-cluster"
-  namespace   = "test"
-  labels = {
-    test-label = true
-  }
-  annotations = {
-    test-annotation = false
-  }
-  spec = {
-    namespace_scoped = true
-    description      = "test-description"
-    data = {
-      size = "auto"
-      # auto_upgrade_disabled  can be set to true if you want to enable auto scaling of the agent size for the cluster
-      auto_upgrade_disabled = false
-      auto_agent_size_config = {
-        application_controller = {
-          resource_maximum = {
-            cpu    = "3"
-            memory = "2Gi"
-          },
-          resource_minimum = {
-            cpu    = "250m",
-            memory = "1Gi"
-          }
-        },
-        repo_server = {
-          replicas_maximum = 3,
-          # minimum number of replicas should be set to 1
-          replicas_minimum = 1,
-          resource_maximum = {
-            cpu    = "3"
-            memory = "2.00Gi"
-          },
-          resource_minimum = {
-            cpu    = "250m",
-            memory = "256Mi"
-          }
-        }
-      }
-    }
-  }
-}
-```
-
-- This example uses the `auto` agent size, which will automatically scale the agent based on the number of applications in the cluster. `auto_upgrade_disabled` cannot be set to `true` when using `auto` agent size.
-
-## Example Usage (Exhaustive)
 ```terraform
 data "akp_instance" "example" {
   name = "test"
@@ -242,127 +97,127 @@ resource "akp_cluster" "example" {
 
 ### Required
 
-- `instance_id` (String) Argo CD instance ID
-- `name` (String) Cluster name
-- `namespace` (String) Agent installation namespace
-- `spec` (Attributes) Cluster spec (see [below for nested schema](#nestedatt--spec))
+- `instance_id` (String)
+- `name` (String)
+- `namespace` (String)
+- `spec` (Attributes) (see [below for nested schema](#nestedatt--spec))
 
 ### Optional
 
-- `annotations` (Map of String) Annotations
-- `kube_config` (Attributes) Kubernetes connection settings. If configured, terraform will try to connect to the cluster and install the agent (see [below for nested schema](#nestedatt--kube_config))
-- `labels` (Map of String) Labels
-- `remove_agent_resources_on_destroy` (Boolean) Remove agent Kubernetes resources from the managed cluster when destroying cluster, default to `true`
+- `annotations` (Map of String)
+- `kube_config` (Attributes) (see [below for nested schema](#nestedatt--kube_config))
+- `labels` (Map of String)
+- `remove_agent_resources_on_destroy` (Boolean)
 
 ### Read-Only
 
-- `id` (String) Cluster ID
+- `id` (String) The ID of this resource.
 
 <a id="nestedatt--spec"></a>
 ### Nested Schema for `spec`
 
 Required:
 
-- `data` (Attributes) Cluster data (see [below for nested schema](#nestedatt--spec--data))
+- `data` (Attributes) (see [below for nested schema](#nestedatt--spec--data))
 
 Optional:
 
-- `description` (String) Cluster description
-- `namespace_scoped` (Boolean) If the agent is namespace scoped
+- `description` (String)
+- `namespace_scoped` (Boolean)
 
 <a id="nestedatt--spec--data"></a>
 ### Nested Schema for `spec.data`
 
 Required:
 
-- `size` (String) Cluster Size. One of `small`, `medium`, `large`, `custom` or `auto`
+- `size` (String)
 
 Optional:
 
-- `app_replication` (Boolean) Enables Argo CD state replication to the managed cluster that allows disconnecting the cluster from Akuity Platform without losing core Argocd features
-- `argocd_notifications_settings` (Attributes) ArgoCD notifications settings (see [below for nested schema](#nestedatt--spec--data--argocd_notifications_settings))
-- `auto_agent_size_config` (Attributes) Autoscaler config for auto agent size (see [below for nested schema](#nestedatt--spec--data--auto_agent_size_config))
-- `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
-- `compatibility` (Attributes) Cluster compatibility settings (see [below for nested schema](#nestedatt--spec--data--compatibility))
-- `custom_agent_size_config` (Attributes) Custom agent size config (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config))
-- `datadog_annotations_enabled` (Boolean) Enable Datadog metrics collection of Application Controller and Repo Server. Make sure that you install Datadog agent in cluster.
-- `eks_addon_enabled` (Boolean) Enable this if you are installing this cluster on EKS.
-- `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
-- `managed_cluster_config` (Attributes) The config to access managed Kubernetes cluster. By default agent is using "in-cluster" config. (see [below for nested schema](#nestedatt--spec--data--managed_cluster_config))
-- `multi_cluster_k8s_dashboard_enabled` (Boolean) Enable the KubeVision feature on the managed cluster
-- `project` (String) Project name
-- `redis_tunneling` (Boolean) Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy
-- `target_version` (String) The version of the agent to install on your cluster
+- `app_replication` (Boolean)
+- `argocd_notifications_settings` (Attributes) (see [below for nested schema](#nestedatt--spec--data--argocd_notifications_settings))
+- `auto_upgrade_disabled` (Boolean)
+- `autoscaler_config` (Attributes) (see [below for nested schema](#nestedatt--spec--data--autoscaler_config))
+- `compatibility` (Attributes) (see [below for nested schema](#nestedatt--spec--data--compatibility))
+- `custom_agent_size_config` (Attributes) (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config))
+- `datadog_annotations_enabled` (Boolean)
+- `eks_addon_enabled` (Boolean)
+- `kustomization` (String)
+- `managed_cluster_config` (Attributes) (see [below for nested schema](#nestedatt--spec--data--managed_cluster_config))
+- `multi_cluster_k8s_dashboard_enabled` (Boolean)
+- `project` (String)
+- `redis_tunneling` (Boolean)
+- `target_version` (String)
 
 <a id="nestedatt--spec--data--argocd_notifications_settings"></a>
 ### Nested Schema for `spec.data.argocd_notifications_settings`
 
 Optional:
 
-- `in_cluster_settings` (Boolean) Enable in-cluster settings for ArgoCD notifications
+- `in_cluster_settings` (Boolean)
 
 
-<a id="nestedatt--spec--data--auto_agent_size_config"></a>
-### Nested Schema for `spec.data.auto_agent_size_config`
-
-Optional:
-
-- `application_controller` (Attributes) Application Controller auto scaling config (see [below for nested schema](#nestedatt--spec--data--auto_agent_size_config--application_controller))
-- `repo_server` (Attributes) Repo Server auto scaling config (see [below for nested schema](#nestedatt--spec--data--auto_agent_size_config--repo_server))
-
-<a id="nestedatt--spec--data--auto_agent_size_config--application_controller"></a>
-### Nested Schema for `spec.data.auto_agent_size_config.application_controller`
+<a id="nestedatt--spec--data--autoscaler_config"></a>
+### Nested Schema for `spec.data.autoscaler_config`
 
 Optional:
 
-- `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--spec--data--auto_agent_size_config--application_controller--resource_maximum))
-- `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--spec--data--auto_agent_size_config--application_controller--resource_minimum))
+- `application_controller` (Attributes) (see [below for nested schema](#nestedatt--spec--data--autoscaler_config--application_controller))
+- `repo_server` (Attributes) (see [below for nested schema](#nestedatt--spec--data--autoscaler_config--repo_server))
 
-<a id="nestedatt--spec--data--auto_agent_size_config--application_controller--resource_maximum"></a>
-### Nested Schema for `spec.data.auto_agent_size_config.application_controller.resource_maximum`
-
-Optional:
-
-- `cpu` (String) CPU
-- `memory` (String) Memory
-
-
-<a id="nestedatt--spec--data--auto_agent_size_config--application_controller--resource_minimum"></a>
-### Nested Schema for `spec.data.auto_agent_size_config.application_controller.resource_minimum`
+<a id="nestedatt--spec--data--autoscaler_config--application_controller"></a>
+### Nested Schema for `spec.data.autoscaler_config.application_controller`
 
 Optional:
 
-- `cpu` (String) CPU
-- `memory` (String) Memory
+- `resource_maximum` (Attributes) (see [below for nested schema](#nestedatt--spec--data--autoscaler_config--application_controller--resource_maximum))
+- `resource_minimum` (Attributes) (see [below for nested schema](#nestedatt--spec--data--autoscaler_config--application_controller--resource_minimum))
 
-
-
-<a id="nestedatt--spec--data--auto_agent_size_config--repo_server"></a>
-### Nested Schema for `spec.data.auto_agent_size_config.repo_server`
+<a id="nestedatt--spec--data--autoscaler_config--application_controller--resource_maximum"></a>
+### Nested Schema for `spec.data.autoscaler_config.application_controller.resource_maximum`
 
 Optional:
 
-- `replicas_maximum` (Number) Replica maximum
-- `replicas_minimum` (Number) Replica minimum, this should be set to 1 as a minimum
-- `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--spec--data--auto_agent_size_config--repo_server--resource_maximum))
-- `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--spec--data--auto_agent_size_config--repo_server--resource_minimum))
-
-<a id="nestedatt--spec--data--auto_agent_size_config--repo_server--resource_maximum"></a>
-### Nested Schema for `spec.data.auto_agent_size_config.repo_server.resource_maximum`
-
-Optional:
-
-- `cpu` (String) CPU
-- `memory` (String) Memory
+- `cpu` (String)
+- `memory` (String)
 
 
-<a id="nestedatt--spec--data--auto_agent_size_config--repo_server--resource_minimum"></a>
-### Nested Schema for `spec.data.auto_agent_size_config.repo_server.resource_minimum`
+<a id="nestedatt--spec--data--autoscaler_config--application_controller--resource_minimum"></a>
+### Nested Schema for `spec.data.autoscaler_config.application_controller.resource_minimum`
 
 Optional:
 
-- `cpu` (String) CPU
-- `memory` (String) Memory
+- `cpu` (String)
+- `memory` (String)
+
+
+
+<a id="nestedatt--spec--data--autoscaler_config--repo_server"></a>
+### Nested Schema for `spec.data.autoscaler_config.repo_server`
+
+Optional:
+
+- `replicas_maximum` (Number)
+- `replicas_minimum` (Number)
+- `resource_maximum` (Attributes) (see [below for nested schema](#nestedatt--spec--data--autoscaler_config--repo_server--resource_maximum))
+- `resource_minimum` (Attributes) (see [below for nested schema](#nestedatt--spec--data--autoscaler_config--repo_server--resource_minimum))
+
+<a id="nestedatt--spec--data--autoscaler_config--repo_server--resource_maximum"></a>
+### Nested Schema for `spec.data.autoscaler_config.repo_server.resource_maximum`
+
+Optional:
+
+- `cpu` (String)
+- `memory` (String)
+
+
+<a id="nestedatt--spec--data--autoscaler_config--repo_server--resource_minimum"></a>
+### Nested Schema for `spec.data.autoscaler_config.repo_server.resource_minimum`
+
+Optional:
+
+- `cpu` (String)
+- `memory` (String)
 
 
 
@@ -372,7 +227,7 @@ Optional:
 
 Optional:
 
-- `ipv6_only` (Boolean) IPv6 only configuration
+- `ipv6only` (Boolean)
 
 
 <a id="nestedatt--spec--data--custom_agent_size_config"></a>
@@ -380,16 +235,16 @@ Optional:
 
 Optional:
 
-- `application_controller` (Attributes) Application Controller custom agent size config (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config--application_controller))
-- `repo_server` (Attributes) Repo Server custom agent size config (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config--repo_server))
+- `application_controller` (Attributes) (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config--application_controller))
+- `repo_server` (Attributes) (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config--repo_server))
 
 <a id="nestedatt--spec--data--custom_agent_size_config--application_controller"></a>
 ### Nested Schema for `spec.data.custom_agent_size_config.application_controller`
 
 Optional:
 
-- `cpu` (String) CPU
-- `memory` (String) Memory
+- `cpu` (String)
+- `memory` (String)
 
 
 <a id="nestedatt--spec--data--custom_agent_size_config--repo_server"></a>
@@ -397,22 +252,19 @@ Optional:
 
 Optional:
 
-- `cpu` (String) CPU
-- `memory` (String) Memory
-- `replicas` (Number) Replica
+- `cpu` (String)
+- `memory` (String)
+- `replicas` (Number)
 
 
 
 <a id="nestedatt--spec--data--managed_cluster_config"></a>
 ### Nested Schema for `spec.data.managed_cluster_config`
 
-Required:
-
-- `secret_name` (String) The name of the secret for the managed cluster config
-
 Optional:
 
-- `secret_key` (String) The key in the secret for the managed cluster config
+- `secret_key` (String)
+- `secret_name` (String)
 
 
 
@@ -422,48 +274,28 @@ Optional:
 
 Optional:
 
-- `client_certificate` (String) PEM-encoded client certificate for TLS authentication.
-- `client_key` (String, Sensitive) PEM-encoded client certificate key for TLS authentication.
-- `cluster_ca_certificate` (String) PEM-encoded root certificates bundle for TLS authentication.
-- `config_context` (String) Context name to load from the kube config file.
+- `client_certificate` (String)
+- `client_key` (String, Sensitive)
+- `cluster_ca_certificate` (String)
+- `config_context` (String)
 - `config_context_auth_info` (String)
 - `config_context_cluster` (String)
-- `config_path` (String) Path to the kube config file.
-- `config_paths` (List of String) A list of paths to kube config files.
-- `exec` (Attributes) Configuration for the Kubernetes client authentication exec‐plugin (see [below for nested schema](#nestedatt--kube_config--exec))
-- `host` (String) The hostname (in form of URI) of Kubernetes master.
-- `insecure` (Boolean) Whether server should be accessed without verifying the TLS certificate.
-- `password` (String, Sensitive) The password to use for HTTP basic authentication when accessing the Kubernetes master endpoint.
-- `proxy_url` (String) URL to the proxy to be used for all API requests
-- `token` (String, Sensitive) Token to authenticate an service account
-- `username` (String) The username to use for HTTP basic authentication when accessing the Kubernetes master endpoint.
+- `config_path` (String)
+- `config_paths` (List of String)
+- `exec` (Attributes) (see [below for nested schema](#nestedatt--kube_config--exec))
+- `host` (String)
+- `insecure` (Boolean)
+- `password` (String, Sensitive)
+- `proxy_url` (String)
+- `token` (String, Sensitive)
+- `username` (String)
 
 <a id="nestedatt--kube_config--exec"></a>
 ### Nested Schema for `kube_config.exec`
 
-Required:
-
-- `api_version` (String)
-- `command` (String) The exec plugin binary to call
-
 Optional:
 
-- `args` (List of String) Arguments to pass to the exec plugin
-- `env` (Map of String) Environment variables for the exec plugin
-
-## Import
-
-In Terraform v1.5.0 and later, use an [`import` block](https://developer.hashicorp.com/terraform/language/import) to import the AKP cluster using `instance_id` and `name` separated by a forward slash (`/`). For example:
-
-```terraform
-import {
-  to = akp_cluster.example
-  id = "6pzhawvy4echbd8x/test-cluster"
-}
-```
-
-Using `terraform import`, import AKP cluster using `instance_id` and `name` separated by a forward slash (`/`). For example:
-
-```shell
-terraform import akp_cluster.example 6pzhawvy4echbd8x/test-cluster
-```
+- `api_version` (String)
+- `args` (List of String)
+- `command` (String)
+- `env` (Map of String)

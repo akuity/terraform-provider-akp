@@ -41,7 +41,7 @@ func (k *Kubectl) DeleteResource(ctx context.Context, obj *unstructured.Unstruct
 	if err != nil {
 		return "", err
 	}
-	err = kubeDeleteOpts.Complete(k.fact,[]string{}, dcmd)
+	err = kubeDeleteOpts.Complete(k.fact, []string{}, dcmd)
 	if err != nil {
 		return "", err
 	}
@@ -52,16 +52,16 @@ func (k *Kubectl) DeleteResource(ctx context.Context, obj *unstructured.Unstruct
 	return "", nil
 }
 
-func (k *Kubectl) newDeleteOptions(ioStreams genericclioptions.IOStreams, obj *unstructured.Unstructured, path string, deleteOpts DeleteOpts)  (*delete.DeleteOptions, error){
+func (k *Kubectl) newDeleteOptions(ioStreams genericclioptions.IOStreams, obj *unstructured.Unstructured, path string, deleteOpts DeleteOpts) (*delete.DeleteOptions, error) {
 	o := &delete.DeleteOptions{
-		FilenameOptions:  resource.FilenameOptions{
+		FilenameOptions: resource.FilenameOptions{
 			Filenames: []string{path},
 		},
-		IgnoreNotFound:   deleteOpts.IgnoreNotFound,
-		WaitForDeletion:  deleteOpts.WaitForDeletion,
-		GracePeriod:      deleteOpts.GracePeriod,
-		Output:           "name",
-		IOStreams:        ioStreams,
+		IgnoreNotFound:    deleteOpts.IgnoreNotFound,
+		WaitForDeletion:   deleteOpts.WaitForDeletion,
+		GracePeriod:       deleteOpts.GracePeriod,
+		Output:            "name",
+		IOStreams:         ioStreams,
 		CascadingStrategy: metav1.DeletePropagationBackground,
 	}
 	dynamicClient, err := dynamic.NewForConfig(k.config)
@@ -70,5 +70,5 @@ func (k *Kubectl) newDeleteOptions(ioStreams genericclioptions.IOStreams, obj *u
 	}
 	o.DynamicClient = dynamicClient
 	o.DryRunStrategy = util.DryRunNone
-	return o,nil
+	return o, nil
 }

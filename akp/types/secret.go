@@ -4,13 +4,12 @@ import (
 	"context"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/types"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func GetSensitiveStrings(data types.Map) []string {
+func GetSensitiveStrings(data tftypes.Map) []string {
 	var res []string
 	if data.IsNull() || data.IsUnknown() {
 		return res
@@ -38,7 +37,7 @@ func ToSecretAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, name s
 	}
 }
 
-func mapFromMapValue(s types.Map) (map[string]string, diag.Diagnostics) {
+func mapFromMapValue(s tftypes.Map) (map[string]string, diag.Diagnostics) {
 	var data map[string]string
 	var d diag.Diagnostics
 	if !s.IsNull() {

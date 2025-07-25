@@ -76,7 +76,7 @@ func TestAccClusterResource(t *testing.T) {
 	})
 }
 
-func testAccClusterResourceConfig(size string, name string, description string) string {
+func testAccClusterResourceConfig(size, name, description string) string {
 	return fmt.Sprintf(`
 resource "akp_cluster" "test" {
   instance_id = "6pzhawvy4echbd8x"
@@ -170,7 +170,7 @@ func TestAkpClusterResource_applyInstance(t *testing.T) {
 			name: "happy path, with kubeconfig",
 			args: args{
 				plan: &types.Cluster{
-					Kubeconfig: &types.Kubeconfig{
+					KubeConfig: &types.KubeConfig{
 						Host: hashitype.StringValue("some-host"),
 					},
 				},
@@ -179,7 +179,7 @@ func TestAkpClusterResource_applyInstance(t *testing.T) {
 				},
 				upsertKubeConfig: func(ctx context.Context, plan *types.Cluster, isCreate bool) error {
 					assert.Equal(t, &types.Cluster{
-						Kubeconfig: &types.Kubeconfig{
+						KubeConfig: &types.KubeConfig{
 							Host: hashitype.StringValue("some-host"),
 						},
 					}, plan)
@@ -187,7 +187,7 @@ func TestAkpClusterResource_applyInstance(t *testing.T) {
 				},
 			},
 			want: &types.Cluster{
-				Kubeconfig: &types.Kubeconfig{
+				KubeConfig: &types.KubeConfig{
 					Host: hashitype.StringValue("some-host"),
 				},
 			},
@@ -197,7 +197,7 @@ func TestAkpClusterResource_applyInstance(t *testing.T) {
 			name: "error path, with kubeconfig",
 			args: args{
 				plan: &types.Cluster{
-					Kubeconfig: &types.Kubeconfig{
+					KubeConfig: &types.KubeConfig{
 						Host: hashitype.StringValue("some-host"),
 					},
 				},

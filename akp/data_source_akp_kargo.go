@@ -56,6 +56,13 @@ func (k *AkpKargoDataSource) Read(ctx context.Context, req datasource.ReadReques
 
 	ctx = httpctx.SetAuthorizationHeader(ctx, k.akpCli.Cred.Scheme(), k.akpCli.Cred.Credential())
 
-	refreshKargoState(ctx, &resp.Diagnostics, k.akpCli.KargoCli, &data, k.akpCli.OrgId, true)
+	err := refreshKargoState(ctx, &resp.Diagnostics, k.akpCli.KargoCli, &data, k.akpCli.OrgId, true)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error refreshing kargo instance state",
+			fmt.Sprintf("Could not read kargo instance: %s", err),
+		)
+		return
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }

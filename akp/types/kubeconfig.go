@@ -1,8 +1,13 @@
+// This is an auto-generated file. DO NOT EDIT
+/*
+Copyright 2025 Akuity, Inc.
+*/
+
 package types
 
 import "github.com/hashicorp/terraform-plugin-framework/types"
 
-type Kubeconfig struct {
+type KubeConfig struct {
 	Host                  types.String `tfsdk:"host"`
 	Username              types.String `tfsdk:"username"`
 	Password              types.String `tfsdk:"password"`

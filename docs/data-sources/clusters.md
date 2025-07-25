@@ -3,12 +3,12 @@
 page_title: "akp_clusters Data Source - akp"
 subcategory: ""
 description: |-
-  Gets information about all clusters attached to an Argo CD instance
+  
 ---
 
 # akp_clusters (Data Source)
 
-Gets information about all clusters attached to an Argo CD instance
+
 
 ## Example Usage
 
@@ -27,50 +27,68 @@ data "akp_clusters" "example" {
 
 ### Required
 
-- `instance_id` (String) Argo CD instance ID
+- `instance_id` (String)
 
 ### Read-Only
 
-- `clusters` (Attributes List) List of clusters (see [below for nested schema](#nestedatt--clusters))
-- `id` (String) Argo CD instance ID
+- `clusters` (Attributes List) (see [below for nested schema](#nestedatt--clusters))
+- `id` (String) The ID of this resource.
 
 <a id="nestedatt--clusters"></a>
 ### Nested Schema for `clusters`
 
 Required:
 
-- `instance_id` (String) Argo CD instance ID
-- `name` (String) Cluster name
+- `instance_id` (String)
+- `name` (String)
 
 Read-Only:
 
-- `annotations` (Map of String) Annotations
-- `id` (String) Cluster ID
-- `kube_config` (Attributes) Kubernetes connection settings. If configured, terraform will try to connect to the cluster and install the agent (see [below for nested schema](#nestedatt--clusters--kube_config))
-- `labels` (Map of String) Labels
-- `namespace` (String) Agent installation namespace
-- `remove_agent_resources_on_destroy` (Boolean) Remove agent Kubernetes resources from the managed cluster when destroying cluster
-- `spec` (Attributes) Cluster spec (see [below for nested schema](#nestedatt--clusters--spec))
+- `annotations` (Map of String)
+- `id` (String)
+- `kube_config` (Attributes) (see [below for nested schema](#nestedatt--clusters--kube_config))
+- `labels` (Map of String)
+- `namespace` (String)
+- `remove_agent_resources_on_destroy` (Boolean)
+- `spec` (Attributes) (see [below for nested schema](#nestedatt--clusters--spec))
 
 <a id="nestedatt--clusters--kube_config"></a>
 ### Nested Schema for `clusters.kube_config`
 
-Read-Only:
+Optional:
 
-- `client_certificate` (String) PEM-encoded client certificate for TLS authentication.
-- `client_key` (String, Sensitive) PEM-encoded client certificate key for TLS authentication.
-- `cluster_ca_certificate` (String) PEM-encoded root certificates bundle for TLS authentication.
-- `config_context` (String) Context name to load from the kube config file.
+- `client_certificate` (String)
+- `client_key` (String, Sensitive)
+- `cluster_ca_certificate` (String)
+- `config_context` (String)
 - `config_context_auth_info` (String)
 - `config_context_cluster` (String)
-- `config_path` (String) Path to the kube config file.
-- `config_paths` (List of String) A list of paths to kube config files.
-- `host` (String) The hostname (in form of URI) of Kubernetes master.
-- `insecure` (Boolean) Whether server should be accessed without verifying the TLS certificate.
-- `password` (String, Sensitive) The password to use for HTTP basic authentication when accessing the Kubernetes master endpoint.
-- `proxy_url` (String) URL to the proxy to be used for all API requests
-- `token` (String, Sensitive) Token to authenticate an service account
-- `username` (String) The username to use for HTTP basic authentication when accessing the Kubernetes master endpoint.
+- `config_path` (String)
+- `config_paths` (List of String)
+- `host` (String)
+- `insecure` (Boolean)
+- `password` (String, Sensitive)
+- `proxy_url` (String)
+- `token` (String, Sensitive)
+- `username` (String)
+
+Read-Only:
+
+- `exec` (Attributes) (see [below for nested schema](#nestedatt--clusters--kube_config--exec))
+
+<a id="nestedatt--clusters--kube_config--exec"></a>
+### Nested Schema for `clusters.kube_config.exec`
+
+Optional:
+
+- `args` (List of String)
+- `env` (Map of String)
+
+Read-Only:
+
+- `api_version` (String)
+- `command` (String)
+
 
 
 <a id="nestedatt--clusters--spec"></a>
@@ -78,100 +96,100 @@ Read-Only:
 
 Read-Only:
 
-- `data` (Attributes) Cluster data (see [below for nested schema](#nestedatt--clusters--spec--data))
-- `description` (String) Cluster description
-- `namespace_scoped` (Boolean) If the agent is namespace scoped
+- `data` (Attributes) (see [below for nested schema](#nestedatt--clusters--spec--data))
+- `description` (String)
+- `namespace_scoped` (Boolean)
 
 <a id="nestedatt--clusters--spec--data"></a>
 ### Nested Schema for `clusters.spec.data`
 
 Read-Only:
 
-- `app_replication` (Boolean) Enables Argo CD state replication to the managed cluster that allows disconnecting the cluster from Akuity Platform without losing core Argocd features
-- `argocd_notifications_settings` (Attributes) ArgoCD notifications settings (see [below for nested schema](#nestedatt--clusters--spec--data--argocd_notifications_settings))
-- `auto_agent_size_config` (Attributes) Autoscaler config for auto agent size (see [below for nested schema](#nestedatt--clusters--spec--data--auto_agent_size_config))
-- `auto_upgrade_disabled` (Boolean) Disables agents auto upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
-- `compatibility` (Attributes) Cluster compatibility settings (see [below for nested schema](#nestedatt--clusters--spec--data--compatibility))
-- `custom_agent_size_config` (Attributes) Custom agent size config (see [below for nested schema](#nestedatt--clusters--spec--data--custom_agent_size_config))
-- `datadog_annotations_enabled` (Boolean) Enable Datadog metrics collection of Application Controller and Repo Server. Make sure that you install Datadog agent in cluster.
-- `eks_addon_enabled` (Boolean) Enable this if you are installing this cluster on EKS.
-- `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
-- `managed_cluster_config` (Attributes) The config to access managed Kubernetes cluster. By default agent is using "in-cluster" config. (see [below for nested schema](#nestedatt--clusters--spec--data--managed_cluster_config))
-- `multi_cluster_k8s_dashboard_enabled` (Boolean) Enable the KubeVision feature on the managed cluster
-- `project` (String) Project name
-- `redis_tunneling` (Boolean) Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy
-- `size` (String) Cluster Size. One of `small`, `medium`, `large`, `custom` or `auto`
-- `target_version` (String) The version of the agent to install on your cluster
+- `app_replication` (Boolean)
+- `argocd_notifications_settings` (Attributes) (see [below for nested schema](#nestedatt--clusters--spec--data--argocd_notifications_settings))
+- `auto_upgrade_disabled` (Boolean)
+- `autoscaler_config` (Attributes) (see [below for nested schema](#nestedatt--clusters--spec--data--autoscaler_config))
+- `compatibility` (Attributes) (see [below for nested schema](#nestedatt--clusters--spec--data--compatibility))
+- `custom_agent_size_config` (Attributes) (see [below for nested schema](#nestedatt--clusters--spec--data--custom_agent_size_config))
+- `datadog_annotations_enabled` (Boolean)
+- `eks_addon_enabled` (Boolean)
+- `kustomization` (String)
+- `managed_cluster_config` (Attributes) (see [below for nested schema](#nestedatt--clusters--spec--data--managed_cluster_config))
+- `multi_cluster_k8s_dashboard_enabled` (Boolean)
+- `project` (String)
+- `redis_tunneling` (Boolean)
+- `size` (String)
+- `target_version` (String)
 
 <a id="nestedatt--clusters--spec--data--argocd_notifications_settings"></a>
 ### Nested Schema for `clusters.spec.data.argocd_notifications_settings`
 
 Read-Only:
 
-- `in_cluster_settings` (Boolean) Enable in-cluster settings for ArgoCD notifications
+- `in_cluster_settings` (Boolean)
 
 
-<a id="nestedatt--clusters--spec--data--auto_agent_size_config"></a>
-### Nested Schema for `clusters.spec.data.auto_agent_size_config`
-
-Read-Only:
-
-- `application_controller` (Attributes) Application Controller auto scaling config (see [below for nested schema](#nestedatt--clusters--spec--data--auto_agent_size_config--application_controller))
-- `repo_server` (Attributes) Repo Server auto scaling config (see [below for nested schema](#nestedatt--clusters--spec--data--auto_agent_size_config--repo_server))
-
-<a id="nestedatt--clusters--spec--data--auto_agent_size_config--application_controller"></a>
-### Nested Schema for `clusters.spec.data.auto_agent_size_config.application_controller`
+<a id="nestedatt--clusters--spec--data--autoscaler_config"></a>
+### Nested Schema for `clusters.spec.data.autoscaler_config`
 
 Read-Only:
 
-- `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--clusters--spec--data--auto_agent_size_config--application_controller--resource_maximum))
-- `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--clusters--spec--data--auto_agent_size_config--application_controller--resource_minimum))
+- `application_controller` (Attributes) (see [below for nested schema](#nestedatt--clusters--spec--data--autoscaler_config--application_controller))
+- `repo_server` (Attributes) (see [below for nested schema](#nestedatt--clusters--spec--data--autoscaler_config--repo_server))
 
-<a id="nestedatt--clusters--spec--data--auto_agent_size_config--application_controller--resource_maximum"></a>
-### Nested Schema for `clusters.spec.data.auto_agent_size_config.application_controller.resource_maximum`
-
-Read-Only:
-
-- `cpu` (String) CPU
-- `memory` (String) Memory
-
-
-<a id="nestedatt--clusters--spec--data--auto_agent_size_config--application_controller--resource_minimum"></a>
-### Nested Schema for `clusters.spec.data.auto_agent_size_config.application_controller.resource_minimum`
+<a id="nestedatt--clusters--spec--data--autoscaler_config--application_controller"></a>
+### Nested Schema for `clusters.spec.data.autoscaler_config.application_controller`
 
 Read-Only:
 
-- `cpu` (String) CPU
-- `memory` (String) Memory
+- `resource_maximum` (Attributes) (see [below for nested schema](#nestedatt--clusters--spec--data--autoscaler_config--application_controller--resource_maximum))
+- `resource_minimum` (Attributes) (see [below for nested schema](#nestedatt--clusters--spec--data--autoscaler_config--application_controller--resource_minimum))
 
-
-
-<a id="nestedatt--clusters--spec--data--auto_agent_size_config--repo_server"></a>
-### Nested Schema for `clusters.spec.data.auto_agent_size_config.repo_server`
+<a id="nestedatt--clusters--spec--data--autoscaler_config--application_controller--resource_maximum"></a>
+### Nested Schema for `clusters.spec.data.autoscaler_config.application_controller.resource_maximum`
 
 Read-Only:
 
-- `replicas_maximum` (Number) Replica maximum
-- `replicas_minimum` (Number) Replica minimum
-- `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--clusters--spec--data--auto_agent_size_config--repo_server--resource_maximum))
-- `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--clusters--spec--data--auto_agent_size_config--repo_server--resource_minimum))
-
-<a id="nestedatt--clusters--spec--data--auto_agent_size_config--repo_server--resource_maximum"></a>
-### Nested Schema for `clusters.spec.data.auto_agent_size_config.repo_server.resource_maximum`
-
-Read-Only:
-
-- `cpu` (String) CPU
-- `memory` (String) Memory
+- `cpu` (String)
+- `memory` (String)
 
 
-<a id="nestedatt--clusters--spec--data--auto_agent_size_config--repo_server--resource_minimum"></a>
-### Nested Schema for `clusters.spec.data.auto_agent_size_config.repo_server.resource_minimum`
+<a id="nestedatt--clusters--spec--data--autoscaler_config--application_controller--resource_minimum"></a>
+### Nested Schema for `clusters.spec.data.autoscaler_config.application_controller.resource_minimum`
 
 Read-Only:
 
-- `cpu` (String) CPU
-- `memory` (String) Memory
+- `cpu` (String)
+- `memory` (String)
+
+
+
+<a id="nestedatt--clusters--spec--data--autoscaler_config--repo_server"></a>
+### Nested Schema for `clusters.spec.data.autoscaler_config.repo_server`
+
+Read-Only:
+
+- `replicas_maximum` (Number)
+- `replicas_minimum` (Number)
+- `resource_maximum` (Attributes) (see [below for nested schema](#nestedatt--clusters--spec--data--autoscaler_config--repo_server--resource_maximum))
+- `resource_minimum` (Attributes) (see [below for nested schema](#nestedatt--clusters--spec--data--autoscaler_config--repo_server--resource_minimum))
+
+<a id="nestedatt--clusters--spec--data--autoscaler_config--repo_server--resource_maximum"></a>
+### Nested Schema for `clusters.spec.data.autoscaler_config.repo_server.resource_maximum`
+
+Read-Only:
+
+- `cpu` (String)
+- `memory` (String)
+
+
+<a id="nestedatt--clusters--spec--data--autoscaler_config--repo_server--resource_minimum"></a>
+### Nested Schema for `clusters.spec.data.autoscaler_config.repo_server.resource_minimum`
+
+Read-Only:
+
+- `cpu` (String)
+- `memory` (String)
 
 
 
@@ -181,7 +199,7 @@ Read-Only:
 
 Read-Only:
 
-- `ipv6_only` (Boolean) IPv6 only configuration
+- `ipv6only` (Boolean)
 
 
 <a id="nestedatt--clusters--spec--data--custom_agent_size_config"></a>
@@ -189,16 +207,16 @@ Read-Only:
 
 Read-Only:
 
-- `application_controller` (Attributes) Application Controller custom agent size config (see [below for nested schema](#nestedatt--clusters--spec--data--custom_agent_size_config--application_controller))
-- `repo_server` (Attributes) Repo Server custom agent size config (see [below for nested schema](#nestedatt--clusters--spec--data--custom_agent_size_config--repo_server))
+- `application_controller` (Attributes) (see [below for nested schema](#nestedatt--clusters--spec--data--custom_agent_size_config--application_controller))
+- `repo_server` (Attributes) (see [below for nested schema](#nestedatt--clusters--spec--data--custom_agent_size_config--repo_server))
 
 <a id="nestedatt--clusters--spec--data--custom_agent_size_config--application_controller"></a>
 ### Nested Schema for `clusters.spec.data.custom_agent_size_config.application_controller`
 
 Read-Only:
 
-- `cpu` (String) CPU
-- `memory` (String) Memory
+- `cpu` (String)
+- `memory` (String)
 
 
 <a id="nestedatt--clusters--spec--data--custom_agent_size_config--repo_server"></a>
@@ -206,9 +224,9 @@ Read-Only:
 
 Read-Only:
 
-- `cpu` (String) CPU
-- `memory` (String) Memory
-- `replicas` (Number) Replica
+- `cpu` (String)
+- `memory` (String)
+- `replicas` (Number)
 
 
 
@@ -217,5 +235,5 @@ Read-Only:
 
 Read-Only:
 
-- `secret_key` (String) The key in the secret for the managed cluster config
-- `secret_name` (String) The name of the secret for the managed cluster config
+- `secret_key` (String)
+- `secret_name` (String)

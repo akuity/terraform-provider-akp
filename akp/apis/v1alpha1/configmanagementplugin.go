@@ -1,6 +1,6 @@
 // This is an auto-generated file. DO NOT EDIT
 /*
-Copyright 2023 Akuity, Inc.
+Copyright 2025 Akuity, Inc.
 */
 
 package v1alpha1

@@ -24,8 +24,10 @@ import (
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
-var _ resource.Resource = &AkpKargoInstanceResource{}
-var _ resource.ResourceWithImportState = &AkpKargoInstanceResource{}
+var (
+	_ resource.Resource                = &AkpKargoInstanceResource{}
+	_ resource.ResourceWithImportState = &AkpKargoInstanceResource{}
+)
 
 func NewAkpKargoInstanceResource() resource.Resource {
 	return &AkpKargoInstanceResource{}
@@ -126,7 +128,6 @@ func (r *AkpKargoInstanceResource) Delete(ctx context.Context, req resource.Dele
 		Id:             state.ID.ValueString(),
 		OrganizationId: r.akpCli.OrgId,
 	})
-
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete Argo CD instance, got error: %s", err))
 		return

@@ -3,12 +3,12 @@
 page_title: "akp_kargo_agent Data Source - akp"
 subcategory: ""
 description: |-
-  Gets information about a cluster by its name and Argo CD instance ID
+  
 ---
 
 # akp_kargo_agent (Data Source)
 
-Gets information about a cluster by its name and Argo CD instance ID
+
 
 ## Example Usage
 
@@ -23,39 +23,57 @@ data "akp_kargo_agent" "example" {
 
 ### Required
 
-- `instance_id` (String) The ID of the Kargo instance
-- `name` (String) The name of the Kargo agent
+- `instance_id` (String)
+- `name` (String)
 
 ### Read-Only
 
-- `annotations` (Map of String) The annotations of the Kargo agent
-- `id` (String) The ID of the Kargo agent
-- `kube_config` (Attributes) The kubeconfig of the Kargo agent (see [below for nested schema](#nestedatt--kube_config))
-- `labels` (Map of String) The labels of the Kargo agent
-- `namespace` (String) The namespace of the Kargo agent
-- `remove_agent_resources_on_destroy` (Boolean) Whether to remove agent resources on destroy
-- `spec` (Attributes) The spec of the Kargo agent (see [below for nested schema](#nestedatt--spec))
-- `workspace` (String) Workspace name for the Kargo agent
+- `annotations` (Map of String)
+- `id` (String) The ID of this resource.
+- `kube_config` (Attributes) (see [below for nested schema](#nestedatt--kube_config))
+- `labels` (Map of String)
+- `namespace` (String)
+- `remove_agent_resources_on_destroy` (Boolean)
+- `spec` (Attributes) (see [below for nested schema](#nestedatt--spec))
+- `workspace` (String)
 
 <a id="nestedatt--kube_config"></a>
 ### Nested Schema for `kube_config`
 
-Read-Only:
+Optional:
 
-- `client_certificate` (String) PEM-encoded client certificate for TLS authentication.
-- `client_key` (String, Sensitive) PEM-encoded client certificate key for TLS authentication.
-- `cluster_ca_certificate` (String) PEM-encoded root certificates bundle for TLS authentication.
-- `config_context` (String) Context name to load from the kube config file.
+- `client_certificate` (String)
+- `client_key` (String, Sensitive)
+- `cluster_ca_certificate` (String)
+- `config_context` (String)
 - `config_context_auth_info` (String)
 - `config_context_cluster` (String)
-- `config_path` (String) Path to the kube config file.
-- `config_paths` (List of String) A list of paths to kube config files.
-- `host` (String) The hostname (in form of URI) of Kubernetes master.
-- `insecure` (Boolean) Whether server should be accessed without verifying the TLS certificate.
-- `password` (String, Sensitive) The password to use for HTTP basic authentication when accessing the Kubernetes master endpoint.
-- `proxy_url` (String) URL to the proxy to be used for all API requests
-- `token` (String, Sensitive) Token to authenticate an service account
-- `username` (String) The username to use for HTTP basic authentication when accessing the Kubernetes master endpoint.
+- `config_path` (String)
+- `config_paths` (List of String)
+- `host` (String)
+- `insecure` (Boolean)
+- `password` (String, Sensitive)
+- `proxy_url` (String)
+- `token` (String, Sensitive)
+- `username` (String)
+
+Read-Only:
+
+- `exec` (Attributes) (see [below for nested schema](#nestedatt--kube_config--exec))
+
+<a id="nestedatt--kube_config--exec"></a>
+### Nested Schema for `kube_config.exec`
+
+Optional:
+
+- `args` (List of String)
+- `env` (Map of String)
+
+Read-Only:
+
+- `api_version` (String)
+- `command` (String)
+
 
 
 <a id="nestedatt--spec"></a>
@@ -63,18 +81,19 @@ Read-Only:
 
 Read-Only:
 
-- `data` (Attributes) The data of the Kargo agent (see [below for nested schema](#nestedatt--spec--data))
-- `description` (String) The description of the Kargo agent
+- `data` (Attributes) (see [below for nested schema](#nestedatt--spec--data))
+- `description` (String)
 
 <a id="nestedatt--spec--data"></a>
 ### Nested Schema for `spec.data`
 
 Read-Only:
 
-- `akuity_managed` (Boolean) Whether the Kargo agent is managed by Akuity
-- `argocd_namespace` (String) The namespace of the Argo CD instance
-- `auto_upgrade_disabled` (Boolean) Whether auto upgrade is disabled
-- `kustomization` (String) Kustomize configuration that will be applied to generated Kargo agent installation manifests
-- `remote_argocd` (String) The ID of the remote Argo CD instance
-- `size` (String) The size of the Kargo agent
-- `target_version` (String) The target version of the Kargo agent
+- `akuity_managed` (Boolean)
+- `argocd_namespace` (String)
+- `auto_upgrade_disabled` (Boolean)
+- `kustomization` (String)
+- `remote_argocd` (String)
+- `self_managed_argocd_url` (String)
+- `size` (String)
+- `target_version` (String)

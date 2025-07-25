@@ -99,7 +99,7 @@ func (k *KargoInstance) syncKargoResources(
 }
 
 // extractResourceMetadata extracts metadata from a resource
-func extractResourceMetadata(resource any) (key string, kindStr string, err error) {
+func extractResourceMetadata(resource any) (key, kindStr string, err error) {
 	if m, ok := resource.(map[string]any); ok {
 		kindVal, _ := m["kind"].(string)
 		apiVersionVal, _ := m["apiVersion"].(string)

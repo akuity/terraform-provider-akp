@@ -6,28 +6,28 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pkg/errors"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/structpb"
-
-	"github.com/akuity/terraform-provider-akp/akp/marshal"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
 	healthv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/health/v1"
 	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
+	"github.com/akuity/terraform-provider-akp/akp/marshal"
 	"github.com/akuity/terraform-provider-akp/akp/types"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
-var _ resource.Resource = &AkpInstanceResource{}
-var _ resource.ResourceWithImportState = &AkpInstanceResource{}
+var (
+	_ resource.Resource                = &AkpInstanceResource{}
+	_ resource.ResourceWithImportState = &AkpInstanceResource{}
+)
 
 var argoResourceGroups = map[string]struct {
 	appendFunc resourceGroupAppender[*argocdv1.ApplyInstanceRequest]
@@ -149,7 +149,6 @@ func (r *AkpInstanceResource) Delete(ctx context.Context, req resource.DeleteReq
 		Id:             state.ID.ValueString(),
 		OrganizationId: r.akpCli.OrgId,
 	})
-
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete Argo CD instance, got error: %s", err))
 		return
