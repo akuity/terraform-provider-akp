@@ -27,18 +27,6 @@ import (
 )
 
 var (
-	clusterCustomizationAttrTypes = map[string]attr.Type{
-		"auto_upgrade_disabled": tftypes.BoolType,
-		"kustomization":         tftypes.StringType,
-		"app_replication":       tftypes.BoolType,
-		"redis_tunneling":       tftypes.BoolType,
-	}
-
-	appsetPolicyAttrTypes = map[string]attr.Type{
-		"policy":          tftypes.StringType,
-		"override_policy": tftypes.BoolType,
-	}
-
 	ClusterSizeString = map[argocdv1.ClusterSize]string{
 		argocdv1.ClusterSize_CLUSTER_SIZE_SMALL:       "small",
 		argocdv1.ClusterSize_CLUSTER_SIZE_MEDIUM:      "medium",
@@ -217,7 +205,7 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 	if err := yaml.Unmarshal(yamlData, &existingConfig); err == nil && plan != nil && plan.Spec != nil && plan.Spec.Data.CustomAgentSizeConfig != nil {
 		extractedCustomConfig := extractCustomSizeConfig(existingConfig)
 		if extractedCustomConfig != nil {
-			if plan != nil && plan.Spec != nil && plan.Spec.Data.CustomAgentSizeConfig != nil {
+			if plan.Spec != nil && plan.Spec.Data.CustomAgentSizeConfig != nil {
 				if areCustomAgentConfigsEquivalent(plan.Spec.Data.CustomAgentSizeConfig, extractedCustomConfig) {
 					customConfig = plan.Spec.Data.CustomAgentSizeConfig
 				} else {
@@ -564,24 +552,19 @@ func toManagedClusterAPIModel(cluster *ManagedCluster) *v1alpha1.ManagedCluster 
 	}
 }
 
-func toClusterCustomizationAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, clusterCustomization tftypes.Object) *v1alpha1.ClusterCustomization {
-	var customization ClusterCustomization
-	diagnostics.Append(clusterCustomization.As(ctx, &customization, basetypes.ObjectAsOptions{
-		UnhandledNullAsEmpty:    true,
-		UnhandledUnknownAsEmpty: true,
-	})...)
-	if diagnostics.HasError() {
+func toClusterCustomizationAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, clusterCustomization *ClusterCustomization) *v1alpha1.ClusterCustomization {
+	if clusterCustomization == nil {
 		return nil
 	}
 	raw := runtime.RawExtension{}
-	if err := yaml.Unmarshal([]byte(customization.Kustomization.ValueString()), &raw); err != nil {
+	if err := yaml.Unmarshal([]byte(clusterCustomization.Kustomization.ValueString()), &raw); err != nil {
 		diagnostics.AddError("failed unmarshal kustomization string to yaml", err.Error())
 	}
 	return &v1alpha1.ClusterCustomization{
-		AutoUpgradeDisabled: toBoolPointer(customization.AutoUpgradeDisabled),
+		AutoUpgradeDisabled: toBoolPointer(clusterCustomization.AutoUpgradeDisabled),
 		Kustomization:       raw,
-		AppReplication:      toBoolPointer(customization.AppReplication),
-		RedisTunneling:      toBoolPointer(customization.RedisTunneling),
+		AppReplication:      toBoolPointer(clusterCustomization.AppReplication),
+		RedisTunneling:      toBoolPointer(clusterCustomization.RedisTunneling),
 	}
 }
 
@@ -617,18 +600,13 @@ func toExtensionsAPIModel(entries basetypes.ListValue) []*v1alpha1.ArgoCDExtensi
 	return extensions
 }
 
-func toAppsetPolicyAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, appsetPolicy tftypes.Object) *v1alpha1.AppsetPolicy {
-	var policy AppsetPolicy
-	diagnostics.Append(appsetPolicy.As(ctx, &policy, basetypes.ObjectAsOptions{
-		UnhandledNullAsEmpty:    true,
-		UnhandledUnknownAsEmpty: true,
-	})...)
-	if diagnostics.HasError() {
+func toAppsetPolicyAPIModel(_ context.Context, _ *diag.Diagnostics, appsetPolicy *AppsetPolicy) *v1alpha1.AppsetPolicy {
+	if appsetPolicy == nil {
 		return nil
 	}
 	return &v1alpha1.AppsetPolicy{
-		Policy:         policy.Policy.ValueString(),
-		OverridePolicy: toBoolPointer(policy.OverridePolicy),
+		Policy:         appsetPolicy.Policy.ValueString(),
+		OverridePolicy: toBoolPointer(appsetPolicy.OverridePolicy),
 	}
 }
 
@@ -789,28 +767,24 @@ func toManagedClusterTFModel(cluster *v1alpha1.ManagedCluster) *ManagedCluster {
 	}
 }
 
-func (a *ArgoCD) toClusterCustomizationTFModel(ctx context.Context, diagnostics *diag.Diagnostics, customization *v1alpha1.ClusterCustomization) tftypes.Object {
+func (a *ArgoCD) toClusterCustomizationTFModel(ctx context.Context, diagnostics *diag.Diagnostics, customization *v1alpha1.ClusterCustomization) *ClusterCustomization {
 	if customization == nil {
-		return tftypes.ObjectNull(clusterCustomizationAttrTypes)
+		return nil
 	}
 	yamlData, err := yaml.JSONToYAML(customization.Kustomization.Raw)
 	if err != nil {
 		diagnostics.AddError("failed to convert json to yaml", err.Error())
 	}
 
-	if !a.Spec.InstanceSpec.ClusterCustomizationDefaults.IsNull() && !a.Spec.InstanceSpec.ClusterCustomizationDefaults.IsUnknown() {
-		var existingCustomization ClusterCustomization
-		diagnostics.Append(a.Spec.InstanceSpec.ClusterCustomizationDefaults.As(ctx, &existingCustomization, basetypes.ObjectAsOptions{
-			UnhandledNullAsEmpty:    true,
-			UnhandledUnknownAsEmpty: true,
-		})...)
+	if a.Spec.InstanceSpec.ClusterCustomizationDefaults != nil {
+		existingYaml := a.Spec.InstanceSpec.ClusterCustomizationDefaults.Kustomization.ValueString()
+		newYaml := string(yamlData)
+		if yamlEqual(existingYaml, newYaml) {
+			yamlData = []byte(existingYaml)
+		}
 
 		if !diagnostics.HasError() {
-			existingYaml := existingCustomization.Kustomization.ValueString()
-			newYaml := string(yamlData)
-			if yamlEqual(existingYaml, newYaml) {
-				yamlData = []byte(existingYaml)
-			}
+
 		}
 	}
 
@@ -832,12 +806,8 @@ func (a *ArgoCD) toClusterCustomizationTFModel(ctx context.Context, diagnostics 
 		AppReplication:      tftypes.BoolValue(appReplication),
 		RedisTunneling:      tftypes.BoolValue(redisTunneling),
 	}
-	clusterCustomization, d := tftypes.ObjectValueFrom(ctx, clusterCustomizationAttrTypes, c)
-	diagnostics.Append(d...)
-	if diagnostics.HasError() {
-		return tftypes.ObjectNull(clusterCustomizationAttrTypes)
-	}
-	return clusterCustomization
+
+	return c
 }
 
 func toIPAllowListTFModel(entries []*v1alpha1.IPAllowListEntry) []*IPAllowListEntry {
@@ -877,24 +847,20 @@ func toExtensionsTFModel(entries []*v1alpha1.ArgoCDExtensionInstallEntry) types.
 	)
 }
 
-func toAppsetPolicyTFModel(ctx context.Context, diagnostics *diag.Diagnostics, appsetPolicy *v1alpha1.AppsetPolicy) tftypes.Object {
+func toAppsetPolicyTFModel(ctx context.Context, diagnostics *diag.Diagnostics, appsetPolicy *v1alpha1.AppsetPolicy) *AppsetPolicy {
 	if appsetPolicy == nil {
-		return tftypes.ObjectNull(appsetPolicyAttrTypes)
+		return nil
 	}
 
 	overridePolicy := false
 	if appsetPolicy.OverridePolicy != nil && *appsetPolicy.OverridePolicy {
 		overridePolicy = true
 	}
-	a := &AppsetPolicy{
+	policy := &AppsetPolicy{
 		Policy:         tftypes.StringValue(appsetPolicy.Policy),
 		OverridePolicy: tftypes.BoolValue(overridePolicy),
 	}
-	policy, d := tftypes.ObjectValueFrom(ctx, appsetPolicyAttrTypes, a)
-	diagnostics.Append(d...)
-	if diagnostics.HasError() {
-		return tftypes.ObjectNull(appsetPolicyAttrTypes)
-	}
+
 	return policy
 }
 

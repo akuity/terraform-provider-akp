@@ -354,26 +354,12 @@ func toKargoDexConfigSecretAPIModel(ctx context.Context, secret types.Map) map[s
 	return cfg
 }
 
-func toKargoPredefinedAccountAPIModel(ctx context.Context, diag *diag.Diagnostics, accounts types.Object) v1alpha1.KargoPredefinedAccountData {
+func toKargoPredefinedAccountAPIModel(ctx context.Context, diag *diag.Diagnostics, accounts KargoPredefinedAccountData) v1alpha1.KargoPredefinedAccountData {
 	result := v1alpha1.KargoPredefinedAccountData{
 		Claims: make(map[string]v1alpha1.KargoPredefinedAccountClaimValue),
 	}
 
-	if accounts.IsNull() {
-		return result
-	}
-
-	attrs := accounts.Attributes()
-	claims, ok := attrs["claims"]
-	if !ok {
-		return result
-	}
-
-	claimsMap, ok := claims.(types.Map)
-	if !ok {
-		diag.AddError("invalid claims type", "claims must be a map")
-		return result
-	}
+	claimsMap := accounts.Claims
 
 	elements := claimsMap.Elements()
 	for key, value := range elements {
@@ -445,21 +431,17 @@ func toKargoDexConfigSecretTFModel(ctx context.Context, secret map[string]v1alph
 	return mapVal
 }
 
-func toKargoPredefinedAccountTFModel(account v1alpha1.KargoPredefinedAccountData) types.Object {
-	objectType := map[string]attr.Type{
-		"claims": types.MapType{
-			ElemType: types.ObjectType{
+func toKargoPredefinedAccountTFModel(account v1alpha1.KargoPredefinedAccountData) KargoPredefinedAccountData {
+	if len(account.Claims) == 0 {
+		return KargoPredefinedAccountData{
+			Claims: types.MapNull(types.ObjectType{
 				AttrTypes: map[string]attr.Type{
 					"values": types.ListType{
 						ElemType: types.StringType,
 					},
 				},
-			},
-		},
-	}
-
-	if len(account.Claims) == 0 {
-		return types.ObjectNull(objectType)
+			}),
+		}
 	}
 
 	claimsMap := make(map[string]attr.Value)
@@ -491,10 +473,7 @@ func toKargoPredefinedAccountTFModel(account v1alpha1.KargoPredefinedAccountData
 		claimsMap,
 	)
 
-	return types.ObjectValueMust(
-		objectType,
-		map[string]attr.Value{
-			"claims": claimsAttr,
-		},
-	)
+	return KargoPredefinedAccountData{
+		Claims: claimsAttr,
+	}
 }

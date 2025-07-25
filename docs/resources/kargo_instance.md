@@ -10,20 +10,8 @@ description: |-
 
 Manages an AKP Kargo instance.
 
-## Example Usage (Basic)
-```terraform
-resource "akp_kargo_instance" "example" {
-  name = "test"
-  kargo = {
-    spec = {
-      version             = "v1.1.1"
-      kargo_instance_spec = {}
-    }
-  }
-}
-```
+## Example Usage
 
-## Example Usage (Exhaustive)
 ```terraform
 resource "akp_kargo_instance" "example" {
   name      = "test"
@@ -275,20 +263,3 @@ Optional:
 Optional:
 
 - `values` (List of String)
-
-## Import
-
-In Terraform v1.5.0 and later, use an [`import` block](https://developer.hashicorp.com/terraform/language/import) to import the AKP Kargo instance using its `name`. For example:
-
-```terraform
-import {
-  to = akp_kargo_instance.example
-  id = "test"
-}
-```
-
-Using `terraform import`, import AKP Kargo instance using its `name`. For example:
-
-```shell
-terraform import akp_kargo_instance.example test
-```

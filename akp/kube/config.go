@@ -3,9 +3,10 @@ package kube
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"strings"
 
 	"github.com/mitchellh/go-homedir"
 	apimachineryschema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -42,7 +43,7 @@ func NewKubectl(config *rest.Config) (*Kubectl, error) {
 
 // Adapted github.com/gavinbunney/terraform-provider-kubectl/kubernetes/provider.go functions
 
-func InitializeConfiguration(ctx context.Context, k *types.Kubeconfig) (*rest.Config, error) {
+func InitializeConfiguration(ctx context.Context, k *types.KubeConfig) (*rest.Config, error) {
 	overrides := &clientcmd.ConfigOverrides{}
 	loader := &clientcmd.ClientConfigLoadingRules{}
 	configPaths := []string{}

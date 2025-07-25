@@ -1,13 +1,12 @@
 // This is an auto-generated file. DO NOT EDIT
 /*
-Copyright 2023 Akuity, Inc.
+Copyright 2025 Akuity, Inc.
 */
 
 package types
 
 import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 )
 
 type Cluster struct {
@@ -18,7 +17,7 @@ type Cluster struct {
 	Labels                        types.Map    `tfsdk:"labels"`
 	Annotations                   types.Map    `tfsdk:"annotations"`
 	Spec                          *ClusterSpec `tfsdk:"spec"`
-	Kubeconfig                    *Kubeconfig  `tfsdk:"kube_config"`
+	KubeConfig                    *KubeConfig  `tfsdk:"kube_config"`
 	RemoveAgentResourcesOnDestroy types.Bool   `tfsdk:"remove_agent_resources_on_destroy"`
 }
 
@@ -78,7 +77,7 @@ type RepoServerCustomAgentSizeConfig struct {
 }
 
 type ClusterCompatibility struct {
-	Ipv6Only types.Bool `tfsdk:"ipv6_only"`
+	Ipv6Only types.Bool `tfsdk:"ipv6only"`
 }
 
 type ClusterArgoCDNotificationsSettings struct {
@@ -86,7 +85,7 @@ type ClusterArgoCDNotificationsSettings struct {
 }
 
 type ClusterData struct {
-	Size                            types.String                        `tfsdk:"size"`
+	Size                            types.String                        `tfsdk:"size" schemaGen:"ClusterSize"`
 	AutoUpgradeDisabled             types.Bool                          `tfsdk:"auto_upgrade_disabled"`
 	Kustomization                   types.String                        `tfsdk:"kustomization"`
 	AppReplication                  types.Bool                          `tfsdk:"app_replication"`
@@ -97,7 +96,7 @@ type ClusterData struct {
 	ManagedClusterConfig            *ManagedClusterConfig               `tfsdk:"managed_cluster_config"`
 	MultiClusterK8SDashboardEnabled types.Bool                          `tfsdk:"multi_cluster_k8s_dashboard_enabled"`
 	CustomAgentSizeConfig           *CustomAgentSizeConfig              `tfsdk:"custom_agent_size_config"`
-	AutoscalerConfig                basetypes.ObjectValue               `tfsdk:"auto_agent_size_config"`
+	AutoscalerConfig                types.Object                        `tfsdk:"autoscaler_config" schemaGen:"AutoScalerConfig"`
 	Project                         types.String                        `tfsdk:"project"`
 	Compatibility                   *ClusterCompatibility               `tfsdk:"compatibility"`
 	ArgocdNotificationsSettings     *ClusterArgoCDNotificationsSettings `tfsdk:"argocd_notifications_settings"`

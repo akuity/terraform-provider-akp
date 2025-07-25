@@ -24,8 +24,8 @@ func processResources[T any](
 	diagnostics *diag.Diagnostics,
 	resources types.Map,
 	resourceGroups map[string]struct {
-	appendFunc resourceGroupAppender[T]
-},
+		appendFunc resourceGroupAppender[T]
+	},
 	validateFunc resourceValidator,
 	req T,
 	resourceType string,
