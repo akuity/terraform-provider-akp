@@ -42,15 +42,22 @@ func processResources[T any](
 	}
 
 	resourceItems := make([]unstructured.Unstructured, 0, len(stringItems))
-	for _, strItem := range stringItems {
+	for key, strItem := range stringItems {
 		if strItem.IsNull() || strItem.IsUnknown() {
 			continue
 		}
 		var objMap map[string]any
 		if err := json.Unmarshal([]byte(strItem.ValueString()), &objMap); err != nil {
+			diagnostics.AddError(
+				fmt.Sprintf("Invalid %s Resource JSON, the input resource should be JSON format and will not be applied", resourceType),
+				fmt.Sprintf("Failed to parse JSON for resource key '%s': %s\nResource content: %s", key, err.Error(), strItem.ValueString()),
+			)
 			continue
 		}
 		resourceItems = append(resourceItems, unstructured.Unstructured{Object: objMap})
+	}
+	if diagnostics.HasError() {
+		return
 	}
 
 	for i, resourceItem := range resourceItems {
