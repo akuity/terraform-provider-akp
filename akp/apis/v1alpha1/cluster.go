@@ -19,6 +19,8 @@ type Cluster struct {
 
 type ClusterSize string
 
+type DirectClusterType string
+
 type ClusterSpec struct {
 	Description     string      `json:"description,omitempty"`
 	NamespaceScoped bool        `json:"namespaceScoped,omitempty"`
@@ -60,6 +62,11 @@ type ClusterArgoCDNotificationsSettings struct {
 	InClusterSettings bool `json:"inClusterSettings,omitempty"`
 }
 
+type DirectClusterSpec struct {
+	ClusterType     DirectClusterType `json:"clusterType,omitempty"`
+	KargoInstanceId *string           `json:"kargoInstanceId,omitempty"`
+}
+
 type ClusterData struct {
 	Size                ClusterSize          `json:"size,omitempty"`
 	AutoUpgradeDisabled *bool                `json:"autoUpgradeDisabled,omitempty"`
@@ -71,6 +78,7 @@ type ClusterData struct {
 	DatadogAnnotationsEnabled *bool                 `json:"datadogAnnotationsEnabled,omitempty"`
 	EksAddonEnabled           *bool                 `json:"eksAddonEnabled,omitempty"`
 	ManagedClusterConfig      *ManagedClusterConfig `json:"managedClusterConfig,omitempty"`
+	DirectClusterSpec         *DirectClusterSpec    `json:"directClusterSpec,omitempty"`
 
 	MultiClusterK8SDashboardEnabled *bool                               `json:"multiClusterK8sDashboardEnabled,omitempty"`
 	AutoscalerConfig                *AutoScalerConfig                   `json:"autoscalerConfig,omitempty"`
