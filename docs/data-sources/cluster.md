@@ -83,6 +83,7 @@ Read-Only:
 - `compatibility` (Attributes) Cluster compatibility settings (see [below for nested schema](#nestedatt--spec--data--compatibility))
 - `custom_agent_size_config` (Attributes) Custom agent size config (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config))
 - `datadog_annotations_enabled` (Boolean) Enable Datadog metrics collection of Application Controller and Repo Server. Make sure that you install Datadog agent in cluster.
+- `direct_cluster_spec` (Attributes) Direct cluster integration spec (see [below for nested schema](#nestedatt--spec--data--direct_cluster_spec))
 - `eks_addon_enabled` (Boolean) Enable this if you are installing this cluster on EKS.
 - `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
 - `managed_cluster_config` (Attributes) The config to access managed Kubernetes cluster. By default agent is using "in-cluster" config. (see [below for nested schema](#nestedatt--spec--data--managed_cluster_config))
@@ -199,6 +200,15 @@ Read-Only:
 - `memory` (String) Memory
 - `replicas` (Number) Replica
 
+
+
+<a id="nestedatt--spec--data--direct_cluster_spec"></a>
+### Nested Schema for `spec.data.direct_cluster_spec`
+
+Read-Only:
+
+- `cluster_type` (String) Cluster type
+- `kargo_instance_id` (String) Kargo instance ID
 
 
 <a id="nestedatt--spec--data--managed_cluster_config"></a>
