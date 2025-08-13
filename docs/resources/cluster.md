@@ -407,7 +407,7 @@ Optional:
 <a id="nestedatt--spec--data--direct_cluster_spec"></a>
 ### Nested Schema for `spec.data.direct_cluster_spec`
 
-Optional:
+Required:
 
 - `cluster_type` (String) Cluster type
 - `kargo_instance_id` (String) Kargo instance ID
