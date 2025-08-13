@@ -509,7 +509,7 @@ func toClusterDataAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, c
 				KargoInstanceId: clusterData.DirectClusterSpec.KargoInstanceId.ValueStringPointer(),
 			}
 		} else {
-			diagnostics.AddError("unsupported cluster type", fmt.Sprintf("cluster_type %s is not supported, supported cluster_type: [kargo]", clusterData.DirectClusterSpec.ClusterType.String()))
+			diagnostics.AddError("unsupported cluster type", fmt.Sprintf("cluster_type %s is not supported, supported cluster_type: `kargo`", clusterData.DirectClusterSpec.ClusterType.String()))
 			return v1alpha1.ClusterData{}
 		}
 	}

@@ -146,7 +146,7 @@ func getClusterDataDataSourceAttributes() map[string]schema.Attribute {
 			Attributes:          getArgoCDNotificationsSettingsDataSourceAttributes(),
 		},
 		"direct_cluster_spec": schema.SingleNestedAttribute{
-			MarkdownDescription: "Direct cluster integration spec",
+			MarkdownDescription: "Direct cluster integration spec. Currently supports `kargo`",
 			Computed:            true,
 			Attributes:          getDirectClusterSpecDataSourceAttributes(),
 		},
