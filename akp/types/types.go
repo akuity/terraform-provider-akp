@@ -500,7 +500,7 @@ func toClusterDataAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, c
 		}
 	}
 
-	directClusterSpec := &v1alpha1.DirectClusterSpec{}
+	var directClusterSpec *v1alpha1.DirectClusterSpec
 	if clusterData.DirectClusterSpec != nil {
 		clusterType := clusterData.DirectClusterSpec.ClusterType.ValueString()
 		if clusterType != "" && clusterType == DirectClusterTypeString[argocdv1.DirectClusterType_DIRECT_CLUSTER_TYPE_KARGO] {

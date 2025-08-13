@@ -629,11 +629,11 @@ func getDirectClusterSpecAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"cluster_type": schema.StringAttribute{
 			Description: "Cluster type",
-			Optional:    true,
+			Required:    true,
 		},
 		"kargo_instance_id": schema.StringAttribute{
 			Description: "Kargo instance ID",
-			Optional:    true,
+			Required:    true,
 		},
 	}
 }
