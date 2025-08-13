@@ -115,3 +115,29 @@ spec:
       - task:
           name: demo-promo-process
         as: promo-process
+---
+# repo credential
+apiVersion: v1
+data:
+  password: ZmFrZQ==
+  repoURL: ZmFrZS11cmw=
+  username: ZmFrZQ==
+kind: Secret
+metadata:
+  labels:
+    kargo.akuity.io/cred-type: git
+  name: repo
+  namespace: kargo-demo
+type: Opaque
+---
+# generic project secret
+apiVersion: v1
+data:
+  fake: ZmFrZQ==
+kind: Secret
+metadata:
+  labels:
+    kargo.akuity.io/cred-type: generic
+  name: generic
+  namespace: kargo-demo
+type: Opaque

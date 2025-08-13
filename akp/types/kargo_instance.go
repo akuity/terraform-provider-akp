@@ -2,6 +2,7 @@ package types
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -168,6 +169,16 @@ func syncResources(
 		for key, attrVal := range resources.Elements() {
 			if _, ok := exportedResourceMap[key]; ok {
 				elementsToAdd[key] = attrVal
+				continue
+			}
+			// Not in export; preserve if it's a Secret
+			if strVal, ok := attrVal.(types.String); ok && !strVal.IsNull() && !strVal.IsUnknown() {
+				var objMap map[string]any
+				if err := json.Unmarshal([]byte(strVal.ValueString()), &objMap); err == nil {
+					if _, kind, err := extractResourceMetadata(objMap); err == nil && kind == "Secret" {
+						elementsToAdd[key] = attrVal
+					}
+				}
 			}
 		}
 	}
