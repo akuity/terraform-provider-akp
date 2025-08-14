@@ -200,6 +200,11 @@ func (ka *KargoAgent) Update(ctx context.Context, diagnostics *diag.Diagnostics,
 	if ka.RemoveAgentResourcesOnDestroy.IsUnknown() || ka.RemoveAgentResourcesOnDestroy.IsNull() {
 		ka.RemoveAgentResourcesOnDestroy = tftypes.BoolValue(true)
 	}
+	if ka.ReapplyManifestsOnUpdate.IsUnknown() || ka.ReapplyManifestsOnUpdate.IsNull() {
+		ka.ReapplyManifestsOnUpdate = tftypes.BoolValue(false)
+	} else {
+		ka.ReapplyManifestsOnUpdate = plan.ReapplyManifestsOnUpdate
+	}
 	labels, d := tftypes.MapValueFrom(ctx, tftypes.StringType, apiKargoAgent.GetData().GetLabels())
 	if d.HasError() {
 		labels = tftypes.MapNull(tftypes.StringType)

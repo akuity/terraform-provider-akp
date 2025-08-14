@@ -197,7 +197,7 @@ func (r *AkpClusterResource) upsert(ctx context.Context, diagnostics *diag.Diagn
 	return result, refreshClusterState(ctx, diagnostics, r.akpCli.Cli, result, r.akpCli.OrgId, nil, plan)
 }
 
-func (r *AkpClusterResource) applyInstance(ctx context.Context, plan *types.Cluster, apiReq *argocdv1.ApplyInstanceRequest, isCreate bool, applyInstance func(context.Context, *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error), upsertKubeConfig func(ctx context.Context, plan *types.Cluster, isCreate bool) error) (*types.Cluster, error) {
+func (r *AkpClusterResource) applyInstance(ctx context.Context, plan *types.Cluster, apiReq *argocdv1.ApplyInstanceRequest, isCreate bool, applyInstance func(context.Context, *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error), upsertKubeConfig func(ctx context.Context, plan *types.Cluster) error) (*types.Cluster, error) {
 	kubeconfig := plan.Kubeconfig
 	plan.Kubeconfig = nil
 	tflog.Debug(ctx, fmt.Sprintf("Apply cluster request: %s", apiReq))
@@ -208,18 +208,21 @@ func (r *AkpClusterResource) applyInstance(ctx context.Context, plan *types.Clus
 
 	if kubeconfig != nil {
 		plan.Kubeconfig = kubeconfig
-		err = upsertKubeConfig(ctx, plan, isCreate)
-		if err != nil {
-			// Ensure kubeconfig won't be committed to state by setting it to nil
-			plan.Kubeconfig = nil
-			return plan, fmt.Errorf("unable to apply manifests: %s", err)
+		shouldApply := isCreate || plan.ReapplyManifestsOnUpdate.ValueBool()
+		if shouldApply {
+			err = upsertKubeConfig(ctx, plan)
+			if err != nil {
+				// Ensure kubeconfig won't be committed to state by setting it to nil
+				plan.Kubeconfig = nil
+				return plan, fmt.Errorf("unable to apply manifests: %s", err)
+			}
 		}
 	}
 
 	return plan, nil
 }
 
-func (r *AkpClusterResource) upsertKubeConfig(ctx context.Context, plan *types.Cluster, isCreate bool) error {
+func (r *AkpClusterResource) upsertKubeConfig(ctx context.Context, plan *types.Cluster) error {
 	// Apply agent manifests to clusters if the kubeconfig is specified for cluster.
 	kubeconfig, err := getKubeconfig(ctx, plan.Kubeconfig)
 	if err != nil {
@@ -227,7 +230,7 @@ func (r *AkpClusterResource) upsertKubeConfig(ctx context.Context, plan *types.C
 	}
 
 	// Apply the manifests
-	if kubeconfig != nil && isCreate {
+	if kubeconfig != nil {
 		manifests, err := getManifests(ctx, r.akpCli.Cli, r.akpCli.OrgId, plan)
 		if err != nil {
 			return err

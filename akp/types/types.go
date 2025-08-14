@@ -175,6 +175,11 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 	if c.RemoveAgentResourcesOnDestroy.IsUnknown() || c.RemoveAgentResourcesOnDestroy.IsNull() {
 		c.RemoveAgentResourcesOnDestroy = tftypes.BoolValue(true)
 	}
+	if c.ReapplyManifestsOnUpdate.IsUnknown() || c.ReapplyManifestsOnUpdate.IsNull() {
+		c.ReapplyManifestsOnUpdate = tftypes.BoolValue(false)
+	} else {
+		c.ReapplyManifestsOnUpdate = plan.ReapplyManifestsOnUpdate
+	}
 	labels, d := tftypes.MapValueFrom(ctx, tftypes.StringType, apiCluster.GetData().GetLabels())
 	if d.HasError() {
 		labels = tftypes.MapNull(tftypes.StringType)

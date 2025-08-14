@@ -130,7 +130,7 @@ func TestAkpClusterResource_applyInstance(t *testing.T) {
 		apiReq           *argocdv1.ApplyInstanceRequest
 		isCreate         bool
 		applyInstance    func(context.Context, *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error)
-		upsertKubeConfig func(ctx context.Context, plan *types.Cluster, isCreate bool) error
+		upsertKubeConfig func(ctx context.Context, plan *types.Cluster) error
 	}
 	tests := []struct {
 		name  string
@@ -141,11 +141,12 @@ func TestAkpClusterResource_applyInstance(t *testing.T) {
 		{
 			name: "happy path, no kubeconfig",
 			args: args{
-				plan: &types.Cluster{},
+				plan:     &types.Cluster{},
+				isCreate: true,
 				applyInstance: func(ctx context.Context, request *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error) {
 					return &argocdv1.ApplyInstanceResponse{}, nil
 				},
-				upsertKubeConfig: func(ctx context.Context, plan *types.Cluster, isCreate bool) error {
+				upsertKubeConfig: func(ctx context.Context, plan *types.Cluster) error {
 					return errors.New("this should not be called")
 				},
 			},
@@ -155,11 +156,12 @@ func TestAkpClusterResource_applyInstance(t *testing.T) {
 		{
 			name: "error path, no kubeconfig",
 			args: args{
-				plan: &types.Cluster{},
+				plan:     &types.Cluster{},
+				isCreate: true,
 				applyInstance: func(ctx context.Context, request *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error) {
 					return &argocdv1.ApplyInstanceResponse{}, errors.New("some error")
 				},
-				upsertKubeConfig: func(ctx context.Context, plan *types.Cluster, isCreate bool) error {
+				upsertKubeConfig: func(ctx context.Context, plan *types.Cluster) error {
 					return errors.New("this should not be called")
 				},
 			},
@@ -177,7 +179,8 @@ func TestAkpClusterResource_applyInstance(t *testing.T) {
 				applyInstance: func(ctx context.Context, request *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error) {
 					return &argocdv1.ApplyInstanceResponse{}, nil
 				},
-				upsertKubeConfig: func(ctx context.Context, plan *types.Cluster, isCreate bool) error {
+				isCreate: true,
+				upsertKubeConfig: func(ctx context.Context, plan *types.Cluster) error {
 					assert.Equal(t, &types.Cluster{
 						Kubeconfig: &types.Kubeconfig{
 							Host: hashitype.StringValue("some-host"),
@@ -201,10 +204,11 @@ func TestAkpClusterResource_applyInstance(t *testing.T) {
 						Host: hashitype.StringValue("some-host"),
 					},
 				},
+				isCreate: true,
 				applyInstance: func(ctx context.Context, request *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error) {
 					return &argocdv1.ApplyInstanceResponse{}, nil
 				},
-				upsertKubeConfig: func(ctx context.Context, plan *types.Cluster, isCreate bool) error {
+				upsertKubeConfig: func(ctx context.Context, plan *types.Cluster) error {
 					return errors.New("some kube apply error")
 				},
 			},
@@ -219,6 +223,49 @@ func TestAkpClusterResource_applyInstance(t *testing.T) {
 			got, err := r.applyInstance(ctx, tt.args.plan, tt.args.apiReq, tt.args.isCreate, tt.args.applyInstance, tt.args.upsertKubeConfig)
 			assert.Equal(t, tt.error, err)
 			assert.Equalf(t, tt.want, got, "applyInstance(%v, %v, %v)", tt.args.plan, tt.args.apiReq, tt.args.isCreate)
+		})
+	}
+}
+
+func TestAkpClusterResource_reApplyManifests(t *testing.T) {
+	type args struct {
+		plan             *types.Cluster
+		apiReq           *argocdv1.ApplyInstanceRequest
+		applyInstance    func(context.Context, *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error)
+		upsertKubeConfig func(ctx context.Context, plan *types.Cluster) error
+	}
+	tests := []struct {
+		name  string
+		args  args
+		want  *types.Cluster
+		error error
+	}{
+		{
+			name: "error path, with kubeconfig",
+			args: args{
+				plan: &types.Cluster{
+					Kubeconfig: &types.Kubeconfig{
+						Host: hashitype.StringValue("some-host"),
+					},
+					ReapplyManifestsOnUpdate: hashitype.BoolValue(true),
+				},
+				applyInstance: func(ctx context.Context, request *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error) {
+					return &argocdv1.ApplyInstanceResponse{}, nil
+				},
+				upsertKubeConfig: func(ctx context.Context, plan *types.Cluster) error {
+					return errors.New("some kube apply error")
+				},
+			},
+			want:  &types.Cluster{},
+			error: fmt.Errorf("unable to apply manifests: some kube apply error"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &AkpClusterResource{}
+			ctx := context.Background()
+			_, err := r.applyInstance(ctx, tt.args.plan, tt.args.apiReq, false, tt.args.applyInstance, tt.args.upsertKubeConfig)
+			assert.Equal(t, tt.error, err)
 		})
 	}
 }

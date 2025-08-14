@@ -99,6 +99,14 @@ func getAKPKargoAgentResourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			Default:             booldefault.StaticBool(true),
 		},
+		"reapply_manifests_on_update": schema.BoolAttribute{
+			MarkdownDescription: "If true, re-apply generated agent manifests to the target cluster on every update when `kube_config` is provided.",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Bool{
+				boolplanmodifier.UseStateForUnknown(),
+			},
+		},
 	}
 }
 

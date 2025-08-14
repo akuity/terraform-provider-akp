@@ -20,6 +20,7 @@ type KargoAgent struct {
 	Spec                          *KargoAgentSpec `tfsdk:"spec"`
 	Kubeconfig                    *Kubeconfig     `tfsdk:"kube_config"`
 	RemoveAgentResourcesOnDestroy types.Bool      `tfsdk:"remove_agent_resources_on_destroy"`
+	ReapplyManifestsOnUpdate      types.Bool      `tfsdk:"reapply_manifests_on_update"`
 }
 
 type KargoAgents struct {
