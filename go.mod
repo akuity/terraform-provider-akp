@@ -18,7 +18,7 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20250324211829-b45e905df463
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.33.1
-	k8s.io/apimachinery v0.33.1
+	k8s.io/apimachinery v0.33.4
 	k8s.io/cli-runtime v0.33.1
 	k8s.io/client-go v0.33.1
 	k8s.io/kubectl v0.33.1
