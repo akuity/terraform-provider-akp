@@ -30,7 +30,7 @@ data "akp_kargo_instance" "example" {
 - `id` (String) Kargo instance ID
 - `kargo` (Attributes) Specification of the Kargo instance (see [below for nested schema](#nestedatt--kargo))
 - `kargo_cm` (Map of String) ConfigMap to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf
-- `kargo_resources` (Map of String) Map of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`, `ClusterPromotionTask`, `Stage`, `Warehouse`, `AnalysisTemplate`, `PromotionTask`. Should all be in the apiVersion `kargo.akuity.io/v1alpha1`.
+- `kargo_resources` (Map of String) Map of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`, `ClusterPromotionTask`, `Stage`, `Warehouse`, `AnalysisTemplate`, `PromotionTask` and `Secret`(only with kargo.akuity.io/cred-type label). Should all be in the apiVersion `kargo.akuity.io/v1alpha1` except secrets.
 - `kargo_secret` (Map of String) Secret to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf
 - `workspace` (String) Workspace name for the Kargo instance
 

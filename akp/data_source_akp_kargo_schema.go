@@ -45,7 +45,7 @@ func getAKPKargoDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 		},
 		"kargo_resources": schema.MapAttribute{
-			MarkdownDescription: "Map of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`, `ClusterPromotionTask`, `Stage`, `Warehouse`, `AnalysisTemplate`, `PromotionTask`. Should all be in the apiVersion `kargo.akuity.io/v1alpha1`.",
+			MarkdownDescription: "Map of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`, `ClusterPromotionTask`, `Stage`, `Warehouse`, `AnalysisTemplate`, `PromotionTask` and `Secret`(only with kargo.akuity.io/cred-type label). Should all be in the apiVersion `kargo.akuity.io/v1alpha1` except secrets.",
 			Computed:            true,
 			ElementType:         types.StringType,
 		},

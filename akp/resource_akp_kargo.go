@@ -253,7 +253,7 @@ var kargoResourceGroups = map[string]struct {
 			req.AnalysisTemplates = append(req.AnalysisTemplates, item)
 		},
 	},
-	"RepoCredential": {
+	"Secret": {
 		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
 			req.RepoCredentials = append(req.RepoCredentials, item)
 		},
@@ -271,6 +271,12 @@ var kargoResourceGroups = map[string]struct {
 }
 
 func isKargoResourceValid(un *unstructured.Unstructured) error {
+	if un.GetKind() == "Secret" {
+		if v, ok := un.GetLabels()["kargo.akuity.io/cred-type"]; !ok || v == "" {
+			return errors.New("secret must have a kargo.akuity.io/cred-type label")
+		}
+		return validateResource(un, "v1", kargoResourceGroups)
+	}
 	return validateResource(un, "kargo.akuity.io/v1alpha1", kargoResourceGroups)
 }
 
