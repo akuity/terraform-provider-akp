@@ -57,6 +57,10 @@ func getAKPClusterDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Remove agent Kubernetes resources from the managed cluster when destroying cluster",
 			Computed:            true,
 		},
+		"reapply_manifests_on_update": schema.BoolAttribute{
+			MarkdownDescription: "Whether to reapply manifests on update",
+			Computed:            true,
+		},
 	}
 }
 

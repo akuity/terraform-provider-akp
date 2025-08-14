@@ -61,6 +61,10 @@ func getAKPKargoAgentDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Whether to remove agent resources on destroy",
 			Computed:            true,
 		},
+		"reapply_manifests_on_update": schema.BoolAttribute{
+			MarkdownDescription: "Whether to reapply manifests on update",
+			Computed:            true,
+		},
 	}
 }
 

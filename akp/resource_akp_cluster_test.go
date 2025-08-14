@@ -130,7 +130,7 @@ func TestAkpClusterResource_applyInstance(t *testing.T) {
 		apiReq           *argocdv1.ApplyInstanceRequest
 		isCreate         bool
 		applyInstance    func(context.Context, *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error)
-		upsertKubeConfig func(ctx context.Context, plan *types.Cluster, isCreate bool) error
+		upsertKubeConfig func(ctx context.Context, plan *types.Cluster) error
 	}
 	tests := []struct {
 		name  string
@@ -145,7 +145,7 @@ func TestAkpClusterResource_applyInstance(t *testing.T) {
 				applyInstance: func(ctx context.Context, request *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error) {
 					return &argocdv1.ApplyInstanceResponse{}, nil
 				},
-				upsertKubeConfig: func(ctx context.Context, plan *types.Cluster, isCreate bool) error {
+				upsertKubeConfig: func(ctx context.Context, plan *types.Cluster) error {
 					return errors.New("this should not be called")
 				},
 			},
@@ -159,7 +159,7 @@ func TestAkpClusterResource_applyInstance(t *testing.T) {
 				applyInstance: func(ctx context.Context, request *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error) {
 					return &argocdv1.ApplyInstanceResponse{}, errors.New("some error")
 				},
-				upsertKubeConfig: func(ctx context.Context, plan *types.Cluster, isCreate bool) error {
+				upsertKubeConfig: func(ctx context.Context, plan *types.Cluster) error {
 					return errors.New("this should not be called")
 				},
 			},
@@ -177,7 +177,7 @@ func TestAkpClusterResource_applyInstance(t *testing.T) {
 				applyInstance: func(ctx context.Context, request *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error) {
 					return &argocdv1.ApplyInstanceResponse{}, nil
 				},
-				upsertKubeConfig: func(ctx context.Context, plan *types.Cluster, isCreate bool) error {
+				upsertKubeConfig: func(ctx context.Context, plan *types.Cluster) error {
 					assert.Equal(t, &types.Cluster{
 						Kubeconfig: &types.Kubeconfig{
 							Host: hashitype.StringValue("some-host"),
@@ -204,7 +204,7 @@ func TestAkpClusterResource_applyInstance(t *testing.T) {
 				applyInstance: func(ctx context.Context, request *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error) {
 					return &argocdv1.ApplyInstanceResponse{}, nil
 				},
-				upsertKubeConfig: func(ctx context.Context, plan *types.Cluster, isCreate bool) error {
+				upsertKubeConfig: func(ctx context.Context, plan *types.Cluster) error {
 					return errors.New("some kube apply error")
 				},
 			},

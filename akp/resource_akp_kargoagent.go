@@ -200,7 +200,7 @@ func (r *AkpKargoAgentResource) upsert(ctx context.Context, diagnostics *diag.Di
 	return result, refreshKargoAgentState(ctx, diagnostics, r.akpCli.KargoCli, result, r.akpCli.OrgId, nil, plan)
 }
 
-func (r *AkpKargoAgentResource) applyKargoInstance(ctx context.Context, plan *types.KargoAgent, apiReq *kargov1.ApplyKargoInstanceRequest, isCreate bool, applyKargoInstance func(context.Context, *kargov1.ApplyKargoInstanceRequest) (*kargov1.ApplyKargoInstanceResponse, error), upsertKubeConfig func(ctx context.Context, plan *types.KargoAgent, isCreate bool) error) (*types.KargoAgent, error) {
+func (r *AkpKargoAgentResource) applyKargoInstance(ctx context.Context, plan *types.KargoAgent, apiReq *kargov1.ApplyKargoInstanceRequest, isCreate bool, applyKargoInstance func(context.Context, *kargov1.ApplyKargoInstanceRequest) (*kargov1.ApplyKargoInstanceResponse, error), upsertKubeConfig func(ctx context.Context, plan *types.KargoAgent) error) (*types.KargoAgent, error) {
 	kubeconfig := plan.Kubeconfig
 	plan.Kubeconfig = nil
 	tflog.Debug(ctx, fmt.Sprintf("Apply Kargo agent request: %s", apiReq))
@@ -211,18 +211,21 @@ func (r *AkpKargoAgentResource) applyKargoInstance(ctx context.Context, plan *ty
 
 	if kubeconfig != nil {
 		plan.Kubeconfig = kubeconfig
-		err = upsertKubeConfig(ctx, plan, isCreate)
-		if err != nil {
-			// Ensure kubeconfig won't be committed to state by setting it to nil
-			plan.Kubeconfig = nil
-			return plan, fmt.Errorf("unable to apply kargo manifests: %s", err)
+		shouldApply := isCreate || plan.ReapplyManifestsOnUpdate.ValueBool()
+		if shouldApply {
+			err = upsertKubeConfig(ctx, plan)
+			if err != nil {
+				// Ensure kubeconfig won't be committed to state by setting it to nil
+				plan.Kubeconfig = nil
+				return plan, fmt.Errorf("unable to apply kargo manifests: %s", err)
+			}
 		}
 	}
 
 	return plan, nil
 }
 
-func (r *AkpKargoAgentResource) upsertKubeConfig(ctx context.Context, plan *types.KargoAgent, isCreate bool) error {
+func (r *AkpKargoAgentResource) upsertKubeConfig(ctx context.Context, plan *types.KargoAgent) error {
 	// Apply agent manifests to clusters if the kubeconfig is specified for cluster.
 	kubeconfig, err := getKubeconfig(ctx, plan.Kubeconfig)
 	if err != nil {
@@ -230,7 +233,7 @@ func (r *AkpKargoAgentResource) upsertKubeConfig(ctx context.Context, plan *type
 	}
 
 	// Apply the manifests
-	if kubeconfig != nil && isCreate {
+	if kubeconfig != nil {
 		manifests, id, err := getKargoManifests(ctx, r.akpCli.KargoCli, r.akpCli.OrgId, plan)
 		if err != nil {
 			return err

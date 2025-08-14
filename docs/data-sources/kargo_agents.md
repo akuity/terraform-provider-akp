@@ -49,6 +49,7 @@ Read-Only:
 - `kube_config` (Attributes) The kubeconfig of the Kargo agent (see [below for nested schema](#nestedatt--agents--kube_config))
 - `labels` (Map of String) The labels of the Kargo agent
 - `namespace` (String) The namespace of the Kargo agent
+- `reapply_manifests_on_update` (Boolean) Whether to reapply manifests on update
 - `remove_agent_resources_on_destroy` (Boolean) Whether to remove agent resources on destroy
 - `spec` (Attributes) The spec of the Kargo agent (see [below for nested schema](#nestedatt--agents--spec))
 - `workspace` (String) Workspace name for the Kargo agent

@@ -49,6 +49,7 @@ Read-Only:
 - `kube_config` (Attributes) Kubernetes connection settings. If configured, terraform will try to connect to the cluster and install the agent (see [below for nested schema](#nestedatt--clusters--kube_config))
 - `labels` (Map of String) Labels
 - `namespace` (String) Agent installation namespace
+- `reapply_manifests_on_update` (Boolean) Whether to reapply manifests on update
 - `remove_agent_resources_on_destroy` (Boolean) Remove agent Kubernetes resources from the managed cluster when destroying cluster
 - `spec` (Attributes) Cluster spec (see [below for nested schema](#nestedatt--clusters--spec))
 
