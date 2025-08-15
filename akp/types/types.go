@@ -204,8 +204,8 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 			diagnostics.AddError("kustomization does not match expected kustomization", "")
 		}
 	} else {
-		// When no kustomization is specified in the plan, set it to null/empty
-		kustomization = tftypes.StringNull()
+		// When no kustomization is specified in the plan, set it to obtained value from the API
+		kustomization = tftypes.StringValue(string(yamlData))
 	}
 
 	var size tftypes.String
