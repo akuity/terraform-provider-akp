@@ -46,6 +46,10 @@ var (
 		argocdv1.ClusterSize_CLUSTER_SIZE_AUTO:        "auto",
 		argocdv1.ClusterSize_CLUSTER_SIZE_UNSPECIFIED: "unspecified",
 	}
+
+	DirectClusterTypeString = map[argocdv1.DirectClusterType]string{
+		argocdv1.DirectClusterType_DIRECT_CLUSTER_TYPE_KARGO: "kargo",
+	}
 )
 
 func (a *ArgoCD) Update(ctx context.Context, diagnostics *diag.Diagnostics, cd *v1alpha1.ArgoCD) {
@@ -291,6 +295,17 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 		}
 	}
 
+	var directClusterSpec *DirectClusterSpec
+	if plan != nil && plan.Spec != nil && plan.Spec.Data.DirectClusterSpec != nil {
+		clusterType := DirectClusterTypeString[apiCluster.GetData().DirectClusterSpec.GetClusterType()]
+		if clusterType == DirectClusterTypeString[argocdv1.DirectClusterType_DIRECT_CLUSTER_TYPE_KARGO] {
+			directClusterSpec = &DirectClusterSpec{
+				ClusterType:     tftypes.StringValue(clusterType),
+				KargoInstanceId: tftypes.StringValue(apiCluster.GetData().DirectClusterSpec.GetKargoInstanceId()),
+			}
+		}
+	}
+
 	c.Spec = &ClusterSpec{
 		Description:     tftypes.StringValue(apiCluster.GetDescription()),
 		NamespaceScoped: tftypes.BoolValue(apiCluster.GetNamespaceScoped()),
@@ -310,6 +325,7 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 			Project:                         tftypes.StringValue(apiCluster.GetData().GetProject()),
 			Compatibility:                   toCompatibilityTFModel(plan, apiCluster.GetData().GetCompatibility()),
 			ArgocdNotificationsSettings:     toArgoCDNotificationsSettingsTFModel(plan, apiCluster.GetData().GetArgocdNotificationsSettings()),
+			DirectClusterSpec:               directClusterSpec,
 		},
 	}
 }
@@ -488,6 +504,20 @@ func toClusterDataAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, c
 			}
 		}
 	}
+
+	var directClusterSpec *v1alpha1.DirectClusterSpec
+	if clusterData.DirectClusterSpec != nil {
+		clusterType := clusterData.DirectClusterSpec.ClusterType.ValueString()
+		if clusterType != "" && clusterType == DirectClusterTypeString[argocdv1.DirectClusterType_DIRECT_CLUSTER_TYPE_KARGO] {
+			directClusterSpec = &v1alpha1.DirectClusterSpec{
+				ClusterType:     v1alpha1.DirectClusterType(clusterType),
+				KargoInstanceId: clusterData.DirectClusterSpec.KargoInstanceId.ValueStringPointer(),
+			}
+		} else {
+			diagnostics.AddError("unsupported cluster type", fmt.Sprintf("cluster_type %s is not supported, supported cluster_type: `kargo`", clusterData.DirectClusterSpec.ClusterType.String()))
+			return v1alpha1.ClusterData{}
+		}
+	}
 	return v1alpha1.ClusterData{
 		Size:                            v1alpha1.ClusterSize(size),
 		AutoUpgradeDisabled:             toBoolPointer(clusterData.AutoUpgradeDisabled),
@@ -503,6 +533,7 @@ func toClusterDataAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, c
 		Project:                         clusterData.Project.ValueString(),
 		Compatibility:                   toCompatibilityAPIModel(clusterData.Compatibility),
 		ArgocdNotificationsSettings:     toArgoCDNotificationsSettingsAPIModel(clusterData.ArgocdNotificationsSettings),
+		DirectClusterSpec:               directClusterSpec,
 	}
 }
 

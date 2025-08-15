@@ -149,6 +149,11 @@ func getClusterDataDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			Attributes:          getArgoCDNotificationsSettingsDataSourceAttributes(),
 		},
+		"direct_cluster_spec": schema.SingleNestedAttribute{
+			MarkdownDescription: "Direct cluster integration spec. Currently supports `kargo`",
+			Computed:            true,
+			Attributes:          getDirectClusterSpecDataSourceAttributes(),
+		},
 	}
 }
 
@@ -354,6 +359,19 @@ func getArgoCDNotificationsSettingsDataSourceAttributes() map[string]schema.Attr
 	return map[string]schema.Attribute{
 		"in_cluster_settings": schema.BoolAttribute{
 			Description: "Enable in-cluster settings for ArgoCD notifications",
+			Computed:    true,
+		},
+	}
+}
+
+func getDirectClusterSpecDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"cluster_type": schema.StringAttribute{
+			Description: "Cluster type",
+			Computed:    true,
+		},
+		"kargo_instance_id": schema.StringAttribute{
+			Description: "Kargo instance ID",
 			Computed:    true,
 		},
 	}
