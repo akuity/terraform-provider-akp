@@ -14,6 +14,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/slices"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
@@ -149,13 +151,64 @@ func (r *AkpKargoAgentResource) Delete(ctx context.Context, req resource.DeleteR
 			return
 		}
 	}
+
+	workspace, err := getWorkspace(ctx, r.akpCli.OrgCli, r.akpCli.OrgId, plan.Workspace.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get workspace. %s", err))
+		return
+	}
+
+	exportResp, err := r.akpCli.KargoCli.ExportKargoInstance(ctx, &kargov1.ExportKargoInstanceRequest{
+		OrganizationId: r.akpCli.OrgId,
+		Id:             plan.InstanceID.ValueString(),
+		WorkspaceId:    workspace.Id,
+	})
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to export Kargo instance. %s", err))
+		return
+	}
+
+	var defaultShardAgent string
+	if exportResp != nil && exportResp.GetKargo() != nil {
+		if km, ok := exportResp.GetKargo().AsMap()["spec"].(map[string]any); ok {
+			if kis, ok := km["kargoInstanceSpec"].(map[string]any); ok {
+				if dsa, ok := kis["defaultShardAgent"].(string); ok {
+					defaultShardAgent = dsa
+				}
+			}
+		}
+	}
+
+	if defaultShardAgent != "" && defaultShardAgent == plan.ID.ValueString() {
+		_, err = r.akpCli.KargoCli.PatchKargoInstance(ctx, &kargov1.PatchKargoInstanceRequest{
+			OrganizationId: r.akpCli.OrgId,
+			Id:             plan.InstanceID.ValueString(),
+			Patch: &structpb.Struct{
+				Fields: map[string]*structpb.Value{
+					"spec": {
+						Kind: &structpb.Value_StructValue{
+							StructValue: &structpb.Struct{
+								Fields: map[string]*structpb.Value{
+									"defaultShardAgent": {Kind: &structpb.Value_NullValue{}},
+								},
+							},
+						},
+					},
+				},
+			},
+		})
+		if err != nil {
+			resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to clear default shard agent. %s", err))
+			return
+		}
+	}
 	apiReq := &kargov1.DeleteInstanceAgentRequest{
 		OrganizationId: r.akpCli.OrgId,
 		InstanceId:     plan.InstanceID.ValueString(),
 		Id:             plan.ID.ValueString(),
 	}
 	_, err = r.akpCli.KargoCli.DeleteInstanceAgent(ctx, apiReq)
-	if err != nil {
+	if err != nil && status.Code(err) != codes.NotFound {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete Kargo agent. %s", err))
 		return
 	}
@@ -269,7 +322,6 @@ func refreshKargoAgentState(ctx context.Context, diagnostics *diag.Diagnostics, 
 	}
 	if agent == nil {
 		state.RemoveResource(ctx)
-		return nil
 	}
 	tflog.Debug(ctx, fmt.Sprintf("current kargo agent: %s", agent))
 	kargoAgent.Update(ctx, diagnostics, agent, plan)
