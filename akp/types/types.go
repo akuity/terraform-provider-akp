@@ -1,7 +1,6 @@
 package types
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"reflect"
@@ -14,11 +13,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"google.golang.org/protobuf/types/known/structpb"
 	yamlv3 "gopkg.in/yaml.v3"
-	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	kustomizetypes "sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/yaml"
 
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
@@ -196,60 +193,42 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 	diagnostics.Append(d...)
 	jsonData, err := apiCluster.GetData().GetKustomization().MarshalJSON()
 	if err != nil {
-		diagnostics.AddError("getting cluster kustomization", fmt.Sprintf("%s", err.Error()))
+		diagnostics.AddError("getting cluster kustomization", err.Error())
 	}
 	yamlData, err := yaml.JSONToYAML(jsonData)
 	if err != nil {
-		diagnostics.AddError("getting cluster kustomization", fmt.Sprintf("%s", err.Error()))
+		diagnostics.AddError("getting cluster kustomization", err.Error())
 	}
 
-	kustomization := tftypes.StringValue(string(yamlData))
-	if c.Spec != nil {
-		rawPlan := runtime.RawExtension{}
-		old := c.Spec.Data.Kustomization
-		if err := yaml.Unmarshal([]byte(old.ValueString()), &rawPlan); err != nil {
-			diagnostics.AddError("failed unmarshal kustomization string to yaml", err.Error())
+	var kustomization tftypes.String
+	if plan != nil && plan.Spec != nil && !plan.Spec.Data.Kustomization.IsNull() && !plan.Spec.Data.Kustomization.IsUnknown() && plan.Spec.Data.Kustomization.ValueString() != "" {
+		if isKustomizationSubset(plan.Spec.Data.Kustomization.ValueString(), string(yamlData)) {
+			kustomization = plan.Spec.Data.Kustomization
+		} else {
+			diagnostics.AddError("kustomization does not match expected kustomization", "")
 		}
-
-		oldYamlData, err := yaml.Marshal(&rawPlan)
-		if err != nil {
-			diagnostics.AddError("failed to convert json to yaml data", err.Error())
-		}
-		if bytes.Equal(oldYamlData, yamlData) {
-			kustomization = old
-		}
+	} else {
+		// When no kustomization is specified in the plan, set it to obtained value from the API
+		kustomization = tftypes.StringValue(string(yamlData))
 	}
 
-	var existingConfig kustomizetypes.Kustomization
-	size := tftypes.StringValue(ClusterSizeString[apiCluster.GetData().GetSize()])
+	var size tftypes.String
 	var customConfig *CustomAgentSizeConfig
-	if err := yaml.Unmarshal(yamlData, &existingConfig); err == nil && plan != nil && plan.Spec != nil && plan.Spec.Data.CustomAgentSizeConfig != nil {
-		extractedCustomConfig := extractCustomSizeConfig(existingConfig)
-		if extractedCustomConfig != nil {
-			if plan != nil && plan.Spec != nil && plan.Spec.Data.CustomAgentSizeConfig != nil {
-				if areCustomAgentConfigsEquivalent(plan.Spec.Data.CustomAgentSizeConfig, extractedCustomConfig) {
-					customConfig = plan.Spec.Data.CustomAgentSizeConfig
-				} else {
-					customConfig = plan.Spec.Data.CustomAgentSizeConfig
-				}
-				existingConfig.Patches = filterNonSizePatchesKustomize(existingConfig.Patches)
-				existingConfig.Replicas = filterNonRepoServerReplicasKustomize(existingConfig.Replicas)
+	if plan != nil && plan.Spec != nil && plan.Spec.Data.CustomAgentSizeConfig != nil && plan.Spec.Data.Size.ValueString() == "custom" {
+		size = plan.Spec.Data.Size
+		customKustomization, err := generateExpectedKustomization(plan.Spec.Data.CustomAgentSizeConfig, "")
+		if err != nil {
+			diagnostics.AddError("failed to generate expected kustomization", err.Error())
+		} else {
+			if isKustomizationSubset(customKustomization, string(yamlData)) {
+				customConfig = plan.Spec.Data.CustomAgentSizeConfig
+				size = tftypes.StringValue("custom")
 			} else {
-				customConfig = extractedCustomConfig
+				diagnostics.AddError("kustomization does not match expected kustomization", "")
 			}
-
-			if existingConfig.CheckEmpty() != nil {
-				kustomization = tftypes.StringValue("{}\n")
-			}
-
-			cleanYamlData, err := yaml.Marshal(existingConfig)
-			if err != nil {
-				diagnostics.AddError("failed to marshal cleaned config to yaml", err.Error())
-			} else {
-				kustomization = tftypes.StringValue(string(cleanYamlData))
-			}
-			size = tftypes.StringValue("custom")
 		}
+	} else {
+		size = tftypes.StringValue(ClusterSizeString[apiCluster.GetData().GetSize()])
 	}
 
 	c.Labels = labels
@@ -260,7 +239,6 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 		newAPIConfig := apiCluster.GetData().GetAutoscalerConfig()
 		if !plan.Spec.Data.AutoscalerConfig.IsNull() && !plan.Spec.Data.AutoscalerConfig.IsUnknown() && newAPIConfig != nil &&
 			newAPIConfig.RepoServer != nil && newAPIConfig.ApplicationController != nil {
-			autoscalerConfig = plan.Spec.Data.AutoscalerConfig
 			newConfig := &AutoScalerConfig{
 				ApplicationController: &AppControllerAutoScalingConfig{
 					ResourceMinimum: &Resources{
@@ -1246,7 +1224,6 @@ func toAutoScalerConfigTFModel(cfg *argocdv1.AutoScalerConfig) basetypes.ObjectV
 }
 
 func handleAgentSizeAndKustomization(diagnostics *diag.Diagnostics, clusterData *ClusterData, autoscalerConfig *AutoScalerConfig) (size string, kustomization runtime.RawExtension) {
-	// Validate configs
 	customSizeConfig := clusterData.CustomAgentSizeConfig
 	if autoscalerConfig != nil && clusterData.Size.ValueString() != "auto" {
 		diagnostics.AddError("autoscaler config should not be set when size is not auto", "")
@@ -1261,45 +1238,23 @@ func handleAgentSizeAndKustomization(diagnostics *diag.Diagnostics, clusterData 
 		return clusterData.Size.ValueString(), runtime.RawExtension{}
 	}
 
-	// Parse existing kustomization if it exists
-	var existingConfig map[string]any
-	raw := runtime.RawExtension{}
-	if clusterData.Kustomization.ValueString() != "" {
-		if err := yaml.Unmarshal([]byte(clusterData.Kustomization.ValueString()), &raw); err != nil {
-			diagnostics.AddError("failed unmarshal kustomization string to yaml", err.Error())
-			return clusterData.Size.ValueString(), runtime.RawExtension{}
-		}
-		if err := yaml.Unmarshal(raw.Raw, &existingConfig); err != nil {
-			diagnostics.AddError("failed to parse existing kustomization", err.Error())
-			return clusterData.Size.ValueString(), runtime.RawExtension{}
-		}
-	}
 	if clusterData.Size.ValueString() != "custom" {
+		raw := runtime.RawExtension{}
+		if clusterData.Kustomization.ValueString() != "" {
+			if err := yaml.Unmarshal([]byte(clusterData.Kustomization.ValueString()), &raw); err != nil {
+				diagnostics.AddError("failed unmarshal kustomization string to yaml", err.Error())
+				return clusterData.Size.ValueString(), runtime.RawExtension{}
+			}
+		}
 		return clusterData.Size.ValueString(), raw
 	}
 
-	if existingConfig == nil {
-		existingConfig = map[string]any{
-			"apiVersion": "kustomize.config.k8s.io/v1beta1",
-			"kind":       "Kustomization",
-		}
-	}
-	patches := make([]map[string]any, 0)
-	replicas := make([]map[string]any, 0)
 	if customSizeConfig.ApplicationController != nil {
 		if customSizeConfig.ApplicationController.Memory.ValueString() == "" || customSizeConfig.ApplicationController.Cpu.ValueString() == "" {
 			diagnostics.AddError("memory and cpu are required for app controller custom size", "")
 			return clusterData.Size.ValueString(), runtime.RawExtension{}
 		}
-		patches = append(patches, map[string]any{
-			"patch": generateAppControllerPatch(customSizeConfig.ApplicationController),
-			"target": map[string]string{
-				"kind": "Deployment",
-				"name": "argocd-application-controller",
-			},
-		})
 	}
-
 	if customSizeConfig.RepoServer != nil {
 		if customSizeConfig.RepoServer.Memory.ValueString() == "" || customSizeConfig.RepoServer.Cpu.ValueString() == "" || customSizeConfig.RepoServer.Replicas.ValueInt64() == 0 {
 			diagnostics.AddError("memory, cpu and replicas are required for repo server custom size", "")
@@ -1308,100 +1263,65 @@ func handleAgentSizeAndKustomization(diagnostics *diag.Diagnostics, clusterData 
 			diagnostics.AddError("replicas must be greater than or equal to 0", "")
 			return clusterData.Size.ValueString(), runtime.RawExtension{}
 		}
-		patches = append(patches, map[string]any{
-			"patch": generateRepoServerPatch(customSizeConfig.RepoServer),
-			"target": map[string]string{
-				"kind": "Deployment",
-				"name": "argocd-repo-server",
-			},
-		})
-
-		replicas = append(replicas, map[string]any{
-			"count": customSizeConfig.RepoServer.Replicas.ValueInt64(),
-			"name":  "argocd-repo-server",
-		})
 	}
 
-	if existingPatches, ok := existingConfig["patches"].([]any); ok {
-		patches = append(filterNonSizePatches(existingPatches), patches...)
-	}
-	if existingReplicas, ok := existingConfig["replicas"].([]any); ok {
-		replicas = append(filterNonRepoServerReplicas(existingReplicas), replicas...)
-	}
-
-	existingConfig["patches"] = patches
-	if len(replicas) > 0 {
-		existingConfig["replicas"] = replicas
-	}
-
-	yamlData, err := yaml.Marshal(existingConfig)
+	expectedKustomization, err := generateExpectedKustomization(customSizeConfig, clusterData.Kustomization.ValueString())
 	if err != nil {
-		diagnostics.AddError("failed to marshal config to yaml", err.Error())
+		diagnostics.AddError("failed to generate expected kustomization", err.Error())
 		return clusterData.Size.ValueString(), runtime.RawExtension{}
 	}
 
-	if err = yaml.Unmarshal(yamlData, &raw); err != nil {
+	raw := runtime.RawExtension{}
+	if err := yaml.Unmarshal([]byte(expectedKustomization), &raw); err != nil {
 		diagnostics.AddError("failed unmarshal kustomization string to yaml", err.Error())
 		return clusterData.Size.ValueString(), runtime.RawExtension{}
 	}
 
-	// Custom size will be represented as large with kustomization
 	return "large", raw
 }
 
-func filterNonSizePatches(patches []any) []map[string]any {
-	var filtered []map[string]any
-	for _, p := range patches {
-		patch, ok := p.(map[string]any)
-		if !ok {
-			continue
-		}
-		target, ok := patch["target"].(map[string]any)
-		if !ok {
-			filtered = append(filtered, patch)
-			continue
-		}
-		name, ok := target["name"].(string)
-		if !ok || (name != "argocd-application-controller" && name != "argocd-repo-server") {
-			filtered = append(filtered, patch)
-		}
+func isResourcePatch(patch map[string]any) bool {
+	patchContent, ok := patch["patch"].(string)
+	if !ok {
+		return false
 	}
-	return filtered
-}
 
-func filterNonRepoServerReplicas(replicas []any) []map[string]any {
-	var filtered []map[string]any
-	for _, r := range replicas {
-		replica, ok := r.(map[string]any)
+	var patchObj map[string]any
+	if err := yaml.Unmarshal([]byte(patchContent), &patchObj); err != nil {
+		return false
+	}
+
+	spec, ok := patchObj["spec"].(map[string]any)
+	if !ok {
+		return false
+	}
+
+	template, ok := spec["template"].(map[string]any)
+	if !ok {
+		return false
+	}
+
+	templateSpec, ok := template["spec"].(map[string]any)
+	if !ok {
+		return false
+	}
+
+	containers, ok := templateSpec["containers"].([]any)
+	if !ok {
+		return false
+	}
+
+	for _, container := range containers {
+		containerMap, ok := container.(map[string]any)
 		if !ok {
-			continue
+			return false
 		}
-		name, ok := replica["name"].(string)
-		if !ok || name != "argocd-repo-server" {
-			filtered = append(filtered, replica)
-		}
-	}
-	return filtered
-}
-
-func filterNonSizePatchesKustomize(patches []kustomizetypes.Patch) []kustomizetypes.Patch {
-	var filtered []kustomizetypes.Patch
-	for _, p := range patches {
-		if p.Target == nil || (p.Target.Name != "argocd-application-controller" && p.Target.Name != "argocd-repo-server") {
-			filtered = append(filtered, p)
+		_, hasResources := containerMap["resources"]
+		if hasResources {
+			return true
 		}
 	}
-	return filtered
-}
-
-func filterNonRepoServerReplicasKustomize(replicas []kustomizetypes.Replica) []kustomizetypes.Replica {
-	var filtered []kustomizetypes.Replica
-	for _, r := range replicas {
-		if r.Name != "argocd-repo-server" {
-			filtered = append(filtered, r)
-		}
-	}
-	return filtered
+	return false
 }
 
 func generateAppControllerPatch(config *AppControllerCustomAgentSizeConfig) string {
@@ -1460,91 +1380,6 @@ func toResourcesAPIModel(resources *Resources) *v1alpha1.Resources {
 		Mem: resources.Memory.ValueString(),
 		Cpu: resources.Cpu.ValueString(),
 	}
-}
-
-func extractCustomSizeConfig(existingConfig kustomizetypes.Kustomization) *CustomAgentSizeConfig {
-	var appController *AppControllerCustomAgentSizeConfig
-	var repoServer *RepoServerCustomAgentSizeConfig
-
-	for _, p := range existingConfig.Patches {
-		var patch appsv1.Deployment
-		if err := yaml.Unmarshal([]byte(p.Patch), &patch); err != nil {
-			continue
-		}
-
-		switch p.Target.Name {
-		case "argocd-application-controller":
-			for _, container := range patch.Spec.Template.Spec.Containers {
-				if container.Name == "argocd-application-controller" {
-					appController = &AppControllerCustomAgentSizeConfig{
-						Memory: tftypes.StringValue(container.Resources.Requests.Memory().String()),
-						Cpu:    tftypes.StringValue(container.Resources.Requests.Cpu().String()),
-					}
-					break
-				}
-			}
-		case "argocd-repo-server":
-			for _, container := range patch.Spec.Template.Spec.Containers {
-				if container.Name == "argocd-repo-server" {
-					repoServer = &RepoServerCustomAgentSizeConfig{
-						Memory: tftypes.StringValue(container.Resources.Requests.Memory().String()),
-						Cpu:    tftypes.StringValue(container.Resources.Requests.Cpu().String()),
-					}
-					break
-				}
-			}
-		}
-	}
-	if repoServer != nil {
-		for _, r := range existingConfig.Replicas {
-			if r.Name == "argocd-repo-server" {
-				repoServer.Replicas = tftypes.Int64Value(r.Count)
-				break
-			}
-		}
-	}
-
-	if appController == nil && repoServer == nil {
-		return nil
-	}
-
-	return &CustomAgentSizeConfig{
-		ApplicationController: appController,
-		RepoServer:            repoServer,
-	}
-}
-
-func areCustomAgentConfigsEquivalent(config1, config2 *CustomAgentSizeConfig) bool {
-	if config1 == nil || config2 == nil {
-		return config1 == config2
-	}
-	if config1.ApplicationController != nil && config2.ApplicationController != nil {
-		if !areResourcesEquivalent(
-			config1.ApplicationController.Cpu.ValueString(),
-			config2.ApplicationController.Cpu.ValueString(),
-		) || !areResourcesEquivalent(
-			config1.ApplicationController.Memory.ValueString(),
-			config2.ApplicationController.Memory.ValueString(),
-		) {
-			return false
-		}
-	} else if config1.ApplicationController != nil || config2.ApplicationController != nil {
-		return false
-	}
-	if config1.RepoServer != nil && config2.RepoServer != nil {
-		if !areResourcesEquivalent(
-			config1.RepoServer.Cpu.ValueString(),
-			config2.RepoServer.Cpu.ValueString(),
-		) || !areResourcesEquivalent(
-			config1.RepoServer.Memory.ValueString(),
-			config2.RepoServer.Memory.ValueString(),
-		) || config1.RepoServer.Replicas != config2.RepoServer.Replicas {
-			return false
-		}
-	} else if config1.RepoServer != nil || config2.RepoServer != nil {
-		return false
-	}
-	return true
 }
 
 func areAutoScalerConfigsEquivalent(plan, now *AutoScalerConfig) bool {
@@ -1783,4 +1618,168 @@ func toArgoCDNotificationsSettingsAPIModel(cfg *ClusterArgoCDNotificationsSettin
 	return &v1alpha1.ClusterArgoCDNotificationsSettings{
 		InClusterSettings: cfg.InClusterSettings.ValueBool(),
 	}
+}
+
+func generateExpectedKustomization(customConfig *CustomAgentSizeConfig, userKustomization string) (string, error) {
+	if customConfig == nil {
+		return userKustomization, nil
+	}
+
+	var expectedConfig map[string]any
+	var userPatches []any
+	var userReplicas []any
+
+	if userKustomization != "" {
+		if err := yaml.Unmarshal([]byte(userKustomization), &expectedConfig); err != nil {
+			return "", fmt.Errorf("failed to parse user kustomization: %s", err.Error())
+		}
+
+		if patches, ok := expectedConfig["patches"].([]any); ok {
+			userPatches = patches
+		}
+		if replicas, ok := expectedConfig["replicas"].([]any); ok {
+			userReplicas = replicas
+		}
+	} else {
+		expectedConfig = map[string]any{
+			"apiVersion": "kustomize.config.k8s.io/v1beta1",
+			"kind":       "Kustomization",
+		}
+	}
+
+	for _, p := range userPatches {
+		if patch, ok := p.(map[string]any); ok {
+			if isResourcePatch(patch) && customConfig != nil {
+				target := patch["target"].(map[string]any)
+				name := target["name"].(string)
+				if name == "argocd-application-controller" || name == "argocd-repo-server" {
+					return "", fmt.Errorf("kustomization contains resource patches for %s, which conflicts with custom_agent_size_config. Please use only custom_agent_size_config for resource configuration or change the size to other value", name)
+				}
+			}
+		}
+	}
+
+	customPatches := make([]map[string]any, 0)
+	customReplicas := make([]map[string]any, 0)
+
+	if customConfig.ApplicationController != nil {
+		customPatches = append(customPatches, map[string]any{
+			"patch": generateAppControllerPatch(customConfig.ApplicationController),
+			"target": map[string]string{
+				"kind": "Deployment",
+				"name": "argocd-application-controller",
+			},
+		})
+	}
+
+	if customConfig.RepoServer != nil {
+		customPatches = append(customPatches, map[string]any{
+			"patch": generateRepoServerPatch(customConfig.RepoServer),
+			"target": map[string]string{
+				"kind": "Deployment",
+				"name": "argocd-repo-server",
+			},
+		})
+
+		customReplicas = append(customReplicas, map[string]any{
+			"count": customConfig.RepoServer.Replicas.ValueInt64(),
+			"name":  "argocd-repo-server",
+		})
+	}
+
+	allPatches := customPatches
+	for _, p := range userPatches {
+		allPatches = append(allPatches, p.(map[string]any))
+	}
+
+	allReplicas := customReplicas
+	for _, r := range userReplicas {
+		allReplicas = append(allReplicas, r.(map[string]any))
+	}
+
+	expectedConfig["patches"] = allPatches
+	if len(allReplicas) > 0 {
+		expectedConfig["replicas"] = allReplicas
+	}
+
+	yamlData, err := yaml.Marshal(expectedConfig)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal expected kustomization: %s", err.Error())
+	}
+
+	return string(yamlData), nil
+}
+
+// isKustomizationSubset checks if the API response is a subset of the expected kustomization
+func isKustomizationSubset(subset, superset string) bool {
+	if yamlEqual(subset, superset) {
+		return true
+	}
+
+	var subsetObj, supersetObj map[string]any
+	if err := yaml.Unmarshal([]byte(subset), &subsetObj); err != nil {
+		return false
+	}
+	if err := yaml.Unmarshal([]byte(superset), &supersetObj); err != nil {
+		return false
+	}
+
+	return isMapSubset(subsetObj, supersetObj)
+}
+
+func isMapSubset(subset, superset map[string]any) bool {
+	for key, subValue := range subset {
+		superValue, exists := superset[key]
+		if !exists {
+			return false
+		}
+
+		switch subVal := subValue.(type) {
+		case map[string]any:
+			if superVal, ok := superValue.(map[string]any); ok {
+				if !isMapSubset(subVal, superVal) {
+					return false
+				}
+			} else {
+				return false
+			}
+		case []any:
+			if superVal, ok := superValue.([]any); ok {
+				if !isSliceSubset(subVal, superVal) {
+					return false
+				}
+			} else {
+				return false
+			}
+		default:
+			if !reflect.DeepEqual(subValue, superValue) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func isSliceSubset(subset, superset []any) bool {
+	for _, subItem := range subset {
+		found := false
+		for _, superItem := range superset {
+			if reflect.DeepEqual(subItem, superItem) {
+				found = true
+				break
+			}
+			if subMap, ok := subItem.(map[string]any); ok {
+				if superMap, ok := superItem.(map[string]any); ok {
+					if isMapSubset(subMap, superMap) {
+						found = true
+						break
+					}
+				}
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
 }
