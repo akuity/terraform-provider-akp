@@ -90,6 +90,8 @@ jobs:
       - run: go mod download
       - env:
           TF_ACC: "1"
+          AKUITY_ORG_NAME: "terraform-provider-acceptance-test"
+          AKUITY_INSTANCE_ID: "6pzhawvy4echbd8x"
           AKUITY_API_KEY_ID: "${{ secrets.AKUITY_API_KEY_ID }}"
           AKUITY_API_KEY_SECRET: "${{ secrets.AKUITY_API_KEY_SECRET }}"
         run: make acc-test

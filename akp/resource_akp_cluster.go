@@ -195,10 +195,15 @@ func (r *AkpClusterResource) upsert(ctx context.Context, diagnostics *diag.Diagn
 		return nil, nil
 	}
 	result, err := r.applyInstance(ctx, plan, apiReq, isCreate, r.akpCli.Cli.ApplyInstance, r.upsertKubeConfig)
-	if err != nil {
-		return result, err
+	// Always refresh cluster state to ensure we have consistent state, even if kubeconfig application failed
+	if result != nil {
+		refreshErr := refreshClusterState(ctx, diagnostics, r.akpCli.Cli, result, r.akpCli.OrgId, nil, plan)
+		if refreshErr != nil && err == nil {
+			// If we didn't have an error before but refresh failed, return the refresh error
+			return result, refreshErr
+		}
 	}
-	return result, refreshClusterState(ctx, diagnostics, r.akpCli.Cli, result, r.akpCli.OrgId, nil, plan)
+	return result, err
 }
 
 func (r *AkpClusterResource) applyInstance(ctx context.Context, plan *types.Cluster, apiReq *argocdv1.ApplyInstanceRequest, isCreate bool, applyInstance func(context.Context, *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error), upsertKubeConfig func(ctx context.Context, plan *types.Cluster) error) (*types.Cluster, error) {
@@ -216,7 +221,39 @@ func (r *AkpClusterResource) applyInstance(ctx context.Context, plan *types.Clus
 		if shouldApply {
 			err = upsertKubeConfig(ctx, plan)
 			if err != nil {
-				// Ensure kubeconfig won't be committed to state by setting it to nil
+				// If this is a create operation and kubeconfig application fails,
+				// clean up the dangling cluster from the API
+				if isCreate {
+					tflog.Warn(ctx, fmt.Sprintf("Kubeconfig application failed during create, cleaning up cluster %s", plan.Name.ValueString()))
+
+					// First, get the cluster ID by looking it up by name
+					getReq := &argocdv1.GetInstanceClusterRequest{
+						OrganizationId: r.akpCli.OrgId,
+						InstanceId:     plan.InstanceID.ValueString(),
+						Id:             plan.Name.ValueString(),
+						IdType:         idv1.Type_NAME,
+					}
+					clusterResp, getErr := r.akpCli.Cli.GetInstanceCluster(ctx, getReq)
+					if getErr != nil {
+						tflog.Error(ctx, fmt.Sprintf("Failed to lookup cluster %s for cleanup: %v", plan.Name.ValueString(), getErr))
+						return nil, fmt.Errorf("unable to apply manifests: %s (and failed to lookup cluster for cleanup: %s)", err, getErr)
+					}
+
+					// Now delete using the actual cluster ID
+					deleteReq := &argocdv1.DeleteInstanceClusterRequest{
+						OrganizationId: r.akpCli.OrgId,
+						InstanceId:     plan.InstanceID.ValueString(),
+						Id:             clusterResp.GetCluster().Id,
+					}
+					_, deleteErr := r.akpCli.Cli.DeleteInstanceCluster(ctx, deleteReq)
+					if deleteErr != nil {
+						tflog.Error(ctx, fmt.Sprintf("Failed to clean up dangling cluster %s: %v", plan.Name.ValueString(), deleteErr))
+						return nil, fmt.Errorf("unable to apply manifests: %s (and failed to clean up cluster: %s)", err, deleteErr)
+					}
+					tflog.Info(ctx, fmt.Sprintf("Successfully cleaned up dangling cluster %s", plan.Name.ValueString()))
+					return nil, fmt.Errorf("unable to apply manifests: %s", err)
+				}
+				// For updates, just ensure kubeconfig won't be committed to state by setting it to nil
 				plan.Kubeconfig = nil
 				return plan, fmt.Errorf("unable to apply manifests: %s", err)
 			}

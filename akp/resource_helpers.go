@@ -3,6 +3,8 @@ package akp
 import (
 	"context"
 	"fmt"
+	"io"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -47,6 +49,10 @@ func waitForStatus[ResourceType any, StatusCodeType comparable](
 			st, ok := status.FromError(err)
 			if ok && st.Code() == codes.NotFound {
 				tflog.Debug(ctx, fmt.Sprintf("%s not found yet, retrying...", resourceName))
+			} else if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+				return errors.Wrapf(err, "context cancelled/timeout while getting %s during status wait", resourceName)
+			} else if errors.Is(err, io.EOF) || strings.Contains(err.Error(), "EOF") {
+				tflog.Debug(ctx, fmt.Sprintf("EOF or connection error getting %s, retrying... (error: %v)", resourceName, err))
 			} else {
 				return errors.Wrapf(err, "failed to get %s during status wait", resourceName)
 			}
