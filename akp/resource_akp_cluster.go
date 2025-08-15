@@ -162,7 +162,7 @@ func (r *AkpClusterResource) Delete(ctx context.Context, req resource.DeleteRequ
 		Id:             plan.ID.ValueString(),
 	}
 	_, err = r.akpCli.Cli.DeleteInstanceCluster(ctx, apiReq)
-	if err != nil {
+	if err != nil && status.Code(err) != codes.NotFound {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete Akuity cluster. %s", err))
 		return
 	}
@@ -259,9 +259,9 @@ func refreshClusterState(ctx context.Context, diagnostics *diag.Diagnostics, cli
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
 			state.RemoveResource(ctx)
-			return nil
+		} else {
+			return errors.Wrap(err, "Unable to read Argo CD cluster")
 		}
-		return errors.Wrap(err, "Unable to read Argo CD cluster")
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Get cluster response: %s", clusterResp))
 	cluster.Update(ctx, diagnostics, clusterResp.GetCluster(), plan)
