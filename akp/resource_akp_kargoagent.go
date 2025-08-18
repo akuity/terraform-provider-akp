@@ -208,7 +208,7 @@ func (r *AkpKargoAgentResource) Delete(ctx context.Context, req resource.DeleteR
 		Id:             plan.ID.ValueString(),
 	}
 	_, err = r.akpCli.KargoCli.DeleteInstanceAgent(ctx, apiReq)
-	if err != nil && status.Code(err) != codes.NotFound {
+	if err != nil && (status.Code(err) != codes.NotFound && status.Code(err) != codes.PermissionDenied) {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete Kargo agent. %s", err))
 		return
 	}
