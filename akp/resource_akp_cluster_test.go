@@ -52,6 +52,10 @@ func getTestAkpCli() *AkpCli {
 		return testAkpCli
 	}
 
+	if os.Getenv("TF_ACC") != "1" {
+		return nil
+	}
+
 	ctx := context.Background()
 
 	serverUrl := os.Getenv("AKUITY_SERVER_URL")
@@ -98,6 +102,10 @@ func getTestAkpCli() *AkpCli {
 }
 
 func createTestInstance() string {
+	if os.Getenv("TF_ACC") != "1" {
+		return ""
+	}
+
 	akpCli := getTestAkpCli()
 	ctx := context.Background()
 	ctx = httpctx.SetAuthorizationHeader(ctx, akpCli.Cred.Scheme(), akpCli.Cred.Credential())
