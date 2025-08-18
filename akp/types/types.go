@@ -201,15 +201,15 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 	}
 
 	var kustomization tftypes.String
-	if plan != nil && plan.Spec != nil && !plan.Spec.Data.Kustomization.IsNull() && !plan.Spec.Data.Kustomization.IsUnknown() && plan.Spec.Data.Kustomization.ValueString() != "" {
+	if plan != nil && plan.Spec != nil && !plan.Spec.Data.Kustomization.IsNull() && !plan.Spec.Data.Kustomization.IsUnknown() {
 		if isKustomizationSubset(plan.Spec.Data.Kustomization.ValueString(), string(yamlData)) {
 			kustomization = plan.Spec.Data.Kustomization
-		} else {
-			diagnostics.AddError("kustomization does not match expected kustomization", "")
 		}
-	} else {
+	} else if apiCluster.GetData().GetKustomization() != nil {
 		// When no kustomization is specified in the plan, set it to obtained value from the API
 		kustomization = tftypes.StringValue(string(yamlData))
+	} else {
+		kustomization = tftypes.StringNull()
 	}
 
 	var size tftypes.String
@@ -224,7 +224,7 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 				customConfig = plan.Spec.Data.CustomAgentSizeConfig
 				size = tftypes.StringValue("custom")
 			} else {
-				diagnostics.AddError("kustomization does not match expected kustomization", "")
+				size = tftypes.StringValue(ClusterSizeString[apiCluster.GetData().GetSize()])
 			}
 		}
 	} else {
@@ -1581,9 +1581,13 @@ func toCompatibilityTFModel(plan *Cluster, cfg *argocdv1.ClusterCompatibility) *
 			}
 		}
 	}
-	return &ClusterCompatibility{
-		Ipv6Only: types.BoolValue(cfg.Ipv6Only),
+	var cc *ClusterCompatibility
+	if cfg != nil {
+		cc = &ClusterCompatibility{
+			Ipv6Only: types.BoolValue(cfg.Ipv6Only),
+		}
 	}
+	return cc
 }
 
 func toCompatibilityAPIModel(cfg *ClusterCompatibility) *v1alpha1.ClusterCompatibility {
@@ -1606,9 +1610,13 @@ func toArgoCDNotificationsSettingsTFModel(plan *Cluster, cfg *argocdv1.ClusterAr
 			}
 		}
 	}
-	return &ClusterArgoCDNotificationsSettings{
-		InClusterSettings: types.BoolValue(cfg.InClusterSettings),
+	var cs *ClusterArgoCDNotificationsSettings
+	if cfg != nil {
+		cs = &ClusterArgoCDNotificationsSettings{
+			InClusterSettings: types.BoolValue(cfg.InClusterSettings),
+		}
 	}
+	return cs
 }
 
 func toArgoCDNotificationsSettingsAPIModel(cfg *ClusterArgoCDNotificationsSettings) *v1alpha1.ClusterArgoCDNotificationsSettings {
