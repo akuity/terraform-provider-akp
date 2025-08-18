@@ -14,6 +14,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/slices"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
@@ -149,13 +151,14 @@ func (r *AkpKargoAgentResource) Delete(ctx context.Context, req resource.DeleteR
 			return
 		}
 	}
+
 	apiReq := &kargov1.DeleteInstanceAgentRequest{
 		OrganizationId: r.akpCli.OrgId,
 		InstanceId:     plan.InstanceID.ValueString(),
 		Id:             plan.ID.ValueString(),
 	}
 	_, err = r.akpCli.KargoCli.DeleteInstanceAgent(ctx, apiReq)
-	if err != nil {
+	if err != nil && (status.Code(err) != codes.NotFound && status.Code(err) != codes.PermissionDenied) {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete Kargo agent. %s", err))
 		return
 	}
@@ -269,7 +272,6 @@ func refreshKargoAgentState(ctx context.Context, diagnostics *diag.Diagnostics, 
 	}
 	if agent == nil {
 		state.RemoveResource(ctx)
-		return nil
 	}
 	tflog.Debug(ctx, fmt.Sprintf("current kargo agent: %s", agent))
 	kargoAgent.Update(ctx, diagnostics, agent, plan)
