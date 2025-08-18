@@ -68,4 +68,13 @@ type KargoInstanceSpec struct {
 	DefaultShardAgent          string                   `json:"defaultShardAgent,omitempty"`
 	GlobalCredentialsNs        []string                 `json:"globalCredentialsNs,omitempty"`
 	GlobalServiceAccountNs     []string                 `json:"globalServiceAccountNs,omitempty"`
+	AkuityIntelligence         *AkuityIntelligence      `json:"akuityIntelligence,omitempty"`
+}
+
+type AkuityIntelligence struct {
+	AiSupportEngineerEnabled *bool    `json:"aiSupportEngineerEnabled,omitempty"`
+	Enabled                  *bool    `json:"enabled,omitempty"`
+	AllowedUsernames         []string `json:"allowedUsernames,omitempty"`
+	AllowedGroups            []string `json:"allowedGroups,omitempty"`
+	ModelVersion             string   `json:"modelVersion,omitempty"`
 }

@@ -52,4 +52,13 @@ type KargoInstanceSpec struct {
 	DefaultShardAgent          types.String             `tfsdk:"default_shard_agent"`
 	GlobalCredentialsNs        []types.String           `tfsdk:"global_credentials_ns"`
 	GlobalServiceAccountNs     []types.String           `tfsdk:"global_service_account_ns"`
+	AkuityIntelligence         *AkuityIntelligence      `tfsdk:"akuity_intelligence"`
+}
+
+type AkuityIntelligence struct {
+	AiSupportEngineerEnabled types.Bool     `tfsdk:"ai_support_engineer_enabled"`
+	Enabled                  types.Bool     `tfsdk:"enabled"`
+	AllowedUsernames         []types.String `tfsdk:"allowed_usernames"`
+	AllowedGroups            []types.String `tfsdk:"allowed_groups"`
+	ModelVersion             types.String   `tfsdk:"model_version"`
 }

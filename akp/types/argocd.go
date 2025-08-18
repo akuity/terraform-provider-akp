@@ -50,32 +50,140 @@ type CrossplaneExtension struct {
 	Resources []*CrossplaneExtensionResource `tfsdk:"resources"`
 }
 
+type AkuityIntelligenceExtension struct {
+	Enabled                  types.Bool     `tfsdk:"enabled"`
+	AllowedUsernames         []types.String `tfsdk:"allowed_usernames"`
+	AllowedGroups            []types.String `tfsdk:"allowed_groups"`
+	AiSupportEngineerEnabled types.Bool     `tfsdk:"ai_support_engineer_enabled"`
+	ModelVersion             types.String   `tfsdk:"model_version"`
+}
+
+type TargetSelector struct {
+	ArgocdApplications []types.String `tfsdk:"argocd_applications"`
+	K8SNamespaces      []types.String `tfsdk:"k8s_namespaces"`
+	Clusters           []types.String `tfsdk:"clusters"`
+}
+
+type Runbook struct {
+	Name      types.String    `tfsdk:"name"`
+	Content   types.String    `tfsdk:"content"`
+	AppliedTo *TargetSelector `tfsdk:"applied_to"`
+}
+
+type IncidentWebhookConfig struct {
+	Name                      types.String `tfsdk:"name"`
+	DescriptionPath           types.String `tfsdk:"description_path"`
+	ClusterPath               types.String `tfsdk:"cluster_path"`
+	K8SNamespacePath          types.String `tfsdk:"k8s_namespace_path"`
+	ArgocdApplicationNamePath types.String `tfsdk:"argocd_application_name_path"`
+}
+
+type IncidentsConfig struct {
+	Triggers []*TargetSelector        `tfsdk:"triggers"`
+	Webhooks []*IncidentWebhookConfig `tfsdk:"webhooks"`
+}
+
+type AIConfig struct {
+	Runbooks  []*Runbook       `tfsdk:"runbooks"`
+	Incidents *IncidentsConfig `tfsdk:"incidents"`
+}
+
+type KubeVisionConfig struct {
+	CveScanConfig *CveScanConfig `tfsdk:"cve_scan_config"`
+	AiConfig      *AIConfig      `tfsdk:"ai_config"`
+}
+
 type AppInAnyNamespaceConfig struct {
 	Enabled types.Bool `tfsdk:"enabled"`
 }
 
+type CustomDeprecatedAPI struct {
+	ApiVersion                     types.String `tfsdk:"api_version"`
+	NewApiVersion                  types.String `tfsdk:"new_api_version"`
+	DeprecatedInKubernetesVersion  types.String `tfsdk:"deprecated_in_kubernetes_version"`
+	UnavailableInKubernetesVersion types.String `tfsdk:"unavailable_in_kubernetes_version"`
+}
+
+type CveScanConfig struct {
+	ScanEnabled    types.Bool   `tfsdk:"scan_enabled"`
+	RescanInterval types.String `tfsdk:"rescan_interval"`
+}
+
+type ObjectSelector struct {
+	MatchLabels      types.Map                   `tfsdk:"match_labels"`
+	MatchExpressions []*LabelSelectorRequirement `tfsdk:"match_expressions"`
+}
+
+type LabelSelectorRequirement struct {
+	Key      types.String   `tfsdk:"key"`
+	Operator types.String   `tfsdk:"operator"`
+	Values   []types.String `tfsdk:"values"`
+}
+
+type ClusterSecretMapping struct {
+	Clusters *ObjectSelector `tfsdk:"clusters"`
+	Secrets  *ObjectSelector `tfsdk:"secrets"`
+}
+
+type SecretsManagementConfig struct {
+	Sources      []*ClusterSecretMapping `tfsdk:"sources"`
+	Destinations []*ClusterSecretMapping `tfsdk:"destinations"`
+}
+
+type ApplicationSetExtension struct {
+	Enabled types.Bool `tfsdk:"enabled"`
+}
+
+type BucketRateLimiting struct {
+	Enabled    types.Bool  `tfsdk:"enabled"`
+	BucketSize types.Int64 `tfsdk:"bucket_size"`
+	BucketQps  types.Int64 `tfsdk:"bucket_qps"`
+}
+
+type ItemRateLimiting struct {
+	Enabled         types.Bool    `tfsdk:"enabled"`
+	FailureCooldown types.Int64   `tfsdk:"failure_cooldown"`
+	BaseDelay       types.Int64   `tfsdk:"base_delay"`
+	MaxDelay        types.Int64   `tfsdk:"max_delay"`
+	BackoffFactor   types.Float64 `tfsdk:"backoff_factor"`
+}
+
+type AppReconciliationsRateLimiting struct {
+	BucketRateLimiting *BucketRateLimiting `tfsdk:"bucket_rate_limiting"`
+	ItemRateLimiting   *ItemRateLimiting   `tfsdk:"item_rate_limiting"`
+}
+
 type InstanceSpec struct {
-	IpAllowList                     []*IPAllowListEntry      `tfsdk:"ip_allow_list"`
-	Subdomain                       types.String             `tfsdk:"subdomain"`
-	DeclarativeManagementEnabled    types.Bool               `tfsdk:"declarative_management_enabled"`
-	Extensions                      types.List               `tfsdk:"extensions"`
-	ClusterCustomizationDefaults    types.Object             `tfsdk:"cluster_customization_defaults"`
-	ImageUpdaterEnabled             types.Bool               `tfsdk:"image_updater_enabled"`
-	BackendIpAllowListEnabled       types.Bool               `tfsdk:"backend_ip_allow_list_enabled"`
-	RepoServerDelegate              *RepoServerDelegate      `tfsdk:"repo_server_delegate"`
-	AuditExtensionEnabled           types.Bool               `tfsdk:"audit_extension_enabled"`
-	SyncHistoryExtensionEnabled     types.Bool               `tfsdk:"sync_history_extension_enabled"`
-	CrossplaneExtension             *CrossplaneExtension     `tfsdk:"crossplane_extension"`
-	ImageUpdaterDelegate            *ImageUpdaterDelegate    `tfsdk:"image_updater_delegate"`
-	AppSetDelegate                  *AppSetDelegate          `tfsdk:"app_set_delegate"`
-	AssistantExtensionEnabled       types.Bool               `tfsdk:"assistant_extension_enabled"`
-	AppsetPolicy                    types.Object             `tfsdk:"appset_policy"`
-	HostAliases                     []*HostAliases           `tfsdk:"host_aliases"`
-	AgentPermissionsRules           []*AgentPermissionsRule  `tfsdk:"agent_permissions_rules"`
-	Fqdn                            types.String             `tfsdk:"fqdn"`
-	MultiClusterK8SDashboardEnabled types.Bool               `tfsdk:"multi_cluster_k8s_dashboard_enabled"`
-	AppInAnyNamespaceConfig         *AppInAnyNamespaceConfig `tfsdk:"app_in_any_namespace_config"`
-	AppsetPlugins                   []*AppsetPlugins         `tfsdk:"appset_plugins"`
+	IpAllowList                     []*IPAllowListEntry             `tfsdk:"ip_allow_list"`
+	Subdomain                       types.String                    `tfsdk:"subdomain"`
+	DeclarativeManagementEnabled    types.Bool                      `tfsdk:"declarative_management_enabled"`
+	Extensions                      types.List                      `tfsdk:"extensions"`
+	ClusterCustomizationDefaults    types.Object                    `tfsdk:"cluster_customization_defaults"`
+	ImageUpdaterEnabled             types.Bool                      `tfsdk:"image_updater_enabled"`
+	BackendIpAllowListEnabled       types.Bool                      `tfsdk:"backend_ip_allow_list_enabled"`
+	RepoServerDelegate              *RepoServerDelegate             `tfsdk:"repo_server_delegate"`
+	AuditExtensionEnabled           types.Bool                      `tfsdk:"audit_extension_enabled"`
+	SyncHistoryExtensionEnabled     types.Bool                      `tfsdk:"sync_history_extension_enabled"`
+	CrossplaneExtension             *CrossplaneExtension            `tfsdk:"crossplane_extension"`
+	ImageUpdaterDelegate            *ImageUpdaterDelegate           `tfsdk:"image_updater_delegate"`
+	AppSetDelegate                  *AppSetDelegate                 `tfsdk:"app_set_delegate"`
+	AssistantExtensionEnabled       types.Bool                      `tfsdk:"assistant_extension_enabled"`
+	AppsetPolicy                    types.Object                    `tfsdk:"appset_policy"`
+	HostAliases                     []*HostAliases                  `tfsdk:"host_aliases"`
+	AgentPermissionsRules           []*AgentPermissionsRule         `tfsdk:"agent_permissions_rules"`
+	Fqdn                            types.String                    `tfsdk:"fqdn"`
+	MultiClusterK8SDashboardEnabled types.Bool                      `tfsdk:"multi_cluster_k8s_dashboard_enabled"`
+	AkuityIntelligenceExtension     *AkuityIntelligenceExtension    `tfsdk:"akuity_intelligence_extension"`
+	ImageUpdaterVersion             types.String                    `tfsdk:"image_updater_version"`
+	CustomDeprecatedApis            []*CustomDeprecatedAPI          `tfsdk:"custom_deprecated_apis"`
+	KubeVisionConfig                *KubeVisionConfig               `tfsdk:"kube_vision_config"`
+	AppInAnyNamespaceConfig         *AppInAnyNamespaceConfig        `tfsdk:"app_in_any_namespace_config"`
+	Basepath                        types.String                    `tfsdk:"basepath"`
+	AppsetProgressiveSyncsEnabled   types.Bool                      `tfsdk:"appset_progressive_syncs_enabled"`
+	Secrets                         *SecretsManagementConfig        `tfsdk:"secrets"`
+	AppsetPlugins                   []*AppsetPlugins                `tfsdk:"appset_plugins"`
+	ApplicationSetExtension         *ApplicationSetExtension        `tfsdk:"application_set_extension"`
+	AppReconciliationsRateLimiting  *AppReconciliationsRateLimiting `tfsdk:"app_reconciliations_rate_limiting"`
 }
 
 type AppsetPlugins struct {

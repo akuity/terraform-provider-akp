@@ -25,11 +25,12 @@ type KargoAgentSpec struct {
 }
 
 type KargoAgentData struct {
-	Size                KargoAgentSize       `json:"size,omitempty"`
-	AutoUpgradeDisabled *bool                `json:"autoUpgradeDisabled,omitempty"`
-	TargetVersion       string               `json:"targetVersion,omitempty"`
-	Kustomization       runtime.RawExtension `json:"kustomization,omitempty"`
-	RemoteArgocd        string               `json:"remoteArgocd,omitempty"`
-	AkuityManaged       bool                 `json:"akuityManaged,omitempty"`
-	ArgocdNamespace     string               `json:"argocdNamespace,omitempty"`
+	Size                 KargoAgentSize       `json:"size,omitempty"`
+	AutoUpgradeDisabled  *bool                `json:"autoUpgradeDisabled,omitempty"`
+	TargetVersion        string               `json:"targetVersion,omitempty"`
+	Kustomization        runtime.RawExtension `json:"kustomization,omitempty"`
+	RemoteArgocd         string               `json:"remoteArgocd,omitempty"`
+	AkuityManaged        bool                 `json:"akuityManaged,omitempty"`
+	ArgocdNamespace      string               `json:"argocdNamespace,omitempty"`
+	SelfManagedArgocdUrl string               `json:"selfManagedArgocdUrl,omitempty"`
 }
