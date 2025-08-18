@@ -72,7 +72,7 @@ func (k *Kargo) Update(ctx context.Context, diagnostics *diag.Diagnostics, kargo
 		},
 		Fqdn:       tftypes.StringValue(kargo.Spec.Fqdn),
 		Subdomain:  tftypes.StringValue(kargo.Spec.Subdomain),
-		OidcConfig: toKargoOidcConfigTFModel(ctx, kargo.Spec.OidcConfig),
+		OidcConfig: k.toKargoOidcConfigTFModel(ctx, kargo.Spec.OidcConfig),
 	}
 }
 
@@ -407,7 +407,7 @@ func toKargoPredefinedAccountAPIModel(ctx context.Context, diag *diag.Diagnostic
 	return result
 }
 
-func toKargoOidcConfigTFModel(ctx context.Context, oidcConfig *v1alpha1.KargoOidcConfig) *KargoOidcConfig {
+func (k *Kargo) toKargoOidcConfigTFModel(ctx context.Context, oidcConfig *v1alpha1.KargoOidcConfig) *KargoOidcConfig {
 	if oidcConfig == nil || oidcConfig.Enabled == nil || !*oidcConfig.Enabled {
 		return nil
 	}
@@ -428,8 +428,8 @@ func toKargoOidcConfigTFModel(ctx context.Context, oidcConfig *v1alpha1.KargoOid
 		IssuerURL:        tftypes.StringValue(oidcConfig.IssuerURL),
 		ClientID:         tftypes.StringValue(oidcConfig.ClientID),
 		CliClientID:      tftypes.StringValue(oidcConfig.CliClientID),
-		AdminAccount:     toKargoPredefinedAccountTFModel(oidcConfig.AdminAccount),
-		ViewerAccount:    toKargoPredefinedAccountTFModel(oidcConfig.ViewerAccount),
+		AdminAccount:     k.toKargoPredefinedAccountTFModel(oidcConfig.AdminAccount, adminAccount),
+		ViewerAccount:    k.toKargoPredefinedAccountTFModel(oidcConfig.ViewerAccount, viewerAccount),
 		AdditionalScopes: additionalScopes,
 	}
 }
@@ -450,7 +450,14 @@ func toKargoDexConfigSecretTFModel(ctx context.Context, secret map[string]v1alph
 	return mapVal
 }
 
-func toKargoPredefinedAccountTFModel(account v1alpha1.KargoPredefinedAccountData) types.Object {
+type PredefinedAccountType int
+
+const (
+	adminAccount PredefinedAccountType = iota
+	viewerAccount
+)
+
+func (k *Kargo) toKargoPredefinedAccountTFModel(account v1alpha1.KargoPredefinedAccountData, accountType PredefinedAccountType) types.Object {
 	objectType := map[string]attr.Type{
 		"claims": types.MapType{
 			ElemType: types.ObjectType{
@@ -464,7 +471,11 @@ func toKargoPredefinedAccountTFModel(account v1alpha1.KargoPredefinedAccountData
 	}
 
 	if len(account.Claims) == 0 {
-		return types.ObjectNull(objectType)
+		if accountType == adminAccount {
+			return k.Spec.OidcConfig.AdminAccount
+		} else {
+			return k.Spec.OidcConfig.ViewerAccount
+		}
 	}
 
 	claimsMap := make(map[string]attr.Value)

@@ -161,6 +161,10 @@ func (r *AkpClusterResource) Delete(ctx context.Context, req resource.DeleteRequ
 		InstanceId:     plan.InstanceID.ValueString(),
 		Id:             plan.ID.ValueString(),
 	}
+	// TODO(hanxiaop) Currently the refresh logic is flaky, and we need to check empty IDs before the delete operation.
+	if apiReq.GetId() == "" {
+		return // Nothing to delete
+	}
 	_, err = r.akpCli.Cli.DeleteInstanceCluster(ctx, apiReq)
 	if err != nil && (status.Code(err) != codes.NotFound && status.Code(err) != codes.PermissionDenied) {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete Akuity cluster. %s", err))
