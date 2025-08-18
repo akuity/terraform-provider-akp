@@ -157,6 +157,10 @@ func (r *AkpKargoAgentResource) Delete(ctx context.Context, req resource.DeleteR
 		InstanceId:     plan.InstanceID.ValueString(),
 		Id:             plan.ID.ValueString(),
 	}
+	// TODO(hanxiaop) Currently the refresh logic is flaky, and we need to check empty IDs before the delete operation.
+	if apiReq.GetId() == "" {
+		return // Nothing to delete
+	}
 	_, err = r.akpCli.KargoCli.DeleteInstanceAgent(ctx, apiReq)
 	if err != nil && (status.Code(err) != codes.NotFound && status.Code(err) != codes.PermissionDenied) {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete Kargo agent. %s", err))
