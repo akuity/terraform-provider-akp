@@ -285,7 +285,6 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 	}
 
 	c.Spec = &ClusterSpec{
-		Description:     tftypes.StringValue(apiCluster.GetDescription()),
 		NamespaceScoped: tftypes.BoolValue(apiCluster.GetNamespaceScoped()),
 		Data: ClusterData{
 			Size:                            size,
@@ -300,11 +299,18 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 			MultiClusterK8SDashboardEnabled: tftypes.BoolValue(apiCluster.GetData().GetMultiClusterK8SDashboardEnabled()),
 			AutoscalerConfig:                autoscalerConfig,
 			CustomAgentSizeConfig:           customConfig,
-			Project:                         tftypes.StringValue(apiCluster.GetData().GetProject()),
 			Compatibility:                   toCompatibilityTFModel(plan, apiCluster.GetData().GetCompatibility()),
 			ArgocdNotificationsSettings:     toArgoCDNotificationsSettingsTFModel(plan, apiCluster.GetData().GetArgocdNotificationsSettings()),
 			DirectClusterSpec:               directClusterSpec,
 		},
+	}
+
+	if apiCluster.GetDescription() != "" {
+		c.Spec.Description = tftypes.StringValue(apiCluster.GetDescription())
+	}
+
+	if apiCluster.GetData().GetProject() != "" {
+		c.Spec.Data.Project = tftypes.StringValue(apiCluster.GetData().GetProject())
 	}
 }
 

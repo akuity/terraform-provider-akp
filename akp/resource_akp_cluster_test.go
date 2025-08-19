@@ -367,6 +367,7 @@ func TestAccClusterResourceNamespaceScoped(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.namespace_scoped", "false"),
 				),
+				ExpectNonEmptyPlan: true,
 			},
 		},
 	})

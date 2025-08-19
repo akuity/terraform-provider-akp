@@ -115,6 +115,7 @@ func getAKPClusterAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "If true, re-apply generated Argo CD agent manifests to the target cluster on every update when `kube_config` is provided.",
 			Optional:            true,
 			Computed:            true,
+			//Default:             booldefault.StaticBool(false),
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
 			},
@@ -127,7 +128,6 @@ func getClusterSpecAttributes() map[string]schema.Attribute {
 		"description": schema.StringAttribute{
 			MarkdownDescription: "Cluster description",
 			Optional:            true,
-			Computed:            true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
 			},
@@ -135,7 +135,6 @@ func getClusterSpecAttributes() map[string]schema.Attribute {
 		"namespace_scoped": schema.BoolAttribute{
 			MarkdownDescription: "If the agent is namespace scoped",
 			Optional:            true,
-			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
 				boolplanmodifier.RequiresReplace(),
@@ -162,6 +161,7 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically",
 			Optional:            true,
 			Computed:            true,
+			//Default:             booldefault.StaticBool(false),
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
 			},
@@ -178,6 +178,7 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Enables Argo CD state replication to the managed cluster that allows disconnecting the cluster from Akuity Platform without losing core Argocd features",
 			Optional:            true,
 			Computed:            true,
+			//Default:             booldefault.StaticBool(false),
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
 				boolplanmodifier.RequiresReplace(),
@@ -195,6 +196,7 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy",
 			Optional:            true,
 			Computed:            true,
+			//Default:             booldefault.StaticBool(false),
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
 			},
@@ -203,6 +205,7 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Enable Datadog metrics collection of Application Controller and Repo Server. Make sure that you install Datadog agent in cluster.",
 			Optional:            true,
 			Computed:            true,
+			//Default:             booldefault.StaticBool(false),
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
 			},
@@ -211,6 +214,7 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Enable this if you are installing this cluster on EKS.",
 			Optional:            true,
 			Computed:            true,
+			//Default:             booldefault.StaticBool(false),
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
 			},
@@ -224,6 +228,7 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Enable the KubeVision feature on the managed cluster",
 			Optional:            true,
 			Computed:            true,
+			//Default:             booldefault.StaticBool(false),
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
 			},
@@ -232,7 +237,13 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Autoscaler config for auto agent size",
 			Optional:            true,
 			Computed:            true,
-			Attributes:          getAutoScalerConfigAttributes(),
+			/*
+				PlanModifiers: []planmodifier.Object{
+					objectplanmodifier.UseStateForUnknown(),
+				},
+
+			*/
+			Attributes: getAutoScalerConfigAttributes(),
 		},
 		"custom_agent_size_config": schema.SingleNestedAttribute{
 			MarkdownDescription: "Custom agent size config",
@@ -242,7 +253,6 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 		"project": schema.StringAttribute{
 			MarkdownDescription: "Project name",
 			Optional:            true,
-			Computed:            true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
 			},
