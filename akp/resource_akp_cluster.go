@@ -202,10 +202,6 @@ func (r *AkpClusterResource) upsert(ctx context.Context, diagnostics *diag.Diagn
 			// If we didn't have an error before but refresh failed, return the refresh error
 			return result, refreshErr
 		}
-		// Check for feature flag inconsistencies and fail-fast with clear error message
-		if err := r.validateFeatureFlagConsistency(result, plan); err != nil {
-			return result, err
-		}
 	}
 	return result, err
 }
@@ -309,7 +305,14 @@ func refreshClusterState(ctx context.Context, diagnostics *diag.Diagnostics, cli
 		}
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Get cluster response: %s", clusterResp))
-	cluster.Update(ctx, diagnostics, clusterResp.GetCluster(), plan)
+
+	apiCluster := clusterResp.GetCluster()
+
+	if plan != nil && plan.Spec != nil && (!plan.Spec.Data.MultiClusterK8SDashboardEnabled.IsNull() || !plan.Spec.Data.MultiClusterK8SDashboardEnabled.IsUnknown()) && plan.Spec.Data.MultiClusterK8SDashboardEnabled.ValueBool() && !apiCluster.GetData().GetMultiClusterK8SDashboardEnabled() {
+		return fmt.Errorf("multi_cluster_k8s_dashboard_enabled feature is not available on this instance")
+	}
+
+	cluster.Update(ctx, diagnostics, apiCluster, plan)
 	return nil
 }
 
@@ -490,14 +493,4 @@ func readStream(resChan <-chan *httpbody.HttpBody, errChan <-chan error) ([]byte
 		}
 	}
 	return data, nil
-}
-
-func (r *AkpClusterResource) validateFeatureFlagConsistency(actualState *types.Cluster, planState *types.Cluster) error {
-	// Check multi_cluster_k8s_dashboard_enabled feature flag consistency
-	if planState != nil && planState.Spec != nil && planState.Spec.Data.MultiClusterK8SDashboardEnabled.ValueBool() {
-		if actualState != nil && actualState.Spec != nil && !actualState.Spec.Data.MultiClusterK8SDashboardEnabled.ValueBool() {
-			return fmt.Errorf("multi_cluster_k8s_dashboard_enabled feature is not available on this instance")
-		}
-	}
-	return nil
 }
