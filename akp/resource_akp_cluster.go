@@ -202,6 +202,10 @@ func (r *AkpClusterResource) upsert(ctx context.Context, diagnostics *diag.Diagn
 			// If we didn't have an error before but refresh failed, return the refresh error
 			return result, refreshErr
 		}
+		// Check for feature flag inconsistencies and fail-fast with clear error message
+		if err := r.validateFeatureFlagConsistency(result, plan); err != nil {
+			return result, err
+		}
 	}
 	return result, err
 }
@@ -486,4 +490,14 @@ func readStream(resChan <-chan *httpbody.HttpBody, errChan <-chan error) ([]byte
 		}
 	}
 	return data, nil
+}
+
+func (r *AkpClusterResource) validateFeatureFlagConsistency(actualState *types.Cluster, planState *types.Cluster) error {
+	// Check multi_cluster_k8s_dashboard_enabled feature flag consistency
+	if planState != nil && planState.Spec != nil && planState.Spec.Data.MultiClusterK8SDashboardEnabled.ValueBool() {
+		if actualState != nil && actualState.Spec != nil && !actualState.Spec.Data.MultiClusterK8SDashboardEnabled.ValueBool() {
+			return fmt.Errorf("multi_cluster_k8s_dashboard_enabled feature is not available on this instance")
+		}
+	}
+	return nil
 }

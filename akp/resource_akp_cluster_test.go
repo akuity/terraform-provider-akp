@@ -305,6 +305,25 @@ func TestAccClusterResourceManagedCluster(t *testing.T) {
 
 func TestAccClusterResourceFeatures(t *testing.T) {
 	name := fmt.Sprintf("cluster-features-%s", acctest.RandString(10))
+
+	// Check if multi-cluster k8s dashboard feature is enabled
+	// If disabled, test should verify proper error handling
+	if os.Getenv("MULTI_CLUSTER_K8S_DASHBOARD_FEATURE_ENABLED") != "true" {
+		// Test that disabled feature returns proper error
+		resource.Test(t, resource.TestCase{
+			PreCheck:                 func() { testAccPreCheck(t) },
+			ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+			Steps: []resource.TestStep{
+				{
+					Config:      providerConfig + testAccClusterResourceConfigFeatures(name, getInstanceId()),
+					ExpectError: regexp.MustCompile("multi_cluster_k8s_dashboard_enabled feature is not available"),
+				},
+			},
+		})
+		return
+	}
+
+	// Feature is enabled, test normal functionality
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
