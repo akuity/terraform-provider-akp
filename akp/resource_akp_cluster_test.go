@@ -111,10 +111,15 @@ func createTestInstance() string {
 	ctx = httpctx.SetAuthorizationHeader(ctx, akpCli.Cred.Scheme(), akpCli.Cred.Credential())
 	instanceName := fmt.Sprintf("test-cluster-provider-%s", acctest.RandString(8))
 
+	instanceVersion := os.Getenv("AKUITY_ARGOCD_INSTANCE_VERSION")
+	if instanceVersion == "" {
+		instanceVersion = "v3.0.0"
+	}
+
 	createReq := &argocdv1.CreateInstanceRequest{
 		OrganizationId: akpCli.OrgId,
 		Name:           instanceName,
-		Version:        "v3.0.0",
+		Version:        instanceVersion,
 	}
 	instance, err := akpCli.Cli.CreateInstance(ctx, createReq)
 	if err != nil {
