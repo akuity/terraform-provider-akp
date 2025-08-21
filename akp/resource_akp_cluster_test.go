@@ -3,6 +3,9 @@ package akp
 import (
 	"context"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
+	"github.com/hashicorp/terraform-plugin-testing/plancheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 	"os"
 	"regexp"
 	"testing"
@@ -375,6 +378,8 @@ func TestAccClusterResourceReapplyManifests(t *testing.T) {
 
 func TestAccClusterResourceNamespaceScoped(t *testing.T) {
 	name := fmt.Sprintf("cluster-ns-scoped-%s", acctest.RandString(10))
+	path := tfjsonpath.New("spec")
+	data := path.AtMapKey("data")
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -391,6 +396,23 @@ func TestAccClusterResourceNamespaceScoped(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.namespace_scoped", "false"),
 				),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction("akp_cluster.test",
+							plancheck.ResourceActionDestroyBeforeCreate),
+
+						plancheck.ExpectKnownValue("akp_cluster.test", path.AtMapKey("namespace_scoped"), knownvalue.Bool(false)),
+						plancheck.ExpectUnknownValue("akp_cluster.test", data.AtMapKey("auto_agent_size_config")),
+						plancheck.ExpectUnknownValue("akp_cluster.test", data.AtMapKey("auto_upgrade_disabled")),
+						plancheck.ExpectUnknownValue("akp_cluster.test", data.AtMapKey("kustomization")),
+						plancheck.ExpectUnknownValue("akp_cluster.test", data.AtMapKey("multi_cluster_k8s_dashboard_enabled")),
+						plancheck.ExpectUnknownValue("akp_cluster.test", data.AtMapKey("redis_tunneling")),
+						plancheck.ExpectUnknownValue("akp_cluster.test", data.AtMapKey("target_version")),
+
+						// TODO: There's a bug here.
+						//~ size                                = "unspecified" -> "small"
+					},
+				},
 				ExpectNonEmptyPlan: true,
 			},
 		},

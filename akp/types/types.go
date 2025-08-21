@@ -293,8 +293,6 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 			AppReplication:                  tftypes.BoolValue(apiCluster.GetData().GetAppReplication()),
 			TargetVersion:                   tftypes.StringValue(apiCluster.GetData().GetTargetVersion()),
 			RedisTunneling:                  tftypes.BoolValue(apiCluster.GetData().GetRedisTunneling()),
-			DatadogAnnotationsEnabled:       tftypes.BoolValue(apiCluster.GetData().GetDatadogAnnotationsEnabled()),
-			EksAddonEnabled:                 tftypes.BoolValue(apiCluster.GetData().GetEksAddonEnabled()),
 			ManagedClusterConfig:            toManagedClusterConfigTFModel(apiCluster.GetData().GetManagedClusterConfig()),
 			MultiClusterK8SDashboardEnabled: tftypes.BoolValue(apiCluster.GetData().GetMultiClusterK8SDashboardEnabled()),
 			AutoscalerConfig:                autoscalerConfig,
@@ -311,6 +309,14 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 
 	if apiCluster.GetData().GetProject() != "" {
 		c.Spec.Data.Project = tftypes.StringValue(apiCluster.GetData().GetProject())
+	}
+
+	if !c.Spec.Data.EksAddonEnabled.IsNull() {
+		c.Spec.Data.EksAddonEnabled = tftypes.BoolValue(apiCluster.GetData().GetEksAddonEnabled())
+	}
+
+	if !c.Spec.Data.DatadogAnnotationsEnabled.IsNull() {
+		c.Spec.Data.DatadogAnnotationsEnabled = tftypes.BoolValue(apiCluster.GetData().GetDatadogAnnotationsEnabled())
 	}
 }
 
