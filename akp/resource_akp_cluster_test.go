@@ -398,22 +398,17 @@ func TestAccClusterResourceNamespaceScoped(t *testing.T) {
 				),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
-						plancheck.ExpectResourceAction("akp_cluster.test",
-							plancheck.ResourceActionDestroyBeforeCreate),
-
+						plancheck.ExpectResourceAction("akp_cluster.test", plancheck.ResourceActionDestroyBeforeCreate),
 						plancheck.ExpectKnownValue("akp_cluster.test", path.AtMapKey("namespace_scoped"), knownvalue.Bool(false)),
+						plancheck.ExpectKnownValue("akp_cluster.test", data.AtMapKey("size"), knownvalue.StringExact("small")),
 						plancheck.ExpectUnknownValue("akp_cluster.test", data.AtMapKey("auto_agent_size_config")),
 						plancheck.ExpectUnknownValue("akp_cluster.test", data.AtMapKey("auto_upgrade_disabled")),
 						plancheck.ExpectUnknownValue("akp_cluster.test", data.AtMapKey("kustomization")),
 						plancheck.ExpectUnknownValue("akp_cluster.test", data.AtMapKey("multi_cluster_k8s_dashboard_enabled")),
 						plancheck.ExpectUnknownValue("akp_cluster.test", data.AtMapKey("redis_tunneling")),
 						plancheck.ExpectUnknownValue("akp_cluster.test", data.AtMapKey("target_version")),
-
-						// TODO: There's a bug here.
-						//~ size                                = "unspecified" -> "small"
 					},
 				},
-				ExpectNonEmptyPlan: true,
 			},
 		},
 	})

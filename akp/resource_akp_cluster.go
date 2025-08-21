@@ -135,43 +135,11 @@ func (r *AkpClusterResource) Delete(ctx context.Context, req resource.DeleteRequ
 		return
 	}
 
-	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
-	kubeconfig, err := getKubeconfig(ctx, plan.Kubeconfig)
+	err := r.deleteCluster(ctx, &plan, plan.RemoveAgentResourcesOnDestroy.ValueBool(), false)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", err.Error())
 		return
 	}
-
-	// Delete the manifests
-	if kubeconfig != nil && plan.RemoveAgentResourcesOnDestroy.ValueBool() {
-		manifests, err := getManifests(ctx, r.akpCli.Cli, r.akpCli.OrgId, &plan)
-		if err != nil {
-			resp.Diagnostics.AddError("Client Error", err.Error())
-			return
-		}
-
-		err = deleteManifests(ctx, manifests, kubeconfig)
-		if err != nil {
-			resp.Diagnostics.AddError("Client Error", err.Error())
-			return
-		}
-	}
-	apiReq := &argocdv1.DeleteInstanceClusterRequest{
-		OrganizationId: r.akpCli.OrgId,
-		InstanceId:     plan.InstanceID.ValueString(),
-		Id:             plan.ID.ValueString(),
-	}
-	// TODO(hanxiaop) Currently the refresh logic is flaky, and we need to check empty IDs before the delete operation.
-	if apiReq.GetId() == "" {
-		return // Nothing to delete
-	}
-	_, err = r.akpCli.Cli.DeleteInstanceCluster(ctx, apiReq)
-	if err != nil && (status.Code(err) != codes.NotFound && status.Code(err) != codes.PermissionDenied) {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete Akuity cluster. %s", err))
-		return
-	}
-	// Give it some time to remove the cluster. This is useful when the terraform provider is performing a replace operation, to give it enough time to destroy the previous cluster.
-	time.Sleep(2 * time.Second)
 }
 
 func (r *AkpClusterResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
@@ -225,30 +193,10 @@ func (r *AkpClusterResource) applyInstance(ctx context.Context, plan *types.Clus
 				// clean up the dangling cluster from the API
 				if isCreate {
 					tflog.Warn(ctx, fmt.Sprintf("Kubeconfig application failed during create, cleaning up cluster %s", plan.Name.ValueString()))
-
-					// First, get the cluster ID by looking it up by name
-					getReq := &argocdv1.GetInstanceClusterRequest{
-						OrganizationId: r.akpCli.OrgId,
-						InstanceId:     plan.InstanceID.ValueString(),
-						Id:             plan.Name.ValueString(),
-						IdType:         idv1.Type_NAME,
-					}
-					clusterResp, getErr := r.akpCli.Cli.GetInstanceCluster(ctx, getReq)
-					if getErr != nil {
-						tflog.Error(ctx, fmt.Sprintf("Failed to lookup cluster %s for cleanup: %v", plan.Name.ValueString(), getErr))
-						return nil, fmt.Errorf("unable to apply manifests: %s (and failed to lookup cluster for cleanup: %s)", err, getErr)
-					}
-
-					// Now delete using the actual cluster ID
-					deleteReq := &argocdv1.DeleteInstanceClusterRequest{
-						OrganizationId: r.akpCli.OrgId,
-						InstanceId:     plan.InstanceID.ValueString(),
-						Id:             clusterResp.GetCluster().Id,
-					}
-					_, deleteErr := r.akpCli.Cli.DeleteInstanceCluster(ctx, deleteReq)
-					if deleteErr != nil {
-						tflog.Error(ctx, fmt.Sprintf("Failed to clean up dangling cluster %s: %v", plan.Name.ValueString(), deleteErr))
-						return nil, fmt.Errorf("unable to apply manifests: %s (and failed to clean up cluster: %s)", err, deleteErr)
+					cleanupErr := r.deleteCluster(ctx, plan, plan.RemoveAgentResourcesOnDestroy.ValueBool(), false)
+					if cleanupErr != nil {
+						tflog.Error(ctx, fmt.Sprintf("Failed to clean up dangling cluster %s: %v", plan.Name.ValueString(), cleanupErr))
+						return nil, fmt.Errorf("unable to apply manifests: %s (and failed to clean up cluster: %s)", err, cleanupErr)
 					}
 					tflog.Info(ctx, fmt.Sprintf("Successfully cleaned up dangling cluster %s", plan.Name.ValueString()))
 					return nil, fmt.Errorf("unable to apply manifests: %s", err)
@@ -493,4 +441,128 @@ func readStream(resChan <-chan *httpbody.HttpBody, errChan <-chan error) ([]byte
 		}
 	}
 	return data, nil
+}
+
+// deleteCluster handles the deletion of a cluster and optionally its manifests.
+// If getIdByName is true, it will lookup the cluster ID by name before deletion.
+// This consolidates all deletion logic in one place.
+func (r *AkpClusterResource) deleteCluster(ctx context.Context, plan *types.Cluster, includeManifests bool, getIdByName bool) error {
+	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
+
+	var clusterID string
+
+	// If getIdByName is true, lookup cluster ID by name
+	if getIdByName {
+		existingClusterReq := &argocdv1.GetInstanceClusterRequest{
+			OrganizationId: r.akpCli.OrgId,
+			InstanceId:     plan.InstanceID.ValueString(),
+			Id:             plan.Name.ValueString(),
+			IdType:         idv1.Type_NAME,
+		}
+
+		existingResp, err := r.akpCli.Cli.GetInstanceCluster(ctx, existingClusterReq)
+		if err != nil {
+			if status.Code(err) == codes.NotFound || status.Code(err) == codes.PermissionDenied {
+				// Cluster not found, nothing to delete
+				return nil
+			}
+			// Unexpected error occurred while looking up cluster ID
+			return fmt.Errorf("unable to lookup cluster ID by name: %s", err)
+		}
+
+		// Found cluster, use its ID for deletion
+		clusterID = existingResp.GetCluster().Id
+		tflog.Info(ctx, fmt.Sprintf("Found existing cluster %s during create, deleting it first", plan.Name.ValueString()))
+	} else {
+		// Use the ID from the plan (normal delete scenario)
+		clusterID = plan.ID.ValueString()
+		if clusterID == "" {
+			return nil // Nothing to delete
+		}
+	}
+
+	// Delete the manifests if requested and kubeconfig is available
+	if includeManifests && plan.RemoveAgentResourcesOnDestroy.ValueBool() {
+		kubeconfig, err := getKubeconfig(ctx, plan.Kubeconfig)
+		if err != nil {
+			return fmt.Errorf("failed to get kubeconfig: %s", err)
+		}
+
+		if kubeconfig != nil {
+			manifests, err := getManifests(ctx, r.akpCli.Cli, r.akpCli.OrgId, plan)
+			if err != nil {
+				return fmt.Errorf("failed to get manifests: %s", err)
+			}
+
+			err = deleteManifests(ctx, manifests, kubeconfig)
+			if err != nil {
+				return fmt.Errorf("failed to delete manifests: %s", err)
+			}
+		}
+	}
+
+	// Delete the cluster from the API
+	apiReq := &argocdv1.DeleteInstanceClusterRequest{
+		OrganizationId: r.akpCli.OrgId,
+		InstanceId:     plan.InstanceID.ValueString(),
+		Id:             clusterID,
+	}
+
+	_, err := r.akpCli.Cli.DeleteInstanceCluster(ctx, apiReq)
+	if err != nil && (status.Code(err) != codes.NotFound && status.Code(err) != codes.PermissionDenied) {
+		return fmt.Errorf("unable to delete Akuity cluster: %s", err)
+	}
+
+	// Wait for the cluster to actually be deleted with exponential backoff
+	return r.waitForClusterDeletion(ctx, plan.InstanceID.ValueString(), clusterID)
+}
+
+// waitForClusterDeletion polls the API to verify the cluster is actually deleted,
+// using exponential backoff with a maximum wait time of 1 minute.
+func (r *AkpClusterResource) waitForClusterDeletion(ctx context.Context, instanceID, clusterID string) error {
+	const (
+		initialDelay  = 500 * time.Millisecond
+		maxDelay      = 8 * time.Second
+		maxWait       = 1 * time.Minute
+		backoffFactor = 2.0
+	)
+
+	delay := initialDelay
+	start := time.Now()
+
+	for {
+		// Check if we've exceeded the maximum wait time
+		if time.Since(start) > maxWait {
+			return fmt.Errorf("cluster deletion did not complete within %v", maxWait)
+		}
+
+		// Try to get the cluster - if it's gone, we're done
+		getReq := &argocdv1.GetInstanceClusterRequest{
+			OrganizationId: r.akpCli.OrgId,
+			InstanceId:     instanceID,
+			Id:             clusterID,
+			IdType:         idv1.Type_ID,
+		}
+
+		_, err := r.akpCli.Cli.GetInstanceCluster(ctx, getReq)
+		if err != nil {
+			if status.Code(err) == codes.NotFound || status.Code(err) == codes.PermissionDenied {
+				// Cluster is gone, deletion successful
+				tflog.Debug(ctx, fmt.Sprintf("Cluster %s successfully deleted after %v", clusterID, time.Since(start)))
+				return nil
+			}
+			// Some other error occurred, but continue polling
+			tflog.Debug(ctx, fmt.Sprintf("Error checking cluster deletion status: %v", err))
+		}
+
+		// Cluster still exists, wait before retrying
+		tflog.Debug(ctx, fmt.Sprintf("Cluster %s still exists, waiting %v before next check", clusterID, delay))
+		time.Sleep(delay)
+
+		// Exponential backoff with cap
+		delay = time.Duration(float64(delay) * backoffFactor)
+		if delay > maxDelay {
+			delay = maxDelay
+		}
+	}
 }
