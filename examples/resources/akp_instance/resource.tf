@@ -88,6 +88,65 @@ resource "akp_instance" "example" {
               orgs:
               - name: your-github-org
         EOF
+    # Configuration to customize resource behavior (optional) can be configured via splitted sub keys.
+    # Keys are in the form: resource.customizations.ignoreDifferences.<group_kind>, resource.customizations.health.<group_kind>
+    # resource.customizations.actions.<group_kind>, resource.customizations.knownTypeFields.<group_kind>
+    "resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration" = <<-EOF
+        jsonPointers:
+        - /webhooks/0/clientConfig/caBundle
+        jqPathExpressions:
+        - .webhooks[0].clientConfig.caBundle
+        managedFieldsManagers:
+        - kube-controller-manager
+      EOF
+    "resource.customizations.health.certmanager.k8s.io_Certificate" = <<-EOF
+      hs = {}
+      if obj.status ~= nil then
+        if obj.status.conditions ~= nil then
+          for i, condition in ipairs(obj.status.conditions) do
+            if condition.type == "Ready" and condition.status == "False" then
+              hs.status = "Degraded"
+              hs.message = condition.message
+              return hs
+            end
+            if condition.type == "Ready" and condition.status == "True" then
+              hs.status = "Healthy"
+              hs.message = condition.message
+              return hs
+            end
+          end
+        end
+      end
+      hs.status = "Progressing"
+      hs.message = "Waiting for certificate"
+      return hs
+      EOF
+    "resource.customizations.actions.apps_Deployment" = <<-EOF
+      # Lua Script to indicate which custom actions are available on the resource
+      discovery.lua: |
+        actions = {}
+        actions["restart"] = {}
+        return actions
+      definitions:
+        - name: restart
+          # Lua Script to modify the obj
+          action.lua: |
+            local os = require("os")
+            if obj.spec.template.metadata == nil then
+                obj.spec.template.metadata = {}
+            end
+            if obj.spec.template.metadata.annotations == nil then
+                obj.spec.template.metadata.annotations = {}
+            end
+            obj.spec.template.metadata.annotations["kubectl.kubernetes.io/restartedAt"] = os.date("!%Y-%m-%dT%XZ")
+            return obj
+      EOF
+    "resource.customizations.knownTypeFields.apps_StatefulSet" = <<-EOF
+      - field: spec.volumeClaimTemplates
+        type: array
+      - field: spec.updateStrategy
+        type: object
+      EOF
   }
   argocd_rbac_cm = {
     "policy.default" = "role:readonly"
