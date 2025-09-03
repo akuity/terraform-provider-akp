@@ -99,7 +99,7 @@ resource "akp_instance" "example" {
         managedFieldsManagers:
         - kube-controller-manager
       EOF
-    "resource.customizations.health.certmanager.k8s.io_Certificate" = <<-EOF
+    "resource.customizations.health.certmanager.k8s.io_Certificate"                                       = <<-EOF
       hs = {}
       if obj.status ~= nil then
         if obj.status.conditions ~= nil then
@@ -121,7 +121,7 @@ resource "akp_instance" "example" {
       hs.message = "Waiting for certificate"
       return hs
       EOF
-    "resource.customizations.actions.apps_Deployment" = <<-EOF
+    "resource.customizations.actions.apps_Deployment"                                                     = <<-EOF
       # Lua Script to indicate which custom actions are available on the resource
       discovery.lua: |
         actions = {}
@@ -141,7 +141,7 @@ resource "akp_instance" "example" {
             obj.spec.template.metadata.annotations["kubectl.kubernetes.io/restartedAt"] = os.date("!%Y-%m-%dT%XZ")
             return obj
       EOF
-    "resource.customizations.knownTypeFields.apps_StatefulSet" = <<-EOF
+    "resource.customizations.knownTypeFields.apps_StatefulSet"                                            = <<-EOF
       - field: spec.volumeClaimTemplates
         type: array
       - field: spec.updateStrategy
