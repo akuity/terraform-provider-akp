@@ -115,7 +115,7 @@ func createTestInstance() string {
 
 	instanceVersion := os.Getenv("AKUITY_ARGOCD_INSTANCE_VERSION")
 	if instanceVersion == "" {
-		instanceVersion = "v3.0.0"
+		instanceVersion = "v3.1.5-ak.65"
 	}
 
 	// Create instance spec
@@ -150,13 +150,13 @@ func createTestInstance() string {
 						"rescanInterval": "12h",
 					},
 					"aiConfig": map[string]any{
-						"argoCdSlackService": "test-slack-service",
+						"argocdSlackService": "test-slack-service",
 						"runbooks": []any{
 							map[string]any{
 								"name":    "test-incident",
 								"content": "Test runbook content for incident response",
 								"appliedTo": map[string]any{
-									"argoCdApplications": []any{"test-app"},
+									"argocdApplications": []any{"test-app"},
 									"k8sNamespaces":      []any{"test-namespace"},
 									"clusters":           []any{"test-cluster"},
 									"degradedFor":        "5m",
