@@ -32,6 +32,11 @@ type Resources struct {
 	Cpu string `json:"cpu,omitempty"`
 }
 
+type DirectClusterSpec struct {
+	ClusterType     DirectClusterType `json:"clusterType,omitempty"`
+	KargoInstanceId *string           `json:"kargoInstanceId,omitempty"`
+}
+
 type ManagedClusterConfig struct {
 	SecretName string `json:"secretName,omitempty"`
 	SecretKey  string `json:"secretKey,omitempty"`
@@ -62,23 +67,17 @@ type ClusterArgoCDNotificationsSettings struct {
 	InClusterSettings bool `json:"inClusterSettings,omitempty"`
 }
 
-type DirectClusterSpec struct {
-	ClusterType     DirectClusterType `json:"clusterType,omitempty"`
-	KargoInstanceId *string           `json:"kargoInstanceId,omitempty"`
-}
-
 type ClusterData struct {
-	Size                ClusterSize          `json:"size,omitempty"`
-	AutoUpgradeDisabled *bool                `json:"autoUpgradeDisabled,omitempty"`
-	Kustomization       runtime.RawExtension `json:"kustomization,omitempty"`
-	AppReplication      *bool                `json:"appReplication,omitempty"`
-	TargetVersion       string               `json:"targetVersion,omitempty"`
-	RedisTunneling      *bool                `json:"redisTunneling,omitempty"`
-
+	Size                      ClusterSize           `json:"size,omitempty"`
+	AutoUpgradeDisabled       *bool                 `json:"autoUpgradeDisabled,omitempty"`
+	Kustomization             runtime.RawExtension  `json:"kustomization,omitempty"`
+	AppReplication            *bool                 `json:"appReplication,omitempty"`
+	TargetVersion             string                `json:"targetVersion,omitempty"`
+	RedisTunneling            *bool                 `json:"redisTunneling,omitempty"`
+	DirectClusterSpec         *DirectClusterSpec    `json:"directClusterSpec,omitempty"`
 	DatadogAnnotationsEnabled *bool                 `json:"datadogAnnotationsEnabled,omitempty"`
 	EksAddonEnabled           *bool                 `json:"eksAddonEnabled,omitempty"`
 	ManagedClusterConfig      *ManagedClusterConfig `json:"managedClusterConfig,omitempty"`
-	DirectClusterSpec         *DirectClusterSpec    `json:"directClusterSpec,omitempty"`
 
 	MultiClusterK8SDashboardEnabled *bool                               `json:"multiClusterK8sDashboardEnabled,omitempty"`
 	AutoscalerConfig                *AutoScalerConfig                   `json:"autoscalerConfig,omitempty"`

@@ -362,6 +362,16 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 				Attributes: getAppsetPluginsAttributes(),
 			},
 		},
+		"akuity_intelligence_extension": schema.SingleNestedAttribute{
+			MarkdownDescription: "Akuity Intelligence Extension configuration for enhanced AI-powered features",
+			Optional:            true,
+			Attributes:          getAkuityIntelligenceExtensionAttributes(),
+		},
+		"kube_vision_config": schema.SingleNestedAttribute{
+			MarkdownDescription: "Advanced Akuity Intelligence configuration like CVE scanning and AI runbooks",
+			Optional:            true,
+			Attributes:          getKubeVisionConfigAttributes(),
+		},
 	}
 }
 
@@ -764,6 +774,196 @@ func getAppInAnyNamespaceConfigAttributes() map[string]schema.Attribute {
 		"enabled": schema.BoolAttribute{
 			MarkdownDescription: "Whether the app in any namespace config is enabled or not.",
 			Optional:            true,
+		},
+	}
+}
+
+func getAkuityIntelligenceExtensionAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"enabled": schema.BoolAttribute{
+			MarkdownDescription: "Enable Akuity Intelligence Extension for AI-powered features",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Bool{
+				boolplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"allowed_usernames": schema.ListAttribute{
+			MarkdownDescription: "List of usernames allowed to use AI features",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
+		"allowed_groups": schema.ListAttribute{
+			MarkdownDescription: "List of groups allowed to use AI features",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
+		"ai_support_engineer_enabled": schema.BoolAttribute{
+			MarkdownDescription: "Enable AI support engineer functionality",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Bool{
+				boolplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"model_version": schema.StringAttribute{
+			MarkdownDescription: "AI model version to use",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+	}
+}
+
+func getKubeVisionConfigAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"cve_scan_config": schema.SingleNestedAttribute{
+			MarkdownDescription: "CVE scanning configuration",
+			Optional:            true,
+			Attributes:          getCveScanConfigAttributes(),
+		},
+		"ai_config": schema.SingleNestedAttribute{
+			MarkdownDescription: "AI advanced configuration like runbooks and incidents",
+			Optional:            true,
+			Attributes:          getAIConfigAttributes(),
+		},
+	}
+}
+
+func getCveScanConfigAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"scan_enabled": schema.BoolAttribute{
+			MarkdownDescription: "Enable CVE scanning",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Bool{
+				boolplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"rescan_interval": schema.StringAttribute{
+			MarkdownDescription: "CVE rescan interval",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+	}
+}
+
+func getAIConfigAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"runbooks": schema.ListNestedAttribute{
+			MarkdownDescription: "List of AI runbooks to use for incident resolution",
+			Optional:            true,
+			NestedObject: schema.NestedAttributeObject{
+				Attributes: getRunbookAttributes(),
+			},
+		},
+		"incidents": schema.SingleNestedAttribute{
+			MarkdownDescription: "Incident configuration",
+			Optional:            true,
+			Attributes:          getIncidentsConfigAttributes(),
+		},
+		"argocd_slack_service": schema.StringAttribute{
+			MarkdownDescription: "ArgoCD Slack service configuration",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+	}
+}
+
+func getRunbookAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"name": schema.StringAttribute{
+			MarkdownDescription: "Runbook name",
+			Required:            true,
+		},
+		"content": schema.StringAttribute{
+			MarkdownDescription: "Runbook content",
+			Required:            true,
+		},
+		"applied_to": schema.SingleNestedAttribute{
+			MarkdownDescription: "Target selector for runbook application",
+			Optional:            true,
+			Attributes:          getTargetSelectorAttributes(),
+		},
+	}
+}
+
+func getIncidentsConfigAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"triggers": schema.ListNestedAttribute{
+			MarkdownDescription: "List of incident triggers",
+			Optional:            true,
+			NestedObject: schema.NestedAttributeObject{
+				Attributes: getTargetSelectorAttributes(),
+			},
+		},
+		"webhooks": schema.ListNestedAttribute{
+			MarkdownDescription: "List of incident webhooks",
+			Optional:            true,
+			NestedObject: schema.NestedAttributeObject{
+				Attributes: getIncidentWebhookConfigAttributes(),
+			},
+		},
+	}
+}
+
+func getTargetSelectorAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"argocd_applications": schema.ListAttribute{
+			MarkdownDescription: "List of ArgoCD applications to trigger an incident.",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
+		"k8s_namespaces": schema.ListAttribute{
+			MarkdownDescription: "List of Kubernetes namespaces to trigger an incident.",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
+		"clusters": schema.ListAttribute{
+			MarkdownDescription: "List of clusters to trigger an incident.",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
+		"degraded_for": schema.StringAttribute{
+			MarkdownDescription: "Trigger an incident after this duration of degradation. Can be a duration string like '1h' '10m' or '10s'.",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+	}
+}
+
+func getIncidentWebhookConfigAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"name": schema.StringAttribute{
+			MarkdownDescription: "Webhook name",
+			Required:            true,
+		},
+		"description_path": schema.StringAttribute{
+			MarkdownDescription: "JSON path for description field",
+			Required:            true,
+		},
+		"cluster_path": schema.StringAttribute{
+			MarkdownDescription: "JSON path for cluster field",
+			Required:            true,
+		},
+		"k8s_namespace_path": schema.StringAttribute{
+			MarkdownDescription: "JSON path for Kubernetes namespace field",
+			Required:            true,
+		},
+		"argocd_application_name_path": schema.StringAttribute{
+			MarkdownDescription: "JSON path for ArgoCD application name field",
+			Required:            true,
 		},
 	}
 }

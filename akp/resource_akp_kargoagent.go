@@ -9,7 +9,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
-	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/pkg/errors"
@@ -27,8 +26,10 @@ import (
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
-var _ resource.Resource = &AkpKargoAgentResource{}
-var _ resource.ResourceWithImportState = &AkpKargoAgentResource{}
+var (
+	_ resource.Resource                = &AkpKargoAgentResource{}
+	_ resource.ResourceWithImportState = &AkpKargoAgentResource{}
+)
 
 func NewAkpKargoAgentResource() resource.Resource {
 	return &AkpKargoAgentResource{}
@@ -91,12 +92,12 @@ func (r *AkpKargoAgentResource) Read(ctx context.Context, req resource.ReadReque
 	}
 
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
-	err := refreshKargoAgentState(ctx, &resp.Diagnostics, r.akpCli.KargoCli, &data, r.akpCli.OrgId, &resp.State, &data)
+	err := refreshKargoAgentState(ctx, &resp.Diagnostics, r.akpCli.KargoCli, &data, r.akpCli.OrgId, &data)
 	if err != nil {
-		resp.Diagnostics.AddError("Client Error", err.Error())
-	} else {
-		resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+		handleReadResourceError(ctx, resp, err)
+		return
 	}
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
 func (r *AkpKargoAgentResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -157,11 +158,11 @@ func (r *AkpKargoAgentResource) Delete(ctx context.Context, req resource.DeleteR
 		InstanceId:     plan.InstanceID.ValueString(),
 		Id:             plan.ID.ValueString(),
 	}
-	// TODO(hanxiaop) Currently the refresh logic is flaky, and we need to check empty IDs before the delete operation.
-	if apiReq.GetId() == "" {
-		return // Nothing to delete
-	}
-	_, err = r.akpCli.KargoCli.DeleteInstanceAgent(ctx, apiReq)
+
+	_, err = retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.DeleteInstanceAgentResponse, error) {
+		return r.akpCli.KargoCli.DeleteInstanceAgent(ctx, apiReq)
+	}, "DeleteInstanceAgent")
+
 	if err != nil && (status.Code(err) != codes.NotFound && status.Code(err) != codes.PermissionDenied) {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete Kargo agent. %s", err))
 		return
@@ -204,14 +205,17 @@ func (r *AkpKargoAgentResource) upsert(ctx context.Context, diagnostics *diag.Di
 	if plan.Workspace.ValueString() == "" {
 		plan.Workspace = tftypes.StringValue(workspace.GetName())
 	}
-	return result, refreshKargoAgentState(ctx, diagnostics, r.akpCli.KargoCli, result, r.akpCli.OrgId, nil, plan)
+	return result, refreshKargoAgentState(ctx, diagnostics, r.akpCli.KargoCli, result, r.akpCli.OrgId, plan)
 }
 
 func (r *AkpKargoAgentResource) applyKargoInstance(ctx context.Context, plan *types.KargoAgent, apiReq *kargov1.ApplyKargoInstanceRequest, isCreate bool, applyKargoInstance func(context.Context, *kargov1.ApplyKargoInstanceRequest) (*kargov1.ApplyKargoInstanceResponse, error), upsertKubeConfig func(ctx context.Context, plan *types.KargoAgent) error) (*types.KargoAgent, error) {
 	kubeconfig := plan.Kubeconfig
 	plan.Kubeconfig = nil
 	tflog.Debug(ctx, fmt.Sprintf("Apply Kargo agent request: %s", apiReq))
-	_, err := applyKargoInstance(ctx, apiReq)
+
+	_, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ApplyKargoInstanceResponse, error) {
+		return applyKargoInstance(ctx, apiReq)
+	}, "ApplyKargoInstance")
 	if err != nil {
 		return nil, fmt.Errorf("unable to create Kargo agent: %s", err)
 	}
@@ -259,11 +263,14 @@ func (r *AkpKargoAgentResource) upsertKubeConfig(ctx context.Context, plan *type
 }
 
 func refreshKargoAgentState(ctx context.Context, diagnostics *diag.Diagnostics, client kargov1.KargoServiceGatewayClient, kargoAgent *types.KargoAgent,
-	orgID string, state *tfsdk.State, plan *types.KargoAgent) error {
-	agents, err := client.ListKargoInstanceAgents(ctx, &kargov1.ListKargoInstanceAgentsRequest{
-		OrganizationId: orgID,
-		InstanceId:     kargoAgent.InstanceID.ValueString(),
-	})
+	orgID string, plan *types.KargoAgent,
+) error {
+	agents, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ListKargoInstanceAgentsResponse, error) {
+		return client.ListKargoInstanceAgents(ctx, &kargov1.ListKargoInstanceAgentsRequest{
+			OrganizationId: orgID,
+			InstanceId:     kargoAgent.InstanceID.ValueString(),
+		})
+	}, "ListKargoInstanceAgents")
 	if err != nil {
 		return errors.Wrap(err, "Unable to read Kargo agents")
 	}
@@ -275,7 +282,7 @@ func refreshKargoAgentState(ctx context.Context, diagnostics *diag.Diagnostics, 
 		}
 	}
 	if agent == nil {
-		state.RemoveResource(ctx)
+		return status.Error(codes.NotFound, " Kargo agents not found")
 	}
 	tflog.Debug(ctx, fmt.Sprintf("current kargo agent: %s", agent))
 	kargoAgent.Update(ctx, diagnostics, agent, plan)
@@ -305,10 +312,12 @@ func buildKargoAgents(ctx context.Context, diagnostics *diag.Diagnostics, kargoA
 }
 
 func getKargoManifests(ctx context.Context, client kargov1.KargoServiceGatewayClient, orgId string, kargoAgent *types.KargoAgent) (string, string, error) {
-	agents, err := client.ListKargoInstanceAgents(ctx, &kargov1.ListKargoInstanceAgentsRequest{
-		OrganizationId: orgId,
-		InstanceId:     kargoAgent.InstanceID.ValueString(),
-	})
+	agents, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ListKargoInstanceAgentsResponse, error) {
+		return client.ListKargoInstanceAgents(ctx, &kargov1.ListKargoInstanceAgentsRequest{
+			OrganizationId: orgId,
+			InstanceId:     kargoAgent.InstanceID.ValueString(),
+		})
+	}, "ListKargoInstanceAgents")
 	if err != nil {
 		return "", "", errors.Wrap(err, "Unable to read Kargo agents")
 	}
@@ -351,11 +360,14 @@ func waitKargoAgentHealthStatus(ctx context.Context, client kargov1.KargoService
 
 	for !slices.Contains(breakStatusesHealth, healthStatus.GetCode()) {
 		time.Sleep(1 * time.Second)
-		apiResp, err := client.GetKargoInstanceAgent(ctx, &kargov1.GetKargoInstanceAgentRequest{
-			OrganizationId: orgID,
-			InstanceId:     c.InstanceID.ValueString(),
-			Id:             c.ID.ValueString(),
-		})
+
+		apiResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.GetKargoInstanceAgentResponse, error) {
+			return client.GetKargoInstanceAgent(ctx, &kargov1.GetKargoInstanceAgentRequest{
+				OrganizationId: orgID,
+				InstanceId:     c.InstanceID.ValueString(),
+				Id:             c.ID.ValueString(),
+			})
+		}, "GetKargoInstanceAgent")
 		if err != nil {
 			return err
 		}
@@ -372,11 +384,14 @@ func waitKargoAgentReconStatus(ctx context.Context, client kargov1.KargoServiceG
 
 	for !slices.Contains(breakStatusesRecon, reconStatus.GetCode()) {
 		time.Sleep(1 * time.Second)
-		apiResp, err := client.GetKargoInstanceAgent(ctx, &kargov1.GetKargoInstanceAgentRequest{
-			OrganizationId: orgId,
-			InstanceId:     instanceId,
-			Id:             kargoAgent.Id,
-		})
+
+		apiResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.GetKargoInstanceAgentResponse, error) {
+			return client.GetKargoInstanceAgent(ctx, &kargov1.GetKargoInstanceAgentRequest{
+				OrganizationId: orgId,
+				InstanceId:     instanceId,
+				Id:             kargoAgent.Id,
+			})
+		}, "GetKargoInstanceAgent")
 		if err != nil {
 			return nil, err
 		}

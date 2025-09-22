@@ -31,7 +31,7 @@ data "akp_kargo_agents" "test-agents" {
 }
 `
 
-func testAccCheckKargoAgentAttributes(dataSourceName string, targetKargoAgentName string) resource.TestCheckFunc {
+func testAccCheckKargoAgentAttributes(dataSourceName, targetKargoAgentName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[dataSourceName]
 		if !ok {

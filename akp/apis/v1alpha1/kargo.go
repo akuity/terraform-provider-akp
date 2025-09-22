@@ -35,16 +35,18 @@ type KargoPredefinedAccountData struct {
 }
 
 type KargoOidcConfig struct {
-	Enabled          *bool                      `json:"enabled"`
-	DexEnabled       *bool                      `json:"dexEnabled"`
-	DexConfig        string                     `json:"dexConfig"`
-	DexConfigSecret  map[string]Value           `json:"dexConfigSecret"`
-	IssuerURL        string                     `json:"issuerUrl"`
-	ClientID         string                     `json:"clientId"`
-	CliClientID      string                     `json:"cliClientId"`
-	AdminAccount     KargoPredefinedAccountData `json:"adminAccount"`
-	ViewerAccount    KargoPredefinedAccountData `json:"viewerAccount"`
-	AdditionalScopes []string                   `json:"additionalScopes"`
+	Enabled               *bool                      `json:"enabled"`
+	DexEnabled            *bool                      `json:"dexEnabled"`
+	DexConfig             string                     `json:"dexConfig"`
+	DexConfigSecret       map[string]Value           `json:"dexConfigSecret"`
+	IssuerURL             string                     `json:"issuerUrl"`
+	ClientID              string                     `json:"clientId"`
+	CliClientID           string                     `json:"cliClientId"`
+	AdminAccount          KargoPredefinedAccountData `json:"adminAccount"`
+	ViewerAccount         KargoPredefinedAccountData `json:"viewerAccount"`
+	AdditionalScopes      []string                   `json:"additionalScopes"`
+	UserAccount           KargoPredefinedAccountData `json:"userAccount"`
+	ProjectCreatorAccount KargoPredefinedAccountData `json:"projectCreatorAccount"`
 }
 
 type Value struct {
@@ -68,4 +70,21 @@ type KargoInstanceSpec struct {
 	DefaultShardAgent          string                   `json:"defaultShardAgent,omitempty"`
 	GlobalCredentialsNs        []string                 `json:"globalCredentialsNs,omitempty"`
 	GlobalServiceAccountNs     []string                 `json:"globalServiceAccountNs,omitempty"`
+	AkuityIntelligence         *AkuityIntelligence      `json:"akuityIntelligence,omitempty"`
+	GcConfig                   *GarbageCollectorConfig  `json:"gcConfig,omitempty"`
+}
+
+type AkuityIntelligence struct {
+	AiSupportEngineerEnabled *bool    `json:"aiSupportEngineerEnabled,omitempty"`
+	Enabled                  *bool    `json:"enabled,omitempty"`
+	AllowedUsernames         []string `json:"allowedUsernames,omitempty"`
+	AllowedGroups            []string `json:"allowedGroups,omitempty"`
+	ModelVersion             string   `json:"modelVersion,omitempty"`
+}
+
+type GarbageCollectorConfig struct {
+	MaxRetainedFreight      uint32 `json:"maxRetainedFreight,omitempty"`
+	MaxRetainedPromotions   uint32 `json:"maxRetainedPromotions,omitempty"`
+	MinFreightDeletionAge   uint32 `json:"minFreightDeletionAge,omitempty"`
+	MinPromotionDeletionAge uint32 `json:"minPromotionDeletionAge,omitempty"`
 }

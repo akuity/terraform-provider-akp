@@ -127,7 +127,6 @@ func getClusterSpecAttributes() map[string]schema.Attribute {
 		"description": schema.StringAttribute{
 			MarkdownDescription: "Cluster description",
 			Optional:            true,
-			Computed:            true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
 			},
@@ -135,9 +134,7 @@ func getClusterSpecAttributes() map[string]schema.Attribute {
 		"namespace_scoped": schema.BoolAttribute{
 			MarkdownDescription: "If the agent is namespace scoped",
 			Optional:            true,
-			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
-				boolplanmodifier.UseStateForUnknown(),
 				boolplanmodifier.RequiresReplace(),
 			},
 		},
@@ -202,7 +199,6 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 		"datadog_annotations_enabled": schema.BoolAttribute{
 			MarkdownDescription: "Enable Datadog metrics collection of Application Controller and Repo Server. Make sure that you install Datadog agent in cluster.",
 			Optional:            true,
-			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
 			},
@@ -210,7 +206,6 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 		"eks_addon_enabled": schema.BoolAttribute{
 			MarkdownDescription: "Enable this if you are installing this cluster on EKS.",
 			Optional:            true,
-			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
 			},
@@ -232,7 +227,10 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Autoscaler config for auto agent size",
 			Optional:            true,
 			Computed:            true,
-			Attributes:          getAutoScalerConfigAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier.UseStateForUnknown(),
+			},
+			Attributes: getAutoScalerConfigAttributes(),
 		},
 		"custom_agent_size_config": schema.SingleNestedAttribute{
 			MarkdownDescription: "Custom agent size config",
@@ -242,7 +240,6 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 		"project": schema.StringAttribute{
 			MarkdownDescription: "Project name",
 			Optional:            true,
-			Computed:            true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
 			},

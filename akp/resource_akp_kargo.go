@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/structpb"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
 	orgcv1 "github.com/akuity/api-client-go/pkg/api/gen/organization/v1"
@@ -24,8 +25,10 @@ import (
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
-var _ resource.Resource = &AkpKargoInstanceResource{}
-var _ resource.ResourceWithImportState = &AkpKargoInstanceResource{}
+var (
+	_ resource.Resource                = &AkpKargoInstanceResource{}
+	_ resource.ResourceWithImportState = &AkpKargoInstanceResource{}
+)
 
 func NewAkpKargoInstanceResource() resource.Resource {
 	return &AkpKargoInstanceResource{}
@@ -88,10 +91,10 @@ func (r *AkpKargoInstanceResource) Read(ctx context.Context, req resource.ReadRe
 
 	err := refreshKargoState(ctx, &resp.Diagnostics, r.akpCli.KargoCli, &data, r.akpCli.OrgId, false)
 	if err != nil {
-		resp.Diagnostics.AddError("Client Error", err.Error())
-	} else {
-		resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+		handleReadResourceError(ctx, resp, err)
+		return
 	}
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
 func (r *AkpKargoInstanceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -122,11 +125,12 @@ func (r *AkpKargoInstanceResource) Delete(ctx context.Context, req resource.Dele
 		return
 	}
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
-	_, err := r.akpCli.KargoCli.DeleteInstance(ctx, &kargov1.DeleteInstanceRequest{
-		Id:             state.ID.ValueString(),
-		OrganizationId: r.akpCli.OrgId,
-	})
-
+	_, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.DeleteInstanceResponse, error) {
+		return r.akpCli.KargoCli.DeleteInstance(ctx, &kargov1.DeleteInstanceRequest{
+			Id:             state.ID.ValueString(),
+			OrganizationId: r.akpCli.OrgId,
+		})
+	}, "DeleteInstance")
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete Argo CD instance, got error: %s", err))
 		return
@@ -139,8 +143,36 @@ func (r *AkpKargoInstanceResource) ImportState(ctx context.Context, req resource
 	resource.ImportStatePassthroughID(ctx, path.Root("name"), req, resp)
 }
 
+func (r *AkpKargoInstanceResource) validateAKIntelligenceFeatures(ctx context.Context, plan *types.KargoInstance) error {
+	if plan.Kargo == nil || plan.Kargo.Spec.KargoInstanceSpec.AkuityIntelligence == nil {
+		return nil
+	}
+	aiExt := plan.Kargo.Spec.KargoInstanceSpec.AkuityIntelligence
+	if aiExt.Enabled.IsNull() || aiExt.Enabled.IsUnknown() {
+		return nil
+	}
+
+	if !aiExt.Enabled.ValueBool() {
+		if aiExt.AiSupportEngineerEnabled.ValueBool() ||
+			aiExt.ModelVersion.ValueString() != "" ||
+			len(aiExt.AllowedUsernames) > 0 ||
+			len(aiExt.AllowedGroups) > 0 {
+			return fmt.Errorf("AI configs are specified but AI Intelligence is disabled")
+		}
+	} else {
+		if len(aiExt.AllowedUsernames) == 0 && len(aiExt.AllowedGroups) == 0 {
+			tflog.Warn(ctx, "AI Intelligence is enabled but no allowed usernames or groups are specified")
+		}
+	}
+	return nil
+}
+
 func (r *AkpKargoInstanceResource) upsert(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.KargoInstance) error {
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
+
+	if err := r.validateAKIntelligenceFeatures(ctx, plan); err != nil {
+		return err
+	}
 
 	workspace, err := getWorkspace(ctx, r.akpCli.OrgCli, r.akpCli.OrgId, plan.Workspace.ValueString())
 	if err != nil {
@@ -153,7 +185,9 @@ func (r *AkpKargoInstanceResource) upsert(ctx context.Context, diagnostics *diag
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Apply instance request: %s", apiReq))
 
-	_, err = r.akpCli.KargoCli.ApplyKargoInstance(ctx, apiReq)
+	_, err = retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ApplyKargoInstanceResponse, error) {
+		return r.akpCli.KargoCli.ApplyKargoInstance(ctx, apiReq)
+	}, "ApplyKargoInstance")
 	if err != nil {
 		return errors.Wrap(err, "Unable to upsert Kargo instance")
 	}
@@ -163,11 +197,13 @@ func (r *AkpKargoInstanceResource) upsert(ctx context.Context, diagnostics *diag
 	}
 
 	getResourceFunc := func(ctx context.Context) (*kargov1.GetKargoInstanceResponse, error) {
-		return r.akpCli.KargoCli.GetKargoInstance(ctx, &kargov1.GetKargoInstanceRequest{
-			OrganizationId: r.akpCli.OrgId,
-			Name:           plan.Name.ValueString(),
-			WorkspaceId:    plan.Workspace.ValueString(),
-		})
+		return retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.GetKargoInstanceResponse, error) {
+			return r.akpCli.KargoCli.GetKargoInstance(ctx, &kargov1.GetKargoInstanceRequest{
+				OrganizationId: r.akpCli.OrgId,
+				Name:           plan.Name.ValueString(),
+				WorkspaceId:    plan.Workspace.ValueString(),
+			})
+		}, "GetKargoInstance")
 	}
 
 	getStatusFunc := func(resp *kargov1.GetKargoInstanceResponse) healthv1.StatusCode {
@@ -268,16 +304,66 @@ var kargoResourceGroups = map[string]struct {
 			req.ClusterPromotionTasks = append(req.ClusterPromotionTasks, item)
 		},
 	},
+	"ServiceAccount": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.ServiceAccounts = append(req.ServiceAccounts, item)
+		},
+	},
+	"Role": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.Roles = append(req.Roles, item)
+		},
+	},
+	"RoleBinding": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.RoleBindings = append(req.RoleBindings, item)
+		},
+	},
+	"ConfigMap": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.Configmaps = append(req.Configmaps, item)
+		},
+	},
 }
 
-func isKargoResourceValid(un *unstructured.Unstructured) error {
-	if un.GetKind() == "Secret" {
+// kargoSupportedGroupKinds maps supported GroupKinds to optional per-object validators.
+var kargoSupportedGroupKinds = map[schema.GroupKind]func(*unstructured.Unstructured) error{
+	{Group: "kargo.akuity.io", Kind: "Project"}:               nil,
+	{Group: "kargo.akuity.io", Kind: "Warehouse"}:             nil,
+	{Group: "kargo.akuity.io", Kind: "Stage"}:                 nil,
+	{Group: "kargo.akuity.io", Kind: "PromotionTask"}:         nil,
+	{Group: "kargo.akuity.io", Kind: "ClusterPromotionTask"}:  nil,
+	{Group: "argoproj.io", Kind: "AnalysisTemplate"}:          nil,
+	{Group: "rbac.authorization.k8s.io", Kind: "Role"}:        nil,
+	{Group: "rbac.authorization.k8s.io", Kind: "RoleBinding"}: nil,
+	{Group: "", Kind: "ServiceAccount"}:                       nil,
+	{Group: "", Kind: "ConfigMap"}:                            nil,
+	{Group: "", Kind: "Secret"}: func(un *unstructured.Unstructured) error {
 		if v, ok := un.GetLabels()["kargo.akuity.io/cred-type"]; !ok || v == "" {
 			return errors.New("secret must have a kargo.akuity.io/cred-type label")
 		}
-		return validateResource(un, "v1", kargoResourceGroups)
+		return nil
+	},
+}
+
+func isKargoResourceValid(un *unstructured.Unstructured) error {
+	if un == nil {
+		return errors.New("unstructured is nil")
 	}
-	return validateResource(un, "kargo.akuity.io/v1alpha1", kargoResourceGroups)
+	if un.GetName() == "" {
+		return errors.New("name is required")
+	}
+	gk := schema.FromAPIVersionAndKind(un.GetAPIVersion(), un.GetKind()).GroupKind()
+	validator, ok := kargoSupportedGroupKinds[gk]
+	if !ok {
+		return errors.New("unsupported kind")
+	}
+	if validator != nil {
+		if err := validator(un); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func buildKargo(ctx context.Context, diagnostics *diag.Diagnostics, kargo *types.KargoInstance) *structpb.Struct {
@@ -317,7 +403,9 @@ func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, clien
 		Name:           kargo.Name.ValueString(),
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Get Kargo instance request: %s", req))
-	resp, err := client.GetKargoInstance(ctx, req)
+	resp, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.GetKargoInstanceResponse, error) {
+		return client.GetKargoInstance(ctx, req)
+	}, "GetKargoInstance")
 	if err != nil {
 		return errors.Wrap(err, "Unable to read Kargo instance")
 	}
@@ -329,7 +417,9 @@ func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, clien
 		WorkspaceId:    resp.Instance.WorkspaceId,
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Export Kargo instance request: %s", exportReq))
-	exportResp, err := client.ExportKargoInstance(ctx, exportReq)
+	exportResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ExportKargoInstanceResponse, error) {
+		return client.ExportKargoInstance(ctx, exportReq)
+	}, "ExportKargoInstance")
 	if err != nil {
 		return errors.Wrap(err, "Unable to export Kargo instance")
 	}
@@ -338,9 +428,11 @@ func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, clien
 }
 
 func getWorkspace(ctx context.Context, orgc orgcv1.OrganizationServiceGatewayClient, orgid, name string) (*orgcv1.Workspace, error) {
-	workspaces, err := orgc.ListWorkspaces(ctx, &orgcv1.ListWorkspacesRequest{
-		OrganizationId: orgid,
-	})
+	workspaces, err := retryWithBackoff(ctx, func(ctx context.Context) (*orgcv1.ListWorkspacesResponse, error) {
+		return orgc.ListWorkspaces(ctx, &orgcv1.ListWorkspacesRequest{
+			OrganizationId: orgid,
+		})
+	}, "ListWorkspaces")
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to read org workspaces")
 	}

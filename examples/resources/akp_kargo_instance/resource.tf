@@ -84,6 +84,32 @@ EOT
         default_shard_agent       = "test"
         global_credentials_ns     = ["test1", "test2"]
         global_service_account_ns = ["test3", "test4"]
+
+        # AI Intelligence Configuration
+        # Enables AI-powered assistance for troubleshooting and promotion advice
+        akuity_intelligence = {
+          # Enable the AI intelligence feature
+          enabled = true
+          # Enable AI support engineer for advanced troubleshooting and recommendations
+          ai_support_engineer_enabled = true
+          # Specific users who can access AI features
+          allowed_usernames = [
+            "*",
+          ]
+          # Groups that have access to AI features
+          allowed_groups = [
+            "*",
+          ]
+          # Default to OpenAI GPT
+          model_version = ""
+        }
+
+        gc_config = {
+          max_retained_freight       = 20
+          max_retained_promotions    = 50
+          min_freight_deletion_age   = 86400
+          min_promotion_deletion_age = 604800
+        }
       }
     }
   }

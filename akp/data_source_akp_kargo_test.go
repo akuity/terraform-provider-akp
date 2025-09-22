@@ -28,7 +28,7 @@ func TestAccKargoDataSource(t *testing.T) {
 					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo_cm.%", "2"),
 
 					// Test Kargo Resources
-					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo_resources.%", "6"),
+					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo_resources.%", "12"),
 
 					resource.TestCheckResourceAttrWith("data.akp_kargo_instance.test-instance", "kargo_resources.kargo.akuity.io/v1alpha1/Project//kargo-demo", func(value string) error {
 						if !strings.Contains(value, "kargo-demo") {

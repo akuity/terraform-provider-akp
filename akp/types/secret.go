@@ -5,7 +5,6 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -22,7 +21,7 @@ func GetSensitiveStrings(data types.Map) []string {
 	return res
 }
 
-func ToSecretAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, name string, labels map[string]string, m tftypes.Map) *v1.Secret {
+func ToSecretAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, name string, labels map[string]string, m types.Map) *v1.Secret {
 	var data map[string]string
 	diagnostics.Append(m.ElementsAs(ctx, &data, true)...)
 	return &v1.Secret{

@@ -107,7 +107,7 @@ func (k *Kubectl) newApplyOptions(ioStreams genericclioptions.IOStreams, obj *un
 		}
 		return o.PrintFlags.ToPrinter()
 	}
-	o.DeleteOptions.FilenameOptions.Filenames = []string{path}
+	o.DeleteOptions.Filenames = []string{path}
 	o.Namespace = obj.GetNamespace()
 	o.DeleteOptions.ForceDeletion = applyOpts.Force
 	o.DryRunStrategy = applyOpts.DryRunStrategy

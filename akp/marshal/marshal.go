@@ -1,14 +1,14 @@
 package marshal
 
 import (
-	"google.golang.org/protobuf/types/known/structpb"
-
 	"encoding/json"
 	"fmt"
+
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // RemarshalTo convert an object to a target object by marshalling and unmarshalling it.
-func RemarshalTo(obj interface{}, target interface{}) error {
+func RemarshalTo(obj, target interface{}) error {
 	data, err := json.Marshal(obj)
 	if err != nil {
 		return fmt.Errorf("marshal: %w", err)

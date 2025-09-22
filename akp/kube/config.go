@@ -3,10 +3,10 @@ package kube
 import (
 	"context"
 	"fmt"
-	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 
+	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/mitchellh/go-homedir"
 	apimachineryschema "k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -69,26 +69,20 @@ func InitializeConfiguration(ctx context.Context, k *types.Kubeconfig) (*rest.Co
 			loader.Precedence = expandedPaths
 		}
 
-		ctxSuffix := "; default context"
-
 		kubectx := k.ConfigContext.ValueString()
 		authInfo := k.ConfigContextAuthInfo.ValueString()
 		cluster := k.ConfigContextCluster.ValueString()
 		if kubectx != "" || authInfo != "" || cluster != "" {
-			ctxSuffix = "; overriden context"
 			if kubectx != "" {
 				overrides.CurrentContext = kubectx
-				ctxSuffix += fmt.Sprintf("; config ctx: %s", overrides.CurrentContext)
 			}
 
 			overrides.Context = clientcmdapi.Context{}
 			if authInfo != "" {
 				overrides.Context.AuthInfo = authInfo
-				ctxSuffix += fmt.Sprintf("; auth_info: %s", overrides.Context.AuthInfo)
 			}
 			if cluster != "" {
 				overrides.Context.Cluster = cluster
-				ctxSuffix += fmt.Sprintf("; cluster: %s", overrides.Context.Cluster)
 			}
 		}
 	}
@@ -112,7 +106,7 @@ func InitializeConfiguration(ctx context.Context, k *types.Kubeconfig) (*rest.Co
 		defaultTLS := hasCA || hasCert || overrides.ClusterInfo.InsecureSkipTLSVerify
 		host, _, err := rest.DefaultServerURL(v, "", apimachineryschema.GroupVersion{}, defaultTLS)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to parse host: %s", err)
+			return nil, fmt.Errorf("failed to parse host: %s", err)
 		}
 
 		overrides.ClusterInfo.Server = host.String()
@@ -164,7 +158,7 @@ func InitializeConfiguration(ctx context.Context, k *types.Kubeconfig) (*rest.Co
 	cc := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loader, overrides)
 	cfg, err := cc.ClientConfig()
 	if err != nil {
-		return nil, fmt.Errorf("Invalid provider configuration: %s", err)
+		return nil, fmt.Errorf("invalid provider configuration: %s", err)
 	}
 	cfg.QPS = 100.0
 	cfg.Burst = 100

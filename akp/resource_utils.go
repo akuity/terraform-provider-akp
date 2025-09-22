@@ -7,7 +7,10 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -24,8 +27,8 @@ func processResources[T any](
 	diagnostics *diag.Diagnostics,
 	resources types.Map,
 	resourceGroups map[string]struct {
-	appendFunc resourceGroupAppender[T]
-},
+		appendFunc resourceGroupAppender[T]
+	},
 	validateFunc resourceValidator,
 	req T,
 	resourceType string,
@@ -79,7 +82,8 @@ func processResources[T any](
 // validateResource validates a resource with the given API version and resource groups
 func validateResource[T any](un *unstructured.Unstructured, apiVersion string, resourceGroups map[string]struct {
 	appendFunc resourceGroupAppender[T]
-}) error {
+},
+) error {
 	if un == nil {
 		return errors.New("unstructured is nil")
 	}
@@ -97,4 +101,12 @@ func validateResource[T any](un *unstructured.Unstructured, apiVersion string, r
 	}
 
 	return nil
+}
+
+func handleReadResourceError(ctx context.Context, resp *resource.ReadResponse, err error) {
+	if status.Code(err) == codes.NotFound || status.Code(err) == codes.PermissionDenied {
+		resp.State.RemoveResource(ctx)
+	} else {
+		resp.Diagnostics.AddError("Client Error", err.Error())
+	}
 }
