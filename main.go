@@ -19,14 +19,12 @@ import (
 // can be customized.
 //go:generate go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs generate --provider-name akp
 
-var (
-	// these will be set by the goreleaser configuration
-	// to appropriate values for the compiled binary
-	version string = "dev"
+// these will be set by the goreleaser configuration
+// to appropriate values for the compiled binary
+var version string = "dev"
 
-	// goreleaser can also pass the specific commit if you want
-	// commit  string = ""
-)
+// goreleaser can also pass the specific commit if you want
+// commit  string = ""
 
 func main() {
 	opts := providerserver.ServeOpts{
@@ -34,7 +32,6 @@ func main() {
 	}
 
 	err := providerserver.Serve(context.Background(), akp.New(version), opts)
-
 	if err != nil {
 		log.Fatal(err.Error())
 	}

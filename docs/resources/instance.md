@@ -156,6 +156,107 @@ resource "akp_instance" "example" {
         app_in_any_namespace_config = {
           enabled = true
         }
+        # AI Intelligence Extension
+        # Enables AI-powered features for enhanced ArgoCD experience including
+        # intelligent troubleshooting, automated runbook execution, and incident management
+        akuity_intelligence_extension = {
+          # Enable the Akuity Intelligence Extension
+          enabled = true
+          # Specific users who can access AI features
+          allowed_usernames = [
+            "*",
+          ]
+          # Groups that have access to AI features
+          allowed_groups = [
+            "*",
+          ]
+          # Enable AI support engineer for advanced troubleshooting capabilities
+          ai_support_engineer_enabled = true
+          # Default to OpenAI GPT
+          model_version = ""
+        }
+        # Advanced Akuity Intelligence configuration including CVE scanning and AI-powered
+        # incident management with automated runbook execution and webhook integrations
+        kube_vision_config = {
+          # CVE scanning configuration
+          cve_scan_config = {
+            # Enable automatic CVE scanning of container images
+            scan_enabled = true
+            # How often to rescan images for new CVEs (duration format: 1h, 24h, 7d, etc.)
+            rescan_interval = "24h"
+          }
+          # AI-powered incident management and runbook automation
+          ai_config = {
+            # ArgoCD Slack service name for notifications (must match your argocd-notifications-cm config)
+            argocd_slack_service = "argo-notifications"
+            # AI Runbooks - Automated troubleshooting guides that can be triggered by incidents
+            # Each runbook should contain step-by-step instructions for resolving common issues
+            # The AI can automatically execute or suggest these runbooks when incidents occur
+            runbooks = [
+              {
+                name    = "oom"
+                content = <<-EOF
+                  ## General
+
+                  - First, do the initial triage and collect the basic information to understand the incident.
+                  - Next, send a slack notification with the link to the conversation to channel “PLEASE REPLACE” with basic detail.
+                  - Next, work on the incident according to the runbook. Don't take any action automatically, ask for approval.
+                  - If the app is stable, check 30 seconds later again, then you can close the incident automatically. Please do slack all the details in concise messages.
+                  - If you stack send a slack message again and mention that you need help.
+                  - Please ensure you send slack message with the link to the conversation, so engineer can work with you together if needed.
+
+                  ## Out of memory
+
+                  **Symptoms**: Pod unexpectedly dies with \`OOMKilled\` status.
+
+                  **Root cause**: The pod is consuming more memory than the available memory.
+
+                  **Solution**:
+
+                  * Temporary increase the memory limit of the pod automatically
+                  * Increase the memory limit with the 50 Mb increment until the pod is stable.
+                EOF
+                applied_to = {
+                  argocd_applications = ["guestbook-*"]
+                  k8s_namespaces      = ["*"]
+                  clusters            = ["prod-cluster", "staging-cluster"]
+                }
+              }
+            ]
+
+            # Incident Management Configuration
+            # Defines when to trigger incidents and how to notify external systems
+            incidents = {
+              # Incident triggers - Define conditions that automatically create incidents
+              # When these conditions are met, AI runbooks can be automatically executed
+              triggers = [
+                {
+                  argocd_applications = ["guestbook-prod-oom"]
+                  // if degraded_for is not set, the incident will be triggered immediately when the condition is met
+                  degraded_for = "2m"
+                },
+                {
+                  k8s_namespaces = ["production"]
+                  clusters       = ["prod-cluster"]
+                  degraded_for   = "10m"
+                }
+              ]
+
+              # Webhook configurations for incident notifications
+              # Define how to notify external systems (PagerDuty, Slack, Teams, etc.) when incidents occur
+              # Each webhook specifies JSON paths to extract relevant information from the incident payload
+              webhooks = [
+                {
+                  name                         = "slack-alert"
+                  description_path             = "{.body.alerts[0].annotations.description}"
+                  cluster_path                 = "{.query.clusterName}"
+                  k8s_namespace_path           = "{.body.alerts[0].labels.namespace}"
+                  argocd_application_name_path = ""
+                }
+              ]
+            }
+          }
+        }
       }
       version = "v2.11.4"
     }
@@ -190,6 +291,65 @@ resource "akp_instance" "example" {
               orgs:
               - name: your-github-org
         EOF
+    # Configuration to customize resource behavior (optional) can be configured via splitted sub keys.
+    # Keys are in the form: resource.customizations.ignoreDifferences.<group_kind>, resource.customizations.health.<group_kind>
+    # resource.customizations.actions.<group_kind>, resource.customizations.knownTypeFields.<group_kind>
+    "resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration" = <<-EOF
+        jsonPointers:
+        - /webhooks/0/clientConfig/caBundle
+        jqPathExpressions:
+        - .webhooks[0].clientConfig.caBundle
+        managedFieldsManagers:
+        - kube-controller-manager
+      EOF
+    "resource.customizations.health.certmanager.k8s.io_Certificate"                                       = <<-EOF
+      hs = {}
+      if obj.status ~= nil then
+        if obj.status.conditions ~= nil then
+          for i, condition in ipairs(obj.status.conditions) do
+            if condition.type == "Ready" and condition.status == "False" then
+              hs.status = "Degraded"
+              hs.message = condition.message
+              return hs
+            end
+            if condition.type == "Ready" and condition.status == "True" then
+              hs.status = "Healthy"
+              hs.message = condition.message
+              return hs
+            end
+          end
+        end
+      end
+      hs.status = "Progressing"
+      hs.message = "Waiting for certificate"
+      return hs
+      EOF
+    "resource.customizations.actions.apps_Deployment"                                                     = <<-EOF
+      # Lua Script to indicate which custom actions are available on the resource
+      discovery.lua: |
+        actions = {}
+        actions["restart"] = {}
+        return actions
+      definitions:
+        - name: restart
+          # Lua Script to modify the obj
+          action.lua: |
+            local os = require("os")
+            if obj.spec.template.metadata == nil then
+                obj.spec.template.metadata = {}
+            end
+            if obj.spec.template.metadata.annotations == nil then
+                obj.spec.template.metadata.annotations = {}
+            end
+            obj.spec.template.metadata.annotations["kubectl.kubernetes.io/restartedAt"] = os.date("!%Y-%m-%dT%XZ")
+            return obj
+      EOF
+    "resource.customizations.knownTypeFields.apps_StatefulSet"                                            = <<-EOF
+      - field: spec.volumeClaimTemplates
+        type: array
+      - field: spec.updateStrategy
+        type: object
+      EOF
   }
   argocd_rbac_cm = {
     "policy.default" = "role:readonly"
@@ -451,6 +611,7 @@ Optional:
 Optional:
 
 - `agent_permissions_rules` (Attributes List) The ability to configure agent permissions rules. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--agent_permissions_rules))
+- `akuity_intelligence_extension` (Attributes) Akuity Intelligence Extension configuration for enhanced AI-powered features (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--akuity_intelligence_extension))
 - `app_in_any_namespace_config` (Attributes) App in any namespace config (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--app_in_any_namespace_config))
 - `app_set_delegate` (Attributes) Select cluster in which you want to Install Application Set controller (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--app_set_delegate))
 - `appset_plugins` (Attributes List) Application Set plugins (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--appset_plugins))
@@ -467,6 +628,7 @@ Optional:
 - `image_updater_delegate` (Attributes) Select cluster in which you want to Install Image Updater (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--image_updater_delegate))
 - `image_updater_enabled` (Boolean) Enable Image Updater
 - `ip_allow_list` (Attributes List) IP allow list (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--ip_allow_list))
+- `kube_vision_config` (Attributes) Advanced Akuity Intelligence configuration like CVE scanning and AI runbooks (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config))
 - `multi_cluster_k8s_dashboard_enabled` (Boolean) Enable the KubeVision feature
 - `repo_server_delegate` (Attributes) In case some clusters don't have network access to your private Git provider you can delegate these operations to one specific cluster. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--repo_server_delegate))
 - `subdomain` (String) Instance subdomain. By default equals to instance id
@@ -480,6 +642,18 @@ Optional:
 - `api_groups` (List of String) API groups of the rule.
 - `resources` (List of String) Resources of the rule.
 - `verbs` (List of String) Verbs of the rule.
+
+
+<a id="nestedatt--argocd--spec--instance_spec--akuity_intelligence_extension"></a>
+### Nested Schema for `argocd.spec.instance_spec.akuity_intelligence_extension`
+
+Optional:
+
+- `ai_support_engineer_enabled` (Boolean) Enable AI support engineer functionality
+- `allowed_groups` (List of String) List of groups allowed to use AI features
+- `allowed_usernames` (List of String) List of usernames allowed to use AI features
+- `enabled` (Boolean) Enable Akuity Intelligence Extension for AI-powered features
+- `model_version` (String) AI model version to use
 
 
 <a id="nestedatt--argocd--spec--instance_spec--app_in_any_namespace_config"></a>
@@ -612,6 +786,90 @@ Required:
 Optional:
 
 - `description` (String) IP description
+
+
+<a id="nestedatt--argocd--spec--instance_spec--kube_vision_config"></a>
+### Nested Schema for `argocd.spec.instance_spec.kube_vision_config`
+
+Optional:
+
+- `ai_config` (Attributes) AI advanced configuration like runbooks and incidents (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config))
+- `cve_scan_config` (Attributes) CVE scanning configuration (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--cve_scan_config))
+
+<a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config"></a>
+### Nested Schema for `argocd.spec.instance_spec.kube_vision_config.ai_config`
+
+Optional:
+
+- `argocd_slack_service` (String) ArgoCD Slack service configuration
+- `incidents` (Attributes) Incident configuration (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents))
+- `runbooks` (Attributes List) List of AI runbooks to use for incident resolution (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--runbooks))
+
+<a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents"></a>
+### Nested Schema for `argocd.spec.instance_spec.kube_vision_config.ai_config.incidents`
+
+Optional:
+
+- `triggers` (Attributes List) List of incident triggers (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents--triggers))
+- `webhooks` (Attributes List) List of incident webhooks (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents--webhooks))
+
+<a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents--triggers"></a>
+### Nested Schema for `argocd.spec.instance_spec.kube_vision_config.ai_config.incidents.triggers`
+
+Optional:
+
+- `argocd_applications` (List of String) List of ArgoCD applications to trigger an incident.
+- `clusters` (List of String) List of clusters to trigger an incident.
+- `degraded_for` (String) Trigger an incident after this duration of degradation. Can be a duration string like '1h' '10m' or '10s'.
+- `k8s_namespaces` (List of String) List of Kubernetes namespaces to trigger an incident.
+
+
+<a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents--webhooks"></a>
+### Nested Schema for `argocd.spec.instance_spec.kube_vision_config.ai_config.incidents.webhooks`
+
+Required:
+
+- `argocd_application_name_path` (String) JSON path for ArgoCD application name field
+- `cluster_path` (String) JSON path for cluster field
+- `description_path` (String) JSON path for description field
+- `k8s_namespace_path` (String) JSON path for Kubernetes namespace field
+- `name` (String) Webhook name
+
+
+
+<a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--runbooks"></a>
+### Nested Schema for `argocd.spec.instance_spec.kube_vision_config.ai_config.runbooks`
+
+Required:
+
+- `content` (String) Runbook content
+- `name` (String) Runbook name
+
+Optional:
+
+- `applied_to` (Attributes) Target selector for runbook application (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--runbooks--applied_to))
+
+<a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--runbooks--applied_to"></a>
+### Nested Schema for `argocd.spec.instance_spec.kube_vision_config.ai_config.runbooks.applied_to`
+
+Optional:
+
+- `argocd_applications` (List of String) List of ArgoCD applications to trigger an incident.
+- `clusters` (List of String) List of clusters to trigger an incident.
+- `degraded_for` (String) Trigger an incident after this duration of degradation. Can be a duration string like '1h' '10m' or '10s'.
+- `k8s_namespaces` (List of String) List of Kubernetes namespaces to trigger an incident.
+
+
+
+
+<a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--cve_scan_config"></a>
+### Nested Schema for `argocd.spec.instance_spec.kube_vision_config.cve_scan_config`
+
+Optional:
+
+- `rescan_interval` (String) CVE rescan interval
+- `scan_enabled` (Boolean) Enable CVE scanning
+
 
 
 <a id="nestedatt--argocd--spec--instance_spec--repo_server_delegate"></a>

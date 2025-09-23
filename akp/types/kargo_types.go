@@ -8,8 +8,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
@@ -60,19 +60,28 @@ func (k *Kargo) Update(ctx context.Context, diagnostics *diag.Diagnostics, kargo
 		}
 	}
 	k.Spec = KargoSpec{
-		Description: tftypes.StringValue(kargo.Spec.Description),
-		Version:     tftypes.StringValue(kargo.Spec.Version),
+		Description: types.StringValue(kargo.Spec.Description),
+		Version:     types.StringValue(kargo.Spec.Version),
 		KargoInstanceSpec: KargoInstanceSpec{
-			BackendIpAllowListEnabled:  tftypes.BoolValue(backendIpAllowListEnabled),
+			BackendIpAllowListEnabled:  types.BoolValue(backendIpAllowListEnabled),
 			IpAllowList:                toKargoIPAllowListTFModel(kargo.Spec.KargoInstanceSpec.IpAllowList),
 			AgentCustomizationDefaults: acd,
-			DefaultShardAgent:          tftypes.StringValue(kargo.Spec.KargoInstanceSpec.DefaultShardAgent),
+			DefaultShardAgent:          types.StringValue(kargo.Spec.KargoInstanceSpec.DefaultShardAgent),
 			GlobalCredentialsNs:        toStringArrayTFModel(kargo.Spec.KargoInstanceSpec.GlobalCredentialsNs),
 			GlobalServiceAccountNs:     toStringArrayTFModel(kargo.Spec.KargoInstanceSpec.GlobalServiceAccountNs),
+			AkuityIntelligence:         toKargoAkuityIntelligenceTFModel(kargo.Spec.KargoInstanceSpec.AkuityIntelligence, k),
 		},
-		Fqdn:       tftypes.StringValue(kargo.Spec.Fqdn),
-		Subdomain:  tftypes.StringValue(kargo.Spec.Subdomain),
+		Fqdn:       types.StringValue(kargo.Spec.Fqdn),
+		Subdomain:  types.StringValue(kargo.Spec.Subdomain),
 		OidcConfig: k.toKargoOidcConfigTFModel(ctx, kargo.Spec.OidcConfig),
+	}
+	if kargo.Spec.KargoInstanceSpec.GcConfig != nil {
+		k.Spec.KargoInstanceSpec.GcConfig = &GarbageCollectorConfig{
+			MaxRetainedFreight:      types.Int64Value(int64(kargo.Spec.KargoInstanceSpec.GcConfig.MaxRetainedFreight)),
+			MaxRetainedPromotions:   types.Int64Value(int64(kargo.Spec.KargoInstanceSpec.GcConfig.MaxRetainedPromotions)),
+			MinFreightDeletionAge:   types.Int64Value(int64(kargo.Spec.KargoInstanceSpec.GcConfig.MinFreightDeletionAge)),
+			MinPromotionDeletionAge: types.Int64Value(int64(kargo.Spec.KargoInstanceSpec.GcConfig.MinPromotionDeletionAge)),
+		}
 	}
 }
 
@@ -82,6 +91,15 @@ func (k *Kargo) ToKargoAPIModel(ctx context.Context, diag *diag.Diagnostics, nam
 	if subdomain != "" && fqdn != "" {
 		diag.AddError("subdomain and fqdn cannot be set at the same time", "subdomain and fqdn are mutually exclusive")
 		return nil
+	}
+	var gcConfig *v1alpha1.GarbageCollectorConfig
+	if k.Spec.KargoInstanceSpec.GcConfig != nil {
+		gcConfig = &v1alpha1.GarbageCollectorConfig{
+			MaxRetainedFreight:      uint32(k.Spec.KargoInstanceSpec.GcConfig.MaxRetainedFreight.ValueInt64()),
+			MaxRetainedPromotions:   uint32(k.Spec.KargoInstanceSpec.GcConfig.MaxRetainedPromotions.ValueInt64()),
+			MinFreightDeletionAge:   uint32(k.Spec.KargoInstanceSpec.GcConfig.MinFreightDeletionAge.ValueInt64()),
+			MinPromotionDeletionAge: uint32(k.Spec.KargoInstanceSpec.GcConfig.MinPromotionDeletionAge.ValueInt64()),
+		}
 	}
 	return &v1alpha1.Kargo{
 		TypeMeta: metav1.TypeMeta{
@@ -101,6 +119,8 @@ func (k *Kargo) ToKargoAPIModel(ctx context.Context, diag *diag.Diagnostics, nam
 				DefaultShardAgent:          k.Spec.KargoInstanceSpec.DefaultShardAgent.ValueString(),
 				GlobalCredentialsNs:        toStringArrayAPIModel(k.Spec.KargoInstanceSpec.GlobalCredentialsNs),
 				GlobalServiceAccountNs:     toStringArrayAPIModel(k.Spec.KargoInstanceSpec.GlobalServiceAccountNs),
+				AkuityIntelligence:         toKargoAkuityIntelligenceAPIModel(k.Spec.KargoInstanceSpec.AkuityIntelligence),
+				GcConfig:                   gcConfig,
 			},
 			Fqdn:       fqdn,
 			Subdomain:  subdomain,
@@ -151,8 +171,8 @@ func toKargoIPAllowListTFModel(ipAllowList []*v1alpha1.KargoIPAllowListEntry) []
 	ipAllowListTF := make([]*KargoIPAllowListEntry, len(ipAllowList))
 	for i, ipAllowListEntry := range ipAllowList {
 		ipAllowListTF[i] = &KargoIPAllowListEntry{
-			Ip:          tftypes.StringValue(ipAllowListEntry.Ip),
-			Description: tftypes.StringValue(ipAllowListEntry.Description),
+			Ip:          types.StringValue(ipAllowListEntry.Ip),
+			Description: types.StringValue(ipAllowListEntry.Description),
 		}
 	}
 	return ipAllowListTF
@@ -168,16 +188,16 @@ func toKargoAgentCustomizationTFModel(agentCustomizationDefaults *v1alpha1.Kargo
 	}
 	var kustomization types.String
 	if len(agentCustomizationDefaults.Kustomization.Raw) == 0 {
-		kustomization = tftypes.StringNull()
+		kustomization = types.StringNull()
 	} else {
 		yamlData, err := yaml.JSONToYAML(agentCustomizationDefaults.Kustomization.Raw)
 		if err != nil {
 			diags.AddError("failed to convert json to yaml", err.Error())
 		}
-		kustomization = tftypes.StringValue(string(yamlData))
+		kustomization = types.StringValue(string(yamlData))
 	}
 	return &KargoAgentCustomization{
-		AutoUpgradeDisabled: tftypes.BoolValue(autoUpgradeDisabled),
+		AutoUpgradeDisabled: types.BoolValue(autoUpgradeDisabled),
 		Kustomization:       kustomization,
 	}
 }
@@ -194,37 +214,37 @@ func toStringArrayTFModel(strings []string) []types.String {
 }
 
 func (ka *KargoAgent) Update(ctx context.Context, diagnostics *diag.Diagnostics, apiKargoAgent *kargov1.KargoAgent, plan *KargoAgent) {
-	ka.ID = tftypes.StringValue(apiKargoAgent.GetId())
-	ka.Name = tftypes.StringValue(apiKargoAgent.GetName())
-	ka.Namespace = tftypes.StringValue(apiKargoAgent.GetData().GetNamespace())
+	ka.ID = types.StringValue(apiKargoAgent.GetId())
+	ka.Name = types.StringValue(apiKargoAgent.GetName())
+	ka.Namespace = types.StringValue(apiKargoAgent.GetData().GetNamespace())
 	if ka.RemoveAgentResourcesOnDestroy.IsUnknown() || ka.RemoveAgentResourcesOnDestroy.IsNull() {
-		ka.RemoveAgentResourcesOnDestroy = tftypes.BoolValue(true)
+		ka.RemoveAgentResourcesOnDestroy = types.BoolValue(true)
 	}
 	if ka.ReapplyManifestsOnUpdate.IsUnknown() || ka.ReapplyManifestsOnUpdate.IsNull() {
-		ka.ReapplyManifestsOnUpdate = tftypes.BoolValue(false)
-	} else {
+		ka.ReapplyManifestsOnUpdate = types.BoolValue(false)
+	} else if plan != nil {
 		ka.ReapplyManifestsOnUpdate = plan.ReapplyManifestsOnUpdate
 	}
-	labels, d := tftypes.MapValueFrom(ctx, tftypes.StringType, apiKargoAgent.GetData().GetLabels())
+	labels, d := types.MapValueFrom(ctx, types.StringType, apiKargoAgent.GetData().GetLabels())
 	if d.HasError() {
-		labels = tftypes.MapNull(tftypes.StringType)
+		labels = types.MapNull(types.StringType)
 	}
 	diagnostics.Append(d...)
-	annotations, d := tftypes.MapValueFrom(ctx, tftypes.StringType, apiKargoAgent.GetData().GetAnnotations())
+	annotations, d := types.MapValueFrom(ctx, types.StringType, apiKargoAgent.GetData().GetAnnotations())
 	if d.HasError() {
-		annotations = tftypes.MapNull(tftypes.StringType)
+		annotations = types.MapNull(types.StringType)
 	}
 	diagnostics.Append(d...)
 	jsonData, err := apiKargoAgent.GetData().GetKustomization().MarshalJSON()
 	if err != nil {
-		diagnostics.AddError("getting kargo agent kustomization", fmt.Sprintf("%s", err.Error()))
+		diagnostics.AddError("getting kargo agent kustomization", err.Error())
 	}
 	yamlData, err := yaml.JSONToYAML(jsonData)
 	if err != nil {
-		diagnostics.AddError("getting kargo agent kustomization", fmt.Sprintf("%s", err.Error()))
+		diagnostics.AddError("getting kargo agent kustomization", err.Error())
 	}
 
-	kustomization := tftypes.StringValue(string(yamlData))
+	kustomization := types.StringValue(string(yamlData))
 	if ka.Spec != nil {
 		rawPlan := runtime.RawExtension{}
 		old := ka.Spec.Data.Kustomization
@@ -245,21 +265,21 @@ func (ka *KargoAgent) Update(ctx context.Context, diagnostics *diag.Diagnostics,
 	ka.Annotations = annotations
 
 	argocdNs := apiKargoAgent.GetData().GetArgocdNamespace()
-	if apiKargoAgent.GetData().GetRemoteArgocd() == "" && !apiKargoAgent.GetData().GetAkuityManaged() {
+	if !apiKargoAgent.GetData().GetAkuityManaged() && plan != nil && plan.Spec != nil {
 		argocdNs = plan.Spec.Data.ArgocdNamespace.ValueString()
 	}
 
-	size := tftypes.StringValue(KargoAgentSizeString[apiKargoAgent.GetData().GetSize()])
+	size := types.StringValue(KargoAgentSizeString[apiKargoAgent.GetData().GetSize()])
 	ka.Spec = &KargoAgentSpec{
-		Description: tftypes.StringValue(apiKargoAgent.GetDescription()),
+		Description: types.StringValue(apiKargoAgent.GetDescription()),
 		Data: KargoAgentData{
 			Size:                size,
-			AutoUpgradeDisabled: tftypes.BoolValue(apiKargoAgent.GetData().GetAutoUpgradeDisabled()),
-			TargetVersion:       tftypes.StringValue(apiKargoAgent.GetData().GetTargetVersion()),
+			AutoUpgradeDisabled: types.BoolValue(apiKargoAgent.GetData().GetAutoUpgradeDisabled()),
+			TargetVersion:       types.StringValue(apiKargoAgent.GetData().GetTargetVersion()),
 			Kustomization:       kustomization,
-			RemoteArgocd:        tftypes.StringValue(apiKargoAgent.GetData().GetRemoteArgocd()),
-			AkuityManaged:       tftypes.BoolValue(apiKargoAgent.GetData().GetAkuityManaged()),
-			ArgocdNamespace:     tftypes.StringValue(argocdNs),
+			RemoteArgocd:        types.StringValue(apiKargoAgent.GetData().GetRemoteArgocd()),
+			AkuityManaged:       types.BoolValue(apiKargoAgent.GetData().GetAkuityManaged()),
+			ArgocdNamespace:     types.StringValue(argocdNs),
 		},
 	}
 }
@@ -287,7 +307,7 @@ func (ka *KargoAgent) ToKargoAgentAPIModel(ctx context.Context, diagnostics *dia
 	}
 }
 
-func toKargoAgentDataAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, data KargoAgentData) v1alpha1.KargoAgentData {
+func toKargoAgentDataAPIModel(_ context.Context, diagnostics *diag.Diagnostics, data KargoAgentData) v1alpha1.KargoAgentData {
 	var existingConfig map[string]any
 	raw := runtime.RawExtension{}
 	if data.Kustomization.ValueString() != "" {
@@ -330,16 +350,18 @@ func toKargoOidcConfigAPIModel(ctx context.Context, diag *diag.Diagnostics, oidc
 		additionalScopes = append(additionalScopes, scope.ValueString())
 	}
 	return &v1alpha1.KargoOidcConfig{
-		Enabled:          toBoolPointer(oidcConfig.Enabled),
-		DexEnabled:       toBoolPointer(oidcConfig.DexEnabled),
-		DexConfig:        oidcConfig.DexConfig.ValueString(),
-		DexConfigSecret:  toKargoDexConfigSecretAPIModel(ctx, oidcConfig.DexConfigSecret),
-		IssuerURL:        oidcConfig.IssuerURL.ValueString(),
-		ClientID:         oidcConfig.ClientID.ValueString(),
-		CliClientID:      oidcConfig.CliClientID.ValueString(),
-		AdminAccount:     toKargoPredefinedAccountAPIModel(ctx, diag, oidcConfig.AdminAccount),
-		ViewerAccount:    toKargoPredefinedAccountAPIModel(ctx, diag, oidcConfig.ViewerAccount),
-		AdditionalScopes: additionalScopes,
+		Enabled:               toBoolPointer(oidcConfig.Enabled),
+		DexEnabled:            toBoolPointer(oidcConfig.DexEnabled),
+		DexConfig:             oidcConfig.DexConfig.ValueString(),
+		DexConfigSecret:       toKargoDexConfigSecretAPIModel(ctx, oidcConfig.DexConfigSecret),
+		IssuerURL:             oidcConfig.IssuerURL.ValueString(),
+		ClientID:              oidcConfig.ClientID.ValueString(),
+		CliClientID:           oidcConfig.CliClientID.ValueString(),
+		AdminAccount:          toKargoPredefinedAccountAPIModel(ctx, diag, oidcConfig.AdminAccount),
+		ViewerAccount:         toKargoPredefinedAccountAPIModel(ctx, diag, oidcConfig.ViewerAccount),
+		UserAccount:           toKargoPredefinedAccountAPIModel(ctx, diag, oidcConfig.UserAccount),
+		ProjectCreatorAccount: toKargoPredefinedAccountAPIModel(ctx, diag, oidcConfig.ProjectCreatorAccount),
+		AdditionalScopes:      additionalScopes,
 	}
 }
 
@@ -359,7 +381,7 @@ func toKargoDexConfigSecretAPIModel(ctx context.Context, secret types.Map) map[s
 	return cfg
 }
 
-func toKargoPredefinedAccountAPIModel(ctx context.Context, diag *diag.Diagnostics, accounts types.Object) v1alpha1.KargoPredefinedAccountData {
+func toKargoPredefinedAccountAPIModel(_ context.Context, diag *diag.Diagnostics, accounts types.Object) v1alpha1.KargoPredefinedAccountData {
 	result := v1alpha1.KargoPredefinedAccountData{
 		Claims: make(map[string]v1alpha1.KargoPredefinedAccountClaimValue),
 	}
@@ -421,16 +443,18 @@ func (k *Kargo) toKargoOidcConfigTFModel(ctx context.Context, oidcConfig *v1alph
 	}
 
 	return &KargoOidcConfig{
-		Enabled:          tftypes.BoolPointerValue(oidcConfig.Enabled),
-		DexEnabled:       tftypes.BoolPointerValue(oidcConfig.DexEnabled),
-		DexConfig:        tftypes.StringValue(oidcConfig.DexConfig),
-		DexConfigSecret:  toKargoDexConfigSecretTFModel(ctx, oidcConfig.DexConfigSecret),
-		IssuerURL:        tftypes.StringValue(oidcConfig.IssuerURL),
-		ClientID:         tftypes.StringValue(oidcConfig.ClientID),
-		CliClientID:      tftypes.StringValue(oidcConfig.CliClientID),
-		AdminAccount:     k.toKargoPredefinedAccountTFModel(oidcConfig.AdminAccount, adminAccount),
-		ViewerAccount:    k.toKargoPredefinedAccountTFModel(oidcConfig.ViewerAccount, viewerAccount),
-		AdditionalScopes: additionalScopes,
+		Enabled:               types.BoolPointerValue(oidcConfig.Enabled),
+		DexEnabled:            types.BoolPointerValue(oidcConfig.DexEnabled),
+		DexConfig:             types.StringValue(oidcConfig.DexConfig),
+		DexConfigSecret:       toKargoDexConfigSecretTFModel(ctx, oidcConfig.DexConfigSecret),
+		IssuerURL:             types.StringValue(oidcConfig.IssuerURL),
+		ClientID:              types.StringValue(oidcConfig.ClientID),
+		CliClientID:           types.StringValue(oidcConfig.CliClientID),
+		AdminAccount:          k.toKargoPredefinedAccountTFModel(oidcConfig.AdminAccount, adminAccount),
+		ViewerAccount:         k.toKargoPredefinedAccountTFModel(oidcConfig.ViewerAccount, viewerAccount),
+		UserAccount:           k.toKargoPredefinedAccountTFModel(oidcConfig.UserAccount, viewerAccount),
+		ProjectCreatorAccount: k.toKargoPredefinedAccountTFModel(oidcConfig.ProjectCreatorAccount, viewerAccount),
+		AdditionalScopes:      additionalScopes,
 	}
 }
 
@@ -513,4 +537,37 @@ func (k *Kargo) toKargoPredefinedAccountTFModel(account v1alpha1.KargoPredefined
 			"claims": claimsAttr,
 		},
 	)
+}
+
+func toKargoAkuityIntelligenceTFModel(intelligence *v1alpha1.AkuityIntelligence, plan *Kargo) *AkuityIntelligence {
+	if plan != nil {
+		if plan.Spec.KargoInstanceSpec.AkuityIntelligence == nil {
+			return nil
+		}
+	}
+
+	if intelligence == nil {
+		return nil
+	}
+	return &AkuityIntelligence{
+		AiSupportEngineerEnabled: types.BoolValue(intelligence.AiSupportEngineerEnabled != nil && *intelligence.AiSupportEngineerEnabled),
+		Enabled:                  types.BoolValue(intelligence.Enabled != nil && *intelligence.Enabled),
+		AllowedUsernames:         convertSlice(intelligence.AllowedUsernames, func(s string) types.String { return types.StringValue(s) }),
+		AllowedGroups:            convertSlice(intelligence.AllowedGroups, func(s string) types.String { return types.StringValue(s) }),
+		ModelVersion:             types.StringValue(intelligence.ModelVersion),
+	}
+}
+
+func toKargoAkuityIntelligenceAPIModel(intelligence *AkuityIntelligence) *v1alpha1.AkuityIntelligence {
+	if intelligence == nil {
+		return nil
+	}
+	tflog.Warn(context.Background(), fmt.Sprintf("hanxiaop model %+v", intelligence))
+	return &v1alpha1.AkuityIntelligence{
+		AiSupportEngineerEnabled: toBoolPointer(intelligence.AiSupportEngineerEnabled),
+		Enabled:                  toBoolPointer(intelligence.Enabled),
+		AllowedUsernames:         convertSlice(intelligence.AllowedUsernames, tfStringToString),
+		AllowedGroups:            convertSlice(intelligence.AllowedGroups, tfStringToString),
+		ModelVersion:             intelligence.ModelVersion.ValueString(),
+	}
 }

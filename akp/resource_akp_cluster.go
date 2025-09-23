@@ -6,13 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-
+	"github.com/hashicorp/terraform-plugin-framework-validators/resourcevalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
-	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"github.com/pkg/errors"
 	"golang.org/x/exp/slices"
 	"google.golang.org/genproto/googleapis/api/httpbody"
 	"google.golang.org/grpc/codes"
@@ -31,8 +30,11 @@ import (
 )
 
 // Ensure provider defined types fully satisfy framework interfaces
-var _ resource.Resource = &AkpClusterResource{}
-var _ resource.ResourceWithImportState = &AkpClusterResource{}
+var (
+	_ resource.Resource                     = &AkpClusterResource{}
+	_ resource.ResourceWithImportState      = &AkpClusterResource{}
+	_ resource.ResourceWithConfigValidators = &AkpClusterResource{}
+)
 
 func NewAkpClusterResource() resource.Resource {
 	return &AkpClusterResource{}
@@ -78,10 +80,13 @@ func (r *AkpClusterResource) Create(ctx context.Context, req resource.CreateRequ
 	result, err := r.upsert(ctx, &resp.Diagnostics, &plan, true)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", err.Error())
-	}
-	// In this case we commit state regardless whether there's an error or not. This is because there can be partial
-	// state (e.g. a cluster could be created in AKP but the manifests failed to be applied).
-	if result != nil {
+		tflog.Warn(ctx, fmt.Sprintf("refreshClusterState failed during create, cleaning up cluster %s", plan.Name.ValueString()))
+		cleanupErr := r.deleteCluster(ctx, &plan, plan.RemoveAgentResourcesOnDestroy.ValueBool(), true)
+		if cleanupErr != nil {
+			tflog.Error(ctx, fmt.Sprintf("Failed to clean up dangling cluster %s: %v", plan.Name.ValueString(), cleanupErr))
+		}
+		tflog.Info(ctx, fmt.Sprintf("Successfully cleaned up dangling cluster %s", plan.Name.ValueString()))
+	} else if result != nil {
 		resp.Diagnostics.Append(resp.State.Set(ctx, &result)...)
 	}
 }
@@ -96,12 +101,12 @@ func (r *AkpClusterResource) Read(ctx context.Context, req resource.ReadRequest,
 	}
 
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
-	err := refreshClusterState(ctx, &resp.Diagnostics, r.akpCli.Cli, &data, r.akpCli.OrgId, &resp.State, &data)
+	err := refreshClusterState(ctx, &resp.Diagnostics, r.akpCli.Cli, &data, r.akpCli.OrgId, &data)
 	if err != nil {
-		resp.Diagnostics.AddError("Client Error", err.Error())
-	} else {
-		resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+		handleReadResourceError(ctx, resp, err)
+		return
 	}
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
 func (r *AkpClusterResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -135,43 +140,11 @@ func (r *AkpClusterResource) Delete(ctx context.Context, req resource.DeleteRequ
 		return
 	}
 
-	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
-	kubeconfig, err := getKubeconfig(ctx, plan.Kubeconfig)
+	err := r.deleteCluster(ctx, &plan, plan.RemoveAgentResourcesOnDestroy.ValueBool(), false)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", err.Error())
 		return
 	}
-
-	// Delete the manifests
-	if kubeconfig != nil && plan.RemoveAgentResourcesOnDestroy.ValueBool() {
-		manifests, err := getManifests(ctx, r.akpCli.Cli, r.akpCli.OrgId, &plan)
-		if err != nil {
-			resp.Diagnostics.AddError("Client Error", err.Error())
-			return
-		}
-
-		err = deleteManifests(ctx, manifests, kubeconfig)
-		if err != nil {
-			resp.Diagnostics.AddError("Client Error", err.Error())
-			return
-		}
-	}
-	apiReq := &argocdv1.DeleteInstanceClusterRequest{
-		OrganizationId: r.akpCli.OrgId,
-		InstanceId:     plan.InstanceID.ValueString(),
-		Id:             plan.ID.ValueString(),
-	}
-	// TODO(hanxiaop) Currently the refresh logic is flaky, and we need to check empty IDs before the delete operation.
-	if apiReq.GetId() == "" {
-		return // Nothing to delete
-	}
-	_, err = r.akpCli.Cli.DeleteInstanceCluster(ctx, apiReq)
-	if err != nil && (status.Code(err) != codes.NotFound && status.Code(err) != codes.PermissionDenied) {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete Akuity cluster. %s", err))
-		return
-	}
-	// Give it some time to remove the cluster. This is useful when the terraform provider is performing a replace operation, to give it enough time to destroy the previous cluster.
-	time.Sleep(2 * time.Second)
 }
 
 func (r *AkpClusterResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
@@ -188,6 +161,18 @@ func (r *AkpClusterResource) ImportState(ctx context.Context, req resource.Impor
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("name"), idParts[1])...)
 }
 
+func (r *AkpClusterResource) ConfigValidators(ctx context.Context) []resource.ConfigValidator {
+	return []resource.ConfigValidator{
+		// auto_agent_size_config and custom_agent_size_config are mutually exclusive
+		resourcevalidator.Conflicting(
+			path.MatchRoot("spec").AtName("data").AtName("auto_agent_size_config"),
+			path.MatchRoot("spec").AtName("data").AtName("custom_agent_size_config"),
+		),
+		// Use custom validator to handle size-specific logic
+		&sizeConfigValidator{},
+	}
+}
+
 func (r *AkpClusterResource) upsert(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.Cluster, isCreate bool) (*types.Cluster, error) {
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 	apiReq := buildClusterApplyRequest(ctx, diagnostics, plan, r.akpCli.OrgId)
@@ -195,18 +180,36 @@ func (r *AkpClusterResource) upsert(ctx context.Context, diagnostics *diag.Diagn
 		return nil, nil
 	}
 	result, err := r.applyInstance(ctx, plan, apiReq, isCreate, r.akpCli.Cli.ApplyInstance, r.upsertKubeConfig)
-	if err != nil {
-		return result, err
+	// Always refresh cluster state to ensure we have consistent state, even if kubeconfig application failed
+	if result != nil {
+		refreshErr := refreshClusterState(ctx, diagnostics, r.akpCli.Cli, result, r.akpCli.OrgId, plan)
+		if refreshErr != nil && err == nil {
+			// If we didn't have an error before but refresh failed, return the refresh error
+			return result, refreshErr
+		}
 	}
-	return result, refreshClusterState(ctx, diagnostics, r.akpCli.Cli, result, r.akpCli.OrgId, nil, plan)
+	return result, err
 }
 
 func (r *AkpClusterResource) applyInstance(ctx context.Context, plan *types.Cluster, apiReq *argocdv1.ApplyInstanceRequest, isCreate bool, applyInstance func(context.Context, *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error), upsertKubeConfig func(ctx context.Context, plan *types.Cluster) error) (*types.Cluster, error) {
 	kubeconfig := plan.Kubeconfig
 	plan.Kubeconfig = nil
 	tflog.Debug(ctx, fmt.Sprintf("Apply cluster request: %s", apiReq))
-	_, err := applyInstance(ctx, apiReq)
+	_, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.ApplyInstanceResponse, error) {
+		return applyInstance(ctx, apiReq)
+	}, "ApplyInstance")
 	if err != nil {
+		// If this is a create operation and kubeconfig application fails,
+		// clean up the dangling cluster from the API
+		if isCreate {
+			tflog.Warn(ctx, fmt.Sprintf("applyInstance failed during create, cleaning up cluster %s", plan.Name.ValueString()))
+			cleanupErr := r.deleteCluster(ctx, plan, plan.RemoveAgentResourcesOnDestroy.ValueBool(), true)
+			if cleanupErr != nil {
+				tflog.Error(ctx, fmt.Sprintf("Failed to clean up dangling cluster %s: %v", plan.Name.ValueString(), cleanupErr))
+				return nil, fmt.Errorf("unable to create Argo CD instance %s (and failed to clean up cluster: %s)", err, cleanupErr)
+			}
+			tflog.Info(ctx, fmt.Sprintf("Successfully cleaned up dangling cluster %s", plan.Name.ValueString()))
+		}
 		return nil, fmt.Errorf("unable to create Argo CD instance: %s", err)
 	}
 
@@ -216,7 +219,19 @@ func (r *AkpClusterResource) applyInstance(ctx context.Context, plan *types.Clus
 		if shouldApply {
 			err = upsertKubeConfig(ctx, plan)
 			if err != nil {
-				// Ensure kubeconfig won't be committed to state by setting it to nil
+				// If this is a create operation and kubeconfig application fails,
+				// clean up the dangling cluster from the API
+				if isCreate {
+					tflog.Warn(ctx, fmt.Sprintf("Kubeconfig application failed during create, cleaning up cluster %s", plan.Name.ValueString()))
+					cleanupErr := r.deleteCluster(ctx, plan, plan.RemoveAgentResourcesOnDestroy.ValueBool(), true)
+					if cleanupErr != nil {
+						tflog.Error(ctx, fmt.Sprintf("Failed to clean up dangling cluster %s: %v", plan.Name.ValueString(), cleanupErr))
+						return nil, fmt.Errorf("unable to apply manifests: %s (and failed to clean up cluster: %s)", err, cleanupErr)
+					}
+					tflog.Info(ctx, fmt.Sprintf("Successfully cleaned up dangling cluster %s", plan.Name.ValueString()))
+					return nil, fmt.Errorf("unable to apply manifests: %s", err)
+				}
+				// For updates, just ensure kubeconfig won't be committed to state by setting it to nil
 				plan.Kubeconfig = nil
 				return plan, fmt.Errorf("unable to apply manifests: %s", err)
 			}
@@ -250,7 +265,8 @@ func (r *AkpClusterResource) upsertKubeConfig(ctx context.Context, plan *types.C
 }
 
 func refreshClusterState(ctx context.Context, diagnostics *diag.Diagnostics, client argocdv1.ArgoCDServiceGatewayClient, cluster *types.Cluster,
-	orgID string, state *tfsdk.State, plan *types.Cluster) error {
+	orgID string, plan *types.Cluster,
+) error {
 	clusterReq := &argocdv1.GetInstanceClusterRequest{
 		OrganizationId: orgID,
 		InstanceId:     cluster.InstanceID.ValueString(),
@@ -259,16 +275,21 @@ func refreshClusterState(ctx context.Context, diagnostics *diag.Diagnostics, cli
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("Get cluster request: %s", clusterReq))
-	clusterResp, err := client.GetInstanceCluster(ctx, clusterReq)
+	clusterResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.GetInstanceClusterResponse, error) {
+		return client.GetInstanceCluster(ctx, clusterReq)
+	}, "GetInstanceCluster")
 	if err != nil {
-		if status.Code(err) == codes.NotFound || status.Code(err) == codes.PermissionDenied {
-			state.RemoveResource(ctx)
-		} else {
-			return errors.Wrap(err, "Unable to read Argo CD cluster")
-		}
+		return errors.Wrap(err, "Unable to read Argo CD cluster")
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Get cluster response: %s", clusterResp))
-	cluster.Update(ctx, diagnostics, clusterResp.GetCluster(), plan)
+
+	apiCluster := clusterResp.GetCluster()
+
+	if plan != nil && plan.Spec != nil && (!plan.Spec.Data.MultiClusterK8SDashboardEnabled.IsNull() || !plan.Spec.Data.MultiClusterK8SDashboardEnabled.IsUnknown()) && plan.Spec.Data.MultiClusterK8SDashboardEnabled.ValueBool() && !apiCluster.GetData().GetMultiClusterK8SDashboardEnabled() {
+		return fmt.Errorf("multi_cluster_k8s_dashboard_enabled feature is not available on this instance")
+	}
+
+	cluster.Update(ctx, diagnostics, apiCluster, plan)
 	return nil
 }
 
@@ -312,7 +333,9 @@ func getManifests(ctx context.Context, client argocdv1.ArgoCDServiceGatewayClien
 		Id:             cluster.Name.ValueString(),
 		IdType:         idv1.Type_NAME,
 	}
-	clusterResp, err := client.GetInstanceCluster(ctx, clusterReq)
+	clusterResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.GetInstanceClusterResponse, error) {
+		return client.GetInstanceCluster(ctx, clusterReq)
+	}, "GetInstanceCluster")
 	if err != nil {
 		return "", errors.Wrap(err, "Unable to read instance cluster")
 	}
@@ -350,7 +373,7 @@ func applyManifests(ctx context.Context, manifests string, cfg *rest.Config) err
 	for _, un := range resources {
 		msg, err := kubectl.ApplyResource(ctx, &un, kube.ApplyOpts{})
 		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("failed to apply manifest"))
+			return errors.Wrap(err, "failed to apply manifest")
 		}
 		tflog.Debug(ctx, msg)
 	}
@@ -390,12 +413,14 @@ func waitClusterHealthStatus(ctx context.Context, client argocdv1.ArgoCDServiceG
 
 	for !slices.Contains(breakStatusesHealth, healthStatus.GetCode()) {
 		time.Sleep(1 * time.Second)
-		apiResp, err := client.GetInstanceCluster(ctx, &argocdv1.GetInstanceClusterRequest{
-			OrganizationId: orgID,
-			InstanceId:     c.InstanceID.ValueString(),
-			Id:             c.Name.ValueString(),
-			IdType:         idv1.Type_NAME,
-		})
+		apiResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.GetInstanceClusterResponse, error) {
+			return client.GetInstanceCluster(ctx, &argocdv1.GetInstanceClusterRequest{
+				OrganizationId: orgID,
+				InstanceId:     c.InstanceID.ValueString(),
+				Id:             c.Name.ValueString(),
+				IdType:         idv1.Type_NAME,
+			})
+		}, "GetInstanceCluster")
 		if err != nil {
 			return err
 		}
@@ -412,12 +437,14 @@ func waitClusterReconStatus(ctx context.Context, client argocdv1.ArgoCDServiceGa
 
 	for !slices.Contains(breakStatusesRecon, reconStatus.GetCode()) {
 		time.Sleep(1 * time.Second)
-		apiResp, err := client.GetInstanceCluster(ctx, &argocdv1.GetInstanceClusterRequest{
-			OrganizationId: orgId,
-			InstanceId:     instanceId,
-			Id:             cluster.Id,
-			IdType:         idv1.Type_ID,
-		})
+		apiResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.GetInstanceClusterResponse, error) {
+			return client.GetInstanceCluster(ctx, &argocdv1.GetInstanceClusterRequest{
+				OrganizationId: orgId,
+				InstanceId:     instanceId,
+				Id:             cluster.Id,
+				IdType:         idv1.Type_ID,
+			})
+		}, "GetInstanceCluster")
 		if err != nil {
 			return nil, err
 		}
@@ -449,4 +476,211 @@ func readStream(resChan <-chan *httpbody.HttpBody, errChan <-chan error) ([]byte
 		}
 	}
 	return data, nil
+}
+
+// deleteCluster handles the deletion of a cluster and optionally its manifests.
+// If getIdByName is true, it will lookup the cluster ID by name before deletion.
+func (r *AkpClusterResource) deleteCluster(ctx context.Context, plan *types.Cluster, includeManifests, getIdByName bool) error {
+	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
+
+	var clusterID string
+
+	if getIdByName {
+		existingClusterReq := &argocdv1.GetInstanceClusterRequest{
+			OrganizationId: r.akpCli.OrgId,
+			InstanceId:     plan.InstanceID.ValueString(),
+			Id:             plan.Name.ValueString(),
+			IdType:         idv1.Type_NAME,
+		}
+
+		existingResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.GetInstanceClusterResponse, error) {
+			return r.akpCli.Cli.GetInstanceCluster(ctx, existingClusterReq)
+		}, "GetInstanceCluster")
+		if err != nil {
+			if status.Code(err) == codes.NotFound || status.Code(err) == codes.PermissionDenied {
+				// Cluster not found, nothing to delete
+				return nil
+			}
+			// Unexpected error occurred while looking up cluster ID
+			return fmt.Errorf("unable to lookup cluster ID by name: %s", err)
+		}
+
+		// Found cluster, use its ID for deletion
+		clusterID = existingResp.GetCluster().Id
+		tflog.Info(ctx, fmt.Sprintf("Found existing cluster %s during create, deleting it first", plan.Name.ValueString()))
+	} else {
+		// Use the ID from the plan (delete when used with `terraform destroy`)
+		clusterID = plan.ID.ValueString()
+		if clusterID == "" {
+			return nil // Nothing to delete
+		}
+	}
+
+	// Delete the manifests if requested and kubeconfig is available
+	if includeManifests {
+		kubeconfig, err := getKubeconfig(ctx, plan.Kubeconfig)
+		if err != nil {
+			return fmt.Errorf("failed to get kubeconfig: %s", err)
+		}
+
+		if kubeconfig != nil {
+			manifests, err := getManifests(ctx, r.akpCli.Cli, r.akpCli.OrgId, plan)
+			if err != nil {
+				return fmt.Errorf("failed to get manifests: %s", err)
+			}
+
+			err = deleteManifests(ctx, manifests, kubeconfig)
+			if err != nil {
+				tflog.Error(ctx, fmt.Sprintf("failed to delete manifests while deleting cluster: %s", err))
+			}
+		}
+	}
+
+	// Delete the cluster from the API
+	apiReq := &argocdv1.DeleteInstanceClusterRequest{
+		OrganizationId: r.akpCli.OrgId,
+		InstanceId:     plan.InstanceID.ValueString(),
+		Id:             clusterID,
+	}
+
+	_, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.DeleteInstanceClusterResponse, error) {
+		return r.akpCli.Cli.DeleteInstanceCluster(ctx, apiReq)
+	}, "DeleteInstanceCluster")
+	if err != nil && (status.Code(err) != codes.NotFound && status.Code(err) != codes.PermissionDenied) {
+		return fmt.Errorf("unable to delete Akuity cluster: %s", err)
+	}
+
+	// Wait for the cluster to actually be deleted with exponential backoff
+	return r.waitForClusterDeletion(ctx, plan.InstanceID.ValueString(), clusterID)
+}
+
+// waitForClusterDeletion polls the API to verify the cluster is actually deleted,
+// using exponential backoff with a maximum wait time of 1 minute.
+func (r *AkpClusterResource) waitForClusterDeletion(ctx context.Context, instanceID, clusterID string) error {
+	const (
+		initialDelay  = 500 * time.Millisecond
+		maxDelay      = 8 * time.Second
+		maxWait       = 5 * time.Minute
+		backoffFactor = 2.0
+	)
+
+	delay := initialDelay
+	start := time.Now()
+
+	for {
+		// Check if we've exceeded the maximum wait time
+		if time.Since(start) > maxWait {
+			return fmt.Errorf("cluster deletion did not complete within %v", maxWait)
+		}
+
+		// Try to get the cluster - if it's gone, we're done
+		getReq := &argocdv1.GetInstanceClusterRequest{
+			OrganizationId: r.akpCli.OrgId,
+			InstanceId:     instanceID,
+			Id:             clusterID,
+			IdType:         idv1.Type_ID,
+		}
+
+		_, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.GetInstanceClusterResponse, error) {
+			return r.akpCli.Cli.GetInstanceCluster(ctx, getReq)
+		}, "GetInstanceCluster")
+		if err != nil {
+			if status.Code(err) == codes.NotFound || status.Code(err) == codes.PermissionDenied {
+				// Cluster is gone, deletion successful
+				tflog.Debug(ctx, fmt.Sprintf("Cluster %s successfully deleted after %v", clusterID, time.Since(start)))
+				return nil
+			}
+			// Some other error occurred, but continue polling
+			tflog.Warn(ctx, fmt.Sprintf("Error checking cluster deletion status: %v", err))
+		}
+
+		// Cluster still exists, wait before retrying
+		tflog.Info(ctx, fmt.Sprintf("Cluster %s still exists, waiting %v before next check", clusterID, delay))
+		time.Sleep(delay)
+
+		// Exponential backoff with cap
+		delay = time.Duration(float64(delay) * backoffFactor)
+		if delay > maxDelay {
+			delay = maxDelay
+		}
+	}
+}
+
+// sizeConfigValidator validates the relationship between size and size configuration attributes
+type sizeConfigValidator struct{}
+
+func (v sizeConfigValidator) Description(ctx context.Context) string {
+	return "Validates that size configuration attributes are only used with appropriate size values"
+}
+
+func (v sizeConfigValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (v sizeConfigValidator) ValidateResource(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	// Get the full resource configuration
+	var config types.Cluster
+
+	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Check if spec is nil
+	if config.Spec == nil {
+		return
+	}
+
+	data := &config.Spec.Data
+	size := data.Size.ValueString()
+	hasAutoConfig := !data.AutoscalerConfig.IsNull()
+	hasCustomConfig := data.CustomAgentSizeConfig != nil
+
+	switch size {
+	case "auto":
+		// auto_agent_size_config is optional when size is "auto" - API provides defaults if not specified
+		if hasCustomConfig {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("spec").AtName("data").AtName("custom_agent_size_config"),
+				"Invalid custom_agent_size_config",
+				"custom_agent_size_config cannot be used when size is 'auto'",
+			)
+		}
+	case "custom":
+		if !hasCustomConfig {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("spec").AtName("data").AtName("custom_agent_size_config"),
+				"Missing custom_agent_size_config",
+				"When size is 'custom', custom_agent_size_config must be specified",
+			)
+		}
+		if hasAutoConfig {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("spec").AtName("data").AtName("auto_agent_size_config"),
+				"Invalid auto_agent_size_config",
+				"auto_agent_size_config cannot be used when size is 'custom'",
+			)
+		}
+	case "small", "medium", "large":
+		if hasAutoConfig {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("spec").AtName("data").AtName("auto_agent_size_config"),
+				"Invalid auto_agent_size_config",
+				fmt.Sprintf("auto_agent_size_config cannot be used when size is '%s'", size),
+			)
+		}
+		if hasCustomConfig {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("spec").AtName("data").AtName("custom_agent_size_config"),
+				"Invalid custom_agent_size_config",
+				fmt.Sprintf("custom_agent_size_config cannot be used when size is '%s'", size),
+			)
+		}
+	default:
+		resp.Diagnostics.AddAttributeError(
+			path.Root("spec").AtName("data").AtName("size"),
+			"Invalid size",
+			"size must be one of 'auto', 'small', 'medium', 'large', or 'custom'",
+		)
+	}
 }

@@ -45,7 +45,7 @@ func getAKPKargoDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 		},
 		"kargo_resources": schema.MapAttribute{
-			MarkdownDescription: "Map of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`, `ClusterPromotionTask`, `Stage`, `Warehouse`, `AnalysisTemplate`, `PromotionTask` and `Secret`(only with kargo.akuity.io/cred-type label). Should all be in the apiVersion `kargo.akuity.io/v1alpha1` except secrets.",
+			MarkdownDescription: "Map of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`,`ClusterPromotionTask`, `Stage`, `Warehouse`, `AnalysisTemplate`, `PromotionTask`(with Groups: `kargo.akuity.io`); `Secret`(only with `kargo.akuity.io/cred-type` label); `ConfigMap`; `Role`, `RoleBinding`, `ServiceAccount`(`rbac.kargo.akuity.io/managed=\"true\"` annotation required)",
 			Computed:            true,
 			ElementType:         types.StringType,
 		},
@@ -125,6 +125,16 @@ func getKargoInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			ElementType:         types.StringType,
 		},
+		"akuity_intelligence": schema.SingleNestedAttribute{
+			MarkdownDescription: "Akuity Intelligence configuration for AI-powered features",
+			Computed:            true,
+			Attributes:          getKargoAkuityIntelligenceDataSourceAttributes(),
+		},
+		"gc_config": schema.SingleNestedAttribute{
+			MarkdownDescription: "Garbage collector configuration",
+			Computed:            true,
+			Attributes:          getGarbageCollectorConfigDataSourceAttributes(),
+		},
 	}
 }
 
@@ -200,6 +210,16 @@ func getOIDCConfigDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			ElementType:         types.StringType,
 		},
+		"user_account": schema.SingleNestedAttribute{
+			MarkdownDescription: "User account",
+			Computed:            true,
+			Attributes:          getKargoPredefinedAccountDataAttributes(),
+		},
+		"project_creator_account": schema.SingleNestedAttribute{
+			MarkdownDescription: "Project creator account",
+			Computed:            true,
+			Attributes:          getKargoPredefinedAccountDataAttributes(),
+		},
 	}
 }
 
@@ -216,6 +236,54 @@ func getKargoPredefinedAccountDataAttributes() map[string]schema.Attribute {
 					},
 				},
 			},
+		},
+	}
+}
+
+func getGarbageCollectorConfigDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"max_retained_freight": schema.Int64Attribute{
+			MarkdownDescription: "Maximum number of freight objects to retain",
+			Computed:            true,
+		},
+		"max_retained_promotions": schema.Int64Attribute{
+			MarkdownDescription: "Maximum number of promotion objects to retain",
+			Computed:            true,
+		},
+		"min_freight_deletion_age": schema.Int64Attribute{
+			MarkdownDescription: "Minimum age in seconds before freight objects can be deleted",
+			Computed:            true,
+		},
+		"min_promotion_deletion_age": schema.Int64Attribute{
+			MarkdownDescription: "Minimum age in seconds before promotion objects can be deleted",
+			Computed:            true,
+		},
+	}
+}
+
+func getKargoAkuityIntelligenceDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"ai_support_engineer_enabled": schema.BoolAttribute{
+			MarkdownDescription: "Enable AI support engineer functionality",
+			Computed:            true,
+		},
+		"enabled": schema.BoolAttribute{
+			MarkdownDescription: "Enable Akuity Intelligence for AI-powered features",
+			Computed:            true,
+		},
+		"allowed_usernames": schema.ListAttribute{
+			MarkdownDescription: "List of usernames allowed to use AI features",
+			Computed:            true,
+			ElementType:         types.StringType,
+		},
+		"allowed_groups": schema.ListAttribute{
+			MarkdownDescription: "List of groups allowed to use AI features",
+			Computed:            true,
+			ElementType:         types.StringType,
+		},
+		"model_version": schema.StringAttribute{
+			MarkdownDescription: "AI model version to use",
+			Computed:            true,
 		},
 	}
 }

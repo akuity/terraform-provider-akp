@@ -52,7 +52,13 @@ func (a *AkpKargoAgentDataSource) Read(ctx context.Context, req datasource.ReadR
 		return
 	}
 	ctx = httpctx.SetAuthorizationHeader(ctx, a.akpCli.Cred.Scheme(), a.akpCli.Cred.Credential())
-	refreshKargoAgentState(ctx, &resp.Diagnostics, a.akpCli.KargoCli, &data, a.akpCli.OrgId, &resp.State, &data)
+	if err := refreshKargoAgentState(ctx, &resp.Diagnostics, a.akpCli.KargoCli, &data, a.akpCli.OrgId, &data); err != nil {
+		resp.Diagnostics.AddError(
+			"Failed to refresh Kargo Agent state",
+			fmt.Sprintf("Error: %v", err),
+		)
+		return
+	}
 	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }

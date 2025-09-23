@@ -67,6 +67,7 @@ Read-Only:
 Read-Only:
 
 - `agent_permissions_rules` (Attributes List) The ability to configure agent permissions rules. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--agent_permissions_rules))
+- `akuity_intelligence_extension` (Attributes) Akuity Intelligence Extension configuration for enhanced AI-powered features (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--akuity_intelligence_extension))
 - `app_in_any_namespace_config` (Attributes) App in any namespace config (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--app_in_any_namespace_config))
 - `app_set_delegate` (Attributes) Select cluster in which you want to Install Application Set controller (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--app_set_delegate))
 - `appset_plugins` (Attributes List) Application Set plugins (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--appset_plugins))
@@ -83,6 +84,7 @@ Read-Only:
 - `image_updater_delegate` (Attributes) Select cluster in which you want to Install Image Updater (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--image_updater_delegate))
 - `image_updater_enabled` (Boolean) Enable Image Updater
 - `ip_allow_list` (Attributes List) IP allow list (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--ip_allow_list))
+- `kube_vision_config` (Attributes) Advanced Akuity Intelligence configuration like CVE scanning and incident resolution (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config))
 - `multi_cluster_k8s_dashboard_enabled` (Boolean) Enable the KubeVision feature
 - `repo_server_delegate` (Attributes) In case some clusters don't have network access to your private Git provider you can delegate these operations to one specific cluster. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--repo_server_delegate))
 - `subdomain` (String) Instance subdomain. By default equals to instance id
@@ -96,6 +98,18 @@ Read-Only:
 - `api_groups` (List of String) API groups of the rule.
 - `resources` (List of String) Resources of the rule.
 - `verbs` (List of String) Verbs of the rule.
+
+
+<a id="nestedatt--argocd--spec--instance_spec--akuity_intelligence_extension"></a>
+### Nested Schema for `argocd.spec.instance_spec.akuity_intelligence_extension`
+
+Read-Only:
+
+- `ai_support_engineer_enabled` (Boolean) Enable AI support engineer functionality
+- `allowed_groups` (List of String) List of groups allowed to use AI features
+- `allowed_usernames` (List of String) List of usernames allowed to use AI features
+- `enabled` (Boolean) Enable Akuity Intelligence Extension for AI-powered features
+- `model_version` (String) AI model version to use
 
 
 <a id="nestedatt--argocd--spec--instance_spec--app_in_any_namespace_config"></a>
@@ -216,6 +230,87 @@ Read-Only:
 
 - `description` (String) IP description
 - `ip` (String) IP address
+
+
+<a id="nestedatt--argocd--spec--instance_spec--kube_vision_config"></a>
+### Nested Schema for `argocd.spec.instance_spec.kube_vision_config`
+
+Read-Only:
+
+- `ai_config` (Attributes) AI advanced configuration like runbooks and incidents (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config))
+- `cve_scan_config` (Attributes) CVE scanning configuration (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--cve_scan_config))
+
+<a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config"></a>
+### Nested Schema for `argocd.spec.instance_spec.kube_vision_config.ai_config`
+
+Read-Only:
+
+- `argocd_slack_service` (String) ArgoCD Slack service configuration
+- `incidents` (Attributes) Incident configuration (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents))
+- `runbooks` (Attributes List) List of AI runbooks to use for incident resolution (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--runbooks))
+
+<a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents"></a>
+### Nested Schema for `argocd.spec.instance_spec.kube_vision_config.ai_config.incidents`
+
+Read-Only:
+
+- `triggers` (Attributes List) List of incident triggers (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents--triggers))
+- `webhooks` (Attributes List) List of incident webhooks (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents--webhooks))
+
+<a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents--triggers"></a>
+### Nested Schema for `argocd.spec.instance_spec.kube_vision_config.ai_config.incidents.triggers`
+
+Read-Only:
+
+- `argocd_applications` (List of String) List of ArgoCD applications to trigger an incident.
+- `clusters` (List of String) List of clusters to trigger an incident.
+- `degraded_for` (String) Trigger an incident after this duration of degradation. Can be a duration string like '1h' '10m' or '10s'.
+- `k8s_namespaces` (List of String) List of Kubernetes namespaces to trigger an incident.
+
+
+<a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents--webhooks"></a>
+### Nested Schema for `argocd.spec.instance_spec.kube_vision_config.ai_config.incidents.webhooks`
+
+Read-Only:
+
+- `argocd_application_name_path` (String) JSON path for ArgoCD application name field
+- `cluster_path` (String) JSON path for cluster field
+- `description_path` (String) JSON path for description field
+- `k8s_namespace_path` (String) JSON path for Kubernetes namespace field
+- `name` (String) Webhook name
+
+
+
+<a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--runbooks"></a>
+### Nested Schema for `argocd.spec.instance_spec.kube_vision_config.ai_config.runbooks`
+
+Read-Only:
+
+- `applied_to` (Attributes) Target selector for runbook application (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--runbooks--applied_to))
+- `content` (String) Runbook content
+- `name` (String) Runbook name
+
+<a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--runbooks--applied_to"></a>
+### Nested Schema for `argocd.spec.instance_spec.kube_vision_config.ai_config.runbooks.applied_to`
+
+Read-Only:
+
+- `argocd_applications` (List of String) List of ArgoCD applications to trigger an incident.
+- `clusters` (List of String) List of clusters to trigger an incident.
+- `degraded_for` (String) Trigger an incident after this duration of degradation. Can be a duration string like '1h' '10m' or '10s'.
+- `k8s_namespaces` (List of String) List of Kubernetes namespaces to trigger an incident.
+
+
+
+
+<a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--cve_scan_config"></a>
+### Nested Schema for `argocd.spec.instance_spec.kube_vision_config.cve_scan_config`
+
+Read-Only:
+
+- `rescan_interval` (String) CVE rescan interval
+- `scan_enabled` (Boolean) Enable CVE scanning
+
 
 
 <a id="nestedatt--argocd--spec--instance_spec--repo_server_delegate"></a>

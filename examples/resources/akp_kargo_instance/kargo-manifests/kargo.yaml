@@ -141,3 +141,117 @@ metadata:
   name: generic
   namespace: kargo-demo
 type: Opaque
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/component: api
+    app.kubernetes.io/instance: kargo
+    app.kubernetes.io/name: kargo
+  name: kargo-cm
+  namespace: kargo-demo
+data:
+  adminAccountEnabled: "true"
+  adminAccountTokenTtl: 24h
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  annotations:
+    rbac.kargo.akuity.io/managed: "true"
+  name: kargo-admin
+  namespace: kargo-demo
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  - serviceaccounts
+  verbs:
+  - '*'
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - rolebindings
+  - roles
+  verbs:
+  - '*'
+- apiGroups:
+  - kargo.akuity.io
+  resources:
+  - freights
+  - stages
+  - warehouses
+  - projectconfigs
+  verbs:
+  - '*'
+- apiGroups:
+  - kargo.akuity.io
+  resources:
+  - stages
+  verbs:
+  - promote
+- apiGroups:
+  - kargo.akuity.io
+  resources:
+  - promotions
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - watch
+- apiGroups:
+  - kargo.akuity.io
+  resources:
+  - freights/status
+  verbs:
+  - patch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - analysisruns
+  verbs:
+  - delete
+  - get
+  - list
+  - watch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - analysistemplates
+  verbs:
+  - '*'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  annotations:
+    rbac.kargo.akuity.io/managed: "true"
+  name: kargo-admin
+  namespace: kargo-demo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: kargo-admin
+subjects:
+- kind: ServiceAccount
+  name: kargo-admin
+  namespace: kargo-demo
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    rbac.kargo.akuity.io/managed: "true"
+  name: kargo-admin
+  namespace: kargo-demo

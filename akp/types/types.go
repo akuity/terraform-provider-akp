@@ -9,7 +9,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"google.golang.org/protobuf/types/known/structpb"
 	yamlv3 "gopkg.in/yaml.v3"
@@ -25,15 +24,37 @@ import (
 
 var (
 	clusterCustomizationAttrTypes = map[string]attr.Type{
-		"auto_upgrade_disabled": tftypes.BoolType,
-		"kustomization":         tftypes.StringType,
-		"app_replication":       tftypes.BoolType,
-		"redis_tunneling":       tftypes.BoolType,
+		"auto_upgrade_disabled": types.BoolType,
+		"kustomization":         types.StringType,
+		"app_replication":       types.BoolType,
+		"redis_tunneling":       types.BoolType,
 	}
 
 	appsetPolicyAttrTypes = map[string]attr.Type{
-		"policy":          tftypes.StringType,
-		"override_policy": tftypes.BoolType,
+		"policy":          types.StringType,
+		"override_policy": types.BoolType,
+	}
+
+	resourcesAttrTypes = map[string]attr.Type{
+		"memory": types.StringType,
+		"cpu":    types.StringType,
+	}
+
+	appControllerAutoScalingAttrTypes = map[string]attr.Type{
+		"resource_minimum": types.ObjectType{AttrTypes: resourcesAttrTypes},
+		"resource_maximum": types.ObjectType{AttrTypes: resourcesAttrTypes},
+	}
+
+	repoServerAutoScalingAttrTypes = map[string]attr.Type{
+		"resource_minimum": types.ObjectType{AttrTypes: resourcesAttrTypes},
+		"resource_maximum": types.ObjectType{AttrTypes: resourcesAttrTypes},
+		"replicas_maximum": types.Int64Type,
+		"replicas_minimum": types.Int64Type,
+	}
+
+	autoScalerConfigAttrTypes = map[string]attr.Type{
+		"application_controller": types.ObjectType{AttrTypes: appControllerAutoScalingAttrTypes},
+		"repo_server":            types.ObjectType{AttrTypes: repoServerAutoScalingAttrTypes},
 	}
 
 	ClusterSizeString = map[argocdv1.ClusterSize]string{
@@ -50,30 +71,18 @@ var (
 )
 
 func (a *ArgoCD) Update(ctx context.Context, diagnostics *diag.Diagnostics, cd *v1alpha1.ArgoCD) {
-	declarativeManagementEnabled := false
-	if cd.Spec.InstanceSpec.DeclarativeManagementEnabled != nil && *cd.Spec.InstanceSpec.DeclarativeManagementEnabled {
-		declarativeManagementEnabled = true
-	}
-	imageUpdaterEnabled := false
-	if cd.Spec.InstanceSpec.ImageUpdaterEnabled != nil && *cd.Spec.InstanceSpec.ImageUpdaterEnabled {
-		imageUpdaterEnabled = true
-	}
-	backendIpAllowListEnabled := false
-	if cd.Spec.InstanceSpec.BackendIpAllowListEnabled != nil && *cd.Spec.InstanceSpec.BackendIpAllowListEnabled {
-		backendIpAllowListEnabled = true
-	}
-	auditExtensionEnabled := false
-	if cd.Spec.InstanceSpec.AuditExtensionEnabled != nil && *cd.Spec.InstanceSpec.AuditExtensionEnabled {
-		auditExtensionEnabled = true
-	}
-	syncHistoryExtensionEnabled := false
-	if cd.Spec.InstanceSpec.SyncHistoryExtensionEnabled != nil && *cd.Spec.InstanceSpec.SyncHistoryExtensionEnabled {
-		syncHistoryExtensionEnabled = true
-	}
-	assistantExtensionEnabled := false
-	if cd.Spec.InstanceSpec.AssistantExtensionEnabled != nil && *cd.Spec.InstanceSpec.AssistantExtensionEnabled {
-		assistantExtensionEnabled = true
-	}
+	declarativeManagementEnabled := cd.Spec.InstanceSpec.DeclarativeManagementEnabled != nil && *cd.Spec.InstanceSpec.DeclarativeManagementEnabled
+
+	imageUpdaterEnabled := cd.Spec.InstanceSpec.ImageUpdaterEnabled != nil && *cd.Spec.InstanceSpec.ImageUpdaterEnabled
+
+	backendIpAllowListEnabled := cd.Spec.InstanceSpec.BackendIpAllowListEnabled != nil && *cd.Spec.InstanceSpec.BackendIpAllowListEnabled
+
+	auditExtensionEnabled := cd.Spec.InstanceSpec.AuditExtensionEnabled != nil && *cd.Spec.InstanceSpec.AuditExtensionEnabled
+
+	syncHistoryExtensionEnabled := cd.Spec.InstanceSpec.SyncHistoryExtensionEnabled != nil && *cd.Spec.InstanceSpec.SyncHistoryExtensionEnabled
+
+	assistantExtensionEnabled := cd.Spec.InstanceSpec.AssistantExtensionEnabled != nil && *cd.Spec.InstanceSpec.AssistantExtensionEnabled
+
 	fqdn := ""
 	if cd.Spec.InstanceSpec.Fqdn != nil {
 		fqdn = *cd.Spec.InstanceSpec.Fqdn
@@ -95,30 +104,32 @@ func (a *ArgoCD) Update(ctx context.Context, diagnostics *diag.Diagnostics, cd *
 	}
 
 	a.Spec = ArgoCDSpec{
-		Description: tftypes.StringValue(cd.Spec.Description),
-		Version:     tftypes.StringValue(cd.Spec.Version),
+		Description: types.StringValue(cd.Spec.Description),
+		Version:     types.StringValue(cd.Spec.Version),
 		InstanceSpec: InstanceSpec{
 			IpAllowList:                     toIPAllowListTFModel(cd.Spec.InstanceSpec.IpAllowList),
-			Subdomain:                       tftypes.StringValue(cd.Spec.InstanceSpec.Subdomain),
-			DeclarativeManagementEnabled:    tftypes.BoolValue(declarativeManagementEnabled),
+			Subdomain:                       types.StringValue(cd.Spec.InstanceSpec.Subdomain),
+			DeclarativeManagementEnabled:    types.BoolValue(declarativeManagementEnabled),
 			Extensions:                      toExtensionsTFModel(cd.Spec.InstanceSpec.Extensions),
 			ClusterCustomizationDefaults:    a.toClusterCustomizationTFModel(ctx, diagnostics, cd.Spec.InstanceSpec.ClusterCustomizationDefaults),
-			ImageUpdaterEnabled:             tftypes.BoolValue(imageUpdaterEnabled),
-			BackendIpAllowListEnabled:       tftypes.BoolValue(backendIpAllowListEnabled),
+			ImageUpdaterEnabled:             types.BoolValue(imageUpdaterEnabled),
+			BackendIpAllowListEnabled:       types.BoolValue(backendIpAllowListEnabled),
 			RepoServerDelegate:              toRepoServerDelegateTFModel(cd.Spec.InstanceSpec.RepoServerDelegate),
-			AuditExtensionEnabled:           tftypes.BoolValue(auditExtensionEnabled),
-			SyncHistoryExtensionEnabled:     tftypes.BoolValue(syncHistoryExtensionEnabled),
+			AuditExtensionEnabled:           types.BoolValue(auditExtensionEnabled),
+			SyncHistoryExtensionEnabled:     types.BoolValue(syncHistoryExtensionEnabled),
 			CrossplaneExtension:             toCrossplaneExtensionTFModel(cd.Spec.InstanceSpec.CrossplaneExtension),
 			ImageUpdaterDelegate:            toImageUpdaterDelegateTFModel(cd.Spec.InstanceSpec.ImageUpdaterDelegate),
 			AppSetDelegate:                  toAppSetDelegateTFModel(cd.Spec.InstanceSpec.AppSetDelegate),
-			AssistantExtensionEnabled:       tftypes.BoolValue(assistantExtensionEnabled),
+			AssistantExtensionEnabled:       types.BoolValue(assistantExtensionEnabled),
 			AppsetPolicy:                    toAppsetPolicyTFModel(ctx, diagnostics, cd.Spec.InstanceSpec.AppsetPolicy),
 			HostAliases:                     toHostAliasesTFModel(cd.Spec.InstanceSpec.HostAliases),
 			AgentPermissionsRules:           toAgentPermissionsRulesTFModel(cd.Spec.InstanceSpec.AgentPermissionsRules),
 			Fqdn:                            types.StringValue(fqdn),
-			MultiClusterK8SDashboardEnabled: tftypes.BoolValue(multiClusterK8SDashboardEnabled),
+			MultiClusterK8SDashboardEnabled: types.BoolValue(multiClusterK8SDashboardEnabled),
 			AppInAnyNamespaceConfig:         appInAnyNamespaceConfig,
 			AppsetPlugins:                   toAppsetPluginsTFModel(cd.Spec.InstanceSpec.AppsetPlugins),
+			AkuityIntelligenceExtension:     toAkuityIntelligenceExtensionTFModel(cd.Spec.InstanceSpec.AkuityIntelligenceExtension, a),
+			KubeVisionConfig:                toKubeVisionConfigTFModel(cd.Spec.InstanceSpec.KubeVisionConfig, a),
 		},
 	}
 }
@@ -157,12 +168,14 @@ func (a *ArgoCD) ToArgoCDAPIModel(ctx context.Context, diag *diag.Diagnostics, n
 				MultiClusterK8SDashboardEnabled: toBoolPointer(a.Spec.InstanceSpec.MultiClusterK8SDashboardEnabled),
 				AppInAnyNamespaceConfig:         toAppInAnyNamespaceConfigAPIModel(a.Spec.InstanceSpec.AppInAnyNamespaceConfig),
 				AppsetPlugins:                   toAppsetPluginsAPIModel(a.Spec.InstanceSpec.AppsetPlugins),
+				AkuityIntelligenceExtension:     toAkuityIntelligenceExtensionAPIModel(a.Spec.InstanceSpec.AkuityIntelligenceExtension),
+				KubeVisionConfig:                toKubeVisionConfigAPIModel(a.Spec.InstanceSpec.KubeVisionConfig),
 			},
 		},
 	}
 }
 
-func toBoolPointer(b tftypes.Bool) *bool {
+func toBoolPointer(b types.Bool) *bool {
 	if b.IsUnknown() {
 		return nil
 	}
@@ -170,25 +183,25 @@ func toBoolPointer(b tftypes.Bool) *bool {
 }
 
 func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, apiCluster *argocdv1.Cluster, plan *Cluster) {
-	c.ID = tftypes.StringValue(apiCluster.GetId())
-	c.Name = tftypes.StringValue(apiCluster.GetName())
-	c.Namespace = tftypes.StringValue(apiCluster.GetNamespace())
+	c.ID = types.StringValue(apiCluster.GetId())
+	c.Name = types.StringValue(apiCluster.GetName())
+	c.Namespace = types.StringValue(apiCluster.GetData().Namespace)
 	if c.RemoveAgentResourcesOnDestroy.IsUnknown() || c.RemoveAgentResourcesOnDestroy.IsNull() {
-		c.RemoveAgentResourcesOnDestroy = tftypes.BoolValue(true)
+		c.RemoveAgentResourcesOnDestroy = types.BoolValue(true)
 	}
 	if c.ReapplyManifestsOnUpdate.IsUnknown() || c.ReapplyManifestsOnUpdate.IsNull() {
-		c.ReapplyManifestsOnUpdate = tftypes.BoolValue(false)
+		c.ReapplyManifestsOnUpdate = types.BoolValue(false)
 	} else {
 		c.ReapplyManifestsOnUpdate = plan.ReapplyManifestsOnUpdate
 	}
-	labels, d := tftypes.MapValueFrom(ctx, tftypes.StringType, apiCluster.GetData().GetLabels())
+	labels, d := types.MapValueFrom(ctx, types.StringType, apiCluster.GetData().GetLabels())
 	if d.HasError() {
-		labels = tftypes.MapNull(tftypes.StringType)
+		labels = types.MapNull(types.StringType)
 	}
 	diagnostics.Append(d...)
-	annotations, d := tftypes.MapValueFrom(ctx, tftypes.StringType, apiCluster.GetData().GetAnnotations())
+	annotations, d := types.MapValueFrom(ctx, types.StringType, apiCluster.GetData().GetAnnotations())
 	if d.HasError() {
-		annotations = tftypes.MapNull(tftypes.StringType)
+		annotations = types.MapNull(types.StringType)
 	}
 	diagnostics.Append(d...)
 	jsonData, err := apiCluster.GetData().GetKustomization().MarshalJSON()
@@ -200,19 +213,30 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 		diagnostics.AddError("getting cluster kustomization", err.Error())
 	}
 
-	var kustomization tftypes.String
+	var kustomization types.String
 	if plan != nil && plan.Spec != nil && !plan.Spec.Data.Kustomization.IsNull() && !plan.Spec.Data.Kustomization.IsUnknown() {
+		yamlMap := map[string]any{}
+		if err := yaml.Unmarshal(yamlData, &yamlMap); err != nil {
+			diagnostics.AddError("failed to unmarshal plan kustomization", err.Error())
+		}
+		// Ensure the kustomization is valid, api only returns patches and replicas.
+		yamlMap["apiVersion"] = "kustomize.config.k8s.io/v1beta1"
+		yamlMap["kind"] = "Kustomization"
+		yamlData, err = yaml.Marshal(yamlMap)
+		if err != nil {
+			diagnostics.AddError("failed to marshal yaml map", err.Error())
+		}
 		if isKustomizationSubset(plan.Spec.Data.Kustomization.ValueString(), string(yamlData)) {
 			kustomization = plan.Spec.Data.Kustomization
 		}
 	} else if apiCluster.GetData().GetKustomization() != nil {
 		// When no kustomization is specified in the plan, set it to obtained value from the API
-		kustomization = tftypes.StringValue(string(yamlData))
+		kustomization = types.StringValue(string(yamlData))
 	} else {
-		kustomization = tftypes.StringNull()
+		kustomization = types.StringNull()
 	}
 
-	var size tftypes.String
+	var size types.String
 	var customConfig *CustomAgentSizeConfig
 	if plan != nil && plan.Spec != nil && plan.Spec.Data.CustomAgentSizeConfig != nil && plan.Spec.Data.Size.ValueString() == "custom" {
 		size = plan.Spec.Data.Size
@@ -222,89 +246,82 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 		} else {
 			if isKustomizationSubset(customKustomization, string(yamlData)) {
 				customConfig = plan.Spec.Data.CustomAgentSizeConfig
-				size = tftypes.StringValue("custom")
+				size = types.StringValue("custom")
 			} else {
-				size = tftypes.StringValue(ClusterSizeString[apiCluster.GetData().GetSize()])
+				size = types.StringValue(ClusterSizeString[apiCluster.GetData().GetSize()])
 			}
 		}
 	} else {
-		size = tftypes.StringValue(ClusterSizeString[apiCluster.GetData().GetSize()])
+		size = types.StringValue(ClusterSizeString[apiCluster.GetData().GetSize()])
 	}
 
 	c.Labels = labels
 	c.Annotations = annotations
-
-	autoscalerConfig := toAutoScalerConfigTFModel(nil)
-	if plan != nil && plan.Spec != nil && plan.Spec.Data.Size.ValueString() == "auto" {
-		newAPIConfig := apiCluster.GetData().GetAutoscalerConfig()
-		if !plan.Spec.Data.AutoscalerConfig.IsNull() && !plan.Spec.Data.AutoscalerConfig.IsUnknown() && newAPIConfig != nil &&
-			newAPIConfig.RepoServer != nil && newAPIConfig.ApplicationController != nil {
-			newConfig := &AutoScalerConfig{
-				ApplicationController: &AppControllerAutoScalingConfig{
-					ResourceMinimum: &Resources{
-						Memory: tftypes.StringValue(newAPIConfig.ApplicationController.ResourceMinimum.Mem),
-						Cpu:    tftypes.StringValue(newAPIConfig.ApplicationController.ResourceMinimum.Cpu),
-					},
-					ResourceMaximum: &Resources{
-						Memory: tftypes.StringValue(newAPIConfig.ApplicationController.ResourceMaximum.Mem),
-						Cpu:    tftypes.StringValue(newAPIConfig.ApplicationController.ResourceMaximum.Cpu),
-					},
-				},
-				RepoServer: &RepoServerAutoScalingConfig{
-					ResourceMinimum: &Resources{
-						Memory: tftypes.StringValue(newAPIConfig.RepoServer.ResourceMinimum.Mem),
-						Cpu:    tftypes.StringValue(newAPIConfig.RepoServer.ResourceMinimum.Cpu),
-					},
-					ResourceMaximum: &Resources{
-						Memory: tftypes.StringValue(newAPIConfig.RepoServer.ResourceMaximum.Mem),
-						Cpu:    tftypes.StringValue(newAPIConfig.RepoServer.ResourceMaximum.Cpu),
-					},
-					ReplicasMaximum: tftypes.Int64Value(int64(newAPIConfig.RepoServer.ReplicaMaximum)),
-					ReplicasMinimum: tftypes.Int64Value(int64(newAPIConfig.RepoServer.ReplicaMinimum)),
-				},
-			}
-			if areAutoScalerConfigsEquivalent(extractConfigFromObjectValue(plan.Spec.Data.AutoscalerConfig), newConfig) {
-				autoscalerConfig = plan.Spec.Data.AutoscalerConfig
-			} else {
-				autoscalerConfig = toAutoScalerConfigTFModel(newAPIConfig)
-			}
-		} else {
-			autoscalerConfig = toAutoScalerConfigTFModel(newAPIConfig)
-		}
-	}
 
 	var directClusterSpec *DirectClusterSpec
 	if plan != nil && plan.Spec != nil && plan.Spec.Data.DirectClusterSpec != nil {
 		clusterType := DirectClusterTypeString[apiCluster.GetData().DirectClusterSpec.GetClusterType()]
 		if clusterType == DirectClusterTypeString[argocdv1.DirectClusterType_DIRECT_CLUSTER_TYPE_KARGO] {
 			directClusterSpec = &DirectClusterSpec{
-				ClusterType:     tftypes.StringValue(clusterType),
-				KargoInstanceId: tftypes.StringValue(apiCluster.GetData().DirectClusterSpec.GetKargoInstanceId()),
+				ClusterType:     types.StringValue(clusterType),
+				KargoInstanceId: types.StringValue(apiCluster.GetData().DirectClusterSpec.GetKargoInstanceId()),
 			}
 		}
 	}
 
+	// Handle EksAddonEnabled field
+	var eksAddonEnabled types.Bool
+	if plan != nil && plan.Spec != nil && !plan.Spec.Data.EksAddonEnabled.IsUnknown() {
+		// If the plan has a value (including null), preserve the plan value to avoid inconsistency
+		eksAddonEnabled = plan.Spec.Data.EksAddonEnabled
+	} else {
+		// Otherwise, use the API value
+		eksAddonEnabled = types.BoolValue(apiCluster.GetData().GetEksAddonEnabled())
+	}
+
+	// Handle DatadogAnnotationsEnabled field
+	var datadogAnnotationsEnabled types.Bool
+	if plan != nil && plan.Spec != nil && !plan.Spec.Data.DatadogAnnotationsEnabled.IsUnknown() {
+		// If the plan has a value (including null), preserve the plan value to avoid inconsistency
+		datadogAnnotationsEnabled = plan.Spec.Data.DatadogAnnotationsEnabled
+	} else {
+		// Otherwise, use the API value
+		datadogAnnotationsEnabled = types.BoolValue(apiCluster.GetData().GetDatadogAnnotationsEnabled())
+	}
+
+	var namespaceScoped types.Bool
+	if plan != nil && plan.Spec != nil && !plan.Spec.NamespaceScoped.IsUnknown() {
+		namespaceScoped = plan.Spec.NamespaceScoped
+	} else {
+		namespaceScoped = types.BoolValue(apiCluster.GetNamespaceScoped()) //nolint:staticcheck
+	}
 	c.Spec = &ClusterSpec{
-		Description:     tftypes.StringValue(apiCluster.GetDescription()),
-		NamespaceScoped: tftypes.BoolValue(apiCluster.GetNamespaceScoped()),
+		NamespaceScoped: namespaceScoped,
 		Data: ClusterData{
 			Size:                            size,
-			AutoUpgradeDisabled:             tftypes.BoolValue(apiCluster.GetData().GetAutoUpgradeDisabled()),
+			AutoUpgradeDisabled:             types.BoolValue(apiCluster.GetData().GetAutoUpgradeDisabled()),
 			Kustomization:                   kustomization,
-			AppReplication:                  tftypes.BoolValue(apiCluster.GetData().GetAppReplication()),
-			TargetVersion:                   tftypes.StringValue(apiCluster.GetData().GetTargetVersion()),
-			RedisTunneling:                  tftypes.BoolValue(apiCluster.GetData().GetRedisTunneling()),
-			DatadogAnnotationsEnabled:       tftypes.BoolValue(apiCluster.GetData().GetDatadogAnnotationsEnabled()),
-			EksAddonEnabled:                 tftypes.BoolValue(apiCluster.GetData().GetEksAddonEnabled()),
+			AppReplication:                  types.BoolValue(apiCluster.GetData().GetAppReplication()),
+			TargetVersion:                   types.StringValue(apiCluster.GetData().GetTargetVersion()),
+			RedisTunneling:                  types.BoolValue(apiCluster.GetData().GetRedisTunneling()),
+			EksAddonEnabled:                 eksAddonEnabled,
+			DatadogAnnotationsEnabled:       datadogAnnotationsEnabled,
 			ManagedClusterConfig:            toManagedClusterConfigTFModel(apiCluster.GetData().GetManagedClusterConfig()),
-			MultiClusterK8SDashboardEnabled: tftypes.BoolValue(apiCluster.GetData().GetMultiClusterK8SDashboardEnabled()),
-			AutoscalerConfig:                autoscalerConfig,
+			MultiClusterK8SDashboardEnabled: types.BoolValue(apiCluster.GetData().GetMultiClusterK8SDashboardEnabled()),
+			AutoscalerConfig:                toAutoScalerConfigTFModel(plan, apiCluster.GetData().GetAutoscalerConfig()),
 			CustomAgentSizeConfig:           customConfig,
-			Project:                         tftypes.StringValue(apiCluster.GetData().GetProject()),
 			Compatibility:                   toCompatibilityTFModel(plan, apiCluster.GetData().GetCompatibility()),
 			ArgocdNotificationsSettings:     toArgoCDNotificationsSettingsTFModel(plan, apiCluster.GetData().GetArgocdNotificationsSettings()),
 			DirectClusterSpec:               directClusterSpec,
 		},
+	}
+
+	if apiCluster.GetDescription() != "" {
+		c.Spec.Description = types.StringValue(apiCluster.GetDescription())
+	}
+
+	if apiCluster.GetData().GetProject() != "" {
+		c.Spec.Data.Project = types.StringValue(apiCluster.GetData().GetProject())
 	}
 }
 
@@ -327,17 +344,17 @@ func (c *Cluster) ToClusterAPIModel(ctx context.Context, diagnostics *diag.Diagn
 		Spec: v1alpha1.ClusterSpec{
 			Description:     c.Spec.Description.ValueString(),
 			NamespaceScoped: c.Spec.NamespaceScoped.ValueBool(),
-			Data:            toClusterDataAPIModel(ctx, diagnostics, c.Spec.Data),
+			Data:            toClusterDataAPIModel(diagnostics, c.Spec.Data),
 		},
 	}
 }
 
 func (c *ConfigManagementPlugin) Update(ctx context.Context, diagnostics *diag.Diagnostics, cmp *v1alpha1.ConfigManagementPlugin) {
-	version := tftypes.StringNull()
+	version := types.StringNull()
 	if cmp.Spec.Version != "" {
-		version = tftypes.StringValue(cmp.Spec.Version)
+		version = types.StringValue(cmp.Spec.Version)
 	}
-	c.Enabled = tftypes.BoolValue(cmp.Annotations[v1alpha1.AnnotationCMPEnabled] == "true")
+	c.Enabled = types.BoolValue(cmp.Annotations[v1alpha1.AnnotationCMPEnabled] == "true")
 	c.Image = types.StringValue(cmp.Annotations[v1alpha1.AnnotationCMPImage])
 	c.Spec = &PluginSpec{
 		Version:          version,
@@ -345,7 +362,7 @@ func (c *ConfigManagementPlugin) Update(ctx context.Context, diagnostics *diag.D
 		Generate:         toCommandTFModel(cmp.Spec.Generate),
 		Discover:         toDiscoverTFModel(cmp.Spec.Discover),
 		Parameters:       toParametersTFModel(ctx, diagnostics, cmp.Spec.Parameters),
-		PreserveFileMode: tftypes.BoolValue(cmp.Spec.PreserveFileMode),
+		PreserveFileMode: types.BoolValue(cmp.Spec.PreserveFileMode),
 	}
 }
 
@@ -391,21 +408,7 @@ func ToConfigManagementPluginsTFModel(ctx context.Context, diagnostics *diag.Dia
 	return newCMPs
 }
 
-func toClusterDataAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, clusterData ClusterData) v1alpha1.ClusterData {
-	var autoscalerConfig *AutoScalerConfig
-	if d := clusterData.AutoscalerConfig.As(ctx, &autoscalerConfig, basetypes.ObjectAsOptions{
-		UnhandledNullAsEmpty:    true,
-		UnhandledUnknownAsEmpty: true,
-	}); d.HasError() {
-		diagnostics.AddError("failed to convert autoscaler config", "")
-		return v1alpha1.ClusterData{}
-	}
-
-	size, raw := handleAgentSizeAndKustomization(diagnostics, &clusterData, autoscalerConfig)
-	if diagnostics.HasError() {
-		return v1alpha1.ClusterData{}
-	}
-
+func toClusterDataAPIModel(diagnostics *diag.Diagnostics, clusterData ClusterData) v1alpha1.ClusterData {
 	var managedConfig *v1alpha1.ManagedClusterConfig
 	if clusterData.ManagedClusterConfig != nil {
 		managedConfig = &v1alpha1.ManagedClusterConfig{
@@ -413,76 +416,6 @@ func toClusterDataAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, c
 			SecretKey:  clusterData.ManagedClusterConfig.SecretKey.ValueString(),
 		}
 	}
-
-	autoscalerConfigAPI := &v1alpha1.AutoScalerConfig{}
-	if autoscalerConfig != nil {
-		if autoscalerConfig.RepoServer != nil {
-			if autoscalerConfig.RepoServer.ResourceMaximum == nil || autoscalerConfig.RepoServer.ResourceMinimum == nil {
-				diagnostics.AddError("repo server autoscaler config requires minimum and maximum resources", "")
-				return v1alpha1.ClusterData{}
-			}
-			if autoscalerConfig.RepoServer.ResourceMinimum.Memory.ValueString() == "" || autoscalerConfig.RepoServer.ResourceMinimum.Cpu.ValueString() == "" ||
-				autoscalerConfig.RepoServer.ResourceMaximum.Memory.ValueString() == "" || autoscalerConfig.RepoServer.ResourceMaximum.Cpu.ValueString() == "" ||
-				autoscalerConfig.RepoServer.ReplicasMaximum.ValueInt64() == 0 || autoscalerConfig.RepoServer.ReplicasMinimum.ValueInt64() == 0 {
-				diagnostics.AddError("repo server autoscaler config requires memory, cpu, and replicas values", "")
-				return v1alpha1.ClusterData{}
-			}
-			if !areResourcesValid(
-				autoscalerConfig.RepoServer.ResourceMinimum.Memory.ValueString(),
-				autoscalerConfig.RepoServer.ResourceMaximum.Memory.ValueString(),
-			) {
-				diagnostics.AddError("repo server minimum memory must be less than or equal to maximum memory", "")
-				return v1alpha1.ClusterData{}
-			}
-			if !areResourcesValid(
-				autoscalerConfig.RepoServer.ResourceMinimum.Cpu.ValueString(),
-				autoscalerConfig.RepoServer.ResourceMaximum.Cpu.ValueString(),
-			) {
-				diagnostics.AddError("repo server minimum CPU must be less than or equal to maximum CPU", "")
-				return v1alpha1.ClusterData{}
-			}
-			if autoscalerConfig.RepoServer.ReplicasMinimum.ValueInt64() > autoscalerConfig.RepoServer.ReplicasMaximum.ValueInt64() {
-				diagnostics.AddError("repo server minimum replicas must be less than or equal to maximum replicas", "")
-				return v1alpha1.ClusterData{}
-			}
-			autoscalerConfigAPI.RepoServer = &v1alpha1.RepoServerAutoScalingConfig{
-				ResourceMinimum: toResourcesAPIModel(autoscalerConfig.RepoServer.ResourceMinimum),
-				ResourceMaximum: toResourcesAPIModel(autoscalerConfig.RepoServer.ResourceMaximum),
-				ReplicaMaximum:  int32(autoscalerConfig.RepoServer.ReplicasMaximum.ValueInt64()),
-				ReplicaMinimum:  int32(autoscalerConfig.RepoServer.ReplicasMinimum.ValueInt64()),
-			}
-		}
-		if autoscalerConfig.ApplicationController != nil {
-			if autoscalerConfig.ApplicationController.ResourceMaximum == nil || autoscalerConfig.ApplicationController.ResourceMinimum == nil {
-				diagnostics.AddError("app controller autoscaler config requires minimum and maximum resources", "")
-				return v1alpha1.ClusterData{}
-			}
-			if autoscalerConfig.ApplicationController.ResourceMinimum.Memory.ValueString() == "" || autoscalerConfig.ApplicationController.ResourceMinimum.Cpu.ValueString() == "" ||
-				autoscalerConfig.ApplicationController.ResourceMaximum.Memory.ValueString() == "" || autoscalerConfig.ApplicationController.ResourceMaximum.Cpu.ValueString() == "" {
-				diagnostics.AddError("app controller autoscaler config requires memory, cpu values", "")
-				return v1alpha1.ClusterData{}
-			}
-			if !areResourcesValid(
-				autoscalerConfig.ApplicationController.ResourceMinimum.Memory.ValueString(),
-				autoscalerConfig.ApplicationController.ResourceMaximum.Memory.ValueString(),
-			) {
-				diagnostics.AddError("application controller minimum memory must be less than or equal to maximum memory", "")
-				return v1alpha1.ClusterData{}
-			}
-			if !areResourcesValid(
-				autoscalerConfig.ApplicationController.ResourceMinimum.Cpu.ValueString(),
-				autoscalerConfig.ApplicationController.ResourceMaximum.Cpu.ValueString(),
-			) {
-				diagnostics.AddError("application controller minimum CPU must be less than or equal to maximum CPU", "")
-				return v1alpha1.ClusterData{}
-			}
-			autoscalerConfigAPI.ApplicationController = &v1alpha1.AppControllerAutoScalingConfig{
-				ResourceMinimum: toResourcesAPIModel(autoscalerConfig.ApplicationController.ResourceMinimum),
-				ResourceMaximum: toResourcesAPIModel(autoscalerConfig.ApplicationController.ResourceMaximum),
-			}
-		}
-	}
-
 	var directClusterSpec *v1alpha1.DirectClusterSpec
 	if clusterData.DirectClusterSpec != nil {
 		clusterType := clusterData.DirectClusterSpec.ClusterType.ValueString()
@@ -496,8 +429,40 @@ func toClusterDataAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, c
 			return v1alpha1.ClusterData{}
 		}
 	}
+
+	clusterSize := clusterData.Size.ValueString()
+	raw := runtime.RawExtension{}
+	if clusterSize != "custom" {
+		if clusterData.Kustomization.ValueString() != "" {
+			if err := yaml.Unmarshal([]byte(clusterData.Kustomization.ValueString()), &raw); err != nil {
+				diagnostics.AddError("failed unmarshal kustomization string to yaml", err.Error())
+				return v1alpha1.ClusterData{}
+			}
+		}
+	} else {
+		expectedKustomization, err := generateExpectedKustomization(clusterData.CustomAgentSizeConfig, clusterData.Kustomization.ValueString())
+		if err != nil {
+			diagnostics.AddError("failed to generate expected kustomization", err.Error())
+			return v1alpha1.ClusterData{}
+		}
+
+		if err = yaml.Unmarshal([]byte(expectedKustomization), &raw); err != nil {
+			diagnostics.AddError("failed unmarshal kustomization string to yaml", err.Error())
+			return v1alpha1.ClusterData{}
+		}
+	}
+
+	// TODO: This is present since the API rejects custom size (to be exact any other sizes than small,medium,large,auto).
+	// We should probably address this in the API ultimately by allowing for the setting of custom, but for now we hack it in the provider.
+	var apiSize string
+	if clusterSize == "custom" {
+		apiSize = "large"
+	} else {
+		apiSize = clusterSize
+	}
+
 	return v1alpha1.ClusterData{
-		Size:                            v1alpha1.ClusterSize(size),
+		Size:                            v1alpha1.ClusterSize(apiSize),
 		AutoUpgradeDisabled:             toBoolPointer(clusterData.AutoUpgradeDisabled),
 		Kustomization:                   raw,
 		AppReplication:                  toBoolPointer(clusterData.AppReplication),
@@ -507,7 +472,7 @@ func toClusterDataAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, c
 		EksAddonEnabled:                 toBoolPointer(clusterData.EksAddonEnabled),
 		ManagedClusterConfig:            managedConfig,
 		MultiClusterK8SDashboardEnabled: toBoolPointer(clusterData.MultiClusterK8SDashboardEnabled),
-		AutoscalerConfig:                autoscalerConfigAPI,
+		AutoscalerConfig:                toAutoAgentSizeConfigAPIModel(extractConfigFromObjectValue(clusterData.AutoscalerConfig)),
 		Project:                         clusterData.Project.ValueString(),
 		Compatibility:                   toCompatibilityAPIModel(clusterData.Compatibility),
 		ArgocdNotificationsSettings:     toArgoCDNotificationsSettingsAPIModel(clusterData.ArgocdNotificationsSettings),
@@ -578,7 +543,7 @@ func toManagedClusterAPIModel(cluster *ManagedCluster) *v1alpha1.ManagedCluster 
 	}
 }
 
-func toClusterCustomizationAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, clusterCustomization tftypes.Object) *v1alpha1.ClusterCustomization {
+func toClusterCustomizationAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, clusterCustomization types.Object) *v1alpha1.ClusterCustomization {
 	var customization ClusterCustomization
 	diagnostics.Append(clusterCustomization.As(ctx, &customization, basetypes.ObjectAsOptions{
 		UnhandledNullAsEmpty:    true,
@@ -631,7 +596,7 @@ func toExtensionsAPIModel(entries basetypes.ListValue) []*v1alpha1.ArgoCDExtensi
 	return extensions
 }
 
-func toAppsetPolicyAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, appsetPolicy tftypes.Object) *v1alpha1.AppsetPolicy {
+func toAppsetPolicyAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, appsetPolicy types.Object) *v1alpha1.AppsetPolicy {
 	var policy AppsetPolicy
 	diagnostics.Append(appsetPolicy.As(ctx, &policy, basetypes.ObjectAsOptions{
 		UnhandledNullAsEmpty:    true,
@@ -761,12 +726,10 @@ func toRepoServerDelegateTFModel(repoServerDelegate *v1alpha1.RepoServerDelegate
 	if repoServerDelegate == nil {
 		return nil
 	}
-	controlPlane := false
-	if repoServerDelegate.ControlPlane != nil && *repoServerDelegate.ControlPlane {
-		controlPlane = true
-	}
+	controlPlane := repoServerDelegate.ControlPlane != nil && *repoServerDelegate.ControlPlane
+
 	return &RepoServerDelegate{
-		ControlPlane:   tftypes.BoolValue(controlPlane),
+		ControlPlane:   types.BoolValue(controlPlane),
 		ManagedCluster: toManagedClusterTFModel(repoServerDelegate.ManagedCluster),
 	}
 }
@@ -775,12 +738,10 @@ func toImageUpdaterDelegateTFModel(imageUpdaterDelegate *v1alpha1.ImageUpdaterDe
 	if imageUpdaterDelegate == nil {
 		return nil
 	}
-	controlPlane := false
-	if imageUpdaterDelegate.ControlPlane != nil && *imageUpdaterDelegate.ControlPlane {
-		controlPlane = true
-	}
+	controlPlane := imageUpdaterDelegate.ControlPlane != nil && *imageUpdaterDelegate.ControlPlane
+
 	return &ImageUpdaterDelegate{
-		ControlPlane:   tftypes.BoolValue(controlPlane),
+		ControlPlane:   types.BoolValue(controlPlane),
 		ManagedCluster: toManagedClusterTFModel(imageUpdaterDelegate.ManagedCluster),
 	}
 }
@@ -799,13 +760,13 @@ func toManagedClusterTFModel(cluster *v1alpha1.ManagedCluster) *ManagedCluster {
 		return nil
 	}
 	return &ManagedCluster{
-		ClusterName: tftypes.StringValue(cluster.ClusterName),
+		ClusterName: types.StringValue(cluster.ClusterName),
 	}
 }
 
-func (a *ArgoCD) toClusterCustomizationTFModel(ctx context.Context, diagnostics *diag.Diagnostics, customization *v1alpha1.ClusterCustomization) tftypes.Object {
+func (a *ArgoCD) toClusterCustomizationTFModel(ctx context.Context, diagnostics *diag.Diagnostics, customization *v1alpha1.ClusterCustomization) types.Object {
 	if customization == nil {
-		return tftypes.ObjectNull(clusterCustomizationAttrTypes)
+		return types.ObjectNull(clusterCustomizationAttrTypes)
 	}
 	yamlData, err := yaml.JSONToYAML(customization.Kustomization.Raw)
 	if err != nil {
@@ -828,28 +789,22 @@ func (a *ArgoCD) toClusterCustomizationTFModel(ctx context.Context, diagnostics 
 		}
 	}
 
-	autoUpgradeDisabled := false
-	if customization.AutoUpgradeDisabled != nil && *customization.AutoUpgradeDisabled {
-		autoUpgradeDisabled = true
-	}
-	appReplication := false
-	if customization.AppReplication != nil && *customization.AppReplication {
-		appReplication = true
-	}
-	redisTunneling := false
-	if customization.RedisTunneling != nil && *customization.RedisTunneling {
-		redisTunneling = true
-	}
+	autoUpgradeDisabled := customization.AutoUpgradeDisabled != nil && *customization.AutoUpgradeDisabled
+
+	appReplication := customization.AppReplication != nil && *customization.AppReplication
+
+	redisTunneling := customization.RedisTunneling != nil && *customization.RedisTunneling
+
 	c := &ClusterCustomization{
-		AutoUpgradeDisabled: tftypes.BoolValue(autoUpgradeDisabled),
-		Kustomization:       tftypes.StringValue(string(yamlData)),
-		AppReplication:      tftypes.BoolValue(appReplication),
-		RedisTunneling:      tftypes.BoolValue(redisTunneling),
+		AutoUpgradeDisabled: types.BoolValue(autoUpgradeDisabled),
+		Kustomization:       types.StringValue(string(yamlData)),
+		AppReplication:      types.BoolValue(appReplication),
+		RedisTunneling:      types.BoolValue(redisTunneling),
 	}
-	clusterCustomization, d := tftypes.ObjectValueFrom(ctx, clusterCustomizationAttrTypes, c)
+	clusterCustomization, d := types.ObjectValueFrom(ctx, clusterCustomizationAttrTypes, c)
 	diagnostics.Append(d...)
 	if diagnostics.HasError() {
-		return tftypes.ObjectNull(clusterCustomizationAttrTypes)
+		return types.ObjectNull(clusterCustomizationAttrTypes)
 	}
 	return clusterCustomization
 }
@@ -858,8 +813,8 @@ func toIPAllowListTFModel(entries []*v1alpha1.IPAllowListEntry) []*IPAllowListEn
 	var ipAllowList []*IPAllowListEntry
 	for _, entry := range entries {
 		ipAllowList = append(ipAllowList, &IPAllowListEntry{
-			Ip:          tftypes.StringValue(entry.Ip),
-			Description: tftypes.StringValue(entry.Description),
+			Ip:          types.StringValue(entry.Ip),
+			Description: types.StringValue(entry.Description),
 		})
 	}
 	return ipAllowList
@@ -891,23 +846,21 @@ func toExtensionsTFModel(entries []*v1alpha1.ArgoCDExtensionInstallEntry) types.
 	)
 }
 
-func toAppsetPolicyTFModel(ctx context.Context, diagnostics *diag.Diagnostics, appsetPolicy *v1alpha1.AppsetPolicy) tftypes.Object {
+func toAppsetPolicyTFModel(ctx context.Context, diagnostics *diag.Diagnostics, appsetPolicy *v1alpha1.AppsetPolicy) types.Object {
 	if appsetPolicy == nil {
-		return tftypes.ObjectNull(appsetPolicyAttrTypes)
+		return types.ObjectNull(appsetPolicyAttrTypes)
 	}
 
-	overridePolicy := false
-	if appsetPolicy.OverridePolicy != nil && *appsetPolicy.OverridePolicy {
-		overridePolicy = true
-	}
+	overridePolicy := appsetPolicy.OverridePolicy != nil && *appsetPolicy.OverridePolicy
+
 	a := &AppsetPolicy{
-		Policy:         tftypes.StringValue(appsetPolicy.Policy),
-		OverridePolicy: tftypes.BoolValue(overridePolicy),
+		Policy:         types.StringValue(appsetPolicy.Policy),
+		OverridePolicy: types.BoolValue(overridePolicy),
 	}
-	policy, d := tftypes.ObjectValueFrom(ctx, appsetPolicyAttrTypes, a)
+	policy, d := types.ObjectValueFrom(ctx, appsetPolicyAttrTypes, a)
 	diagnostics.Append(d...)
 	if diagnostics.HasError() {
-		return tftypes.ObjectNull(appsetPolicyAttrTypes)
+		return types.ObjectNull(appsetPolicyAttrTypes)
 	}
 	return policy
 }
@@ -915,12 +868,12 @@ func toAppsetPolicyTFModel(ctx context.Context, diagnostics *diag.Diagnostics, a
 func toHostAliasesTFModel(entries []*v1alpha1.HostAliases) []*HostAliases {
 	var hostAliases []*HostAliases
 	for _, entry := range entries {
-		var hostnames []tftypes.String
+		var hostnames []types.String
 		for _, hostname := range entry.Hostnames {
-			hostnames = append(hostnames, tftypes.StringValue(hostname))
+			hostnames = append(hostnames, types.StringValue(hostname))
 		}
 		hostAliases = append(hostAliases, &HostAliases{
-			Ip:        tftypes.StringValue(entry.Ip),
+			Ip:        types.StringValue(entry.Ip),
 			Hostnames: hostnames,
 		})
 	}
@@ -945,13 +898,13 @@ func toDynamicTFModel(dynamic *v1alpha1.Dynamic) *Dynamic {
 	if dynamic == nil {
 		return nil
 	}
-	var commands []tftypes.String
+	var commands []types.String
 	for _, c := range dynamic.Command {
-		commands = append(commands, tftypes.StringValue(c))
+		commands = append(commands, types.StringValue(c))
 	}
-	var args []tftypes.String
+	var args []types.String
 	for _, a := range dynamic.Args {
-		args = append(args, tftypes.StringValue(a))
+		args = append(args, types.StringValue(a))
 	}
 	return &Dynamic{
 		Command: commands,
@@ -963,41 +916,41 @@ func toParameterAnnouncementTFModel(ctx context.Context, diagnostics *diag.Diagn
 	if parameter == nil {
 		return nil
 	}
-	var array []tftypes.String
+	var array []types.String
 	for _, a := range parameter.Array {
-		array = append(array, tftypes.StringValue(a))
+		array = append(array, types.StringValue(a))
 	}
-	m, diag := tftypes.MapValueFrom(ctx, tftypes.StringType, &parameter.Map)
+	m, diag := types.MapValueFrom(ctx, types.StringType, &parameter.Map)
 	diagnostics.Append(diag...)
-	name := tftypes.StringNull()
+	name := types.StringNull()
 	if parameter.Name != "" {
-		name = tftypes.StringValue(parameter.Name)
+		name = types.StringValue(parameter.Name)
 	}
-	title := tftypes.StringNull()
+	title := types.StringNull()
 	if parameter.Title != "" {
-		title = tftypes.StringValue(parameter.Title)
+		title = types.StringValue(parameter.Title)
 	}
-	tooltip := tftypes.StringNull()
+	tooltip := types.StringNull()
 	if parameter.Tooltip != "" {
-		tooltip = tftypes.StringValue(parameter.Tooltip)
+		tooltip = types.StringValue(parameter.Tooltip)
 	}
-	itemType := tftypes.StringNull()
+	itemType := types.StringNull()
 	if parameter.ItemType != "" {
-		itemType = tftypes.StringValue(parameter.ItemType)
+		itemType = types.StringValue(parameter.ItemType)
 	}
-	collectionType := tftypes.StringNull()
+	collectionType := types.StringNull()
 	if parameter.CollectionType != "" {
-		collectionType = tftypes.StringValue(parameter.CollectionType)
+		collectionType = types.StringValue(parameter.CollectionType)
 	}
-	string_ := tftypes.StringNull()
+	string_ := types.StringNull()
 	if parameter.String_ != "" {
-		string_ = tftypes.StringValue(parameter.String_)
+		string_ = types.StringValue(parameter.String_)
 	}
 	return &ParameterAnnouncement{
 		Name:           name,
 		Title:          title,
 		Tooltip:        tooltip,
-		Required:       tftypes.BoolValue(parameter.Required),
+		Required:       types.BoolValue(parameter.Required),
 		ItemType:       itemType,
 		CollectionType: collectionType,
 		String_:        string_,
@@ -1010,9 +963,9 @@ func toDiscoverTFModel(discover *v1alpha1.Discover) *Discover {
 	if discover == nil {
 		return nil
 	}
-	fileName := tftypes.StringNull()
+	fileName := types.StringNull()
 	if discover.FileName != "" {
-		fileName = tftypes.StringValue(discover.FileName)
+		fileName = types.StringValue(discover.FileName)
 	}
 	return &Discover{
 		Find:     toFindTFModel(discover.Find),
@@ -1024,17 +977,17 @@ func toFindTFModel(find *v1alpha1.Find) *Find {
 	if find == nil {
 		return nil
 	}
-	var commands []tftypes.String
+	var commands []types.String
 	for _, c := range find.Command {
-		commands = append(commands, tftypes.StringValue(c))
+		commands = append(commands, types.StringValue(c))
 	}
-	var args []tftypes.String
+	var args []types.String
 	for _, a := range find.Args {
-		args = append(args, tftypes.StringValue(a))
+		args = append(args, types.StringValue(a))
 	}
-	glob := tftypes.StringNull()
+	glob := types.StringNull()
 	if find.Glob != "" {
-		glob = tftypes.StringValue(find.Glob)
+		glob = types.StringValue(find.Glob)
 	}
 	return &Find{
 		Command: commands,
@@ -1047,13 +1000,13 @@ func toCommandTFModel(command *v1alpha1.Command) *Command {
 	if command == nil {
 		return nil
 	}
-	var commands []tftypes.String
+	var commands []types.String
 	for _, c := range command.Command {
-		commands = append(commands, tftypes.StringValue(c))
+		commands = append(commands, types.StringValue(c))
 	}
-	var args []tftypes.String
+	var args []types.String
 	for _, a := range command.Args {
-		args = append(args, tftypes.StringValue(a))
+		args = append(args, types.StringValue(a))
 	}
 	return &Command{
 		Command: commands,
@@ -1091,11 +1044,11 @@ func toAppInAnyNamespaceConfigTFModel(config *v1alpha1.AppInAnyNamespaceConfig) 
 		return nil
 	}
 	return &AppInAnyNamespaceConfig{
-		Enabled: tftypes.BoolValue(*config.Enabled),
+		Enabled: types.BoolValue(*config.Enabled),
 	}
 }
 
-func convertSlice[T any, U any](s []T, conv func(T) U) []U {
+func convertSlice[T, U any](s []T, conv func(T) U) []U {
 	var tfSlice []U
 	for _, item := range s {
 		tfSlice = append(tfSlice, conv(item))
@@ -1103,11 +1056,11 @@ func convertSlice[T any, U any](s []T, conv func(T) U) []U {
 	return tfSlice
 }
 
-func stringToTFString(str string) tftypes.String {
-	return tftypes.StringValue(str)
+func stringToTFString(str string) types.String {
+	return types.StringValue(str)
 }
 
-func tfStringToString(str tftypes.String) string {
+func tfStringToString(str types.String) string {
 	return str.ValueString()
 }
 
@@ -1116,7 +1069,7 @@ func crossplaneExtensionResourceToTFModel(resource *v1alpha1.CrossplaneExtension
 		return nil
 	}
 	return &CrossplaneExtensionResource{
-		Group: tftypes.StringValue(resource.Group),
+		Group: types.StringValue(resource.Group),
 	}
 }
 
@@ -1128,156 +1081,6 @@ func toManagedClusterConfigTFModel(cfg *argocdv1.ManagedClusterConfig) *ManagedC
 		SecretName: types.StringValue(cfg.SecretName),
 		SecretKey:  types.StringValue(cfg.SecretKey),
 	}
-}
-
-func toAutoScalerConfigTFModel(cfg *argocdv1.AutoScalerConfig) basetypes.ObjectValue {
-	attributeTypes := map[string]attr.Type{
-		"application_controller": basetypes.ObjectType{
-			AttrTypes: map[string]attr.Type{
-				"resource_minimum": basetypes.ObjectType{
-					AttrTypes: map[string]attr.Type{
-						"memory": types.StringType,
-						"cpu":    types.StringType,
-					},
-				},
-				"resource_maximum": basetypes.ObjectType{
-					AttrTypes: map[string]attr.Type{
-						"memory": types.StringType,
-						"cpu":    types.StringType,
-					},
-				},
-			},
-		},
-		"repo_server": basetypes.ObjectType{
-			AttrTypes: map[string]attr.Type{
-				"resource_minimum": basetypes.ObjectType{
-					AttrTypes: map[string]attr.Type{
-						"memory": types.StringType,
-						"cpu":    types.StringType,
-					},
-				},
-				"resource_maximum": basetypes.ObjectType{
-					AttrTypes: map[string]attr.Type{
-						"memory": types.StringType,
-						"cpu":    types.StringType,
-					},
-				},
-				"replicas_maximum": types.Int64Type,
-				"replicas_minimum": types.Int64Type,
-			},
-		},
-	}
-
-	attributes := map[string]attr.Value{}
-	if cfg == nil {
-		return basetypes.NewObjectNull(attributeTypes)
-	}
-	if cfg.ApplicationController != nil {
-		attributes["application_controller"] = basetypes.NewObjectValueMust(
-			attributeTypes["application_controller"].(basetypes.ObjectType).AttrTypes,
-			map[string]attr.Value{
-				"resource_minimum": basetypes.NewObjectValueMust(
-					attributeTypes["application_controller"].(basetypes.ObjectType).AttrTypes["resource_minimum"].(basetypes.ObjectType).AttrTypes,
-					map[string]attr.Value{
-						"memory": basetypes.NewStringValue(cfg.ApplicationController.ResourceMinimum.Mem),
-						"cpu":    basetypes.NewStringValue(cfg.ApplicationController.ResourceMinimum.Cpu),
-					},
-				),
-				"resource_maximum": basetypes.NewObjectValueMust(
-					attributeTypes["application_controller"].(basetypes.ObjectType).AttrTypes["resource_maximum"].(basetypes.ObjectType).AttrTypes,
-					map[string]attr.Value{
-						"memory": basetypes.NewStringValue(cfg.ApplicationController.ResourceMaximum.Mem),
-						"cpu":    basetypes.NewStringValue(cfg.ApplicationController.ResourceMaximum.Cpu),
-					},
-				),
-			})
-	}
-	if cfg.RepoServer != nil {
-		attributes["repo_server"] = basetypes.NewObjectValueMust(
-			attributeTypes["repo_server"].(basetypes.ObjectType).AttrTypes,
-			map[string]attr.Value{
-				"resource_minimum": basetypes.NewObjectValueMust(
-					attributeTypes["repo_server"].(basetypes.ObjectType).AttrTypes["resource_minimum"].(basetypes.ObjectType).AttrTypes,
-					map[string]attr.Value{
-						"memory": basetypes.NewStringValue(cfg.RepoServer.ResourceMinimum.Mem),
-						"cpu":    basetypes.NewStringValue(cfg.RepoServer.ResourceMinimum.Cpu),
-					},
-				),
-				"resource_maximum": basetypes.NewObjectValueMust(
-					attributeTypes["repo_server"].(basetypes.ObjectType).AttrTypes["resource_maximum"].(basetypes.ObjectType).AttrTypes,
-					map[string]attr.Value{
-						"memory": basetypes.NewStringValue(cfg.RepoServer.ResourceMaximum.Mem),
-						"cpu":    basetypes.NewStringValue(cfg.RepoServer.ResourceMaximum.Cpu),
-					},
-				),
-				"replicas_maximum": basetypes.NewInt64Value(int64(cfg.RepoServer.ReplicaMaximum)),
-				"replicas_minimum": basetypes.NewInt64Value(int64(cfg.RepoServer.ReplicaMinimum)),
-			},
-		)
-	}
-
-	objectValue, diags := basetypes.NewObjectValue(attributeTypes, attributes)
-	if diags.HasError() {
-		return basetypes.NewObjectUnknown(attributeTypes)
-	}
-	return objectValue
-}
-
-func handleAgentSizeAndKustomization(diagnostics *diag.Diagnostics, clusterData *ClusterData, autoscalerConfig *AutoScalerConfig) (size string, kustomization runtime.RawExtension) {
-	customSizeConfig := clusterData.CustomAgentSizeConfig
-	if autoscalerConfig != nil && clusterData.Size.ValueString() != "auto" {
-		diagnostics.AddError("autoscaler config should not be set when size is not auto", "")
-		return clusterData.Size.ValueString(), runtime.RawExtension{}
-	}
-	if customSizeConfig == nil && clusterData.Size.ValueString() == "custom" {
-		diagnostics.AddError("custom agent size config is required when size is custom", "")
-		return clusterData.Size.ValueString(), runtime.RawExtension{}
-	}
-	if customSizeConfig != nil && clusterData.Size.ValueString() != "custom" {
-		diagnostics.AddError("custom agent size config should not be set when size is not custom", "")
-		return clusterData.Size.ValueString(), runtime.RawExtension{}
-	}
-
-	if clusterData.Size.ValueString() != "custom" {
-		raw := runtime.RawExtension{}
-		if clusterData.Kustomization.ValueString() != "" {
-			if err := yaml.Unmarshal([]byte(clusterData.Kustomization.ValueString()), &raw); err != nil {
-				diagnostics.AddError("failed unmarshal kustomization string to yaml", err.Error())
-				return clusterData.Size.ValueString(), runtime.RawExtension{}
-			}
-		}
-		return clusterData.Size.ValueString(), raw
-	}
-
-	if customSizeConfig.ApplicationController != nil {
-		if customSizeConfig.ApplicationController.Memory.ValueString() == "" || customSizeConfig.ApplicationController.Cpu.ValueString() == "" {
-			diagnostics.AddError("memory and cpu are required for app controller custom size", "")
-			return clusterData.Size.ValueString(), runtime.RawExtension{}
-		}
-	}
-	if customSizeConfig.RepoServer != nil {
-		if customSizeConfig.RepoServer.Memory.ValueString() == "" || customSizeConfig.RepoServer.Cpu.ValueString() == "" || customSizeConfig.RepoServer.Replicas.ValueInt64() == 0 {
-			diagnostics.AddError("memory, cpu and replicas are required for repo server custom size", "")
-			return clusterData.Size.ValueString(), runtime.RawExtension{}
-		} else if customSizeConfig.RepoServer.Replicas.ValueInt64() < 0 {
-			diagnostics.AddError("replicas must be greater than or equal to 0", "")
-			return clusterData.Size.ValueString(), runtime.RawExtension{}
-		}
-	}
-
-	expectedKustomization, err := generateExpectedKustomization(customSizeConfig, clusterData.Kustomization.ValueString())
-	if err != nil {
-		diagnostics.AddError("failed to generate expected kustomization", err.Error())
-		return clusterData.Size.ValueString(), runtime.RawExtension{}
-	}
-
-	raw := runtime.RawExtension{}
-	if err := yaml.Unmarshal([]byte(expectedKustomization), &raw); err != nil {
-		diagnostics.AddError("failed unmarshal kustomization string to yaml", err.Error())
-		return clusterData.Size.ValueString(), runtime.RawExtension{}
-	}
-
-	return "large", raw
 }
 
 func isResourcePatch(patch map[string]any) bool {
@@ -1382,48 +1185,6 @@ func toResourcesAPIModel(resources *Resources) *v1alpha1.Resources {
 	}
 }
 
-func areAutoScalerConfigsEquivalent(plan, now *AutoScalerConfig) bool {
-	if plan == nil {
-		return true
-	}
-	if plan.ApplicationController != nil && now.ApplicationController != nil {
-		if !areResourcesEquivalent(
-			plan.ApplicationController.ResourceMinimum.Cpu.ValueString(),
-			now.ApplicationController.ResourceMinimum.Cpu.ValueString(),
-		) || !areResourcesEquivalent(
-			plan.ApplicationController.ResourceMinimum.Memory.ValueString(),
-			now.ApplicationController.ResourceMinimum.Memory.ValueString(),
-		) || !areResourcesEquivalent(
-			plan.ApplicationController.ResourceMaximum.Cpu.ValueString(),
-			now.ApplicationController.ResourceMaximum.Cpu.ValueString(),
-		) || !areResourcesEquivalent(
-			plan.ApplicationController.ResourceMaximum.Memory.ValueString(),
-			now.ApplicationController.ResourceMaximum.Memory.ValueString(),
-		) {
-			return false
-		}
-	}
-	if plan.RepoServer != nil && now.RepoServer != nil {
-		if !areResourcesEquivalent(
-			plan.RepoServer.ResourceMinimum.Cpu.ValueString(),
-			now.RepoServer.ResourceMinimum.Cpu.ValueString(),
-		) || !areResourcesEquivalent(
-			plan.RepoServer.ResourceMinimum.Memory.ValueString(),
-			now.RepoServer.ResourceMinimum.Memory.ValueString(),
-		) || !areResourcesEquivalent(
-			plan.RepoServer.ResourceMaximum.Cpu.ValueString(),
-			now.RepoServer.ResourceMaximum.Cpu.ValueString(),
-		) || !areResourcesEquivalent(
-			plan.RepoServer.ResourceMaximum.Memory.ValueString(),
-			now.RepoServer.ResourceMaximum.Memory.ValueString(),
-		) || plan.RepoServer.ReplicasMaximum != now.RepoServer.ReplicasMaximum ||
-			plan.RepoServer.ReplicasMinimum != now.RepoServer.ReplicasMinimum {
-			return false
-		}
-	}
-	return true
-}
-
 func areResourcesEquivalent(plan, new string) bool {
 	if plan == "" {
 		return true
@@ -1518,15 +1279,6 @@ func extractConfigFromObjectValue(obj basetypes.ObjectValue) *AutoScalerConfig {
 	return config
 }
 
-func areResourcesValid(min, max string) bool {
-	minQ, err1 := resource.ParseQuantity(min)
-	maxQ, err2 := resource.ParseQuantity(max)
-	if err1 != nil || err2 != nil {
-		return true
-	}
-	return minQ.Cmp(maxQ) <= 0
-}
-
 func yamlEqual(a, b string) bool {
 	var objA, objB any
 	if err := yamlv3.Unmarshal([]byte(a), &objA); err != nil {
@@ -1570,6 +1322,199 @@ func toAppInAnyNamespaceConfigAPIModel(config *AppInAnyNamespaceConfig) *v1alpha
 	}
 	return &v1alpha1.AppInAnyNamespaceConfig{
 		Enabled: config.Enabled.ValueBoolPointer(),
+	}
+}
+
+func toAkuityIntelligenceExtensionTFModel(extension *v1alpha1.AkuityIntelligenceExtension, plan *ArgoCD) *AkuityIntelligenceExtension {
+	if plan != nil {
+		if plan.Spec.InstanceSpec.AkuityIntelligenceExtension == nil {
+			return nil
+		}
+	}
+
+	if extension == nil {
+		return nil
+	}
+	return &AkuityIntelligenceExtension{
+		Enabled:                  types.BoolValue(extension.Enabled != nil && *extension.Enabled),
+		AllowedUsernames:         convertSlice(extension.AllowedUsernames, func(s string) types.String { return types.StringValue(s) }),
+		AllowedGroups:            convertSlice(extension.AllowedGroups, func(s string) types.String { return types.StringValue(s) }),
+		AiSupportEngineerEnabled: types.BoolValue(extension.AiSupportEngineerEnabled != nil && *extension.AiSupportEngineerEnabled),
+		ModelVersion:             types.StringValue(extension.ModelVersion),
+	}
+}
+
+func toAkuityIntelligenceExtensionAPIModel(extension *AkuityIntelligenceExtension) *v1alpha1.AkuityIntelligenceExtension {
+	if extension == nil {
+		return nil
+	}
+	return &v1alpha1.AkuityIntelligenceExtension{
+		Enabled:                  toBoolPointer(extension.Enabled),
+		AllowedUsernames:         convertSlice(extension.AllowedUsernames, tfStringToString),
+		AllowedGroups:            convertSlice(extension.AllowedGroups, tfStringToString),
+		AiSupportEngineerEnabled: toBoolPointer(extension.AiSupportEngineerEnabled),
+		ModelVersion:             extension.ModelVersion.ValueString(),
+	}
+}
+
+func toKubeVisionConfigTFModel(config *v1alpha1.KubeVisionConfig, plan *ArgoCD) *KubeVisionConfig {
+	if plan == nil {
+		return nil
+	}
+	if plan.Spec.InstanceSpec.KubeVisionConfig == nil || config == nil {
+		return plan.Spec.InstanceSpec.KubeVisionConfig
+	}
+	res := &KubeVisionConfig{}
+	if plan.Spec.InstanceSpec.KubeVisionConfig.CveScanConfig != nil {
+		res.CveScanConfig = toCveScanConfigTFModel(config.CveScanConfig)
+	}
+	if plan.Spec.InstanceSpec.KubeVisionConfig.AiConfig != nil {
+		res.AiConfig = toAIConfigTFModel(config.AiConfig)
+	}
+	return res
+}
+
+func toKubeVisionConfigAPIModel(config *KubeVisionConfig) *v1alpha1.KubeVisionConfig {
+	if config == nil {
+		return nil
+	}
+	return &v1alpha1.KubeVisionConfig{
+		CveScanConfig: toCveScanConfigAPIModel(config.CveScanConfig),
+		AiConfig:      toAIConfigAPIModel(config.AiConfig),
+	}
+}
+
+func toCveScanConfigTFModel(config *v1alpha1.CveScanConfig) *CveScanConfig {
+	if config == nil {
+		return nil
+	}
+	return &CveScanConfig{
+		ScanEnabled:    types.BoolValue(config.ScanEnabled != nil && *config.ScanEnabled),
+		RescanInterval: types.StringValue(config.RescanInterval),
+	}
+}
+
+func toCveScanConfigAPIModel(config *CveScanConfig) *v1alpha1.CveScanConfig {
+	if config == nil {
+		return nil
+	}
+	return &v1alpha1.CveScanConfig{
+		ScanEnabled:    toBoolPointer(config.ScanEnabled),
+		RescanInterval: config.RescanInterval.ValueString(),
+	}
+}
+
+func toAIConfigTFModel(config *v1alpha1.AIConfig) *AIConfig {
+	if config == nil {
+		return nil
+	}
+	return &AIConfig{
+		Runbooks:           convertSlice(config.Runbooks, toRunbookTFModel),
+		Incidents:          toIncidentsConfigTFModel(config.Incidents),
+		ArgocdSlackService: types.StringPointerValue(config.ArgocdSlackService),
+	}
+}
+
+func toAIConfigAPIModel(config *AIConfig) *v1alpha1.AIConfig {
+	if config == nil {
+		return nil
+	}
+	return &v1alpha1.AIConfig{
+		Runbooks:           convertSlice(config.Runbooks, toRunbookAPIModel),
+		Incidents:          toIncidentsConfigAPIModel(config.Incidents),
+		ArgocdSlackService: config.ArgocdSlackService.ValueStringPointer(),
+	}
+}
+
+func toRunbookTFModel(runbook *v1alpha1.Runbook) *Runbook {
+	if runbook == nil {
+		return nil
+	}
+	return &Runbook{
+		Name:      types.StringValue(runbook.Name),
+		Content:   types.StringValue(runbook.Content),
+		AppliedTo: toTargetSelectorTFModel(runbook.AppliedTo),
+	}
+}
+
+func toRunbookAPIModel(runbook *Runbook) *v1alpha1.Runbook {
+	if runbook == nil {
+		return nil
+	}
+	return &v1alpha1.Runbook{
+		Name:      runbook.Name.ValueString(),
+		Content:   runbook.Content.ValueString(),
+		AppliedTo: toTargetSelectorAPIModel(runbook.AppliedTo),
+	}
+}
+
+func toTargetSelectorTFModel(selector *v1alpha1.TargetSelector) *TargetSelector {
+	if selector == nil {
+		return nil
+	}
+	return &TargetSelector{
+		ArgocdApplications: convertSlice(selector.ArgocdApplications, func(s string) types.String { return types.StringValue(s) }),
+		K8SNamespaces:      convertSlice(selector.K8SNamespaces, func(s string) types.String { return types.StringValue(s) }),
+		Clusters:           convertSlice(selector.Clusters, func(s string) types.String { return types.StringValue(s) }),
+		DegradedFor:        types.StringPointerValue(selector.DegradedFor),
+	}
+}
+
+func toTargetSelectorAPIModel(selector *TargetSelector) *v1alpha1.TargetSelector {
+	if selector == nil {
+		return nil
+	}
+	return &v1alpha1.TargetSelector{
+		ArgocdApplications: convertSlice(selector.ArgocdApplications, tfStringToString),
+		K8SNamespaces:      convertSlice(selector.K8SNamespaces, tfStringToString),
+		Clusters:           convertSlice(selector.Clusters, tfStringToString),
+		DegradedFor:        selector.DegradedFor.ValueStringPointer(),
+	}
+}
+
+func toIncidentsConfigTFModel(config *v1alpha1.IncidentsConfig) *IncidentsConfig {
+	if config == nil {
+		return nil
+	}
+	return &IncidentsConfig{
+		Triggers: convertSlice(config.Triggers, toTargetSelectorTFModel),
+		Webhooks: convertSlice(config.Webhooks, toIncidentWebhookConfigTFModel),
+	}
+}
+
+func toIncidentsConfigAPIModel(config *IncidentsConfig) *v1alpha1.IncidentsConfig {
+	if config == nil {
+		return nil
+	}
+	return &v1alpha1.IncidentsConfig{
+		Triggers: convertSlice(config.Triggers, toTargetSelectorAPIModel),
+		Webhooks: convertSlice(config.Webhooks, toIncidentWebhookConfigAPIModel),
+	}
+}
+
+func toIncidentWebhookConfigTFModel(webhook *v1alpha1.IncidentWebhookConfig) *IncidentWebhookConfig {
+	if webhook == nil {
+		return nil
+	}
+	return &IncidentWebhookConfig{
+		Name:                      types.StringValue(webhook.Name),
+		DescriptionPath:           types.StringValue(webhook.DescriptionPath),
+		ClusterPath:               types.StringValue(webhook.ClusterPath),
+		K8SNamespacePath:          types.StringValue(webhook.K8SNamespacePath),
+		ArgocdApplicationNamePath: types.StringValue(webhook.ArgocdApplicationNamePath),
+	}
+}
+
+func toIncidentWebhookConfigAPIModel(webhook *IncidentWebhookConfig) *v1alpha1.IncidentWebhookConfig {
+	if webhook == nil {
+		return nil
+	}
+	return &v1alpha1.IncidentWebhookConfig{
+		Name:                      webhook.Name.ValueString(),
+		DescriptionPath:           webhook.DescriptionPath.ValueString(),
+		ClusterPath:               webhook.ClusterPath.ValueString(),
+		K8SNamespacePath:          webhook.K8SNamespacePath.ValueString(),
+		ArgocdApplicationNamePath: webhook.ArgocdApplicationNamePath.ValueString(),
 	}
 }
 
@@ -1657,7 +1602,7 @@ func generateExpectedKustomization(customConfig *CustomAgentSizeConfig, userKust
 
 	for _, p := range userPatches {
 		if patch, ok := p.(map[string]any); ok {
-			if isResourcePatch(patch) && customConfig != nil {
+			if isResourcePatch(patch) {
 				target := patch["target"].(map[string]any)
 				name := target["name"].(string)
 				if name == "argocd-application-controller" || name == "argocd-repo-server" {
@@ -1790,4 +1735,224 @@ func isSliceSubset(subset, superset []any) bool {
 		}
 	}
 	return true
+}
+
+func toAutoAgentSizeConfigAPIModel(autoscalerConfig *AutoScalerConfig) *v1alpha1.AutoScalerConfig {
+	if autoscalerConfig == nil {
+		return nil
+	}
+
+	var appController *v1alpha1.AppControllerAutoScalingConfig
+	if autoscalerConfig.ApplicationController != nil {
+		appController = &v1alpha1.AppControllerAutoScalingConfig{
+			ResourceMinimum: toResourcesAPIModel(autoscalerConfig.ApplicationController.ResourceMinimum),
+			ResourceMaximum: toResourcesAPIModel(autoscalerConfig.ApplicationController.ResourceMaximum),
+		}
+	}
+
+	var repoServer *v1alpha1.RepoServerAutoScalingConfig
+	if autoscalerConfig.RepoServer != nil {
+		repoServer = &v1alpha1.RepoServerAutoScalingConfig{
+			ResourceMinimum: toResourcesAPIModel(autoscalerConfig.RepoServer.ResourceMinimum),
+			ResourceMaximum: toResourcesAPIModel(autoscalerConfig.RepoServer.ResourceMaximum),
+			ReplicaMinimum:  int32(autoscalerConfig.RepoServer.ReplicasMinimum.ValueInt64()),
+			ReplicaMaximum:  int32(autoscalerConfig.RepoServer.ReplicasMaximum.ValueInt64()),
+		}
+	}
+
+	return &v1alpha1.AutoScalerConfig{
+		ApplicationController: appController,
+		RepoServer:            repoServer,
+	}
+}
+
+func toAutoScalerConfigTFModel(plan *Cluster, apiConfig *argocdv1.AutoScalerConfig) types.Object {
+	// If plan is nil, use API value
+	if plan == nil || plan.Spec == nil {
+		if apiConfig == nil {
+			return types.ObjectNull(autoScalerConfigAttrTypes)
+		}
+		// Continue processing to return API config
+	} else {
+		// Get the size value
+		sizeValue := ""
+		if !plan.Spec.Data.Size.IsNull() {
+			sizeValue = plan.Spec.Data.Size.ValueString()
+		}
+
+		// Check auto_agent_size_config status
+		autoscalerIsUnknown := plan.Spec.Data.AutoscalerConfig.IsUnknown()
+		autoscalerIsNull := plan.Spec.Data.AutoscalerConfig.IsNull()
+
+		// Main logic: decide whether to return null or continue processing
+		if sizeValue != "auto" {
+			// For non-auto sizes, auto_agent_size_config should generally be null
+			if autoscalerIsUnknown || autoscalerIsNull {
+				// Not specified or explicitly null - return null
+				return types.ObjectNull(autoScalerConfigAttrTypes)
+			}
+			// Has explicit non-null values - preserve the planned values instead of API values
+			// This handles the case where we transition from "auto" to another size
+			ctx := context.Background()
+			plannedConfig := &AutoScalerConfig{}
+			plan.Spec.Data.AutoscalerConfig.As(ctx, plannedConfig, basetypes.ObjectAsOptions{})
+			return plan.Spec.Data.AutoscalerConfig
+		} else {
+			// For auto size, show config from API if not explicitly set to null
+			if autoscalerIsNull {
+				return types.ObjectNull(autoScalerConfigAttrTypes)
+			}
+			// Continue processing to show API defaults or planned values
+		}
+	}
+
+	// If the plan doesn't include auto scaler config but size is "auto", show API defaults
+	if plan != nil && plan.Spec != nil && plan.Spec.Data.AutoscalerConfig.IsNull() {
+		// If size is "auto", we should show the API defaults even if not explicitly configured
+		if !plan.Spec.Data.Size.IsNull() && plan.Spec.Data.Size.ValueString() == "auto" {
+			// Show API defaults in state - don't return null
+		} else {
+			// For other sizes, don't show autoscaler config
+			return types.ObjectNull(autoScalerConfigAttrTypes)
+		}
+	}
+
+	if apiConfig == nil {
+		return types.ObjectNull(autoScalerConfigAttrTypes)
+	}
+
+	// Get the planned auto scaler config to preserve original values when equivalent
+	var plannedConfig *AutoScalerConfig
+	if plan != nil && plan.Spec != nil && !plan.Spec.Data.AutoscalerConfig.IsNull() {
+		ctx := context.Background()
+		plannedConfig = &AutoScalerConfig{}
+		plan.Spec.Data.AutoscalerConfig.As(ctx, plannedConfig, basetypes.ObjectAsOptions{})
+	}
+
+	configAttrs := make(map[string]attr.Value)
+
+	if apiConfig.ApplicationController != nil {
+		appControllerAttrs := make(map[string]attr.Value)
+
+		if apiConfig.ApplicationController.ResourceMinimum != nil {
+			// Use planned values if they are resource-equivalent to API values
+			memoryValue := apiConfig.ApplicationController.ResourceMinimum.Mem
+			cpuValue := apiConfig.ApplicationController.ResourceMinimum.Cpu
+
+			if plannedConfig != nil && plannedConfig.ApplicationController != nil && plannedConfig.ApplicationController.ResourceMinimum != nil {
+				if areResourcesEquivalent(plannedConfig.ApplicationController.ResourceMinimum.Memory.ValueString(), memoryValue) {
+					memoryValue = plannedConfig.ApplicationController.ResourceMinimum.Memory.ValueString()
+				}
+				if areResourcesEquivalent(plannedConfig.ApplicationController.ResourceMinimum.Cpu.ValueString(), cpuValue) {
+					cpuValue = plannedConfig.ApplicationController.ResourceMinimum.Cpu.ValueString()
+				}
+			}
+
+			resourceMinAttrs := map[string]attr.Value{
+				"memory": types.StringValue(memoryValue),
+				"cpu":    types.StringValue(cpuValue),
+			}
+			appControllerAttrs["resource_minimum"] = types.ObjectValueMust(resourcesAttrTypes, resourceMinAttrs)
+		} else {
+			appControllerAttrs["resource_minimum"] = types.ObjectNull(resourcesAttrTypes)
+		}
+
+		if apiConfig.ApplicationController.ResourceMaximum != nil {
+			// Use planned values if they are resource-equivalent to API values
+			memoryValue := apiConfig.ApplicationController.ResourceMaximum.Mem
+			cpuValue := apiConfig.ApplicationController.ResourceMaximum.Cpu
+
+			if plannedConfig != nil && plannedConfig.ApplicationController != nil && plannedConfig.ApplicationController.ResourceMaximum != nil {
+				if areResourcesEquivalent(plannedConfig.ApplicationController.ResourceMaximum.Memory.ValueString(), memoryValue) {
+					memoryValue = plannedConfig.ApplicationController.ResourceMaximum.Memory.ValueString()
+				}
+				if areResourcesEquivalent(plannedConfig.ApplicationController.ResourceMaximum.Cpu.ValueString(), cpuValue) {
+					cpuValue = plannedConfig.ApplicationController.ResourceMaximum.Cpu.ValueString()
+				}
+			}
+
+			resourceMaxAttrs := map[string]attr.Value{
+				"memory": types.StringValue(memoryValue),
+				"cpu":    types.StringValue(cpuValue),
+			}
+			appControllerAttrs["resource_maximum"] = types.ObjectValueMust(resourcesAttrTypes, resourceMaxAttrs)
+		} else {
+			appControllerAttrs["resource_maximum"] = types.ObjectNull(resourcesAttrTypes)
+		}
+
+		configAttrs["application_controller"] = types.ObjectValueMust(appControllerAutoScalingAttrTypes, appControllerAttrs)
+	} else {
+		configAttrs["application_controller"] = types.ObjectNull(appControllerAutoScalingAttrTypes)
+	}
+
+	if apiConfig.RepoServer != nil {
+		repoServerAttrs := make(map[string]attr.Value)
+
+		if apiConfig.RepoServer.ResourceMinimum != nil {
+			// Use planned values if they are resource-equivalent to API values
+			memoryValue := apiConfig.RepoServer.ResourceMinimum.Mem
+			cpuValue := apiConfig.RepoServer.ResourceMinimum.Cpu
+
+			if plannedConfig != nil && plannedConfig.RepoServer != nil && plannedConfig.RepoServer.ResourceMinimum != nil {
+				if areResourcesEquivalent(plannedConfig.RepoServer.ResourceMinimum.Memory.ValueString(), memoryValue) {
+					memoryValue = plannedConfig.RepoServer.ResourceMinimum.Memory.ValueString()
+				}
+				if areResourcesEquivalent(plannedConfig.RepoServer.ResourceMinimum.Cpu.ValueString(), cpuValue) {
+					cpuValue = plannedConfig.RepoServer.ResourceMinimum.Cpu.ValueString()
+				}
+			}
+
+			resourceMinAttrs := map[string]attr.Value{
+				"memory": types.StringValue(memoryValue),
+				"cpu":    types.StringValue(cpuValue),
+			}
+			repoServerAttrs["resource_minimum"] = types.ObjectValueMust(resourcesAttrTypes, resourceMinAttrs)
+		} else {
+			repoServerAttrs["resource_minimum"] = types.ObjectNull(resourcesAttrTypes)
+		}
+
+		if apiConfig.RepoServer.ResourceMaximum != nil {
+			// Use planned values if they are resource-equivalent to API values
+			memoryValue := apiConfig.RepoServer.ResourceMaximum.Mem
+			cpuValue := apiConfig.RepoServer.ResourceMaximum.Cpu
+
+			if plannedConfig != nil && plannedConfig.RepoServer != nil && plannedConfig.RepoServer.ResourceMaximum != nil {
+				if areResourcesEquivalent(plannedConfig.RepoServer.ResourceMaximum.Memory.ValueString(), memoryValue) {
+					memoryValue = plannedConfig.RepoServer.ResourceMaximum.Memory.ValueString()
+				}
+				if areResourcesEquivalent(plannedConfig.RepoServer.ResourceMaximum.Cpu.ValueString(), cpuValue) {
+					cpuValue = plannedConfig.RepoServer.ResourceMaximum.Cpu.ValueString()
+				}
+			}
+
+			resourceMaxAttrs := map[string]attr.Value{
+				"memory": types.StringValue(memoryValue),
+				"cpu":    types.StringValue(cpuValue),
+			}
+			repoServerAttrs["resource_maximum"] = types.ObjectValueMust(resourcesAttrTypes, resourceMaxAttrs)
+		} else {
+			repoServerAttrs["resource_maximum"] = types.ObjectNull(resourcesAttrTypes)
+		}
+
+		// For replica values, always use planned values if available, otherwise API values
+		replicasMin := int64(apiConfig.RepoServer.ReplicaMinimum)
+		replicasMax := int64(apiConfig.RepoServer.ReplicaMaximum)
+		if plannedConfig != nil && plannedConfig.RepoServer != nil {
+			if !plannedConfig.RepoServer.ReplicasMinimum.IsNull() {
+				replicasMin = plannedConfig.RepoServer.ReplicasMinimum.ValueInt64()
+			}
+			if !plannedConfig.RepoServer.ReplicasMaximum.IsNull() {
+				replicasMax = plannedConfig.RepoServer.ReplicasMaximum.ValueInt64()
+			}
+		}
+
+		repoServerAttrs["replicas_minimum"] = types.Int64Value(replicasMin)
+		repoServerAttrs["replicas_maximum"] = types.Int64Value(replicasMax)
+
+		configAttrs["repo_server"] = types.ObjectValueMust(repoServerAutoScalingAttrTypes, repoServerAttrs)
+	} else {
+		configAttrs["repo_server"] = types.ObjectNull(repoServerAutoScalingAttrTypes)
+	}
+
+	return types.ObjectValueMust(autoScalerConfigAttrTypes, configAttrs)
 }

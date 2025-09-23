@@ -68,7 +68,7 @@ func getAKPKargoInstanceAttributes() map[string]schema.Attribute {
 			},
 		},
 		"kargo_resources": schema.MapAttribute{
-			MarkdownDescription: "Map of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`, `ClusterPromotionTask`, `Stage`, `Warehouse`, `AnalysisTemplate`, `PromotionTask` and `Secret`(only with kargo.akuity.io/cred-type label). Should all be in the apiVersion `kargo.akuity.io/v1alpha1` except secrets.",
+			MarkdownDescription: "Map of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`, `ClusterPromotionTask`, `Stage`, `Warehouse`, `AnalysisTemplate`, `PromotionTask`(with Groups: `kargo.akuity.io`); `Secret`(only with `kargo.akuity.io/cred-type` label); `ConfigMap`; `Role`, `RoleBinding`, `ServiceAccount`(`rbac.kargo.akuity.io/managed=\"true\"` annotation required)",
 			Optional:            true,
 			ElementType:         types.StringType,
 			PlanModifiers: []planmodifier.Map{
@@ -171,6 +171,16 @@ func getKargoSpecInstanceAttributes() map[string]schema.Attribute {
 			Optional:            true,
 			ElementType:         types.StringType,
 		},
+		"akuity_intelligence": schema.SingleNestedAttribute{
+			MarkdownDescription: "Akuity Intelligence configuration for AI-powered features",
+			Optional:            true,
+			Attributes:          getKargoAkuityIntelligenceAttributes(),
+		},
+		"gc_config": schema.SingleNestedAttribute{
+			MarkdownDescription: "Garbage collector configuration",
+			Optional:            true,
+			Attributes:          getGarbageCollectorConfigAttributes(),
+		},
 	}
 }
 
@@ -271,6 +281,18 @@ func getKargoOidcConfigAttributes() map[string]schema.Attribute {
 			Optional:            true,
 			ElementType:         types.StringType,
 		},
+		"user_account": schema.SingleNestedAttribute{
+			MarkdownDescription: "User account",
+			Optional:            true,
+			Computed:            true,
+			Attributes:          getKargoPredefinedAccountAttributes(),
+		},
+		"project_creator_account": schema.SingleNestedAttribute{
+			MarkdownDescription: "Project creator account",
+			Optional:            true,
+			Computed:            true,
+			Attributes:          getKargoPredefinedAccountAttributes(),
+		},
 	}
 }
 
@@ -287,6 +309,66 @@ func getKargoPredefinedAccountAttributes() map[string]schema.Attribute {
 						Computed:    true,
 					},
 				},
+			},
+		},
+	}
+}
+
+func getGarbageCollectorConfigAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"max_retained_freight": schema.Int64Attribute{
+			MarkdownDescription: "Maximum number of freight objects to retain",
+			Optional:            true,
+		},
+		"max_retained_promotions": schema.Int64Attribute{
+			MarkdownDescription: "Maximum number of promotion objects to retain",
+			Optional:            true,
+		},
+		"min_freight_deletion_age": schema.Int64Attribute{
+			MarkdownDescription: "Minimum age in seconds before freight objects can be deleted",
+			Optional:            true,
+		},
+		"min_promotion_deletion_age": schema.Int64Attribute{
+			MarkdownDescription: "Minimum age in seconds before promotion objects can be deleted",
+			Optional:            true,
+		},
+	}
+}
+
+func getKargoAkuityIntelligenceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"ai_support_engineer_enabled": schema.BoolAttribute{
+			MarkdownDescription: "Enable AI support engineer functionality",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Bool{
+				boolplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"enabled": schema.BoolAttribute{
+			MarkdownDescription: "Enable Akuity Intelligence for AI-powered features",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Bool{
+				boolplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"allowed_usernames": schema.ListAttribute{
+			MarkdownDescription: "List of usernames allowed to use AI features",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
+		"allowed_groups": schema.ListAttribute{
+			MarkdownDescription: "List of groups allowed to use AI features",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
+		"model_version": schema.StringAttribute{
+			MarkdownDescription: "AI model version to use",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
 			},
 		},
 	}

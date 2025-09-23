@@ -69,14 +69,13 @@ jobs:
     timeout-minutes: 45
     strategy:
       fail-fast: true
-      max-parallel: 1
       matrix:
         # list whatever Terraform versions here you would like to support
         terraform:
-          - '1.2.*'
-          - '1.3.*'
-          - '1.4.*'
-          - '1.5.*'
+          - '1.9.*'
+          - '1.10.*'
+          - '1.11.*'
+          - '1.12.*'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -92,5 +91,7 @@ jobs:
           TF_ACC: "1"
           AKUITY_API_KEY_ID: "${{ secrets.AKUITY_API_KEY_ID }}"
           AKUITY_API_KEY_SECRET: "${{ secrets.AKUITY_API_KEY_SECRET }}"
+          AKUITY_INSTANCE_ID: "6pzhawvy4echbd8x"
+          AKUITY_KARGO_INSTANCE_ID: "5gjcg0rh8fjemhc0"
         run: make acc-test
-        timeout-minutes: 10
+        timeout-minutes: 45

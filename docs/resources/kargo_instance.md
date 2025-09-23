@@ -111,6 +111,32 @@ EOT
         default_shard_agent       = "test"
         global_credentials_ns     = ["test1", "test2"]
         global_service_account_ns = ["test3", "test4"]
+
+        # AI Intelligence Configuration
+        # Enables AI-powered assistance for troubleshooting and promotion advice
+        akuity_intelligence = {
+          # Enable the AI intelligence feature
+          enabled = true
+          # Enable AI support engineer for advanced troubleshooting and recommendations
+          ai_support_engineer_enabled = true
+          # Specific users who can access AI features
+          allowed_usernames = [
+            "*",
+          ]
+          # Groups that have access to AI features
+          allowed_groups = [
+            "*",
+          ]
+          # Default to OpenAI GPT
+          model_version = ""
+        }
+
+        gc_config = {
+          max_retained_freight       = 20
+          max_retained_promotions    = 50
+          min_freight_deletion_age   = 86400
+          min_promotion_deletion_age = 604800
+        }
       }
     }
   }
@@ -166,7 +192,7 @@ locals {
 ### Optional
 
 - `kargo_cm` (Map of String) ConfigMap to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf
-- `kargo_resources` (Map of String) Map of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`, `ClusterPromotionTask`, `Stage`, `Warehouse`, `AnalysisTemplate`, `PromotionTask` and `Secret`(only with kargo.akuity.io/cred-type label). Should all be in the apiVersion `kargo.akuity.io/v1alpha1` except secrets.
+- `kargo_resources` (Map of String) Map of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`, `ClusterPromotionTask`, `Stage`, `Warehouse`, `AnalysisTemplate`, `PromotionTask`(with Groups: `kargo.akuity.io`); `Secret`(only with `kargo.akuity.io/cred-type` label); `ConfigMap`; `Role`, `RoleBinding`, `ServiceAccount`(`rbac.kargo.akuity.io/managed="true"` annotation required)
 - `kargo_secret` (Map of String, Sensitive) Secret to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf
 - `workspace` (String) Workspace name for the Kargo instance
 
@@ -202,8 +228,10 @@ Optional:
 Optional:
 
 - `agent_customization_defaults` (Attributes) Default agent customization settings (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--agent_customization_defaults))
+- `akuity_intelligence` (Attributes) Akuity Intelligence configuration for AI-powered features (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--akuity_intelligence))
 - `backend_ip_allow_list_enabled` (Boolean) Whether IP allow list is enabled for the backend
 - `default_shard_agent` (String) Default shard agent
+- `gc_config` (Attributes) Garbage collector configuration (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--gc_config))
 - `global_credentials_ns` (List of String) List of global credentials namespaces
 - `global_service_account_ns` (List of String) List of global service account namespaces
 - `ip_allow_list` (Attributes List) List of allowed IPs (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--ip_allow_list))
@@ -215,6 +243,29 @@ Optional:
 
 - `auto_upgrade_disabled` (Boolean) Whether auto upgrade is disabled
 - `kustomization` (String) Kustomization that will be applied to the Kargo agent to generate agent installation manifests
+
+
+<a id="nestedatt--kargo--spec--kargo_instance_spec--akuity_intelligence"></a>
+### Nested Schema for `kargo.spec.kargo_instance_spec.akuity_intelligence`
+
+Optional:
+
+- `ai_support_engineer_enabled` (Boolean) Enable AI support engineer functionality
+- `allowed_groups` (List of String) List of groups allowed to use AI features
+- `allowed_usernames` (List of String) List of usernames allowed to use AI features
+- `enabled` (Boolean) Enable Akuity Intelligence for AI-powered features
+- `model_version` (String) AI model version to use
+
+
+<a id="nestedatt--kargo--spec--kargo_instance_spec--gc_config"></a>
+### Nested Schema for `kargo.spec.kargo_instance_spec.gc_config`
+
+Optional:
+
+- `max_retained_freight` (Number) Maximum number of freight objects to retain
+- `max_retained_promotions` (Number) Maximum number of promotion objects to retain
+- `min_freight_deletion_age` (Number) Minimum age in seconds before freight objects can be deleted
+- `min_promotion_deletion_age` (Number) Minimum age in seconds before promotion objects can be deleted
 
 
 <a id="nestedatt--kargo--spec--kargo_instance_spec--ip_allow_list"></a>
@@ -244,6 +295,8 @@ Optional:
 - `dex_enabled` (Boolean) Whether DEX is enabled
 - `enabled` (Boolean) Whether OIDC is enabled
 - `issuer_url` (String) Issuer URL
+- `project_creator_account` (Attributes) Project creator account (see [below for nested schema](#nestedatt--kargo--spec--oidc_config--project_creator_account))
+- `user_account` (Attributes) User account (see [below for nested schema](#nestedatt--kargo--spec--oidc_config--user_account))
 - `viewer_account` (Attributes) Viewer account (see [below for nested schema](#nestedatt--kargo--spec--oidc_config--viewer_account))
 
 <a id="nestedatt--kargo--spec--oidc_config--admin_account"></a>
@@ -255,6 +308,38 @@ Optional:
 
 <a id="nestedatt--kargo--spec--oidc_config--admin_account--claims"></a>
 ### Nested Schema for `kargo.spec.oidc_config.admin_account.claims`
+
+Optional:
+
+- `values` (List of String)
+
+
+
+<a id="nestedatt--kargo--spec--oidc_config--project_creator_account"></a>
+### Nested Schema for `kargo.spec.oidc_config.project_creator_account`
+
+Optional:
+
+- `claims` (Attributes Map) Claims (see [below for nested schema](#nestedatt--kargo--spec--oidc_config--project_creator_account--claims))
+
+<a id="nestedatt--kargo--spec--oidc_config--project_creator_account--claims"></a>
+### Nested Schema for `kargo.spec.oidc_config.project_creator_account.claims`
+
+Optional:
+
+- `values` (List of String)
+
+
+
+<a id="nestedatt--kargo--spec--oidc_config--user_account"></a>
+### Nested Schema for `kargo.spec.oidc_config.user_account`
+
+Optional:
+
+- `claims` (Attributes Map) Claims (see [below for nested schema](#nestedatt--kargo--spec--oidc_config--user_account--claims))
+
+<a id="nestedatt--kargo--spec--oidc_config--user_account--claims"></a>
+### Nested Schema for `kargo.spec.oidc_config.user_account.claims`
 
 Optional:
 

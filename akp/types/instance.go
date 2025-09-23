@@ -3,11 +3,10 @@ package types
 import (
 	"context"
 
-	"github.com/pkg/errors"
-	"google.golang.org/protobuf/types/known/structpb"
-
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/pkg/errors"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 	"github.com/akuity/terraform-provider-akp/akp/apis/v1alpha1"
