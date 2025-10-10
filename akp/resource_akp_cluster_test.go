@@ -1510,6 +1510,93 @@ resource "akp_cluster" "test_validation" {
 	})
 }
 
+func testAccClusterResourceConfigMergeData(name, instanceId string) string {
+	return fmt.Sprintf(`
+variable "config" {
+  type    = map(any)
+  default = {}
+}
+
+resource "akp_cluster" "test" {
+  instance_id = %q
+  name        = %q
+  namespace   = "test"
+
+  labels = merge({
+    "condor.io/cluster-name" = %q
+    },
+    {
+      environment = "test"
+      managed-by  = "terraform"
+    }
+  )
+
+  annotations = merge({
+    "argocd.argoproj.io/instance" = %q
+    },
+    {
+      team  = "platform"
+      owner = "devops"
+    }
+  )
+
+  spec = {
+    namespace_scoped = false
+    description      = "Managed by Terraform, do not edit!"
+    data = merge({
+      kustomization = <<EOF
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+patches:
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: argocd-repo-server
+      spec:
+        template:
+          spec:
+            containers:
+            - name: argocd-repo-server
+              resources:
+                limits:
+                  memory: 2Gi
+                requests:
+                  cpu: 500m
+                  memory: 1Gi
+    target:
+      kind: Deployment
+      name: argocd-repo-server
+EOF
+    }, {
+      size                  = "small"
+      auto_upgrade_disabled = true
+    }, var.config)
+  }
+}
+`, instanceId, name, name, "test-instance")
+}
+
+func TestAccClusterResourceMergeData(t *testing.T) {
+	name := acctest.RandomWithPrefix("test-merge-data")
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig + testAccClusterResourceConfigMergeData(name, getInstanceId()),
+			},
+			{
+				Config: providerConfig + testAccClusterResourceConfigMergeData(name, getInstanceId()),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.size", "small"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.auto_upgrade_disabled", "true"),
+				),
+			},
+		},
+	})
+}
+
 // TestAccCluster_CustomAgentSizeInconsistency tests for custom agent size configuration inconsistencies
 // This test provokes issues in the complex custom agent size logic in types.go lines 226-241
 func TestAccCluster_CustomAgentSizeInconsistency(t *testing.T) {
