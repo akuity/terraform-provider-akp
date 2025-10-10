@@ -5,14 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/akuity/api-client-go/pkg/api/gateway/accesscontrol"
-	gwoption "github.com/akuity/api-client-go/pkg/api/gateway/option"
-	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
-	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
-	orgcv1 "github.com/akuity/api-client-go/pkg/api/gen/organization/v1"
-	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
-	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
-
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
@@ -20,6 +12,14 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+
+	"github.com/akuity/api-client-go/pkg/api/gateway/accesscontrol"
+	gwoption "github.com/akuity/api-client-go/pkg/api/gateway/option"
+	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
+	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
+	orgcv1 "github.com/akuity/api-client-go/pkg/api/gen/organization/v1"
+	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
+	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
 )
 
 var _ provider.Provider = &AkpProvider{}

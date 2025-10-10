@@ -299,9 +299,10 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 			Attributes:          getAppSetDelegateAttributes(),
 		},
 		"assistant_extension_enabled": schema.BoolAttribute{
-			MarkdownDescription: "Enable Powerful AI-powered assistant Extension. It helps analyze Kubernetes resources behavior and provides suggestions about resolving issues.",
+			MarkdownDescription: "Deprecated: upcoming removal. Enable Powerful AI-powered assistant Extension. It helps analyze Kubernetes resources behavior and provides suggestions about resolving issues.",
 			Optional:            true,
 			Computed:            true,
+			DeprecationMessage:  "assistant_extension_enabled field will be removed in a future release; remove it from configs.",
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
 			},

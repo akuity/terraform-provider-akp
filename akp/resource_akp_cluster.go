@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/slices"
@@ -618,25 +619,37 @@ func (v sizeConfigValidator) MarkdownDescription(ctx context.Context) string {
 }
 
 func (v sizeConfigValidator) ValidateResource(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
-	// Get the full resource configuration
-	var config types.Cluster
+	dataPath := path.Root("spec").AtName("data")
 
-	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
-	if resp.Diagnostics.HasError() {
+	var data tftypes.Object
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, dataPath, &data)...)
+	if resp.Diagnostics.HasError() || data.IsNull() || data.IsUnknown() {
 		return
 	}
 
-	// Check if spec is nil
-	if config.Spec == nil {
+	var size tftypes.String
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, dataPath.AtName("size"), &size)...)
+	if resp.Diagnostics.HasError() || size.IsNull() || size.IsUnknown() {
 		return
 	}
+	sizeValue := size.ValueString()
 
-	data := &config.Spec.Data
-	size := data.Size.ValueString()
-	hasAutoConfig := !data.AutoscalerConfig.IsNull()
-	hasCustomConfig := data.CustomAgentSizeConfig != nil
+	var autoConfig tftypes.Object
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, dataPath.AtName("auto_agent_size_config"), &autoConfig)...)
+	if resp.Diagnostics.HasError() || autoConfig.IsUnknown() {
+		return
+	}
+	hasAutoConfig := !autoConfig.IsNull()
 
-	switch size {
+	customConfigPath := dataPath.AtName("custom_agent_size_config")
+	var customConfig tftypes.Object
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, customConfigPath, &customConfig)...)
+	if resp.Diagnostics.HasError() || customConfig.IsUnknown() {
+		return
+	}
+	hasCustomConfig := !customConfig.IsNull()
+
+	switch sizeValue {
 	case "auto":
 		// auto_agent_size_config is optional when size is "auto" - API provides defaults if not specified
 		if hasCustomConfig {
@@ -666,14 +679,14 @@ func (v sizeConfigValidator) ValidateResource(ctx context.Context, req resource.
 			resp.Diagnostics.AddAttributeError(
 				path.Root("spec").AtName("data").AtName("auto_agent_size_config"),
 				"Invalid auto_agent_size_config",
-				fmt.Sprintf("auto_agent_size_config cannot be used when size is '%s'", size),
+				fmt.Sprintf("auto_agent_size_config cannot be used when size is '%s'", sizeValue),
 			)
 		}
 		if hasCustomConfig {
 			resp.Diagnostics.AddAttributeError(
 				path.Root("spec").AtName("data").AtName("custom_agent_size_config"),
 				"Invalid custom_agent_size_config",
-				fmt.Sprintf("custom_agent_size_config cannot be used when size is '%s'", size),
+				fmt.Sprintf("custom_agent_size_config cannot be used when size is '%s'", sizeValue),
 			)
 		}
 	default:

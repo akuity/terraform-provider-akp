@@ -199,7 +199,8 @@ func getInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 			Attributes:          getAppSetDelegateDataSourceAttributes(),
 		},
 		"assistant_extension_enabled": schema.BoolAttribute{
-			MarkdownDescription: "Enable Powerful AI-powered assistant Extension. It helps analyze Kubernetes resources behavior and provides suggestions about resolving issues.",
+			MarkdownDescription: "Deprecated: upcoming removal. Enable Powerful AI-powered assistant Extension. It helps analyze Kubernetes resources behavior and provides suggestions about resolving issues.",
+			DeprecationMessage:  "assistant_extension_enabled field will be removed in a future release; remove it from configs.",
 			Computed:            true,
 		},
 		"appset_policy": schema.SingleNestedAttribute{
