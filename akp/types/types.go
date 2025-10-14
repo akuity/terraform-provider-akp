@@ -1340,7 +1340,6 @@ func toAkuityIntelligenceExtensionTFModel(extension *v1alpha1.AkuityIntelligence
 		AllowedUsernames:         convertSlice(extension.AllowedUsernames, func(s string) types.String { return types.StringValue(s) }),
 		AllowedGroups:            convertSlice(extension.AllowedGroups, func(s string) types.String { return types.StringValue(s) }),
 		AiSupportEngineerEnabled: types.BoolValue(extension.AiSupportEngineerEnabled != nil && *extension.AiSupportEngineerEnabled),
-		ModelVersion:             types.StringValue(extension.ModelVersion),
 	}
 }
 
@@ -1353,7 +1352,6 @@ func toAkuityIntelligenceExtensionAPIModel(extension *AkuityIntelligenceExtensio
 		AllowedUsernames:         convertSlice(extension.AllowedUsernames, tfStringToString),
 		AllowedGroups:            convertSlice(extension.AllowedGroups, tfStringToString),
 		AiSupportEngineerEnabled: toBoolPointer(extension.AiSupportEngineerEnabled),
-		ModelVersion:             extension.ModelVersion.ValueString(),
 	}
 }
 

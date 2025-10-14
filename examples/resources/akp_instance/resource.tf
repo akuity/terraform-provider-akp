@@ -70,8 +70,6 @@ resource "akp_instance" "example" {
           ]
           # Enable AI support engineer for advanced troubleshooting capabilities
           ai_support_engineer_enabled = true
-          # Default to OpenAI GPT
-          model_version = ""
         }
         # Advanced Akuity Intelligence configuration including CVE scanning and AI-powered
         # incident management with automated runbook execution and webhook integrations

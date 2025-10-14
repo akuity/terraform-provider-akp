@@ -60,7 +60,6 @@ type AkuityIntelligenceExtension struct {
 	AllowedUsernames         []string `json:"allowedUsernames,omitempty"`
 	AllowedGroups            []string `json:"allowedGroups,omitempty"`
 	AiSupportEngineerEnabled *bool    `json:"aiSupportEngineerEnabled,omitempty"`
-	ModelVersion             string   `json:"modelVersion,omitempty"`
 }
 
 type TargetSelector struct {

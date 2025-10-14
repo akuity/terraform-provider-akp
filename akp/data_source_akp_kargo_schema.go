@@ -112,7 +112,7 @@ func getKargoInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 			Attributes:          getKargoAgentCustomizationDataSourceAttributes(),
 		},
 		"default_shard_agent": schema.StringAttribute{
-			MarkdownDescription: "Default shard agent",
+			MarkdownDescription: "Default shard agent, either agent id or agent name",
 			Computed:            true,
 		},
 		"global_credentials_ns": schema.ListAttribute{

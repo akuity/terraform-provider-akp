@@ -61,7 +61,7 @@ Read-Only:
 - `agent_customization_defaults` (Attributes) Default agent customization settings (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--agent_customization_defaults))
 - `akuity_intelligence` (Attributes) Akuity Intelligence configuration for AI-powered features (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--akuity_intelligence))
 - `backend_ip_allow_list_enabled` (Boolean) Whether IP allow list is enabled for the backend
-- `default_shard_agent` (String) Default shard agent
+- `default_shard_agent` (String) Default shard agent, either agent id or agent name
 - `gc_config` (Attributes) Garbage collector configuration (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--gc_config))
 - `global_credentials_ns` (List of String) List of global credentials namespaces
 - `global_service_account_ns` (List of String) List of global service account namespaces

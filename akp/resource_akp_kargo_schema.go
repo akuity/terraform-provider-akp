@@ -154,7 +154,7 @@ func getKargoSpecInstanceAttributes() map[string]schema.Attribute {
 			Attributes:          getKargoAgentCustomizationAttributes(),
 		},
 		"default_shard_agent": schema.StringAttribute{
-			MarkdownDescription: "Default shard agent",
+			MarkdownDescription: "Default shard agent, either agent id or agent name",
 			Optional:            true,
 			Computed:            true,
 			PlanModifiers: []planmodifier.String{

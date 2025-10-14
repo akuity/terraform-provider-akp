@@ -55,7 +55,6 @@ type AkuityIntelligenceExtension struct {
 	AllowedUsernames         []types.String `tfsdk:"allowed_usernames"`
 	AllowedGroups            []types.String `tfsdk:"allowed_groups"`
 	AiSupportEngineerEnabled types.Bool     `tfsdk:"ai_support_engineer_enabled"`
-	ModelVersion             types.String   `tfsdk:"model_version"`
 }
 
 type TargetSelector struct {

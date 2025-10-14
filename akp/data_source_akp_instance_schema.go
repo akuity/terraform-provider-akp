@@ -646,10 +646,6 @@ func getAkuityIntelligenceExtensionDataSourceAttributes() map[string]schema.Attr
 			MarkdownDescription: "Enable AI support engineer functionality",
 			Computed:            true,
 		},
-		"model_version": schema.StringAttribute{
-			MarkdownDescription: "AI model version to use",
-			Computed:            true,
-		},
 	}
 }
 
