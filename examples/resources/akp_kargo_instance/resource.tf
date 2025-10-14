@@ -81,6 +81,7 @@ images:
     newName: quay.io/akuityy/agent
 EOT
         }
+        # default_shard_agent can be either agent id or agent name
         default_shard_agent       = "test"
         global_credentials_ns     = ["test1", "test2"]
         global_service_account_ns = ["test3", "test4"]

@@ -175,7 +175,6 @@ func (r *AkpInstanceResource) validateAKIntelligenceFeatures(ctx context.Context
 
 	if !aiExt.Enabled.ValueBool() {
 		if aiExt.AiSupportEngineerEnabled.ValueBool() ||
-			aiExt.ModelVersion.ValueString() != "" ||
 			len(aiExt.AllowedUsernames) > 0 ||
 			len(aiExt.AllowedGroups) > 0 {
 			return fmt.Errorf("AI configs are specified but AI Intelligence is disabled")

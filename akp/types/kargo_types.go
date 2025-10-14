@@ -25,7 +25,12 @@ var KargoAgentSizeString = map[kargov1.KargoAgentSize]string{
 	kargov1.KargoAgentSize_KARGO_AGENT_SIZE_UNSPECIFIED: "unspecified",
 }
 
-func (k *Kargo) Update(ctx context.Context, diagnostics *diag.Diagnostics, kargo *v1alpha1.Kargo) {
+type AgentMaps struct {
+	NameToID map[string]string
+	IDToName map[string]string
+}
+
+func (k *Kargo) Update(ctx context.Context, diagnostics *diag.Diagnostics, kargo *v1alpha1.Kargo, agentMaps *AgentMaps) {
 	var backendIpAllowListEnabled bool
 	if kargo.Spec.KargoInstanceSpec.BackendIpAllowListEnabled != nil {
 		backendIpAllowListEnabled = *kargo.Spec.KargoInstanceSpec.BackendIpAllowListEnabled
@@ -59,6 +64,16 @@ func (k *Kargo) Update(ctx context.Context, diagnostics *diag.Diagnostics, kargo
 			acd = toKargoAgentCustomizationTFModel(kargo.Spec.KargoInstanceSpec.AgentCustomizationDefaults, diagnostics)
 		}
 	}
+
+	defaultShardAgent := types.StringValue(kargo.Spec.KargoInstanceSpec.DefaultShardAgent)
+	if agentMaps != nil && !k.Spec.KargoInstanceSpec.DefaultShardAgent.IsNull() && !k.Spec.KargoInstanceSpec.DefaultShardAgent.IsUnknown() {
+		userInput := k.Spec.KargoInstanceSpec.DefaultShardAgent.ValueString()
+		apiValue := kargo.Spec.KargoInstanceSpec.DefaultShardAgent
+		if agentMaps.IDToName[apiValue] == userInput || apiValue == userInput {
+			defaultShardAgent = k.Spec.KargoInstanceSpec.DefaultShardAgent
+		}
+	}
+
 	k.Spec = KargoSpec{
 		Description: types.StringValue(kargo.Spec.Description),
 		Version:     types.StringValue(kargo.Spec.Version),
@@ -66,7 +81,7 @@ func (k *Kargo) Update(ctx context.Context, diagnostics *diag.Diagnostics, kargo
 			BackendIpAllowListEnabled:  types.BoolValue(backendIpAllowListEnabled),
 			IpAllowList:                toKargoIPAllowListTFModel(kargo.Spec.KargoInstanceSpec.IpAllowList),
 			AgentCustomizationDefaults: acd,
-			DefaultShardAgent:          types.StringValue(kargo.Spec.KargoInstanceSpec.DefaultShardAgent),
+			DefaultShardAgent:          defaultShardAgent,
 			GlobalCredentialsNs:        toStringArrayTFModel(kargo.Spec.KargoInstanceSpec.GlobalCredentialsNs),
 			GlobalServiceAccountNs:     toStringArrayTFModel(kargo.Spec.KargoInstanceSpec.GlobalServiceAccountNs),
 			AkuityIntelligence:         toKargoAkuityIntelligenceTFModel(kargo.Spec.KargoInstanceSpec.AkuityIntelligence, k),
@@ -85,7 +100,7 @@ func (k *Kargo) Update(ctx context.Context, diagnostics *diag.Diagnostics, kargo
 	}
 }
 
-func (k *Kargo) ToKargoAPIModel(ctx context.Context, diag *diag.Diagnostics, name string) *v1alpha1.Kargo {
+func (k *Kargo) ToKargoAPIModel(ctx context.Context, diag *diag.Diagnostics, name string, agentMaps *AgentMaps) *v1alpha1.Kargo {
 	subdomain := k.Spec.Subdomain.ValueString()
 	fqdn := k.Spec.Fqdn.ValueString()
 	if subdomain != "" && fqdn != "" {
@@ -101,6 +116,14 @@ func (k *Kargo) ToKargoAPIModel(ctx context.Context, diag *diag.Diagnostics, nam
 			MinPromotionDeletionAge: uint32(k.Spec.KargoInstanceSpec.GcConfig.MinPromotionDeletionAge.ValueInt64()),
 		}
 	}
+
+	defaultShardAgent := k.Spec.KargoInstanceSpec.DefaultShardAgent.ValueString()
+	if agentMaps != nil && defaultShardAgent != "" {
+		if agentID, ok := agentMaps.NameToID[defaultShardAgent]; ok {
+			defaultShardAgent = agentID
+		}
+	}
+
 	return &v1alpha1.Kargo{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Kargo",
@@ -116,7 +139,7 @@ func (k *Kargo) ToKargoAPIModel(ctx context.Context, diag *diag.Diagnostics, nam
 				BackendIpAllowListEnabled:  toBoolPointer(k.Spec.KargoInstanceSpec.BackendIpAllowListEnabled),
 				IpAllowList:                toKargoIpAllowListAPIModel(k.Spec.KargoInstanceSpec.IpAllowList),
 				AgentCustomizationDefaults: toKargoAgentCustomizationAPIModel(k.Spec.KargoInstanceSpec.AgentCustomizationDefaults, diag),
-				DefaultShardAgent:          k.Spec.KargoInstanceSpec.DefaultShardAgent.ValueString(),
+				DefaultShardAgent:          defaultShardAgent,
 				GlobalCredentialsNs:        toStringArrayAPIModel(k.Spec.KargoInstanceSpec.GlobalCredentialsNs),
 				GlobalServiceAccountNs:     toStringArrayAPIModel(k.Spec.KargoInstanceSpec.GlobalServiceAccountNs),
 				AkuityIntelligence:         toKargoAkuityIntelligenceAPIModel(k.Spec.KargoInstanceSpec.AkuityIntelligence),

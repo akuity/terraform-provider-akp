@@ -109,7 +109,6 @@ Read-Only:
 - `allowed_groups` (List of String) List of groups allowed to use AI features
 - `allowed_usernames` (List of String) List of usernames allowed to use AI features
 - `enabled` (Boolean) Enable Akuity Intelligence Extension for AI-powered features
-- `model_version` (String) AI model version to use
 
 
 <a id="nestedatt--argocd--spec--instance_spec--app_in_any_namespace_config"></a>

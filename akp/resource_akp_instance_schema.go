@@ -807,14 +807,6 @@ func getAkuityIntelligenceExtensionAttributes() map[string]schema.Attribute {
 				boolplanmodifier.UseStateForUnknown(),
 			},
 		},
-		"model_version": schema.StringAttribute{
-			MarkdownDescription: "AI model version to use",
-			Optional:            true,
-			Computed:            true,
-			PlanModifiers: []planmodifier.String{
-				stringplanmodifier.UseStateForUnknown(),
-			},
-		},
 	}
 }
 

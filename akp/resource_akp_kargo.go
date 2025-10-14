@@ -179,7 +179,7 @@ func (r *AkpKargoInstanceResource) upsert(ctx context.Context, diagnostics *diag
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get workspace. %s", err))
 		return errors.New("Unable to get workspace")
 	}
-	apiReq := buildKargoApplyRequest(ctx, diagnostics, plan, r.akpCli.OrgId, workspace.GetId())
+	apiReq := buildKargoApplyRequest(ctx, diagnostics, r.akpCli.KargoCli, plan, r.akpCli.OrgId, workspace.GetId())
 	if diagnostics.HasError() {
 		return errors.New("Unable to build Kargo instance request")
 	}
@@ -232,7 +232,7 @@ func (r *AkpKargoInstanceResource) upsert(ctx context.Context, diagnostics *diag
 	return refreshKargoState(ctx, diagnostics, r.akpCli.KargoCli, plan, r.akpCli.OrgId, false)
 }
 
-func buildKargoApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, kargo *types.KargoInstance, orgID, workspaceID string) *kargov1.ApplyKargoInstanceRequest {
+func buildKargoApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, client kargov1.KargoServiceGatewayClient, kargo *types.KargoInstance, orgID, workspaceID string) *kargov1.ApplyKargoInstanceRequest {
 	idType := idv1.Type_NAME
 	id := kargo.Name.ValueString()
 
@@ -241,12 +241,14 @@ func buildKargoApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, 
 		id = kargo.ID.ValueString()
 	}
 
+	agentMaps := buildAgentMaps(ctx, client, id, orgID)
+
 	applyReq := &kargov1.ApplyKargoInstanceRequest{
 		OrganizationId: orgID,
 		Id:             id,
 		IdType:         idType,
 		WorkspaceId:    workspaceID,
-		Kargo:          buildKargo(ctx, diagnostics, kargo),
+		Kargo:          buildKargo(ctx, diagnostics, kargo, agentMaps),
 		KargoConfigmap: buildConfigMap(ctx, diagnostics, kargo.KargoConfigMap, "kargo-cm"),
 		KargoSecret:    buildSecret(ctx, diagnostics, kargo.KargoSecret, "kargo-secret", nil),
 	}
@@ -366,8 +368,8 @@ func isKargoResourceValid(un *unstructured.Unstructured) error {
 	return nil
 }
 
-func buildKargo(ctx context.Context, diagnostics *diag.Diagnostics, kargo *types.KargoInstance) *structpb.Struct {
-	apiKargo := kargo.Kargo.ToKargoAPIModel(ctx, diagnostics, kargo.Name.ValueString())
+func buildKargo(ctx context.Context, diagnostics *diag.Diagnostics, kargo *types.KargoInstance, agentMaps *types.AgentMaps) *structpb.Struct {
+	apiKargo := kargo.Kargo.ToKargoAPIModel(ctx, diagnostics, kargo.Name.ValueString(), agentMaps)
 	if diagnostics.HasError() {
 		return nil
 	}
@@ -411,6 +413,9 @@ func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, clien
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Get Kargo instance response: %s", resp))
 	kargo.ID = tftypes.StringValue(resp.Instance.Id)
+
+	agentMaps := buildAgentMaps(ctx, client, kargo.ID.ValueString(), orgID)
+
 	exportReq := &kargov1.ExportKargoInstanceRequest{
 		OrganizationId: orgID,
 		Id:             kargo.ID.ValueString(),
@@ -424,7 +429,36 @@ func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, clien
 		return errors.Wrap(err, "Unable to export Kargo instance")
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Export Kargo instance response: %s", exportResp))
-	return kargo.Update(ctx, diagnostics, exportResp, isDataSource)
+	return kargo.Update(ctx, diagnostics, exportResp, agentMaps, isDataSource)
+}
+
+func buildAgentMaps(ctx context.Context, client kargov1.KargoServiceGatewayClient, instanceID, orgID string) *types.AgentMaps {
+	agentsResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ListKargoInstanceAgentsResponse, error) {
+		return client.ListKargoInstanceAgents(ctx, &kargov1.ListKargoInstanceAgentsRequest{
+			OrganizationId: orgID,
+			InstanceId:     instanceID,
+		})
+	}, "ListKargoInstanceAgents")
+	if err != nil {
+		tflog.Warn(ctx, fmt.Sprintf("Unable to list Kargo agents for name<->ID mapping: %s", err))
+		return nil
+	}
+
+	agentMaps := &types.AgentMaps{
+		NameToID: make(map[string]string),
+		IDToName: make(map[string]string),
+	}
+
+	for _, agent := range agentsResp.GetAgents() {
+		name := agent.GetName()
+		id := agent.GetId()
+		if name != "" && id != "" {
+			agentMaps.NameToID[name] = id
+			agentMaps.IDToName[id] = name
+		}
+	}
+
+	return agentMaps
 }
 
 func getWorkspace(ctx context.Context, orgc orgcv1.OrganizationServiceGatewayClient, orgid, name string) (*orgcv1.Workspace, error) {

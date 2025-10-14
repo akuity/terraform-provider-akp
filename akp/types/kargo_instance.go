@@ -28,7 +28,7 @@ type KargoInstance struct {
 	KargoResources types.Map    `tfsdk:"kargo_resources"`
 }
 
-func (k *KargoInstance) Update(ctx context.Context, diagnostics *diag.Diagnostics, exportResp *kargov1.ExportKargoInstanceResponse, isDataSource bool) error {
+func (k *KargoInstance) Update(ctx context.Context, diagnostics *diag.Diagnostics, exportResp *kargov1.ExportKargoInstanceResponse, agentMaps *AgentMaps, isDataSource bool) error {
 	var kargo *v1alpha1.Kargo
 	err := marshal.RemarshalTo(exportResp.GetKargo().AsMap(), &kargo)
 	if err != nil {
@@ -61,7 +61,7 @@ func (k *KargoInstance) Update(ctx context.Context, diagnostics *diag.Diagnostic
 		return errors.Wrap(err, "Unable to convert ConfigMap to struct")
 	}
 	k.KargoConfigMap = ToConfigMapTFModel(ctx, diagnostics, configMapStruct, k.KargoConfigMap)
-	k.Kargo.Update(ctx, diagnostics, kargo)
+	k.Kargo.Update(ctx, diagnostics, kargo, agentMaps)
 
 	if err := k.syncKargoResources(ctx, exportResp, diagnostics, isDataSource); err != nil {
 		return err
