@@ -54,6 +54,15 @@ resource "akp_instance" "example" {
         app_in_any_namespace_config = {
           enabled = true
         }
+        application_set_extension = {
+          enabled = true
+        }
+        extensions = [
+          {
+            id      = "argo_rollouts"
+            version = "v0.3.7"
+          }
+        ]
         # AI Intelligence Extension
         # Enables AI-powered features for enhanced ArgoCD experience including
         # intelligent troubleshooting, automated runbook execution, and incident management

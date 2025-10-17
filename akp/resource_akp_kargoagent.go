@@ -205,6 +205,10 @@ func (r *AkpKargoAgentResource) upsert(ctx context.Context, diagnostics *diag.Di
 	if plan.Workspace.ValueString() == "" {
 		plan.Workspace = tftypes.StringValue(workspace.GetName())
 	}
+	if err := r.autoSetDefaultShardAgent(ctx, result, workspace.Id); err != nil {
+		tflog.Warn(ctx, fmt.Sprintf("Failed to auto-set defaultShardAgent: %s", err))
+	}
+
 	return result, refreshKargoAgentState(ctx, diagnostics, r.akpCli.KargoCli, result, r.akpCli.OrgId, plan)
 }
 
@@ -400,4 +404,60 @@ func waitKargoAgentReconStatus(ctx context.Context, client kargov1.KargoServiceG
 		tflog.Debug(ctx, fmt.Sprintf("Kargo agent recon status: %s", reconStatus.String()))
 	}
 	return kargoAgent, nil
+}
+
+func (r *AkpKargoAgentResource) autoSetDefaultShardAgent(ctx context.Context, agent *types.KargoAgent, workspaceID string) error {
+	instancesResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ListKargoInstancesResponse, error) {
+		return r.akpCli.KargoCli.ListKargoInstances(ctx, &kargov1.ListKargoInstancesRequest{
+			OrganizationId: r.akpCli.OrgId,
+			WorkspaceId:    workspaceID,
+		})
+	}, "ListKargoInstances")
+	if err != nil {
+		return errors.Wrap(err, "failed to list kargo instances")
+	}
+
+	var instance *kargov1.KargoInstance
+	for _, i := range instancesResp.GetInstances() {
+		if i.GetId() == agent.InstanceID.ValueString() {
+			instance = i
+			break
+		}
+	}
+	if instance == nil {
+		return errors.New("instance not found")
+	}
+
+	if instance.GetSpec().GetDefaultShardAgent() != "" {
+		return nil
+	}
+
+	patchResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.PatchKargoInstanceResponse, error) {
+		return r.akpCli.KargoCli.PatchKargoInstance(ctx, &kargov1.PatchKargoInstanceRequest{
+			OrganizationId: r.akpCli.OrgId,
+			Id:             agent.InstanceID.ValueString(),
+			Patch: &structpb.Struct{
+				Fields: map[string]*structpb.Value{
+					"spec": {
+						Kind: &structpb.Value_StructValue{
+							StructValue: &structpb.Struct{
+								Fields: map[string]*structpb.Value{
+									"defaultShardAgent": structpb.NewStringValue(agent.ID.ValueString()),
+								},
+							},
+						},
+					},
+				},
+			},
+		})
+	}, "PatchKargoInstance")
+	if err != nil {
+		return errors.Wrap(err, "failed to patch instance with defaultShardAgent")
+	}
+
+	if patchResp.Instance.GetSpec().GetDefaultShardAgent() == agent.ID.ValueString() {
+		tflog.Info(ctx, fmt.Sprintf("Successfully auto-set defaultShardAgent to '%s'", agent.Name.ValueString()))
+	}
+
+	return nil
 }

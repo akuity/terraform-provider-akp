@@ -312,7 +312,7 @@ Optional:
 
 Optional:
 
-- `values` (List of String)
+- `values` (Set of String)
 
 
 
@@ -328,7 +328,7 @@ Optional:
 
 Optional:
 
-- `values` (List of String)
+- `values` (Set of String)
 
 
 
@@ -344,7 +344,7 @@ Optional:
 
 Optional:
 
-- `values` (List of String)
+- `values` (Set of String)
 
 
 
@@ -360,7 +360,7 @@ Optional:
 
 Optional:
 
-- `values` (List of String)
+- `values` (Set of String)
 
 ## Import
 
