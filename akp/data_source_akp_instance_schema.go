@@ -203,6 +203,11 @@ func getInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 			DeprecationMessage:  "assistant_extension_enabled field will be removed in a future release; remove it from configs.",
 			Computed:            true,
 		},
+		"application_set_extension": schema.SingleNestedAttribute{
+			MarkdownDescription: "Configuration for the ApplicationSet extension, enabling the controller and UI integration within Argo CD.",
+			Computed:            true,
+			Attributes:          getApplicationSetExtensionDataSourceAttributes(),
+		},
 		"appset_policy": schema.SingleNestedAttribute{
 			MarkdownDescription: "Configures Application Set policy settings.",
 			Computed:            true,
@@ -621,6 +626,15 @@ func getAppInAnyNamespaceConfigDataSourceAttributes() map[string]schema.Attribut
 	return map[string]schema.Attribute{
 		"enabled": schema.BoolAttribute{
 			MarkdownDescription: "Whether the app in any namespace config is enabled or not.",
+			Computed:            true,
+		},
+	}
+}
+
+func getApplicationSetExtensionDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"enabled": schema.BoolAttribute{
+			MarkdownDescription: "Enable ApplicationSet Extension support.",
 			Computed:            true,
 		},
 	}

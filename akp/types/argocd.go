@@ -178,6 +178,7 @@ type InstanceSpec struct {
 	KubeVisionConfig                *KubeVisionConfig            `tfsdk:"kube_vision_config"`
 	AppInAnyNamespaceConfig         *AppInAnyNamespaceConfig     `tfsdk:"app_in_any_namespace_config"`
 	AppsetPlugins                   []*AppsetPlugins             `tfsdk:"appset_plugins"`
+	ApplicationSetExtension         *ApplicationSetExtension     `tfsdk:"application_set_extension"`
 }
 
 type AppsetPlugins struct {

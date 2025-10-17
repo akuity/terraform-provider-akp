@@ -307,6 +307,11 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 				boolplanmodifier.UseStateForUnknown(),
 			},
 		},
+		"application_set_extension": schema.SingleNestedAttribute{
+			MarkdownDescription: "Configuration for the ApplicationSet extension, enabling the controller and UI integration within Argo CD.",
+			Optional:            true,
+			Attributes:          getApplicationSetExtensionAttributes(),
+		},
 		"appset_policy": schema.SingleNestedAttribute{
 			MarkdownDescription: "Configures Application Set policy settings.",
 			Optional:            true,
@@ -774,6 +779,15 @@ func getAppInAnyNamespaceConfigAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"enabled": schema.BoolAttribute{
 			MarkdownDescription: "Whether the app in any namespace config is enabled or not.",
+			Optional:            true,
+		},
+	}
+}
+
+func getApplicationSetExtensionAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"enabled": schema.BoolAttribute{
+			MarkdownDescription: "Enable ApplicationSet Extension support.",
 			Optional:            true,
 		},
 	}

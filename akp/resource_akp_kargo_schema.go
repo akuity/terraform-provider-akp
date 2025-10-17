@@ -303,7 +303,7 @@ func getKargoPredefinedAccountAttributes() map[string]schema.Attribute {
 			Optional:            true,
 			NestedObject: schema.NestedAttributeObject{
 				Attributes: map[string]schema.Attribute{
-					"values": schema.ListAttribute{
+					"values": schema.SetAttribute{
 						ElementType: types.StringType,
 						Optional:    true,
 						Computed:    true,

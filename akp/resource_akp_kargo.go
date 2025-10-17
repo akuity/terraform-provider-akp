@@ -433,6 +433,9 @@ func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, clien
 }
 
 func buildAgentMaps(ctx context.Context, client kargov1.KargoServiceGatewayClient, instanceID, orgID string) *types.AgentMaps {
+	if instanceID == "" || orgID == "" {
+		return nil
+	}
 	agentsResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ListKargoInstanceAgentsResponse, error) {
 		return client.ListKargoInstanceAgents(ctx, &kargov1.ListKargoInstanceAgentsRequest{
 			OrganizationId: orgID,

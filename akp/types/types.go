@@ -103,6 +103,17 @@ func (a *ArgoCD) Update(ctx context.Context, diagnostics *diag.Diagnostics, cd *
 		appInAnyNamespaceConfig = toAppInAnyNamespaceConfigTFModel(cd.Spec.InstanceSpec.AppInAnyNamespaceConfig)
 	}
 
+	var applicationSetExtension *ApplicationSetExtension
+	if a.Spec.InstanceSpec.ApplicationSetExtension != nil &&
+		!a.Spec.InstanceSpec.ApplicationSetExtension.Enabled.ValueBool() &&
+		(cd.Spec.InstanceSpec.ApplicationSetExtension == nil ||
+			cd.Spec.InstanceSpec.ApplicationSetExtension.Enabled == nil ||
+			!*cd.Spec.InstanceSpec.ApplicationSetExtension.Enabled) {
+		applicationSetExtension = a.Spec.InstanceSpec.ApplicationSetExtension
+	} else {
+		applicationSetExtension = toApplicationSetExtensionTFModel(cd.Spec.InstanceSpec.ApplicationSetExtension)
+	}
+
 	a.Spec = ArgoCDSpec{
 		Description: types.StringValue(cd.Spec.Description),
 		Version:     types.StringValue(cd.Spec.Version),
@@ -121,6 +132,7 @@ func (a *ArgoCD) Update(ctx context.Context, diagnostics *diag.Diagnostics, cd *
 			ImageUpdaterDelegate:            toImageUpdaterDelegateTFModel(cd.Spec.InstanceSpec.ImageUpdaterDelegate),
 			AppSetDelegate:                  toAppSetDelegateTFModel(cd.Spec.InstanceSpec.AppSetDelegate),
 			AssistantExtensionEnabled:       types.BoolValue(assistantExtensionEnabled),
+			ApplicationSetExtension:         applicationSetExtension,
 			AppsetPolicy:                    toAppsetPolicyTFModel(ctx, diagnostics, cd.Spec.InstanceSpec.AppsetPolicy),
 			HostAliases:                     toHostAliasesTFModel(cd.Spec.InstanceSpec.HostAliases),
 			AgentPermissionsRules:           toAgentPermissionsRulesTFModel(cd.Spec.InstanceSpec.AgentPermissionsRules),
@@ -161,6 +173,7 @@ func (a *ArgoCD) ToArgoCDAPIModel(ctx context.Context, diag *diag.Diagnostics, n
 				ImageUpdaterDelegate:            toImageUpdaterDelegateAPIModel(a.Spec.InstanceSpec.ImageUpdaterDelegate),
 				AppSetDelegate:                  toAppSetDelegateAPIModel(a.Spec.InstanceSpec.AppSetDelegate),
 				AssistantExtensionEnabled:       toBoolPointer(a.Spec.InstanceSpec.AssistantExtensionEnabled),
+				ApplicationSetExtension:         toApplicationSetExtensionAPIModel(a.Spec.InstanceSpec.ApplicationSetExtension),
 				AppsetPolicy:                    toAppsetPolicyAPIModel(ctx, diag, a.Spec.InstanceSpec.AppsetPolicy),
 				HostAliases:                     toHostAliasesAPIModel(a.Spec.InstanceSpec.HostAliases),
 				AgentPermissionsRules:           toAgentPermissionsRuleAPIModel(a.Spec.InstanceSpec.AgentPermissionsRules),
@@ -1317,8 +1330,11 @@ func toAppsetPluginsAPIModel(plugins []*AppsetPlugins) []*v1alpha1.AppsetPlugins
 }
 
 func toAppInAnyNamespaceConfigAPIModel(config *AppInAnyNamespaceConfig) *v1alpha1.AppInAnyNamespaceConfig {
-	if config == nil {
-		return nil
+	if config == nil || config.Enabled.IsNull() {
+		disable := false
+		return &v1alpha1.AppInAnyNamespaceConfig{
+			Enabled: &disable,
+		}
 	}
 	return &v1alpha1.AppInAnyNamespaceConfig{
 		Enabled: config.Enabled.ValueBoolPointer(),
@@ -1953,4 +1969,30 @@ func toAutoScalerConfigTFModel(plan *Cluster, apiConfig *argocdv1.AutoScalerConf
 	}
 
 	return types.ObjectValueMust(autoScalerConfigAttrTypes, configAttrs)
+}
+
+func toApplicationSetExtensionTFModel(extension *v1alpha1.ApplicationSetExtension) *ApplicationSetExtension {
+	if extension == nil {
+		return nil
+	}
+	if extension.Enabled == nil {
+		return nil
+	}
+
+	return &ApplicationSetExtension{
+		Enabled: types.BoolValue(*extension.Enabled),
+	}
+}
+
+func toApplicationSetExtensionAPIModel(extension *ApplicationSetExtension) *v1alpha1.ApplicationSetExtension {
+	if extension == nil || extension.Enabled.IsNull() {
+		// When the block is removed from config, explicitly disable it
+		disabled := false
+		return &v1alpha1.ApplicationSetExtension{
+			Enabled: &disabled,
+		}
+	}
+	return &v1alpha1.ApplicationSetExtension{
+		Enabled: extension.Enabled.ValueBoolPointer(),
+	}
 }

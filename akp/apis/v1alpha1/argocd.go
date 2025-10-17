@@ -184,7 +184,8 @@ type InstanceSpec struct {
 	KubeVisionConfig        *KubeVisionConfig        `json:"kubeVisionConfig,omitempty"`
 	AppInAnyNamespaceConfig *AppInAnyNamespaceConfig `json:"appInAnyNamespaceConfig,omitempty"`
 
-	AppsetPlugins []*AppsetPlugins `json:"appsetPlugins,omitempty"`
+	AppsetPlugins           []*AppsetPlugins         `json:"appsetPlugins,omitempty"`
+	ApplicationSetExtension *ApplicationSetExtension `json:"applicationSetExtension,omitempty"`
 }
 
 type AppsetPlugins struct {

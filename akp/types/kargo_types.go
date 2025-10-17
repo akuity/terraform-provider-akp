@@ -434,13 +434,13 @@ func toKargoPredefinedAccountAPIModel(_ context.Context, diag *diag.Diagnostics,
 		}
 
 		claimAttrs := claimObj.Attributes()
-		valuesList, ok := claimAttrs["values"].(types.List)
+		valuesSet, ok := claimAttrs["values"].(types.Set)
 		if !ok {
 			continue
 		}
 
 		var stringValues []string
-		for _, v := range valuesList.Elements() {
+		for _, v := range valuesSet.Elements() {
 			stringValues = append(stringValues, v.(basetypes.StringValue).ValueString())
 		}
 
@@ -509,7 +509,7 @@ func (k *Kargo) toKargoPredefinedAccountTFModel(account v1alpha1.KargoPredefined
 		"claims": types.MapType{
 			ElemType: types.ObjectType{
 				AttrTypes: map[string]attr.Type{
-					"values": types.ListType{
+					"values": types.SetType{
 						ElemType: types.StringType,
 					},
 				},
@@ -518,25 +518,36 @@ func (k *Kargo) toKargoPredefinedAccountTFModel(account v1alpha1.KargoPredefined
 	}
 
 	if len(account.Claims) == 0 {
-		if accountType == adminAccount {
-			return k.Spec.OidcConfig.AdminAccount
-		} else {
-			return k.Spec.OidcConfig.ViewerAccount
+		// If no claims from API, check if we have a value in the plan/state
+		var existingAccount types.Object
+		if k.Spec.OidcConfig != nil {
+			if accountType == adminAccount {
+				existingAccount = k.Spec.OidcConfig.AdminAccount
+			} else {
+				existingAccount = k.Spec.OidcConfig.ViewerAccount
+			}
 		}
+
+		// If we have an existing non-null value, preserve it
+		// Otherwise return null to indicate no account is configured
+		if !existingAccount.IsNull() && !existingAccount.IsUnknown() {
+			return existingAccount
+		}
+		return types.ObjectNull(objectType)
 	}
 
 	claimsMap := make(map[string]attr.Value)
 	for claimKey, claimValue := range account.Claims {
-		valuesList, _ := types.ListValueFrom(context.Background(), types.StringType, claimValue.Values)
+		valuesSet, _ := types.SetValueFrom(context.Background(), types.StringType, claimValue.Values)
 
 		claimObject := types.ObjectValueMust(
 			map[string]attr.Type{
-				"values": types.ListType{
+				"values": types.SetType{
 					ElemType: types.StringType,
 				},
 			},
 			map[string]attr.Value{
-				"values": valuesList,
+				"values": valuesSet,
 			},
 		)
 
@@ -546,7 +557,7 @@ func (k *Kargo) toKargoPredefinedAccountTFModel(account v1alpha1.KargoPredefined
 	claimsAttr, _ := types.MapValueFrom(context.Background(),
 		types.ObjectType{
 			AttrTypes: map[string]attr.Type{
-				"values": types.ListType{
+				"values": types.SetType{
 					ElemType: types.StringType,
 				},
 			},
