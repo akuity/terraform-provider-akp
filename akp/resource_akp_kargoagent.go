@@ -432,6 +432,26 @@ func (r *AkpKargoAgentResource) autoSetDefaultShardAgent(ctx context.Context, ag
 		return nil
 	}
 
+	agents, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ListKargoInstanceAgentsResponse, error) {
+		return r.akpCli.KargoCli.ListKargoInstanceAgents(ctx, &kargov1.ListKargoInstanceAgentsRequest{
+			OrganizationId: r.akpCli.OrgId,
+			InstanceId:     agent.InstanceID.ValueString(),
+		})
+	}, "ListKargoInstanceAgents")
+	if err != nil {
+		return errors.Wrap(err, "Unable to read Kargo agents")
+	}
+	var kargoAgent *kargov1.KargoAgent
+	for _, a := range agents.GetAgents() {
+		if a.GetName() == agent.Name.ValueString() {
+			kargoAgent = a
+			break
+		}
+	}
+	if kargoAgent == nil {
+		return status.Error(codes.NotFound, " Kargo agents not found")
+	}
+
 	patchResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.PatchKargoInstanceResponse, error) {
 		return r.akpCli.KargoCli.PatchKargoInstance(ctx, &kargov1.PatchKargoInstanceRequest{
 			OrganizationId: r.akpCli.OrgId,
@@ -442,7 +462,7 @@ func (r *AkpKargoAgentResource) autoSetDefaultShardAgent(ctx context.Context, ag
 						Kind: &structpb.Value_StructValue{
 							StructValue: &structpb.Struct{
 								Fields: map[string]*structpb.Value{
-									"defaultShardAgent": structpb.NewStringValue(agent.ID.ValueString()),
+									"defaultShardAgent": structpb.NewStringValue(kargoAgent.Id),
 								},
 							},
 						},
@@ -455,7 +475,7 @@ func (r *AkpKargoAgentResource) autoSetDefaultShardAgent(ctx context.Context, ag
 		return errors.Wrap(err, "failed to patch instance with defaultShardAgent")
 	}
 
-	if patchResp.Instance.GetSpec().GetDefaultShardAgent() == agent.ID.ValueString() {
+	if patchResp.Instance.GetSpec().GetDefaultShardAgent() == kargoAgent.Id {
 		tflog.Info(ctx, fmt.Sprintf("Successfully auto-set defaultShardAgent to '%s'", agent.Name.ValueString()))
 	}
 

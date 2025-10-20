@@ -241,7 +241,7 @@ func buildKargoApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, 
 		id = kargo.ID.ValueString()
 	}
 
-	agentMaps := buildAgentMaps(ctx, client, id, orgID)
+	agentMaps := buildAgentMaps(ctx, client, id, orgID, idType)
 
 	applyReq := &kargov1.ApplyKargoInstanceRequest{
 		OrganizationId: orgID,
@@ -414,7 +414,7 @@ func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, clien
 	tflog.Debug(ctx, fmt.Sprintf("Get Kargo instance response: %s", resp))
 	kargo.ID = tftypes.StringValue(resp.Instance.Id)
 
-	agentMaps := buildAgentMaps(ctx, client, kargo.ID.ValueString(), orgID)
+	agentMaps := buildAgentMaps(ctx, client, kargo.ID.ValueString(), orgID, idv1.Type_ID)
 
 	exportReq := &kargov1.ExportKargoInstanceRequest{
 		OrganizationId: orgID,
@@ -432,9 +432,22 @@ func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, clien
 	return kargo.Update(ctx, diagnostics, exportResp, agentMaps, isDataSource)
 }
 
-func buildAgentMaps(ctx context.Context, client kargov1.KargoServiceGatewayClient, instanceID, orgID string) *types.AgentMaps {
+func buildAgentMaps(ctx context.Context, client kargov1.KargoServiceGatewayClient, instanceID, orgID string, idType idv1.Type) *types.AgentMaps {
 	if instanceID == "" || orgID == "" {
 		return nil
+	}
+	if idType == idv1.Type_NAME {
+		instance, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.GetKargoInstanceResponse, error) {
+			return client.GetKargoInstance(ctx, &kargov1.GetKargoInstanceRequest{
+				OrganizationId: orgID,
+				Name:           instanceID,
+			})
+		}, "GetKargoInstance")
+		if err != nil {
+			tflog.Warn(ctx, fmt.Sprintf("Unable to get Kargo instance: %s", err))
+			return nil
+		}
+		instanceID = instance.GetInstance().GetId()
 	}
 	agentsResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ListKargoInstanceAgentsResponse, error) {
 		return client.ListKargoInstanceAgents(ctx, &kargov1.ListKargoInstanceAgentsRequest{

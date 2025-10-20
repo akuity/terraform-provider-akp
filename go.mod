@@ -14,7 +14,7 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/exp v0.0.0-20251009144603-d2f985daa21b
+	golang.org/x/exp v0.0.0-20251017212417-90e834f514db
 	google.golang.org/genproto/googleapis/api v0.0.0-20251014184007-4626949a642f
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.34.1
