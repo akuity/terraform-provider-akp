@@ -179,6 +179,9 @@ type InstanceSpec struct {
 	AppInAnyNamespaceConfig         *AppInAnyNamespaceConfig     `tfsdk:"app_in_any_namespace_config"`
 	AppsetPlugins                   []*AppsetPlugins             `tfsdk:"appset_plugins"`
 	ApplicationSetExtension         *ApplicationSetExtension     `tfsdk:"application_set_extension"`
+	MetricsIngressUsername          types.String                 `tfsdk:"metrics_ingress_username"`
+	MetricsIngressPasswordHash      types.String                 `tfsdk:"metrics_ingress_password_hash"`
+	PrivilegedNotificationCluster   types.String                 `tfsdk:"privileged_notification_cluster"`
 }
 
 type AppsetPlugins struct {
