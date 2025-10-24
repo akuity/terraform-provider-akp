@@ -139,7 +139,7 @@ Read-Only:
 
 Read-Only:
 
-- `values` (List of String)
+- `values` (Set of String)
 
 
 
@@ -155,7 +155,7 @@ Read-Only:
 
 Read-Only:
 
-- `values` (List of String)
+- `values` (Set of String)
 
 
 
@@ -171,7 +171,7 @@ Read-Only:
 
 Read-Only:
 
-- `values` (List of String)
+- `values` (Set of String)
 
 
 
@@ -187,4 +187,4 @@ Read-Only:
 
 Read-Only:
 
-- `values` (List of String)
+- `values` (Set of String)
