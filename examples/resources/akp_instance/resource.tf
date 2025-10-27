@@ -161,6 +161,9 @@ resource "akp_instance" "example" {
               ]
             }
           }
+          // Control plane metrics
+          metrics_ingress_username      = "user"
+          metrics_ingress_password_hash = "passwordhash"
         }
       }
       version = "v2.11.4"
