@@ -114,6 +114,19 @@ func (a *ArgoCD) Update(ctx context.Context, diagnostics *diag.Diagnostics, cd *
 		applicationSetExtension = toApplicationSetExtensionTFModel(cd.Spec.InstanceSpec.ApplicationSetExtension)
 	}
 
+	metricsIngressUsername := types.StringNull()
+	if cd.Spec.InstanceSpec.MetricsIngressUsername != nil {
+		metricsIngressUsername = types.StringValue(*cd.Spec.InstanceSpec.MetricsIngressUsername)
+	}
+	metricsIngressPasswordHash := types.StringNull()
+	if cd.Spec.InstanceSpec.MetricsIngressPasswordHash != nil {
+		metricsIngressPasswordHash = types.StringValue(*cd.Spec.InstanceSpec.MetricsIngressPasswordHash)
+	}
+	privilegedNotificationCluster := types.StringNull()
+	if cd.Spec.InstanceSpec.PrivilegedNotificationCluster != nil {
+		privilegedNotificationCluster = types.StringValue(*cd.Spec.InstanceSpec.PrivilegedNotificationCluster)
+	}
+
 	a.Spec = ArgoCDSpec{
 		Description: types.StringValue(cd.Spec.Description),
 		Version:     types.StringValue(cd.Spec.Version),
@@ -132,16 +145,19 @@ func (a *ArgoCD) Update(ctx context.Context, diagnostics *diag.Diagnostics, cd *
 			ImageUpdaterDelegate:            toImageUpdaterDelegateTFModel(cd.Spec.InstanceSpec.ImageUpdaterDelegate),
 			AppSetDelegate:                  toAppSetDelegateTFModel(cd.Spec.InstanceSpec.AppSetDelegate),
 			AssistantExtensionEnabled:       types.BoolValue(assistantExtensionEnabled),
-			ApplicationSetExtension:         applicationSetExtension,
 			AppsetPolicy:                    toAppsetPolicyTFModel(ctx, diagnostics, cd.Spec.InstanceSpec.AppsetPolicy),
 			HostAliases:                     toHostAliasesTFModel(cd.Spec.InstanceSpec.HostAliases),
 			AgentPermissionsRules:           toAgentPermissionsRulesTFModel(cd.Spec.InstanceSpec.AgentPermissionsRules),
 			Fqdn:                            types.StringValue(fqdn),
 			MultiClusterK8SDashboardEnabled: types.BoolValue(multiClusterK8SDashboardEnabled),
-			AppInAnyNamespaceConfig:         appInAnyNamespaceConfig,
-			AppsetPlugins:                   toAppsetPluginsTFModel(cd.Spec.InstanceSpec.AppsetPlugins),
 			AkuityIntelligenceExtension:     toAkuityIntelligenceExtensionTFModel(cd.Spec.InstanceSpec.AkuityIntelligenceExtension, a),
 			KubeVisionConfig:                toKubeVisionConfigTFModel(cd.Spec.InstanceSpec.KubeVisionConfig, a),
+			AppInAnyNamespaceConfig:         appInAnyNamespaceConfig,
+			AppsetPlugins:                   toAppsetPluginsTFModel(cd.Spec.InstanceSpec.AppsetPlugins),
+			ApplicationSetExtension:         applicationSetExtension,
+			MetricsIngressUsername:          metricsIngressUsername,
+			MetricsIngressPasswordHash:      metricsIngressPasswordHash,
+			PrivilegedNotificationCluster:   privilegedNotificationCluster,
 		},
 	}
 }
@@ -173,16 +189,19 @@ func (a *ArgoCD) ToArgoCDAPIModel(ctx context.Context, diag *diag.Diagnostics, n
 				ImageUpdaterDelegate:            toImageUpdaterDelegateAPIModel(a.Spec.InstanceSpec.ImageUpdaterDelegate),
 				AppSetDelegate:                  toAppSetDelegateAPIModel(a.Spec.InstanceSpec.AppSetDelegate),
 				AssistantExtensionEnabled:       toBoolPointer(a.Spec.InstanceSpec.AssistantExtensionEnabled),
-				ApplicationSetExtension:         toApplicationSetExtensionAPIModel(a.Spec.InstanceSpec.ApplicationSetExtension),
 				AppsetPolicy:                    toAppsetPolicyAPIModel(ctx, diag, a.Spec.InstanceSpec.AppsetPolicy),
 				HostAliases:                     toHostAliasesAPIModel(a.Spec.InstanceSpec.HostAliases),
 				AgentPermissionsRules:           toAgentPermissionsRuleAPIModel(a.Spec.InstanceSpec.AgentPermissionsRules),
 				Fqdn:                            a.Spec.InstanceSpec.Fqdn.ValueStringPointer(),
 				MultiClusterK8SDashboardEnabled: toBoolPointer(a.Spec.InstanceSpec.MultiClusterK8SDashboardEnabled),
-				AppInAnyNamespaceConfig:         toAppInAnyNamespaceConfigAPIModel(a.Spec.InstanceSpec.AppInAnyNamespaceConfig),
-				AppsetPlugins:                   toAppsetPluginsAPIModel(a.Spec.InstanceSpec.AppsetPlugins),
 				AkuityIntelligenceExtension:     toAkuityIntelligenceExtensionAPIModel(a.Spec.InstanceSpec.AkuityIntelligenceExtension),
 				KubeVisionConfig:                toKubeVisionConfigAPIModel(a.Spec.InstanceSpec.KubeVisionConfig),
+				AppInAnyNamespaceConfig:         toAppInAnyNamespaceConfigAPIModel(a.Spec.InstanceSpec.AppInAnyNamespaceConfig),
+				AppsetPlugins:                   toAppsetPluginsAPIModel(a.Spec.InstanceSpec.AppsetPlugins),
+				ApplicationSetExtension:         toApplicationSetExtensionAPIModel(a.Spec.InstanceSpec.ApplicationSetExtension),
+				MetricsIngressUsername:          a.Spec.InstanceSpec.MetricsIngressUsername.ValueStringPointer(),
+				MetricsIngressPasswordHash:      a.Spec.InstanceSpec.MetricsIngressPasswordHash.ValueStringPointer(),
+				PrivilegedNotificationCluster:   a.Spec.InstanceSpec.PrivilegedNotificationCluster.ValueStringPointer(),
 			},
 		},
 	}

@@ -378,6 +378,27 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 			Optional:            true,
 			Attributes:          getKubeVisionConfigAttributes(),
 		},
+		"metrics_ingress_username": schema.StringAttribute{
+			MarkdownDescription: "Username for metrics ingress authentication",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"metrics_ingress_password_hash": schema.StringAttribute{
+			MarkdownDescription: "Password hash for metrics ingress authentication",
+			Optional:            true,
+			Sensitive:           true,
+		},
+		"privileged_notification_cluster": schema.StringAttribute{
+			MarkdownDescription: "Cluster name where notifications controller will be installed with elevated privileges to see controlplane and intg. cluster apps",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
 	}
 }
 

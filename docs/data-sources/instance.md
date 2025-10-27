@@ -64,6 +64,11 @@ Read-Only:
 <a id="nestedatt--argocd--spec--instance_spec"></a>
 ### Nested Schema for `argocd.spec.instance_spec`
 
+Optional:
+
+- `metrics_ingress_password_hash` (String, Sensitive) Password hash for metrics ingress authentication
+- `metrics_ingress_username` (String) Username for metrics ingress authentication
+
 Read-Only:
 
 - `agent_permissions_rules` (Attributes List) The ability to configure agent permissions rules. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--agent_permissions_rules))
@@ -87,6 +92,7 @@ Read-Only:
 - `ip_allow_list` (Attributes List) IP allow list (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--ip_allow_list))
 - `kube_vision_config` (Attributes) Advanced Akuity Intelligence configuration like CVE scanning and incident resolution (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config))
 - `multi_cluster_k8s_dashboard_enabled` (Boolean) Enable the KubeVision feature
+- `privileged_notification_cluster` (String) Cluster name where notifications controller will be installed with elevated privileges to see controlplane and intg. cluster apps
 - `repo_server_delegate` (Attributes) In case some clusters don't have network access to your private Git provider you can delegate these operations to one specific cluster. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--repo_server_delegate))
 - `subdomain` (String) Instance subdomain. By default equals to instance id
 - `sync_history_extension_enabled` (Boolean) Enable Sync History Extension. Sync count and duration graphs as well as event details table on Argo CD application details page.

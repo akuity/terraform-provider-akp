@@ -186,6 +186,10 @@ type InstanceSpec struct {
 
 	AppsetPlugins           []*AppsetPlugins         `json:"appsetPlugins,omitempty"`
 	ApplicationSetExtension *ApplicationSetExtension `json:"applicationSetExtension,omitempty"`
+
+	MetricsIngressUsername        *string `json:"metricsIngressUsername,omitempty"`
+	MetricsIngressPasswordHash    *string `json:"metricsIngressPasswordHash,omitempty"`
+	PrivilegedNotificationCluster *string `json:"privilegedNotificationCluster,omitempty"`
 }
 
 type AppsetPlugins struct {
