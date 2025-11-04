@@ -153,6 +153,13 @@ func (r *AkpKargoAgentResource) Delete(ctx context.Context, req resource.DeleteR
 		}
 	}
 
+	// Clear the default shard agent if this agent is set as the default
+	// This prevents the "cannot delete default shard agent" error
+	if err := r.clearDefaultShardAgentIfNeeded(ctx, &plan); err != nil {
+		tflog.Warn(ctx, fmt.Sprintf("Failed to clear default shard agent: %s", err))
+		// Don't return here - we'll try to delete anyway in case it's not actually the default
+	}
+
 	apiReq := &kargov1.DeleteInstanceAgentRequest{
 		OrganizationId: r.akpCli.OrgId,
 		InstanceId:     plan.InstanceID.ValueString(),
@@ -479,5 +486,67 @@ func (r *AkpKargoAgentResource) autoSetDefaultShardAgent(ctx context.Context, ag
 		tflog.Info(ctx, fmt.Sprintf("Successfully auto-set defaultShardAgent to '%s'", agent.Name.ValueString()))
 	}
 
+	return nil
+}
+
+// clearDefaultShardAgentIfNeeded clears the default shard agent if this agent is set as the default
+func (r *AkpKargoAgentResource) clearDefaultShardAgentIfNeeded(ctx context.Context, agent *types.KargoAgent) error {
+	// Get the Kargo instance to check if this agent is the default shard agent
+	instancesResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ListKargoInstancesResponse, error) {
+		return r.akpCli.KargoCli.ListKargoInstances(ctx, &kargov1.ListKargoInstancesRequest{
+			OrganizationId: r.akpCli.OrgId,
+		})
+	}, "ListKargoInstances")
+	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			// Instance doesn't exist anymore, nothing to clear
+			return nil
+		}
+		return errors.Wrap(err, "failed to list kargo instances")
+	}
+
+	var instance *kargov1.KargoInstance
+	for _, i := range instancesResp.GetInstances() {
+		if i.GetId() == agent.InstanceID.ValueString() {
+			instance = i
+			break
+		}
+	}
+	if instance == nil {
+		// Instance doesn't exist, nothing to clear
+		return nil
+	}
+
+	// Check if this agent is the default shard agent
+	defaultShardAgent := instance.GetSpec().GetDefaultShardAgent()
+	if defaultShardAgent == "" || defaultShardAgent != agent.ID.ValueString() {
+		// This agent is not the default, nothing to clear
+		return nil
+	}
+
+	tflog.Info(ctx, fmt.Sprintf("Clearing default shard agent '%s' before deletion", agent.Name.ValueString()))
+
+	// Clear the default shard agent by patching with empty string
+	patchStruct, err := structpb.NewStruct(map[string]any{
+		"spec": map[string]any{
+			"defaultShardAgent": "",
+		},
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to create patch struct")
+	}
+
+	_, err = retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.PatchKargoInstanceResponse, error) {
+		return r.akpCli.KargoCli.PatchKargoInstance(ctx, &kargov1.PatchKargoInstanceRequest{
+			OrganizationId: r.akpCli.OrgId,
+			Id:             agent.InstanceID.ValueString(),
+			Patch:          patchStruct,
+		})
+	}, "PatchKargoInstance")
+	if err != nil {
+		return errors.Wrap(err, "failed to clear default shard agent")
+	}
+
+	tflog.Info(ctx, "Successfully cleared default shard agent")
 	return nil
 }

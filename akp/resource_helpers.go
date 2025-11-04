@@ -34,13 +34,18 @@ func waitForStatus[ResourceType any, StatusCodeType comparable](
 		defer cancel()
 	}
 
+	startTime := time.Now()
+	lastStatusLog := time.Now()
+	var lastStatus StatusCodeType
+
 	for {
 		select {
 		case <-waitCtx.Done():
+			elapsed := time.Since(startTime)
 			if errors.Is(waitCtx.Err(), context.DeadlineExceeded) {
-				return errors.Errorf("timed out after %v waiting for %s %s status", timeout, resourceName, statusName)
+				return errors.Errorf("timed out after %v waiting for %s %s status (expected: %v, last seen: %v)", timeout, resourceName, statusName, targetStatuses, lastStatus)
 			}
-			return errors.Wrapf(waitCtx.Err(), "context cancelled/done while waiting for %s %s status", resourceName, statusName)
+			return errors.Wrapf(waitCtx.Err(), "context cancelled/done while waiting for %s %s status after %v", resourceName, statusName, elapsed)
 		default:
 		}
 
@@ -50,14 +55,26 @@ func waitForStatus[ResourceType any, StatusCodeType comparable](
 			if ok && st.Code() == codes.NotFound {
 				tflog.Debug(ctx, fmt.Sprintf("%s not found yet, retrying...", resourceName))
 			} else {
+				elapsed := time.Since(startTime)
+				tflog.Error(ctx, fmt.Sprintf("Failed to get %s during status wait after %v: %v", resourceName, elapsed, err))
 				return errors.Wrapf(err, "failed to get %s during status wait", resourceName)
 			}
 		} else {
 			currentStatus := getStatusFunc(resource)
-			tflog.Debug(ctx, fmt.Sprintf("%s %s status: %v", resourceName, statusName, currentStatus))
+			lastStatus = currentStatus
+
+			// Log every 30 seconds to show progress
+			if time.Since(lastStatusLog) >= 30*time.Second {
+				elapsed := time.Since(startTime)
+				tflog.Info(ctx, fmt.Sprintf("%s %s status: %v (elapsed: %v, target: %v)", resourceName, statusName, currentStatus, elapsed, targetStatuses))
+				lastStatusLog = time.Now()
+			} else {
+				tflog.Debug(ctx, fmt.Sprintf("%s %s status: %v", resourceName, statusName, currentStatus))
+			}
 
 			if slices.Contains(targetStatuses, currentStatus) {
-				tflog.Info(ctx, fmt.Sprintf("%s %s status reached target state (%v).", resourceName, statusName, currentStatus))
+				elapsed := time.Since(startTime)
+				tflog.Info(ctx, fmt.Sprintf("%s %s status reached target state (%v) after %v", resourceName, statusName, currentStatus, elapsed))
 				return nil
 			}
 		}
@@ -149,6 +166,12 @@ func isRetryableError(err error) bool {
 			codes.ResourceExhausted,
 			codes.Canceled:
 			return true
+		case codes.InvalidArgument:
+			// Retry InvalidArgument only if it's due to provisioning delays
+			if strings.Contains(st.Message(), "still being provisioned") {
+				return true
+			}
+			return false
 		default:
 			return false
 		}

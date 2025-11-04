@@ -16,7 +16,7 @@ func TestAccClustersDataSource(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: providerConfig + testAccClustersDataSourceConfig,
+				Config: providerConfig + getAccClustersDataSourceConfig(getInstanceId()),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					testAccCheckClusterAttributes("data.akp_clusters.test", "data-source-cluster"),
 				),
@@ -25,11 +25,42 @@ func TestAccClustersDataSource(t *testing.T) {
 	})
 }
 
-const testAccClustersDataSourceConfig = `
-data "akp_clusters" "test" {
-  instance_id = "6pzhawvy4echbd8x"
+func getAccClustersDataSourceConfig(instanceId string) string {
+	return fmt.Sprintf(`
+resource "akp_cluster" "test" {
+  instance_id = %q
+  name        = "data-source-cluster"
+  namespace   = "akuity"
+  labels = {
+    test-label = "test"
+  }
+  annotations = {
+    test-annotation = "false"
+  }
+  spec = {
+    namespace_scoped = false
+    description      = "Cluster Description"
+    data = {
+      size                  = "small"
+      auto_upgrade_disabled = true
+      kustomization         = <<EOF
+apiVersion: kustomize.config.k8s.io/v1beta1
+images:
+- name: quay.io/akuity/agent
+  newName: test.io/agent
+kind: Kustomization
+EOF
+      app_replication = false
+      redis_tunneling = true
+    }
+  }
 }
-`
+
+data "akp_clusters" "test" {
+  instance_id = akp_cluster.test.instance_id
+}
+`, instanceId)
+}
 
 func testAccCheckClusterAttributes(dataSourceName, targetClusterName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
@@ -43,10 +74,10 @@ func testAccCheckClusterAttributes(dataSourceName, targetClusterName string) res
 				break
 			}
 			if clusters[fmt.Sprintf("clusters.%d.name", i)] == targetClusterName {
-				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("clusters.%d.instance_id", i), "6pzhawvy4echbd8x")(s); err != nil {
+				if err := resource.TestCheckResourceAttrSet(dataSourceName, fmt.Sprintf("clusters.%d.instance_id", i))(s); err != nil {
 					return err
 				}
-				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("clusters.%d.id", i), "nyc6s87mrlh4s2af")(s); err != nil {
+				if err := resource.TestCheckResourceAttrSet(dataSourceName, fmt.Sprintf("clusters.%d.id", i))(s); err != nil {
 					return err
 				}
 				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("clusters.%d.name", i), "data-source-cluster")(s); err != nil {

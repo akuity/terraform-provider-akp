@@ -17,29 +17,30 @@ func TestAccInstanceDataSource(t *testing.T) {
 		Steps: []resource.TestStep{
 			// Read testing
 			{
-				Config: providerConfig + testAccInstanceDataSourceConfig,
+				Config: providerConfig + getTestAccInstanceDataSource(getInstanceName()),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.akp_instance.test", "id", "6pzhawvy4echbd8x"),
-					resource.TestCheckResourceAttr("data.akp_instance.test", "name", "test-cluster"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "id", getInstanceId()),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "name", getInstanceName()),
 
 					// argocd
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.description", "This is used by the terraform provider to test managing clusters."),
-					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.version", "v2.13.1"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.version", getInstanceVersion()),
 					// argocd.instance_spec
-					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.subdomain", "6pzhawvy4echbd8x"),
-					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.declarative_management_enabled", "false"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.subdomain", getInstanceId()),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.declarative_management_enabled", "true"),
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.image_updater_enabled", "false"),
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.appset_policy.policy", "sync"),
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.appset_policy.override_policy", "false"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.appset_plugins.#", "1"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.appset_plugins.0.name", "plugin-test"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.appset_plugins.0.token", "random-token"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.appset_plugins.0.base_url", "http://random-test.xp"),
+
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.host_aliases.#", "1"),
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.host_aliases.0.ip", "1.2.3.4"),
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.host_aliases.0.hostnames.#", "2"),
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.host_aliases.0.hostnames.0", "test-1"),
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.host_aliases.0.hostnames.1", "test-2"),
-					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.appset_plugins.#", "1"),
-					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.appset_plugins.0.name", "plugin-test"),
-					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.appset_plugins.0.token", "random-token"),
-					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.appset_plugins.0.base_url", "http://random-test.xp"),
 
 					// argocd_cm, all fields should be computed.
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd_cm.%", "0"),
@@ -64,8 +65,10 @@ func TestAccInstanceDataSource(t *testing.T) {
 	})
 }
 
-const testAccInstanceDataSourceConfig = `
+func getTestAccInstanceDataSource(instanceName string) string {
+	return fmt.Sprintf(`
 data "akp_instance" "test" {
-	name = "test-cluster"
+	name = "%s"
 }
-`
+`, instanceName)
+}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sync"
 	"testing"
 	"time"
 
@@ -24,7 +25,12 @@ import (
 	"github.com/akuity/terraform-provider-akp/akp/types"
 )
 
-var kargoInstanceId string
+var (
+	kargoInstanceId   string
+	kargoInstanceName string
+	kargoVersion      string
+	kargoInstanceOnce sync.Once
+)
 
 func getKargoInstanceId() string {
 	if kargoInstanceId == "" {
@@ -39,91 +45,160 @@ func getKargoInstanceId() string {
 	return kargoInstanceId
 }
 
+func getKargoVersion() string {
+	createTestKargoInstance()
+	return kargoVersion
+}
+
+func getKargoInstanceName() string {
+	createTestKargoInstance()
+	return kargoInstanceName
+}
+
 func createTestKargoInstance() string {
-	if os.Getenv("TF_ACC") != "1" {
-		return ""
-	}
+	kargoInstanceOnce.Do(func() {
+		if os.Getenv("TF_ACC") != "1" {
+			return
+		}
 
-	akpCli := getTestAkpCli()
-	ctx := context.Background()
-	ctx = httpctx.SetAuthorizationHeader(ctx, akpCli.Cred.Scheme(), akpCli.Cred.Credential())
-	kargoInstanceName := fmt.Sprintf("test-kargo-instance-%s", acctest.RandString(8))
+		akpCli := getTestAkpCli()
+		ctx := context.Background()
+		ctx = httpctx.SetAuthorizationHeader(ctx, akpCli.Cred.Scheme(), akpCli.Cred.Credential())
+		kargoInstanceName = fmt.Sprintf("test-kargo-instance-%s", acctest.RandString(8))
 
-	// Get default workspace
-	workspace, err := getWorkspace(ctx, akpCli.OrgCli, akpCli.OrgId, "")
-	if err != nil {
-		panic(fmt.Sprintf("Failed to get default workspace: %v", err))
-	}
+		// Get default workspace
+		workspace, err := getWorkspace(ctx, akpCli.OrgCli, akpCli.OrgId, "")
+		if err != nil {
+			panic(fmt.Sprintf("Failed to get default workspace: %v", err))
+		}
 
-	// Create minimal Kargo instance with required version
-	kargoVersion := os.Getenv("AKUITY_KARGO_VERSION")
-	if kargoVersion == "" {
-		kargoVersion = "v1.7.4-ak.0"
-	}
+		// Create minimal Kargo instance with required version
+		kargoVersion = os.Getenv("AKUITY_KARGO_VERSION")
+		if kargoVersion == "" {
+			kargoVersion = "v1.7.4-ak.0"
+		}
 
-	kargoStruct, err := structpb.NewStruct(map[string]any{
-		"metadata": map[string]any{
-			"name": kargoInstanceName,
-		},
-		"spec": map[string]any{
-			"version":     kargoVersion,
-			"description": "Test Kargo instance for terraform provider tests",
-		},
-	})
-	if err != nil {
-		panic(fmt.Sprintf("Failed to create Kargo struct: %v", err))
-	}
+		kargoStruct, err := structpb.NewStruct(map[string]any{
+			"metadata": map[string]any{
+				"name": kargoInstanceName,
+			},
+			"spec": map[string]any{
+				"version":     kargoVersion,
+				"description": "Test Kargo instance for terraform provider tests",
+				"kargoInstanceSpec": map[string]any{
+					"globalCredentialsNs":    []any{"credentials-ns-1", "credentials-ns-2"},
+					"globalServiceAccountNs": []any{"sa-ns-1"},
+				},
+			},
+		})
+		if err != nil {
+			panic(fmt.Sprintf("Failed to create Kargo struct: %v", err))
+		}
 
-	applyReq := &kargov1.ApplyKargoInstanceRequest{
-		OrganizationId: akpCli.OrgId,
-		Id:             kargoInstanceName,
-		IdType:         idv1.Type_NAME,
-		WorkspaceId:    workspace.Id,
-		Kargo:          kargoStruct,
-	}
-	_, err = akpCli.KargoCli.ApplyKargoInstance(ctx, applyReq)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to create Kargo instance: %v", err))
-	}
+		projectStruct, err := structpb.NewStruct(map[string]any{
+			"apiVersion": "kargo.akuity.io/v1alpha1",
+			"kind":       "Project",
+			"metadata": map[string]any{
+				"name": "kargo-demo",
+			},
+		})
+		if err != nil {
+			panic(fmt.Sprintf("Failed to create Project struct: %v", err))
+		}
 
-	// Get the created instance to get its ID
-	instanceResponse, err := akpCli.KargoCli.GetKargoInstance(ctx, &kargov1.GetKargoInstanceRequest{
-		OrganizationId: akpCli.OrgId,
-		Name:           kargoInstanceName,
-	})
-	if err != nil {
-		panic(fmt.Sprintf("Failed to get created Kargo instance: %v", err))
-	}
+		// Create the instance with the Project first (this will create the namespace)
+		applyReq := &kargov1.ApplyKargoInstanceRequest{
+			OrganizationId: akpCli.OrgId,
+			Id:             kargoInstanceName,
+			IdType:         idv1.Type_NAME,
+			WorkspaceId:    workspace.Id,
+			Kargo:          kargoStruct,
+			Projects:       []*structpb.Struct{projectStruct},
+		}
+		_, err = akpCli.KargoCli.ApplyKargoInstance(ctx, applyReq)
+		if err != nil {
+			panic(fmt.Sprintf("Failed to create Kargo instance with Project: %v", err))
+		}
 
-	getResourceFunc := func(ctx context.Context) (*kargov1.GetKargoInstanceResponse, error) {
-		return akpCli.KargoCli.GetKargoInstance(ctx, &kargov1.GetKargoInstanceRequest{
+		// Get the created instance to get its ID
+		instanceResponse, err := akpCli.KargoCli.GetKargoInstance(ctx, &kargov1.GetKargoInstanceRequest{
 			OrganizationId: akpCli.OrgId,
 			Name:           kargoInstanceName,
 		})
-	}
-
-	getStatusFunc := func(resp *kargov1.GetKargoInstanceResponse) healthv1.StatusCode {
-		if resp == nil || resp.Instance == nil {
-			return healthv1.StatusCode_STATUS_CODE_UNKNOWN
+		if err != nil {
+			panic(fmt.Sprintf("Failed to get created Kargo instance: %v", err))
 		}
-		return resp.Instance.GetHealthStatus().GetCode()
-	}
 
-	err = waitForStatus(
-		ctx,
-		getResourceFunc,
-		getStatusFunc,
-		[]healthv1.StatusCode{healthv1.StatusCode_STATUS_CODE_HEALTHY},
-		10*time.Second,
-		5*time.Minute,
-		fmt.Sprintf("Test Kargo instance %s", kargoInstanceName),
-		"health",
-	)
-	if err != nil {
-		panic(fmt.Sprintf("Test Kargo instance did not become healthy: %v", err))
-	}
+		getResourceFunc := func(ctx context.Context) (*kargov1.GetKargoInstanceResponse, error) {
+			return akpCli.KargoCli.GetKargoInstance(ctx, &kargov1.GetKargoInstanceRequest{
+				OrganizationId: akpCli.OrgId,
+				Name:           kargoInstanceName,
+			})
+		}
 
-	return instanceResponse.Instance.Id
+		getStatusFunc := func(resp *kargov1.GetKargoInstanceResponse) healthv1.StatusCode {
+			if resp == nil || resp.Instance == nil {
+				return healthv1.StatusCode_STATUS_CODE_UNKNOWN
+			}
+			return resp.Instance.GetHealthStatus().GetCode()
+		}
+
+		err = waitForStatus(
+			ctx,
+			getResourceFunc,
+			getStatusFunc,
+			[]healthv1.StatusCode{healthv1.StatusCode_STATUS_CODE_HEALTHY},
+			10*time.Second,
+			5*time.Minute,
+			fmt.Sprintf("Test Kargo instance %s", kargoInstanceName),
+			"health",
+		)
+		if err != nil {
+			panic(fmt.Sprintf("Test Kargo instance did not become healthy: %v", err))
+		}
+
+		kargoInstanceId = instanceResponse.Instance.Id
+
+		// Now that the instance is healthy and the Project namespace has been created,
+		// add the Warehouse resource
+		warehouseStruct, err := structpb.NewStruct(map[string]any{
+			"apiVersion": "kargo.akuity.io/v1alpha1",
+			"kind":       "Warehouse",
+			"metadata": map[string]any{
+				"name":      "kargo-demo",
+				"namespace": "kargo-demo",
+			},
+			"spec": map[string]any{
+				"subscriptions": []any{
+					map[string]any{
+						"image": map[string]any{
+							"repoURL":          "public.ecr.aws/nginx/nginx",
+							"semverConstraint": "^1.28.0",
+							"discoveryLimit":   5,
+						},
+					},
+				},
+			},
+		})
+		if err != nil {
+			panic(fmt.Sprintf("Failed to create Warehouse struct: %v", err))
+		}
+
+		applyWarehouseReq := &kargov1.ApplyKargoInstanceRequest{
+			OrganizationId: akpCli.OrgId,
+			Id:             kargoInstanceId,
+			IdType:         idv1.Type_ID,
+			WorkspaceId:    workspace.Id,
+			Projects:       []*structpb.Struct{projectStruct},
+			Warehouses:     []*structpb.Struct{warehouseStruct},
+		}
+		_, err = akpCli.KargoCli.ApplyKargoInstance(ctx, applyWarehouseReq)
+		if err != nil {
+			panic(fmt.Sprintf("Failed to add Warehouse to Kargo instance: %v", err))
+		}
+	})
+
+	return kargoInstanceId
 }
 
 func cleanupTestKargoInstance() {
@@ -141,8 +216,81 @@ func cleanupTestKargoInstance() {
 	})
 }
 
+func clearDefaultShardAgent(instanceId string) error {
+	if instanceId == "" {
+		return nil
+	}
+
+	akpCli := getTestAkpCli()
+	ctx := context.Background()
+	ctx = httpctx.SetAuthorizationHeader(ctx, akpCli.Cred.Scheme(), akpCli.Cred.Credential())
+
+	// Get the Kargo instance by name
+	instanceResp, err := akpCli.KargoCli.GetKargoInstance(ctx, &kargov1.GetKargoInstanceRequest{
+		OrganizationId: akpCli.OrgId,
+		Name:           kargoInstanceName,
+	})
+	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return nil // Instance doesn't exist, nothing to clear
+		}
+		return fmt.Errorf("failed to get Kargo instance: %v", err)
+	}
+
+	// Export the Kargo instance to get the full spec
+	exportResp, err := akpCli.KargoCli.ExportKargoInstance(ctx, &kargov1.ExportKargoInstanceRequest{
+		OrganizationId: akpCli.OrgId,
+		Id:             instanceResp.Instance.Id,
+		WorkspaceId:    instanceResp.Instance.WorkspaceId,
+	})
+	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return nil
+		}
+		return fmt.Errorf("failed to export Kargo instance: %v", err)
+	}
+
+	// Check if there's a default shard agent set
+	if exportResp.Kargo == nil {
+		return nil
+	}
+
+	specMap := exportResp.Kargo.AsMap()
+	if spec, ok := specMap["spec"].(map[string]any); ok {
+		if kargoInstanceSpec, ok := spec["kargoInstanceSpec"].(map[string]any); ok {
+			if defaultShardAgent, ok := kargoInstanceSpec["defaultShardAgent"].(string); ok && defaultShardAgent != "" {
+				// Clear the default shard agent
+				kargoInstanceSpec["defaultShardAgent"] = ""
+				updatedKargo, err := structpb.NewStruct(specMap)
+				if err != nil {
+					return fmt.Errorf("failed to create updated Kargo struct: %v", err)
+				}
+
+				updateReq := &kargov1.ApplyKargoInstanceRequest{
+					OrganizationId: akpCli.OrgId,
+					Id:             kargoInstanceName,
+					IdType:         idv1.Type_NAME,
+					Kargo:          updatedKargo,
+				}
+				_, err = akpCli.KargoCli.ApplyKargoInstance(ctx, updateReq)
+				if err != nil {
+					return fmt.Errorf("failed to clear default shard agent: %v", err)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 func TestAccKargoAgentResource(t *testing.T) {
 	name := fmt.Sprintf("kargoagent-%s", acctest.RandString(10))
+
+	// Ensure we clear the default shard agent before tests clean up
+	t.Cleanup(func() {
+		_ = clearDefaultShardAgent(getKargoInstanceId())
+	})
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,

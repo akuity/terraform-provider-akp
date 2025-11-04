@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sync"
 	"testing"
 	"time"
 
@@ -32,9 +33,22 @@ import (
 )
 
 var (
-	instanceId string
-	testAkpCli *AkpCli
+	instanceId      string
+	instanceName    string
+	instanceVersion string
+	testAkpCli      *AkpCli
+	instanceOnce    sync.Once
 )
+
+func getInstanceVersion() string {
+	getInstanceId()
+	return instanceVersion
+}
+
+func getInstanceName() string {
+	getInstanceId()
+	return instanceName
+}
 
 func getInstanceId() string {
 	if instanceId == "" {
@@ -75,7 +89,8 @@ func getTestAkpCli() *AkpCli {
 	// Create client following the same logic as the provider
 	cred := accesscontrol.NewAPIKeyCredential(apiKeyID, apiKeySecret)
 	ctx = httpctx.SetAuthorizationHeader(ctx, cred.Scheme(), cred.Credential())
-	gwc := gwoption.NewClient(serverUrl, false)
+
+	gwc := gwoption.NewClient(serverUrl, skipTLSVerify)
 	orgc := orgcv1.NewOrganizationServiceGatewayClient(gwc)
 
 	// Get Organization ID by name
@@ -104,154 +119,253 @@ func getTestAkpCli() *AkpCli {
 }
 
 func createTestInstance() string {
-	if os.Getenv("TF_ACC") != "1" {
-		return ""
-	}
+	if instanceId == "" {
+		instanceOnce.Do(func() {
+			if os.Getenv("TF_ACC") != "1" {
+				return
+			}
 
-	akpCli := getTestAkpCli()
-	ctx := context.Background()
-	ctx = httpctx.SetAuthorizationHeader(ctx, akpCli.Cred.Scheme(), akpCli.Cred.Credential())
-	instanceName := fmt.Sprintf("test-cluster-provider-%s", acctest.RandString(8))
+			akpCli := getTestAkpCli()
+			ctx := context.Background()
+			ctx = httpctx.SetAuthorizationHeader(ctx, akpCli.Cred.Scheme(), akpCli.Cred.Credential())
+			instanceName = fmt.Sprintf("test-cluster-provider-%s", acctest.RandString(8))
 
-	instanceVersion := os.Getenv("AKUITY_ARGOCD_INSTANCE_VERSION")
-	if instanceVersion == "" {
-		instanceVersion = "v3.1.5-ak.65"
-	}
+			instanceVersion = os.Getenv("AKUITY_ARGOCD_INSTANCE_VERSION")
+			if instanceVersion == "" {
+				instanceVersion = "v3.1.5-ak.65"
+			}
 
-	// Create instance spec
-	instanceStructpb, err := structpb.NewStruct(map[string]any{
-		"metadata": map[string]any{
-			"name": instanceName,
-		},
-		"spec": map[string]any{
-			"version":     instanceVersion,
-			"description": "This is used by the terraform provider to test managing clusters.",
-			"instanceSpec": map[string]any{
-				"imageUpdaterEnabled":         false,
-				"backendIpAllowListEnabled":   false,
-				"auditExtensionEnabled":       false,
-				"syncHistoryExtensionEnabled": false,
-				"assistantExtensionEnabled":   false,
-				"appsetPolicy": map[string]any{
-					"policy":         "sync",
-					"overridePolicy": false,
+			fmt.Printf("Creating test instance %s with version %s\n", instanceName, instanceVersion)
+
+			// Create instance spec
+			instanceStructpb, err := structpb.NewStruct(map[string]any{
+				"metadata": map[string]any{
+					"name": instanceName,
 				},
-				"multiClusterK8sDashboardEnabled": false,
-				"akuityIntelligenceExtension": map[string]any{
-					"enabled":                  true,
-					"allowedUsernames":         []any{"admin", "test-user"},
-					"allowedGroups":            []any{"admins", "test-group"},
-					"aiSupportEngineerEnabled": true,
-					"modelVersion":             "",
-				},
-				"kubeVisionConfig": map[string]any{
-					"cveScanConfig": map[string]any{
-						"scanEnabled":    true,
-						"rescanInterval": "12h",
-					},
-					"aiConfig": map[string]any{
-						"argocdSlackService": "test-slack-service",
-						"runbooks": []any{
+				"spec": map[string]any{
+					"version":     instanceVersion,
+					"description": "This is used by the terraform provider to test managing clusters.",
+					"instanceSpec": map[string]any{
+						"imageUpdaterEnabled":         false,
+						"backendIpAllowListEnabled":   false,
+						"auditExtensionEnabled":       false,
+						"syncHistoryExtensionEnabled": false,
+						"assistantExtensionEnabled":   false,
+						"appsetPolicy": map[string]any{
+							"policy":         "sync",
+							"overridePolicy": false,
+						},
+						"hostAliases": []any{
 							map[string]any{
-								"name":    "test-incident",
-								"content": "Test runbook content for incident response",
-								"appliedTo": map[string]any{
-									"argocdApplications": []any{"test-app"},
-									"k8sNamespaces":      []any{"test-namespace"},
-									"clusters":           []any{"test-cluster"},
-									"degradedFor":        "5m",
+								"ip": "1.2.3.4",
+								"hostnames": []any{
+									"test-1",
+									"test-2",
 								},
+							},
+						},
+						"multiClusterK8sDashboardEnabled": false,
+						"akuityIntelligenceExtension": map[string]any{
+							"enabled":                  true,
+							"allowedUsernames":         []any{"admin", "test-user"},
+							"allowedGroups":            []any{"admins", "test-group"},
+							"aiSupportEngineerEnabled": true,
+							"modelVersion":             "",
+						},
+						"kubeVisionConfig": map[string]any{
+							"cveScanConfig": map[string]any{
+								"scanEnabled":    true,
+								"rescanInterval": "12h",
+							},
+							"aiConfig": map[string]any{
+								"argocdSlackService": "test-slack-service",
+								"runbooks": []any{
+									map[string]any{
+										"name":    "test-incident",
+										"content": "Test runbook content for incident response",
+										"appliedTo": map[string]any{
+											"argocdApplications": []any{"test-app"},
+											"k8sNamespaces":      []any{"test-namespace"},
+											"clusters":           []any{"test-cluster"},
+											"degradedFor":        "5m",
+										},
+									},
+								},
+							},
+						},
+						"appInAnyNamespaceConfig": map[string]any{
+							"enabled": false,
+						},
+						"appsetProgressiveSyncsEnabled": false,
+						"appsetPlugins": []any{
+							map[string]any{
+								"name":           "plugin-test",
+								"token":          "random-token",
+								"baseUrl":        "http://random-test.xp",
+								"requestTimeout": 0,
+							},
+						},
+						"applicationSetExtension": map[string]any{
+							"enabled": false,
+						},
+						"appReconciliationsRateLimiting": map[string]any{
+							"bucketRateLimiting": map[string]any{
+								"enabled":    false,
+								"bucketSize": 500,
+								"bucketQps":  50,
+							},
+							"itemRateLimiting": map[string]any{
+								"enabled":         false,
+								"failureCooldown": 10000,
+								"baseDelay":       1,
+								"maxDelay":        1000,
+								"backoffFactor":   1.5,
 							},
 						},
 					},
 				},
-				"appInAnyNamespaceConfig": map[string]any{
-					"enabled": false,
+			})
+			if err != nil {
+				panic(fmt.Sprintf("Failed to create instance struct: %v", err))
+			}
+
+			applyReq := &argocdv1.ApplyInstanceRequest{
+				OrganizationId: akpCli.OrgId,
+				Id:             instanceName,
+				IdType:         idv1.Type_NAME,
+				Argocd:         instanceStructpb,
+			}
+			fmt.Printf("Applying instance %s...\n", instanceName)
+			_, err = akpCli.Cli.ApplyInstance(ctx, applyReq)
+			if err != nil {
+				panic(fmt.Sprintf("Failed to create instance: %v", err))
+			}
+			fmt.Printf("Instance %s created successfully\n", instanceName)
+
+			// Get the created instance to get its ID
+			fmt.Printf("Fetching instance %s to get ID...\n", instanceName)
+			instanceResponse, err := akpCli.Cli.GetInstance(ctx, &argocdv1.GetInstanceRequest{
+				OrganizationId: akpCli.OrgId,
+				Id:             instanceName,
+				IdType:         idv1.Type_NAME,
+			})
+			if err != nil {
+				panic(fmt.Sprintf("Failed to get created instance: %v", err))
+			}
+			fmt.Printf("Instance %s has ID: %s\n", instanceName, instanceResponse.Instance.Id)
+
+			getResourceFunc := func(ctx context.Context) (*argocdv1.GetInstanceResponse, error) {
+				return akpCli.Cli.GetInstance(ctx, &argocdv1.GetInstanceRequest{
+					OrganizationId: akpCli.OrgId,
+					Id:             instanceResponse.Instance.Id,
+					IdType:         idv1.Type_ID,
+				})
+			}
+
+			getStatusFunc := func(resp *argocdv1.GetInstanceResponse) healthv1.StatusCode {
+				if resp == nil || resp.Instance == nil {
+					return healthv1.StatusCode_STATUS_CODE_UNKNOWN
+				}
+				status := resp.Instance.GetHealthStatus().GetCode()
+				// Also log status message if available
+				if resp.Instance.GetHealthStatus() != nil && resp.Instance.GetHealthStatus().GetMessage() != "" {
+					fmt.Printf("Instance %s health status: %v - %s\n", instanceName, status, resp.Instance.GetHealthStatus().GetMessage())
+				}
+				return status
+			}
+
+			fmt.Printf("Waiting for instance %s to become healthy...\n", instanceName)
+			err = waitForStatus(
+				ctx,
+				getResourceFunc,
+				getStatusFunc,
+				[]healthv1.StatusCode{healthv1.StatusCode_STATUS_CODE_HEALTHY},
+				10*time.Second,
+				5*time.Minute,
+				fmt.Sprintf("Test instance %s", instanceName),
+				"health",
+			)
+			if err != nil {
+				// Before panicking, try to fetch the instance one more time to get detailed status
+				if finalResp, getErr := akpCli.Cli.GetInstance(ctx, &argocdv1.GetInstanceRequest{
+					OrganizationId: akpCli.OrgId,
+					Id:             instanceResponse.Instance.Id,
+					IdType:         idv1.Type_ID,
+				}); getErr == nil {
+					fmt.Printf("Final instance state - Health: %v, Message: %s\n",
+						finalResp.Instance.GetHealthStatus().GetCode(),
+						finalResp.Instance.GetHealthStatus().GetMessage())
+				}
+				panic(fmt.Sprintf("Test instance did not become healthy: %v", err))
+			}
+
+			fmt.Printf("Instance %s is now healthy!\n", instanceName)
+			instanceId = instanceResponse.Instance.Id
+
+			// Now that the instance is healthy, add test ArgoCD resources (Application and AppProject)
+			// These are required by the data source tests
+			appStruct, err := structpb.NewStruct(map[string]any{
+				"apiVersion": "argoproj.io/v1alpha1",
+				"kind":       "Application",
+				"metadata": map[string]any{
+					"name":      "app-test",
+					"namespace": "argocd",
 				},
-				"appsetProgressiveSyncsEnabled": false,
-				"appsetPlugins": []any{
-					map[string]any{
-						"name":           "plugin-test",
-						"token":          "random-token",
-						"baseUrl":        "http://random-test.xp",
-						"requestTimeout": 0,
+				"spec": map[string]any{
+					"project": "default",
+					"source": map[string]any{
+						"repoURL":        "https://github.com/argoproj/argocd-example-apps.git",
+						"targetRevision": "HEAD",
+						"path":           "guestbook",
+					},
+					"destination": map[string]any{
+						"server":    "https://kubernetes.default.svc",
+						"namespace": "default",
 					},
 				},
-				"applicationSetExtension": map[string]any{
-					"enabled": false,
+			})
+			if err != nil {
+				panic(fmt.Sprintf("Failed to create Application struct: %v", err))
+			}
+
+			appProjectStruct, err := structpb.NewStruct(map[string]any{
+				"apiVersion": "argoproj.io/v1alpha1",
+				"kind":       "AppProject",
+				"metadata": map[string]any{
+					"name":      "default",
+					"namespace": "argocd",
 				},
-				"appReconciliationsRateLimiting": map[string]any{
-					"bucketRateLimiting": map[string]any{
-						"enabled":    false,
-						"bucketSize": 500,
-						"bucketQps":  50,
-					},
-					"itemRateLimiting": map[string]any{
-						"enabled":         false,
-						"failureCooldown": 10000,
-						"baseDelay":       1,
-						"maxDelay":        1000,
-						"backoffFactor":   1.5,
+				"spec": map[string]any{
+					"sourceRepos": []any{"*"},
+					"destinations": []any{
+						map[string]any{
+							"namespace": "*",
+							"server":    "*",
+						},
 					},
 				},
-			},
-		},
-	})
-	if err != nil {
-		panic(fmt.Sprintf("Failed to create instance struct: %v", err))
-	}
+			})
+			if err != nil {
+				panic(fmt.Sprintf("Failed to create AppProject struct: %v", err))
+			}
 
-	applyReq := &argocdv1.ApplyInstanceRequest{
-		OrganizationId: akpCli.OrgId,
-		Id:             instanceName,
-		IdType:         idv1.Type_NAME,
-		Argocd:         instanceStructpb,
-	}
-	_, err = akpCli.Cli.ApplyInstance(ctx, applyReq)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to create instance: %v", err))
-	}
-
-	// Get the created instance to get its ID
-	instanceResponse, err := akpCli.Cli.GetInstance(ctx, &argocdv1.GetInstanceRequest{
-		OrganizationId: akpCli.OrgId,
-		Id:             instanceName,
-		IdType:         idv1.Type_NAME,
-	})
-	if err != nil {
-		panic(fmt.Sprintf("Failed to get created instance: %v", err))
-	}
-
-	getResourceFunc := func(ctx context.Context) (*argocdv1.GetInstanceResponse, error) {
-		return akpCli.Cli.GetInstance(ctx, &argocdv1.GetInstanceRequest{
-			OrganizationId: akpCli.OrgId,
-			Id:             instanceResponse.Instance.Id,
-			IdType:         idv1.Type_ID,
+			applyResourcesReq := &argocdv1.ApplyInstanceRequest{
+				OrganizationId: akpCli.OrgId,
+				Id:             instanceId,
+				IdType:         idv1.Type_ID,
+				Applications:   []*structpb.Struct{appStruct},
+				AppProjects:    []*structpb.Struct{appProjectStruct},
+			}
+			fmt.Printf("Adding ArgoCD resources to instance %s...\n", instanceName)
+			_, err = akpCli.Cli.ApplyInstance(ctx, applyResourcesReq)
+			if err != nil {
+				panic(fmt.Sprintf("Failed to add ArgoCD resources to instance: %v", err))
+			}
+			fmt.Printf("ArgoCD resources added successfully!\n")
 		})
 	}
 
-	getStatusFunc := func(resp *argocdv1.GetInstanceResponse) healthv1.StatusCode {
-		if resp == nil || resp.Instance == nil {
-			return healthv1.StatusCode_STATUS_CODE_UNKNOWN
-		}
-		return resp.Instance.GetHealthStatus().GetCode()
-	}
-
-	err = waitForStatus(
-		ctx,
-		getResourceFunc,
-		getStatusFunc,
-		[]healthv1.StatusCode{healthv1.StatusCode_STATUS_CODE_HEALTHY},
-		10*time.Second,
-		5*time.Minute,
-		fmt.Sprintf("Test instance %s", instanceName),
-		"health",
-	)
-	if err != nil {
-		panic(fmt.Sprintf("Test instance did not become healthy: %v", err))
-	}
-
-	return instanceResponse.Instance.Id
+	return instanceId
 }
 
 func cleanupTestInstance() {
