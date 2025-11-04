@@ -98,60 +98,13 @@ type AppInAnyNamespaceConfig struct {
 	Enabled types.Bool `tfsdk:"enabled"`
 }
 
-type CustomDeprecatedAPI struct {
-	ApiVersion                     types.String `tfsdk:"api_version"`
-	NewApiVersion                  types.String `tfsdk:"new_api_version"`
-	DeprecatedInKubernetesVersion  types.String `tfsdk:"deprecated_in_kubernetes_version"`
-	UnavailableInKubernetesVersion types.String `tfsdk:"unavailable_in_kubernetes_version"`
-}
-
 type CveScanConfig struct {
 	ScanEnabled    types.Bool   `tfsdk:"scan_enabled"`
 	RescanInterval types.String `tfsdk:"rescan_interval"`
 }
 
-type ObjectSelector struct {
-	MatchLabels      types.Map                   `tfsdk:"match_labels"`
-	MatchExpressions []*LabelSelectorRequirement `tfsdk:"match_expressions"`
-}
-
-type LabelSelectorRequirement struct {
-	Key      types.String   `tfsdk:"key"`
-	Operator types.String   `tfsdk:"operator"`
-	Values   []types.String `tfsdk:"values"`
-}
-
-type ClusterSecretMapping struct {
-	Clusters *ObjectSelector `tfsdk:"clusters"`
-	Secrets  *ObjectSelector `tfsdk:"secrets"`
-}
-
-type SecretsManagementConfig struct {
-	Sources      []*ClusterSecretMapping `tfsdk:"sources"`
-	Destinations []*ClusterSecretMapping `tfsdk:"destinations"`
-}
-
 type ApplicationSetExtension struct {
 	Enabled types.Bool `tfsdk:"enabled"`
-}
-
-type BucketRateLimiting struct {
-	Enabled    types.Bool  `tfsdk:"enabled"`
-	BucketSize types.Int64 `tfsdk:"bucket_size"`
-	BucketQps  types.Int64 `tfsdk:"bucket_qps"`
-}
-
-type ItemRateLimiting struct {
-	Enabled         types.Bool    `tfsdk:"enabled"`
-	FailureCooldown types.Int64   `tfsdk:"failure_cooldown"`
-	BaseDelay       types.Int64   `tfsdk:"base_delay"`
-	MaxDelay        types.Int64   `tfsdk:"max_delay"`
-	BackoffFactor   types.Float64 `tfsdk:"backoff_factor"`
-}
-
-type AppReconciliationsRateLimiting struct {
-	BucketRateLimiting *BucketRateLimiting `tfsdk:"bucket_rate_limiting"`
-	ItemRateLimiting   *ItemRateLimiting   `tfsdk:"item_rate_limiting"`
 }
 
 type InstanceSpec struct {

@@ -56,6 +56,7 @@ type KargoInstanceSpec struct {
 	GlobalServiceAccountNs     []types.String           `tfsdk:"global_service_account_ns"`
 	AkuityIntelligence         *AkuityIntelligence      `tfsdk:"akuity_intelligence"`
 	GcConfig                   *GarbageCollectorConfig  `tfsdk:"gc_config"`
+	PromoControllerEnabled     types.Bool               `tfsdk:"promo_controller_enabled"`
 }
 
 type AkuityIntelligence struct {

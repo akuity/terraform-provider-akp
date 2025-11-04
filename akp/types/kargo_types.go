@@ -31,10 +31,14 @@ type AgentMaps struct {
 }
 
 func (k *Kargo) Update(ctx context.Context, diagnostics *diag.Diagnostics, kargo *v1alpha1.Kargo, agentMaps *AgentMaps) {
-	var backendIpAllowListEnabled bool
+	var backendIpAllowListEnabled, promoControllerEnabled bool
 	if kargo.Spec.KargoInstanceSpec.BackendIpAllowListEnabled != nil {
 		backendIpAllowListEnabled = *kargo.Spec.KargoInstanceSpec.BackendIpAllowListEnabled
 	}
+	if kargo.Spec.KargoInstanceSpec.PromoControllerEnabled != nil {
+		promoControllerEnabled = *kargo.Spec.KargoInstanceSpec.PromoControllerEnabled
+	}
+
 	var acd *KargoAgentCustomization
 	if kargo.Spec.KargoInstanceSpec.AgentCustomizationDefaults != nil {
 		kacd := kargo.Spec.KargoInstanceSpec.AgentCustomizationDefaults
@@ -79,6 +83,7 @@ func (k *Kargo) Update(ctx context.Context, diagnostics *diag.Diagnostics, kargo
 		Version:     types.StringValue(kargo.Spec.Version),
 		KargoInstanceSpec: KargoInstanceSpec{
 			BackendIpAllowListEnabled:  types.BoolValue(backendIpAllowListEnabled),
+			PromoControllerEnabled:     types.BoolValue(promoControllerEnabled),
 			IpAllowList:                toKargoIPAllowListTFModel(kargo.Spec.KargoInstanceSpec.IpAllowList),
 			AgentCustomizationDefaults: acd,
 			DefaultShardAgent:          defaultShardAgent,
@@ -137,6 +142,7 @@ func (k *Kargo) ToKargoAPIModel(ctx context.Context, diag *diag.Diagnostics, nam
 			Version:     k.Spec.Version.ValueString(),
 			KargoInstanceSpec: v1alpha1.KargoInstanceSpec{
 				BackendIpAllowListEnabled:  toBoolPointer(k.Spec.KargoInstanceSpec.BackendIpAllowListEnabled),
+				PromoControllerEnabled:     toBoolPointer(k.Spec.KargoInstanceSpec.PromoControllerEnabled),
 				IpAllowList:                toKargoIpAllowListAPIModel(k.Spec.KargoInstanceSpec.IpAllowList),
 				AgentCustomizationDefaults: toKargoAgentCustomizationAPIModel(k.Spec.KargoInstanceSpec.AgentCustomizationDefaults, diag),
 				DefaultShardAgent:          defaultShardAgent,
@@ -465,11 +471,17 @@ func (k *Kargo) toKargoOidcConfigTFModel(ctx context.Context, oidcConfig *v1alph
 		additionalScopes = nil
 	}
 
+	// Preserve dex_config_secret from plan/state if API doesn't return it (secrets aren't returned for security)
+	dexConfigSecret := toKargoDexConfigSecretTFModel(ctx, oidcConfig.DexConfigSecret)
+	if dexConfigSecret.IsNull() && k.Spec.OidcConfig != nil && !k.Spec.OidcConfig.DexConfigSecret.IsNull() && !k.Spec.OidcConfig.DexConfigSecret.IsUnknown() {
+		dexConfigSecret = k.Spec.OidcConfig.DexConfigSecret
+	}
+
 	return &KargoOidcConfig{
 		Enabled:               types.BoolPointerValue(oidcConfig.Enabled),
 		DexEnabled:            types.BoolPointerValue(oidcConfig.DexEnabled),
 		DexConfig:             types.StringValue(oidcConfig.DexConfig),
-		DexConfigSecret:       toKargoDexConfigSecretTFModel(ctx, oidcConfig.DexConfigSecret),
+		DexConfigSecret:       dexConfigSecret,
 		IssuerURL:             types.StringValue(oidcConfig.IssuerURL),
 		ClientID:              types.StringValue(oidcConfig.ClientID),
 		CliClientID:           types.StringValue(oidcConfig.CliClientID),

@@ -3,6 +3,7 @@ package akp
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
@@ -12,9 +13,19 @@ import (
 var (
 	orgName        string
 	providerConfig string
+	skipTLSVerify  bool
 )
 
 func TestMain(m *testing.M) {
+	if v := os.Getenv("AKUITY_SKIP_TLS_VERIFY"); v != "" {
+		result, err := strconv.ParseBool(v)
+		if err != nil {
+			panic(err)
+		}
+
+		skipTLSVerify = result
+	}
+
 	if v := os.Getenv("AKUITY_ORG_NAME"); v == "" {
 		orgName = "terraform-provider-acceptance-test"
 	} else {
@@ -24,8 +35,9 @@ func TestMain(m *testing.M) {
 	providerConfig = fmt.Sprintf(`
 provider "akp" {
 	org_name = "%s"
+	skip_tls_verify = %v
 }
-`, orgName)
+`, orgName, skipTLSVerify)
 
 	code := m.Run()
 

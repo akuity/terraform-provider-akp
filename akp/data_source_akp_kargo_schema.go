@@ -135,6 +135,10 @@ func getKargoInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			Attributes:          getGarbageCollectorConfigDataSourceAttributes(),
 		},
+		"promo_controller_enabled": schema.BoolAttribute{
+			MarkdownDescription: "Whether Kargo Promotion Controller is enabled for this instance",
+			Computed:            true,
+		},
 	}
 }
 

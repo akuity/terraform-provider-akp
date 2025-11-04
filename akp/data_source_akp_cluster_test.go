@@ -3,6 +3,7 @@
 package akp
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -15,10 +16,10 @@ func TestAccClusterDataSource(t *testing.T) {
 		Steps: []resource.TestStep{
 			// Read testing
 			{
-				Config: providerConfig + testAccClusterDataSourceConfig,
+				Config: providerConfig + getAccClusterDataSourceConfig(getInstanceId()),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.akp_cluster.test", "instance_id", "6pzhawvy4echbd8x"),
-					resource.TestCheckResourceAttr("data.akp_cluster.test", "id", "nyc6s87mrlh4s2af"),
+					resource.TestCheckResourceAttr("data.akp_cluster.test", "instance_id", getInstanceId()),
+					resource.TestCheckResourceAttrSet("data.akp_cluster.test", "id"),
 					resource.TestCheckResourceAttr("data.akp_cluster.test", "name", "data-source-cluster"),
 					resource.TestCheckResourceAttr("data.akp_cluster.test", "namespace", "akuity"),
 					resource.TestCheckResourceAttr("data.akp_cluster.test", "labels.test-label", "test"),
@@ -43,9 +44,40 @@ kind: Kustomization
 	})
 }
 
-const testAccClusterDataSourceConfig = `
-data "akp_cluster" "test" {
-  instance_id = "6pzhawvy4echbd8x"
-  name = "data-source-cluster"
+func getAccClusterDataSourceConfig(instanceId string) string {
+	return fmt.Sprintf(`
+resource "akp_cluster" "test" {
+  instance_id = %q
+  name        = "data-source-cluster"
+  namespace   = "akuity"
+  labels = {
+    test-label = "test"
+  }
+  annotations = {
+    test-annotation = "false"
+  }
+  spec = {
+    namespace_scoped = false
+    description      = "Cluster Description"
+    data = {
+      size                  = "small"
+      auto_upgrade_disabled = true
+      kustomization         = <<EOF
+apiVersion: kustomize.config.k8s.io/v1beta1
+images:
+- name: quay.io/akuity/agent
+  newName: test.io/agent
+kind: Kustomization
+EOF
+      app_replication = false
+      redis_tunneling = true
+    }
+  }
 }
-`
+
+data "akp_cluster" "test" {
+  instance_id = akp_cluster.test.instance_id
+  name        = akp_cluster.test.name
+}
+`, instanceId)
+}

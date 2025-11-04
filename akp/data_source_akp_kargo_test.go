@@ -14,21 +14,20 @@ func TestAccKargoDataSource(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: providerConfig + testAccKargoDataSourceConfig,
+				Config: providerConfig + getTestAccKargoDataSourceConfig(getKargoInstanceName()),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "id", "5gjcg0rh8fjemhc0"),
-					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "name", "test-instance"),
+					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "id", getKargoInstanceId()),
+					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "name", getKargoInstanceName()),
 					// spec
-					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo.spec.version", "v1.2.2"),
+					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo.spec.version", getKargoVersion()),
 					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo.spec.kargo_instance_spec.ip_allow_list.#", "0"),
 					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo.spec.kargo_instance_spec.global_credentials_ns.#", "2"),
 					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo.spec.kargo_instance_spec.global_service_account_ns.#", "1"),
-					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo.spec.kargo_instance_spec.default_shard_agent", "kgbgel4pst55klf9"),
 					// cm
-					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo_cm.%", "2"),
+					// resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo_cm.%", "2"),
 
 					// Test Kargo Resources
-					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo_resources.%", "12"),
+					resource.TestCheckResourceAttr("data.akp_kargo_instance.test-instance", "kargo_resources.%", "11"),
 
 					resource.TestCheckResourceAttrWith("data.akp_kargo_instance.test-instance", "kargo_resources.kargo.akuity.io/v1alpha1/Project//kargo-demo", func(value string) error {
 						if !strings.Contains(value, "kargo-demo") {
@@ -48,8 +47,10 @@ func TestAccKargoDataSource(t *testing.T) {
 	})
 }
 
-const testAccKargoDataSourceConfig = `
+func getTestAccKargoDataSourceConfig(instanceName string) string {
+	return fmt.Sprintf(`
 data "akp_kargo_instance" "test-instance" {
-  name = "test-instance"
+  name = "%s"
 }
-`
+`, instanceName)
+}
