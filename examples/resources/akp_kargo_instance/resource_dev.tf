@@ -40,26 +40,14 @@ resource "akp_kargo_instance" "example" {
         admin_account = {
           claims = {
             groups = {
-              values = ["admin-group@example.com"]
-            }
-            email = {
-              values = ["admin@example.com"]
-            }
-            sub = {
-              values = ["admin-sub@example.com"]
+              values = ["orgname:team-name"]
             }
           }
         }
         viewer_account = {
           claims = {
-            groups = {
-              values = ["viewer-group@example.com"]
-            }
-            email = {
-              values = ["viewer@example.com"]
-            }
-            sub = {
-              values = ["viewer-sub@example.com"]
+            group = {
+              values = ["orgname:team-name-devs"]
             }
           }
         }
