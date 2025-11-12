@@ -20,6 +20,8 @@ resource "akp_kargo_instance" "example" {
       oidc_config = {
         enabled     = true
         dex_enabled = true
+
+        # See https://github.com/dexidp/website/blob/main/content/docs/connectors/github.md
         dex_config  = <<-EOF
         connectors:
           - type: github
@@ -30,9 +32,9 @@ resource "akp_kargo_instance" "example" {
               clientSecret: $GITHUB_CLIENT_SECRET
               redirectURI: https://${local.kargo_url}/api/dex/callback
               #orgs:
-              #- name: akuity
-              #preferredEmailDomain: "akuity.io"
+              #- name: YOUR GH ORG NAME
         EOF
+
         # Define value for secret referenced above.
         dex_config_secret = {
          GITHUB_CLIENT_SECRET = var.GH_OAUTH_CLIENT_SECRET_KARGO
