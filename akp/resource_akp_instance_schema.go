@@ -373,6 +373,11 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 			Optional:            true,
 			Attributes:          getAkuityIntelligenceExtensionAttributes(),
 		},
+		"cluster_addons_extension": schema.SingleNestedAttribute{
+			MarkdownDescription: "Cluster Addons Extension configuration for managing cluster addons",
+			Optional:            true,
+			Attributes:          getClusterAddonsExtensionAttributes(),
+		},
 		"kube_vision_config": schema.SingleNestedAttribute{
 			MarkdownDescription: "Advanced Akuity Intelligence configuration like CVE scanning and AI runbooks",
 			Optional:            true,
@@ -519,6 +524,14 @@ func getClusterCustomizationAttributes() map[string]schema.Attribute {
 		},
 		"redis_tunneling": schema.BoolAttribute{
 			MarkdownDescription: "Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Bool{
+				boolplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"server_side_diff_enabled": schema.BoolAttribute{
+			MarkdownDescription: "Enables the ability to set server-side diff on the application-controller.",
 			Optional:            true,
 			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
@@ -841,6 +854,29 @@ func getAkuityIntelligenceExtensionAttributes() map[string]schema.Attribute {
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
 			},
+		},
+	}
+}
+
+func getClusterAddonsExtensionAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"enabled": schema.BoolAttribute{
+			MarkdownDescription: "Enable Cluster Addons Extension for managing cluster addons",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Bool{
+				boolplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"allowed_usernames": schema.ListAttribute{
+			MarkdownDescription: "List of usernames allowed to manage cluster addons",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
+		"allowed_groups": schema.ListAttribute{
+			MarkdownDescription: "List of groups allowed to manage cluster addons",
+			Optional:            true,
+			ElementType:         types.StringType,
 		},
 	}
 }

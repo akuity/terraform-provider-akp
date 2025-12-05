@@ -108,4 +108,5 @@ type ClusterData struct {
 	Project                         types.String                        `tfsdk:"project"`
 	Compatibility                   *ClusterCompatibility               `tfsdk:"compatibility"`
 	ArgocdNotificationsSettings     *ClusterArgoCDNotificationsSettings `tfsdk:"argocd_notifications_settings"`
+	ServerSideDiffEnabled           types.Bool                          `tfsdk:"server_side_diff_enabled"`
 }

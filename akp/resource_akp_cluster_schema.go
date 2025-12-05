@@ -259,6 +259,14 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 			Optional:            true,
 			Attributes:          getDirectClusterSpecAttributes(),
 		},
+		"server_side_diff_enabled": schema.BoolAttribute{
+			MarkdownDescription: "Enables the ability to set server-side diff on the application-controller.",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Bool{
+				boolplanmodifier.UseStateForUnknown(),
+			},
+		},
 	}
 }
 

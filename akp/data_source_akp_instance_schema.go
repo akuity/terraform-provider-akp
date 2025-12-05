@@ -257,6 +257,11 @@ func getInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			Attributes:          getAkuityIntelligenceExtensionDataSourceAttributes(),
 		},
+		"cluster_addons_extension": schema.SingleNestedAttribute{
+			MarkdownDescription: "Cluster Addons Extension configuration for managing cluster addons",
+			Computed:            true,
+			Attributes:          getClusterAddonsExtensionDataSourceAttributes(),
+		},
 		"kube_vision_config": schema.SingleNestedAttribute{
 			MarkdownDescription: "Advanced Akuity Intelligence configuration like CVE scanning and incident resolution",
 			Computed:            true,
@@ -369,6 +374,10 @@ func getClusterCustomizationDataSourceAttributes() map[string]schema.Attribute {
 		},
 		"redis_tunneling": schema.BoolAttribute{
 			MarkdownDescription: "Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy",
+			Computed:            true,
+		},
+		"server_side_diff_enabled": schema.BoolAttribute{
+			MarkdownDescription: "Enables the ability to set server-side diff on the application-controller.",
 			Computed:            true,
 		},
 	}
@@ -673,6 +682,25 @@ func getAkuityIntelligenceExtensionDataSourceAttributes() map[string]schema.Attr
 		"ai_support_engineer_enabled": schema.BoolAttribute{
 			MarkdownDescription: "Enable AI support engineer functionality",
 			Computed:            true,
+		},
+	}
+}
+
+func getClusterAddonsExtensionDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"enabled": schema.BoolAttribute{
+			MarkdownDescription: "Enable Cluster Addons Extension for managing cluster addons",
+			Computed:            true,
+		},
+		"allowed_usernames": schema.ListAttribute{
+			MarkdownDescription: "List of usernames allowed to use cluster addons",
+			Computed:            true,
+			ElementType:         types.StringType,
+		},
+		"allowed_groups": schema.ListAttribute{
+			MarkdownDescription: "List of groups allowed to use cluster addons",
+			Computed:            true,
+			ElementType:         types.StringType,
 		},
 	}
 }

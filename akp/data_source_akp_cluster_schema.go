@@ -154,6 +154,10 @@ func getClusterDataDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			Attributes:          getDirectClusterSpecDataSourceAttributes(),
 		},
+		"server_side_diff_enabled": schema.BoolAttribute{
+			MarkdownDescription: "Enables the ability to set server-side diff on the application-controller.",
+			Computed:            true,
+		},
 	}
 }
 

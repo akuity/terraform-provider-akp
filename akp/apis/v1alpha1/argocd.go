@@ -30,10 +30,11 @@ type ArgoCDExtensionInstallEntry struct {
 }
 
 type ClusterCustomization struct {
-	AutoUpgradeDisabled *bool                `json:"autoUpgradeDisabled,omitempty"`
-	Kustomization       runtime.RawExtension `json:"kustomization,omitempty"`
-	AppReplication      *bool                `json:"appReplication,omitempty"`
-	RedisTunneling      *bool                `json:"redisTunneling,omitempty"`
+	AutoUpgradeDisabled   *bool                `json:"autoUpgradeDisabled,omitempty"`
+	Kustomization         runtime.RawExtension `json:"kustomization,omitempty"`
+	AppReplication        *bool                `json:"appReplication,omitempty"`
+	RedisTunneling        *bool                `json:"redisTunneling,omitempty"`
+	ServerSideDiffEnabled *bool                `json:"serverSideDiffEnabled,omitempty"`
 }
 
 type AppsetPolicy struct {
@@ -62,6 +63,12 @@ type AkuityIntelligenceExtension struct {
 	AiSupportEngineerEnabled *bool    `json:"aiSupportEngineerEnabled,omitempty"`
 }
 
+type ClusterAddonsExtension struct {
+	Enabled          *bool    `json:"enabled,omitempty"`
+	AllowedUsernames []string `json:"allowedUsernames,omitempty"`
+	AllowedGroups    []string `json:"allowedGroups,omitempty"`
+}
+
 type TargetSelector struct {
 	ArgocdApplications []string `json:"argocdApplications,omitempty"`
 	K8SNamespaces      []string `json:"k8sNamespaces,omitempty"`
@@ -83,15 +90,22 @@ type IncidentWebhookConfig struct {
 	ArgocdApplicationNamePath string `json:"argocdApplicationNamePath,omitempty"`
 }
 
+type IncidentsGroupingConfig struct {
+	K8SNamespaces          []string `json:"k8sNamespaces,omitempty"`
+	ArgocdApplicationNames []string `json:"argocdApplicationNames,omitempty"`
+}
+
 type IncidentsConfig struct {
 	Triggers []*TargetSelector        `json:"triggers,omitempty"`
 	Webhooks []*IncidentWebhookConfig `json:"webhooks,omitempty"`
+	Grouping *IncidentsGroupingConfig `json:"grouping,omitempty"`
 }
 
 type AIConfig struct {
-	Runbooks           []*Runbook       `json:"runbooks,omitempty"`
-	Incidents          *IncidentsConfig `json:"incidents,omitempty"`
-	ArgocdSlackService *string          `json:"argocdSlackService,omitempty"`
+	Runbooks            []*Runbook       `json:"runbooks,omitempty"`
+	Incidents           *IncidentsConfig `json:"incidents,omitempty"`
+	ArgocdSlackService  *string          `json:"argocdSlackService,omitempty"`
+	ArgocdSlackChannels []string         `json:"argocdSlackChannels,omitempty"`
 }
 
 type KubeVisionConfig struct {
@@ -140,9 +154,10 @@ type InstanceSpec struct {
 	AppsetPlugins           []*AppsetPlugins         `json:"appsetPlugins,omitempty"`
 	ApplicationSetExtension *ApplicationSetExtension `json:"applicationSetExtension,omitempty"`
 
-	MetricsIngressUsername        *string `json:"metricsIngressUsername,omitempty"`
-	MetricsIngressPasswordHash    *string `json:"metricsIngressPasswordHash,omitempty"`
-	PrivilegedNotificationCluster *string `json:"privilegedNotificationCluster,omitempty"`
+	MetricsIngressUsername        *string                 `json:"metricsIngressUsername,omitempty"`
+	MetricsIngressPasswordHash    *string                 `json:"metricsIngressPasswordHash,omitempty"`
+	PrivilegedNotificationCluster *string                 `json:"privilegedNotificationCluster,omitempty"`
+	ClusterAddonsExtension        *ClusterAddonsExtension `json:"clusterAddonsExtension,omitempty"`
 }
 
 type AppsetPlugins struct {

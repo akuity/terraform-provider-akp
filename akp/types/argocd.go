@@ -25,10 +25,11 @@ type ArgoCDExtensionInstallEntry struct {
 }
 
 type ClusterCustomization struct {
-	AutoUpgradeDisabled types.Bool   `tfsdk:"auto_upgrade_disabled"`
-	Kustomization       types.String `tfsdk:"kustomization"`
-	AppReplication      types.Bool   `tfsdk:"app_replication"`
-	RedisTunneling      types.Bool   `tfsdk:"redis_tunneling"`
+	AutoUpgradeDisabled   types.Bool   `tfsdk:"auto_upgrade_disabled"`
+	Kustomization         types.String `tfsdk:"kustomization"`
+	AppReplication        types.Bool   `tfsdk:"app_replication"`
+	RedisTunneling        types.Bool   `tfsdk:"redis_tunneling"`
+	ServerSideDiffEnabled types.Bool   `tfsdk:"server_side_diff_enabled"`
 }
 
 type AppsetPolicy struct {
@@ -57,6 +58,12 @@ type AkuityIntelligenceExtension struct {
 	AiSupportEngineerEnabled types.Bool     `tfsdk:"ai_support_engineer_enabled"`
 }
 
+type ClusterAddonsExtension struct {
+	Enabled          types.Bool     `tfsdk:"enabled"`
+	AllowedUsernames []types.String `tfsdk:"allowed_usernames"`
+	AllowedGroups    []types.String `tfsdk:"allowed_groups"`
+}
+
 type TargetSelector struct {
 	ArgocdApplications []types.String `tfsdk:"argocd_applications"`
 	K8SNamespaces      []types.String `tfsdk:"k8s_namespaces"`
@@ -78,15 +85,22 @@ type IncidentWebhookConfig struct {
 	ArgocdApplicationNamePath types.String `tfsdk:"argocd_application_name_path"`
 }
 
+type IncidentsGroupingConfig struct {
+	K8SNamespaces          []types.String `tfsdk:"k8s_namespaces"`
+	ArgocdApplicationNames []types.String `tfsdk:"argocd_application_names"`
+}
+
 type IncidentsConfig struct {
 	Triggers []*TargetSelector        `tfsdk:"triggers"`
 	Webhooks []*IncidentWebhookConfig `tfsdk:"webhooks"`
+	Grouping *IncidentsGroupingConfig `tfsdk:"grouping"`
 }
 
 type AIConfig struct {
-	Runbooks           []*Runbook       `tfsdk:"runbooks"`
-	Incidents          *IncidentsConfig `tfsdk:"incidents"`
-	ArgocdSlackService types.String     `tfsdk:"argocd_slack_service"`
+	Runbooks            []*Runbook       `tfsdk:"runbooks"`
+	Incidents           *IncidentsConfig `tfsdk:"incidents"`
+	ArgocdSlackService  types.String     `tfsdk:"argocd_slack_service"`
+	ArgocdSlackChannels []types.String   `tfsdk:"argocd_slack_channels"`
 }
 
 type KubeVisionConfig struct {
@@ -135,6 +149,7 @@ type InstanceSpec struct {
 	MetricsIngressUsername          types.String                 `tfsdk:"metrics_ingress_username"`
 	MetricsIngressPasswordHash      types.String                 `tfsdk:"metrics_ingress_password_hash"`
 	PrivilegedNotificationCluster   types.String                 `tfsdk:"privileged_notification_cluster"`
+	ClusterAddonsExtension          *ClusterAddonsExtension      `tfsdk:"cluster_addons_extension"`
 }
 
 type AppsetPlugins struct {
