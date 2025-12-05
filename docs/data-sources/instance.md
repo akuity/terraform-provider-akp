@@ -81,6 +81,7 @@ Read-Only:
 - `assistant_extension_enabled` (Boolean, Deprecated) Deprecated: upcoming removal. Enable Powerful AI-powered assistant Extension. It helps analyze Kubernetes resources behavior and provides suggestions about resolving issues.
 - `audit_extension_enabled` (Boolean) Enable Audit Extension. Set this to `true` to install Audit Extension to Argo CD instance.
 - `backend_ip_allow_list_enabled` (Boolean) Enable ip allow list for cluster agents
+- `cluster_addons_extension` (Attributes) Cluster Addons Extension configuration for managing cluster addons (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--cluster_addons_extension))
 - `cluster_customization_defaults` (Attributes) Default values for cluster agents (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--cluster_customization_defaults))
 - `crossplane_extension` (Attributes) Custom Resource Definition group name that identifies the Crossplane resource in kubernetes. We will include built-in crossplane resources. Note that you can use glob pattern to match the group. ie. *.crossplane.io (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--crossplane_extension))
 - `declarative_management_enabled` (Boolean) Enable Declarative Management
@@ -175,6 +176,16 @@ Available options: `sync`, `create-only`, `create-delete`, and `create-update`.
   - Policy `create-delete`: Prevents ApplicationSet controller from modifying Applications, Delete is allowed.
 
 
+<a id="nestedatt--argocd--spec--instance_spec--cluster_addons_extension"></a>
+### Nested Schema for `argocd.spec.instance_spec.cluster_addons_extension`
+
+Read-Only:
+
+- `allowed_groups` (List of String) List of groups allowed to use cluster addons
+- `allowed_usernames` (List of String) List of usernames allowed to use cluster addons
+- `enabled` (Boolean) Enable Cluster Addons Extension for managing cluster addons
+
+
 <a id="nestedatt--argocd--spec--instance_spec--cluster_customization_defaults"></a>
 ### Nested Schema for `argocd.spec.instance_spec.cluster_customization_defaults`
 
@@ -184,6 +195,7 @@ Read-Only:
 - `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
 - `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
 - `redis_tunneling` (Boolean) Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy
+- `server_side_diff_enabled` (Boolean) Enables the ability to set server-side diff on the application-controller.
 
 
 <a id="nestedatt--argocd--spec--instance_spec--crossplane_extension"></a>

@@ -102,6 +102,7 @@ Read-Only:
 - `multi_cluster_k8s_dashboard_enabled` (Boolean) Enable the KubeVision feature on the managed cluster
 - `project` (String) Project name
 - `redis_tunneling` (Boolean) Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy
+- `server_side_diff_enabled` (Boolean) Enables the ability to set server-side diff on the application-controller.
 - `size` (String) Cluster Size. One of `small`, `medium`, `large`, `custom` or `auto`
 - `target_version` (String) The version of the agent to install on your cluster
 

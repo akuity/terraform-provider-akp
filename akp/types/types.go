@@ -24,10 +24,11 @@ import (
 
 var (
 	clusterCustomizationAttrTypes = map[string]attr.Type{
-		"auto_upgrade_disabled": types.BoolType,
-		"kustomization":         types.StringType,
-		"app_replication":       types.BoolType,
-		"redis_tunneling":       types.BoolType,
+		"auto_upgrade_disabled":    types.BoolType,
+		"kustomization":            types.StringType,
+		"app_replication":          types.BoolType,
+		"redis_tunneling":          types.BoolType,
+		"server_side_diff_enabled": types.BoolType,
 	}
 
 	appsetPolicyAttrTypes = map[string]attr.Type{
@@ -158,6 +159,7 @@ func (a *ArgoCD) Update(ctx context.Context, diagnostics *diag.Diagnostics, cd *
 			MetricsIngressUsername:          metricsIngressUsername,
 			MetricsIngressPasswordHash:      metricsIngressPasswordHash,
 			PrivilegedNotificationCluster:   privilegedNotificationCluster,
+			ClusterAddonsExtension:          toClusterAddonsExtensionTFModel(cd.Spec.InstanceSpec.ClusterAddonsExtension, a),
 		},
 	}
 }
@@ -202,6 +204,7 @@ func (a *ArgoCD) ToArgoCDAPIModel(ctx context.Context, diag *diag.Diagnostics, n
 				MetricsIngressUsername:          a.Spec.InstanceSpec.MetricsIngressUsername.ValueStringPointer(),
 				MetricsIngressPasswordHash:      a.Spec.InstanceSpec.MetricsIngressPasswordHash.ValueStringPointer(),
 				PrivilegedNotificationCluster:   a.Spec.InstanceSpec.PrivilegedNotificationCluster.ValueStringPointer(),
+				ClusterAddonsExtension:          toClusterAddonsExtensionAPIModel(a.Spec.InstanceSpec.ClusterAddonsExtension),
 			},
 		},
 	}
@@ -327,6 +330,17 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 	} else {
 		namespaceScoped = types.BoolValue(apiCluster.GetNamespaceScoped()) //nolint:staticcheck
 	}
+
+	/*
+		var serverSideDiffEnabled types.Bool
+		if plan != nil && plan.Spec != nil && !plan.Spec.Data.ServerSideDiffEnabled.IsUnknown() {
+			serverSideDiffEnabled = plan.Spec.Data.ServerSideDiffEnabled
+		} else {
+			serverSideDiffEnabled = types.BoolValue(apiCluster.GetData().GetServerSideDiffEnabled())
+		}
+
+	*/
+
 	c.Spec = &ClusterSpec{
 		NamespaceScoped: namespaceScoped,
 		Data: ClusterData{
@@ -345,6 +359,7 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 			Compatibility:                   toCompatibilityTFModel(plan, apiCluster.GetData().GetCompatibility()),
 			ArgocdNotificationsSettings:     toArgoCDNotificationsSettingsTFModel(plan, apiCluster.GetData().GetArgocdNotificationsSettings()),
 			DirectClusterSpec:               directClusterSpec,
+			// ServerSideDiffEnabled:           serverSideDiffEnabled,
 		},
 	}
 
@@ -496,6 +511,7 @@ func toClusterDataAPIModel(diagnostics *diag.Diagnostics, clusterData ClusterDat
 	return v1alpha1.ClusterData{
 		Size:                            v1alpha1.ClusterSize(apiSize),
 		AutoUpgradeDisabled:             toBoolPointer(clusterData.AutoUpgradeDisabled),
+		ServerSideDiffEnabled:           toBoolPointer(clusterData.ServerSideDiffEnabled),
 		Kustomization:                   raw,
 		AppReplication:                  toBoolPointer(clusterData.AppReplication),
 		TargetVersion:                   clusterData.TargetVersion.ValueString(),
@@ -589,10 +605,11 @@ func toClusterCustomizationAPIModel(ctx context.Context, diagnostics *diag.Diagn
 		diagnostics.AddError("failed unmarshal kustomization string to yaml", err.Error())
 	}
 	return &v1alpha1.ClusterCustomization{
-		AutoUpgradeDisabled: toBoolPointer(customization.AutoUpgradeDisabled),
-		Kustomization:       raw,
-		AppReplication:      toBoolPointer(customization.AppReplication),
-		RedisTunneling:      toBoolPointer(customization.RedisTunneling),
+		AutoUpgradeDisabled:   toBoolPointer(customization.AutoUpgradeDisabled),
+		Kustomization:         raw,
+		AppReplication:        toBoolPointer(customization.AppReplication),
+		RedisTunneling:        toBoolPointer(customization.RedisTunneling),
+		ServerSideDiffEnabled: toBoolPointer(customization.ServerSideDiffEnabled),
 	}
 }
 
@@ -827,11 +844,14 @@ func (a *ArgoCD) toClusterCustomizationTFModel(ctx context.Context, diagnostics 
 
 	redisTunneling := customization.RedisTunneling != nil && *customization.RedisTunneling
 
+	serverSideDiffEnabled := customization.ServerSideDiffEnabled != nil && *customization.ServerSideDiffEnabled
+
 	c := &ClusterCustomization{
-		AutoUpgradeDisabled: types.BoolValue(autoUpgradeDisabled),
-		Kustomization:       types.StringValue(string(yamlData)),
-		AppReplication:      types.BoolValue(appReplication),
-		RedisTunneling:      types.BoolValue(redisTunneling),
+		AutoUpgradeDisabled:   types.BoolValue(autoUpgradeDisabled),
+		Kustomization:         types.StringValue(string(yamlData)),
+		AppReplication:        types.BoolValue(appReplication),
+		RedisTunneling:        types.BoolValue(redisTunneling),
+		ServerSideDiffEnabled: types.BoolValue(serverSideDiffEnabled),
 	}
 	clusterCustomization, d := types.ObjectValueFrom(ctx, clusterCustomizationAttrTypes, c)
 	diagnostics.Append(d...)
@@ -1390,6 +1410,33 @@ func toAkuityIntelligenceExtensionAPIModel(extension *AkuityIntelligenceExtensio
 	}
 }
 
+func toClusterAddonsExtensionTFModel(extension *v1alpha1.ClusterAddonsExtension, plan *ArgoCD) *ClusterAddonsExtension {
+	if plan != nil {
+		if plan.Spec.InstanceSpec.ClusterAddonsExtension == nil {
+			return nil
+		}
+	}
+	if extension == nil {
+		return nil
+	}
+	return &ClusterAddonsExtension{
+		Enabled:          types.BoolValue(extension.Enabled != nil && *extension.Enabled),
+		AllowedUsernames: convertSlice(extension.AllowedUsernames, func(s string) types.String { return types.StringValue(s) }),
+		AllowedGroups:    convertSlice(extension.AllowedGroups, func(s string) types.String { return types.StringValue(s) }),
+	}
+}
+
+func toClusterAddonsExtensionAPIModel(extension *ClusterAddonsExtension) *v1alpha1.ClusterAddonsExtension {
+	if extension == nil {
+		return nil
+	}
+	return &v1alpha1.ClusterAddonsExtension{
+		Enabled:          toBoolPointer(extension.Enabled),
+		AllowedUsernames: convertSlice(extension.AllowedUsernames, tfStringToString),
+		AllowedGroups:    convertSlice(extension.AllowedGroups, tfStringToString),
+	}
+}
+
 func toKubeVisionConfigTFModel(config *v1alpha1.KubeVisionConfig, plan *ArgoCD) *KubeVisionConfig {
 	if plan == nil {
 		return nil
@@ -1442,9 +1489,10 @@ func toAIConfigTFModel(config *v1alpha1.AIConfig) *AIConfig {
 		return nil
 	}
 	return &AIConfig{
-		Runbooks:           convertSlice(config.Runbooks, toRunbookTFModel),
-		Incidents:          toIncidentsConfigTFModel(config.Incidents),
-		ArgocdSlackService: types.StringPointerValue(config.ArgocdSlackService),
+		Runbooks:            convertSlice(config.Runbooks, toRunbookTFModel),
+		Incidents:           toIncidentsConfigTFModel(config.Incidents),
+		ArgocdSlackService:  types.StringPointerValue(config.ArgocdSlackService),
+		ArgocdSlackChannels: convertSlice(config.ArgocdSlackChannels, stringToTFString),
 	}
 }
 
@@ -1453,9 +1501,10 @@ func toAIConfigAPIModel(config *AIConfig) *v1alpha1.AIConfig {
 		return nil
 	}
 	return &v1alpha1.AIConfig{
-		Runbooks:           convertSlice(config.Runbooks, toRunbookAPIModel),
-		Incidents:          toIncidentsConfigAPIModel(config.Incidents),
-		ArgocdSlackService: config.ArgocdSlackService.ValueStringPointer(),
+		Runbooks:            convertSlice(config.Runbooks, toRunbookAPIModel),
+		Incidents:           toIncidentsConfigAPIModel(config.Incidents),
+		ArgocdSlackService:  config.ArgocdSlackService.ValueStringPointer(),
+		ArgocdSlackChannels: convertSlice(config.ArgocdSlackChannels, tfStringToString),
 	}
 }
 
@@ -1512,6 +1561,27 @@ func toIncidentsConfigTFModel(config *v1alpha1.IncidentsConfig) *IncidentsConfig
 	return &IncidentsConfig{
 		Triggers: convertSlice(config.Triggers, toTargetSelectorTFModel),
 		Webhooks: convertSlice(config.Webhooks, toIncidentWebhookConfigTFModel),
+		Grouping: toIncidentsGroupingConfigTFModel(config.Grouping),
+	}
+}
+
+func toIncidentsGroupingConfigTFModel(config *v1alpha1.IncidentsGroupingConfig) *IncidentsGroupingConfig {
+	if config == nil {
+		return nil
+	}
+	return &IncidentsGroupingConfig{
+		ArgocdApplicationNames: toStringArrayTFModel(config.ArgocdApplicationNames),
+		K8SNamespaces:          toStringArrayTFModel(config.K8SNamespaces),
+	}
+}
+
+func toIncidentsGroupingConfigAPIMode(config *IncidentsGroupingConfig) *v1alpha1.IncidentsGroupingConfig {
+	if config == nil {
+		return nil
+	}
+	return &v1alpha1.IncidentsGroupingConfig{
+		ArgocdApplicationNames: toStringArrayAPIModel(config.ArgocdApplicationNames),
+		K8SNamespaces:          toStringArrayAPIModel(config.K8SNamespaces),
 	}
 }
 
@@ -1522,6 +1592,7 @@ func toIncidentsConfigAPIModel(config *IncidentsConfig) *v1alpha1.IncidentsConfi
 	return &v1alpha1.IncidentsConfig{
 		Triggers: convertSlice(config.Triggers, toTargetSelectorAPIModel),
 		Webhooks: convertSlice(config.Webhooks, toIncidentWebhookConfigAPIModel),
+		Grouping: toIncidentsGroupingConfigAPIMode(config.Grouping),
 	}
 }
 
