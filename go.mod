@@ -17,10 +17,10 @@ require (
 	golang.org/x/exp v0.0.0-20251125195548-87e1e737ad39
 	google.golang.org/genproto/googleapis/api v0.0.0-20251202230838-ff82c1b0f217
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.34.2
-	k8s.io/apimachinery v0.34.2
+	k8s.io/api v0.34.3
+	k8s.io/apimachinery v0.34.3
 	k8s.io/cli-runtime v0.34.2
-	k8s.io/client-go v0.34.2
+	k8s.io/client-go v0.34.3
 	k8s.io/kubectl v0.34.2
 	sigs.k8s.io/yaml v1.6.0
 )
