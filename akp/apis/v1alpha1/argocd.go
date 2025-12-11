@@ -77,9 +77,10 @@ type TargetSelector struct {
 }
 
 type Runbook struct {
-	Name      string          `json:"name,omitempty"`
-	Content   string          `json:"content,omitempty"`
-	AppliedTo *TargetSelector `json:"appliedTo,omitempty"`
+	Name              string          `json:"name,omitempty"`
+	Content           string          `json:"content,omitempty"`
+	AppliedTo         *TargetSelector `json:"appliedTo,omitempty"`
+	SlackChannelNames []string        `json:"slackChannelNames,omitempty"`
 }
 
 type IncidentWebhookConfig struct {
