@@ -72,9 +72,10 @@ type TargetSelector struct {
 }
 
 type Runbook struct {
-	Name      types.String    `tfsdk:"name"`
-	Content   types.String    `tfsdk:"content"`
-	AppliedTo *TargetSelector `tfsdk:"applied_to"`
+	Name              types.String    `tfsdk:"name"`
+	Content           types.String    `tfsdk:"content"`
+	AppliedTo         *TargetSelector `tfsdk:"applied_to"`
+	SlackChannelNames []types.String  `tfsdk:"slack_channel_names"`
 }
 
 type IncidentWebhookConfig struct {

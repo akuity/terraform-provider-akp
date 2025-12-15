@@ -176,6 +176,30 @@ func (r *AkpClusterResource) ConfigValidators(ctx context.Context) []resource.Co
 
 func (r *AkpClusterResource) upsert(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.Cluster, isCreate bool) (*types.Cluster, error) {
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
+
+	var akiSanitized bool
+	if plan != nil && plan.Spec != nil && !plan.Spec.Data.MultiClusterK8SDashboardEnabled.IsNull() && !plan.Spec.Data.MultiClusterK8SDashboardEnabled.IsUnknown() && plan.Spec.Data.MultiClusterK8SDashboardEnabled.ValueBool() {
+		instReq := &argocdv1.GetInstanceRequest{
+			OrganizationId: r.akpCli.OrgId,
+			Id:             plan.InstanceID.ValueString(),
+			IdType:         idv1.Type_ID,
+		}
+		instResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.GetInstanceResponse, error) {
+			return r.akpCli.Cli.GetInstance(ctx, instReq)
+		}, "GetInstance")
+		if err != nil {
+			return nil, errors.Wrap(err, "Unable to get Argo CD instance for capability check")
+		}
+
+		instSpec := instResp.GetInstance().GetSpec()
+		enabled := instSpec != nil && instSpec.MultiClusterK8SDashboardEnabled
+
+		if !enabled {
+			akiSanitized = true
+			plan.Spec.Data.MultiClusterK8SDashboardEnabled = tftypes.BoolValue(false)
+		}
+	}
+
 	apiReq := buildClusterApplyRequest(ctx, diagnostics, plan, r.akpCli.OrgId)
 	if diagnostics.HasError() {
 		return nil, nil
@@ -183,6 +207,9 @@ func (r *AkpClusterResource) upsert(ctx context.Context, diagnostics *diag.Diagn
 	result, err := r.applyInstance(ctx, plan, apiReq, isCreate, r.akpCli.Cli.ApplyInstance, r.upsertKubeConfig)
 	// Always refresh cluster state to ensure we have consistent state, even if kubeconfig application failed
 	if result != nil {
+		if akiSanitized {
+			plan.Spec.Data.MultiClusterK8SDashboardEnabled = tftypes.BoolValue(true)
+		}
 		refreshErr := refreshClusterState(ctx, diagnostics, r.akpCli.Cli, result, r.akpCli.OrgId, plan)
 		if refreshErr != nil && err == nil {
 			// If we didn't have an error before but refresh failed, return the refresh error
@@ -287,7 +314,10 @@ func refreshClusterState(ctx context.Context, diagnostics *diag.Diagnostics, cli
 	apiCluster := clusterResp.GetCluster()
 
 	if plan != nil && plan.Spec != nil && (!plan.Spec.Data.MultiClusterK8SDashboardEnabled.IsNull() || !plan.Spec.Data.MultiClusterK8SDashboardEnabled.IsUnknown()) && plan.Spec.Data.MultiClusterK8SDashboardEnabled.ValueBool() && !apiCluster.GetData().GetMultiClusterK8SDashboardEnabled() {
-		return fmt.Errorf("multi_cluster_k8s_dashboard_enabled feature is not available on this instance")
+		diagnostics.AddWarning("multi_cluster_k8s_dashboard_enabled ignored", "The Akuity Intelligence feature cannot be set, it's possible that it's not enabled for your Argo CD instance. Please enable the feature on instance level first before enabling it on cluster level.")
+		if apiCluster != nil && apiCluster.Data != nil {
+			apiCluster.Data.MultiClusterK8SDashboardEnabled = plan.Spec.Data.MultiClusterK8SDashboardEnabled.ValueBoolPointer()
+		}
 	}
 
 	cluster.Update(ctx, diagnostics, apiCluster, plan)

@@ -1513,9 +1513,10 @@ func toRunbookTFModel(runbook *v1alpha1.Runbook) *Runbook {
 		return nil
 	}
 	return &Runbook{
-		Name:      types.StringValue(runbook.Name),
-		Content:   types.StringValue(runbook.Content),
-		AppliedTo: toTargetSelectorTFModel(runbook.AppliedTo),
+		Name:              types.StringValue(runbook.Name),
+		Content:           types.StringValue(runbook.Content),
+		AppliedTo:         toTargetSelectorTFModel(runbook.AppliedTo),
+		SlackChannelNames: convertSlice(runbook.SlackChannelNames, stringToTFString),
 	}
 }
 
@@ -1524,9 +1525,10 @@ func toRunbookAPIModel(runbook *Runbook) *v1alpha1.Runbook {
 		return nil
 	}
 	return &v1alpha1.Runbook{
-		Name:      runbook.Name.ValueString(),
-		Content:   runbook.Content.ValueString(),
-		AppliedTo: toTargetSelectorAPIModel(runbook.AppliedTo),
+		Name:              runbook.Name.ValueString(),
+		Content:           runbook.Content.ValueString(),
+		AppliedTo:         toTargetSelectorAPIModel(runbook.AppliedTo),
+		SlackChannelNames: convertSlice(runbook.SlackChannelNames, tfStringToString),
 	}
 }
 
