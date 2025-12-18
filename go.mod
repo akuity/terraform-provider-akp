@@ -1,6 +1,6 @@
 module github.com/akuity/terraform-provider-akp
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/akuity/api-client-go v0.26.2
@@ -18,7 +18,7 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20251213004720-97cd9d5aeac2
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.34.3
-	k8s.io/apimachinery v0.34.3
+	k8s.io/apimachinery v0.35.0
 	k8s.io/cli-runtime v0.34.3
 	k8s.io/client-go v0.34.3
 	k8s.io/kubectl v0.34.3
