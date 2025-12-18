@@ -1,6 +1,6 @@
 module github.com/akuity/terraform-provider-akp
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/akuity/api-client-go v0.26.2
@@ -17,10 +17,10 @@ require (
 	golang.org/x/exp v0.0.0-20251209150349-8475f28825e9
 	google.golang.org/genproto/googleapis/api v0.0.0-20251213004720-97cd9d5aeac2
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.34.3
-	k8s.io/apimachinery v0.34.3
+	k8s.io/api v0.35.0
+	k8s.io/apimachinery v0.35.0
 	k8s.io/cli-runtime v0.34.3
-	k8s.io/client-go v0.34.3
+	k8s.io/client-go v0.35.0
 	k8s.io/kubectl v0.34.3
 	sigs.k8s.io/yaml v1.6.0
 )
@@ -64,7 +64,6 @@ require (
 	github.com/go-openapi/swag/stringutils v0.25.4 // indirect
 	github.com/go-openapi/swag/typeutils v0.25.4 // indirect
 	github.com/go-openapi/swag/yamlutils v0.25.4 // indirect
-	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/gnostic-models v0.7.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
@@ -126,7 +125,7 @@ require (
 
 require (
 	github.com/Masterminds/goutils v1.1.1 // indirect
-	github.com/Masterminds/semver/v3 v3.2.0 // indirect
+	github.com/Masterminds/semver/v3 v3.4.0 // indirect
 	github.com/Masterminds/sprig/v3 v3.2.3 // indirect
 	github.com/alevinval/sse v1.0.2 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
