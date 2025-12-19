@@ -852,6 +852,7 @@ Optional:
 
 Optional:
 
+- `argocd_slack_channels` (List of String) List of ArgoCD Slack channels
 - `argocd_slack_service` (String) ArgoCD Slack service configuration
 - `incidents` (Attributes) Incident configuration (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents))
 - `runbooks` (Attributes List) List of AI runbooks to use for incident resolution (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--runbooks))

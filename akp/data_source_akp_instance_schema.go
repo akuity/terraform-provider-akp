@@ -751,6 +751,11 @@ func getAIConfigDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "ArgoCD Slack service configuration",
 			Computed:            true,
 		},
+		"argocd_slack_channels": schema.ListAttribute{
+			MarkdownDescription: "List of ArgoCD Slack channels",
+			Computed:            true,
+			ElementType:         types.StringType,
+		},
 	}
 }
 
