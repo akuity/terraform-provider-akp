@@ -939,15 +939,6 @@ func getAIConfigAttributes() map[string]schema.Attribute {
 				stringplanmodifier.UseStateForUnknown(),
 			},
 		},
-		"argocd_slack_channels": schema.ListAttribute{
-			MarkdownDescription: "List of ArgoCD Slack channels",
-			Optional:            true,
-			Computed:            true,
-			ElementType:         types.StringType,
-			PlanModifiers: []planmodifier.List{
-				listplanmodifier.UseStateForUnknown(),
-			},
-		},
 	}
 }
 

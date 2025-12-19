@@ -179,10 +179,6 @@ func createTestInstance() string {
 							},
 							"aiConfig": map[string]any{
 								"argocdSlackService": "test-slack-service",
-								"argocdSlackChannels": []any{
-									"test-channel-1",
-									"test-channel-2",
-								},
 								"runbooks": []any{
 									map[string]any{
 										"name":    "test-incident",

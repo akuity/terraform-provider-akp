@@ -581,25 +581,12 @@ func (r *AkpClusterResource) deleteCluster(ctx context.Context, plan *types.Clus
 		return fmt.Errorf("unable to delete Akuity cluster: %s", err)
 	}
 
-	// Quick check if cluster is already deleted before starting the polling loop
-	getReq := &argocdv1.GetInstanceClusterRequest{
-		OrganizationId: r.akpCli.OrgId,
-		InstanceId:     plan.InstanceID.ValueString(),
-		Id:             clusterID,
-		IdType:         idv1.Type_ID,
-	}
-	_, err = r.akpCli.Cli.GetInstanceCluster(ctx, getReq)
-	if err != nil && (status.Code(err) == codes.NotFound || status.Code(err) == codes.PermissionDenied) {
-		tflog.Debug(ctx, fmt.Sprintf("Cluster %s already deleted", clusterID))
-		return nil
-	}
-
 	// Wait for the cluster to actually be deleted with exponential backoff
 	return r.waitForClusterDeletion(ctx, plan.InstanceID.ValueString(), clusterID)
 }
 
 // waitForClusterDeletion polls the API to verify the cluster is actually deleted,
-// using exponential backoff with a maximum wait time of 5 minutes.
+// using exponential backoff with a maximum wait time of 1 minute.
 func (r *AkpClusterResource) waitForClusterDeletion(ctx context.Context, instanceID, clusterID string) error {
 	const (
 		initialDelay  = 500 * time.Millisecond
@@ -625,7 +612,7 @@ func (r *AkpClusterResource) waitForClusterDeletion(ctx context.Context, instanc
 			IdType:         idv1.Type_ID,
 		}
 
-		resp, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.GetInstanceClusterResponse, error) {
+		_, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.GetInstanceClusterResponse, error) {
 			return r.akpCli.Cli.GetInstanceCluster(ctx, getReq)
 		}, "GetInstanceCluster")
 		if err != nil {
@@ -636,18 +623,10 @@ func (r *AkpClusterResource) waitForClusterDeletion(ctx context.Context, instanc
 			}
 			// Some other error occurred, but continue polling
 			tflog.Warn(ctx, fmt.Sprintf("Error checking cluster deletion status: %v", err))
-		} else if resp != nil && resp.GetCluster() != nil {
-			// Log cluster state for diagnostics
-			cluster := resp.GetCluster()
-			tflog.Info(ctx, fmt.Sprintf("Cluster %s still exists after %v - reconciliation: %s, health: %s",
-				clusterID,
-				time.Since(start),
-				cluster.GetReconciliationStatus().String(),
-				cluster.GetHealthStatus().String()))
 		}
 
 		// Cluster still exists, wait before retrying
-		tflog.Debug(ctx, fmt.Sprintf("Waiting %v before next deletion check for cluster %s", delay, clusterID))
+		tflog.Info(ctx, fmt.Sprintf("Cluster %s still exists, waiting %v before next check", clusterID, delay))
 		time.Sleep(delay)
 
 		// Exponential backoff with cap
