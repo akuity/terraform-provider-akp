@@ -47,3 +47,17 @@ func TestNoNewConfigManagementPluginFields(t *testing.T) {
 	assert.Equal(t, reflect.TypeOf(types.Dynamic{}).NumField(), len(getDynamicAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.ParameterAnnouncement{}).NumField(), len(getParameterAnnouncementAttributes()))
 }
+
+// If this test fails, a field has been added/removed to the AI/KubeVision related types.
+// Update the schema attribute accordingly.
+func TestNoNewAIConfigFields(t *testing.T) {
+	assert.Equal(t, reflect.TypeOf(types.KubeVisionConfig{}).NumField(), len(getKubeVisionConfigAttributes()))
+	assert.Equal(t, reflect.TypeOf(types.CveScanConfig{}).NumField(), len(getCveScanConfigAttributes()))
+	assert.Equal(t, reflect.TypeOf(types.AIConfig{}).NumField(), len(getAIConfigAttributes()))
+	assert.Equal(t, reflect.TypeOf(types.Runbook{}).NumField(), len(getRunbookAttributes()))
+	assert.Equal(t, reflect.TypeOf(types.TargetSelector{}).NumField(), len(getTargetSelectorAttributes()))
+	assert.Equal(t, reflect.TypeOf(types.IncidentsConfig{}).NumField(), len(getIncidentsConfigAttributes()))
+	assert.Equal(t, reflect.TypeOf(types.IncidentWebhookConfig{}).NumField(), len(getIncidentWebhookConfigAttributes()))
+	assert.Equal(t, reflect.TypeOf(types.IncidentsGroupingConfig{}).NumField(), len(getIncidentsGroupingConfigAttributes()))
+	assert.Equal(t, reflect.TypeOf(types.AdditionalAttributeRule{}).NumField(), len(getAdditionalAttributeRuleAttributes()))
+}

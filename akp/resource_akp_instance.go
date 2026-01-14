@@ -109,7 +109,11 @@ func (r *AkpInstanceResource) Read(ctx context.Context, req resource.ReadRequest
 	tflog.MaskLogStrings(ctx, data.GetSensitiveStrings(ctx, &resp.Diagnostics)...)
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 
-	err := refreshState(ctx, &resp.Diagnostics, r.akpCli.Cli, &data, r.akpCli.OrgId, false)
+	err := refreshState(ctx, &resp.Diagnostics, r.akpCli.Cli, &data, &argocdv1.GetInstanceRequest{
+		OrganizationId: r.akpCli.OrgId,
+		IdType:         idv1.Type_NAME,
+		Id:             data.Name.ValueString(),
+	}, false)
 	if err != nil {
 		handleReadResourceError(ctx, resp, err)
 		return
@@ -241,7 +245,11 @@ func (r *AkpInstanceResource) upsert(ctx context.Context, diagnostics *diag.Diag
 		return waitErr
 	}
 
-	return refreshState(ctx, diagnostics, r.akpCli.Cli, plan, r.akpCli.OrgId, false)
+	return refreshState(ctx, diagnostics, r.akpCli.Cli, plan, &argocdv1.GetInstanceRequest{
+		OrganizationId: r.akpCli.OrgId,
+		IdType:         idv1.Type_NAME,
+		Id:             plan.Name.ValueString(),
+	}, false)
 }
 
 func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, instance *types.Instance, orgID string) *argocdv1.ApplyInstanceRequest {
@@ -307,6 +315,11 @@ func buildArgoCD(ctx context.Context, diag *diag.Diagnostics, instance *types.In
 			if _, exists := instanceSpec["extensions"]; !exists && apiArgoCD.Spec.InstanceSpec.Extensions != nil {
 				instanceSpec["extensions"] = []any{}
 			}
+			// Explicitly include empty ipAllowList when it was set (even if empty)
+			// This allows the IP allow list resource to clear the list
+			if _, exists := instanceSpec["ipAllowList"]; !exists && apiArgoCD.Spec.InstanceSpec.IpAllowList != nil {
+				instanceSpec["ipAllowList"] = []any{}
+			}
 		}
 	}
 
@@ -371,12 +384,7 @@ func buildCMPs(ctx context.Context, diagnostics *diag.Diagnostics, cmps map[stri
 	return res
 }
 
-func refreshState(ctx context.Context, diagnostics *diag.Diagnostics, client argocdv1.ArgoCDServiceGatewayClient, instance *types.Instance, orgID string, isDataSource bool) error {
-	getInstanceReq := &argocdv1.GetInstanceRequest{
-		OrganizationId: orgID,
-		IdType:         idv1.Type_NAME,
-		Id:             instance.Name.ValueString(),
-	}
+func refreshState(ctx context.Context, diagnostics *diag.Diagnostics, client argocdv1.ArgoCDServiceGatewayClient, instance *types.Instance, getInstanceReq *argocdv1.GetInstanceRequest, isDataSource bool) error {
 	tflog.Debug(ctx, fmt.Sprintf("Get instance request: %s", getInstanceReq))
 	getInstanceResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.GetInstanceResponse, error) {
 		return client.GetInstance(ctx, getInstanceReq)
@@ -387,9 +395,9 @@ func refreshState(ctx context.Context, diagnostics *diag.Diagnostics, client arg
 	tflog.Debug(ctx, fmt.Sprintf("Get instance response: %s", getInstanceResp))
 	instance.ID = tftypes.StringValue(getInstanceResp.Instance.Id)
 	exportReq := &argocdv1.ExportInstanceRequest{
-		OrganizationId: orgID,
-		IdType:         idv1.Type_NAME,
-		Id:             instance.Name.ValueString(),
+		OrganizationId: getInstanceReq.OrganizationId,
+		IdType:         idv1.Type_ID,
+		Id:             instance.ID.ValueString(),
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Export instance request: %s", exportReq))
 	exportResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.ExportInstanceResponse, error) {

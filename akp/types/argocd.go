@@ -104,9 +104,18 @@ type AIConfig struct {
 	ArgocdSlackChannels []types.String   `tfsdk:"argocd_slack_channels"`
 }
 
+type AdditionalAttributeRule struct {
+	Group       types.String   `tfsdk:"group"`
+	Kind        types.String   `tfsdk:"kind"`
+	Annotations []types.String `tfsdk:"annotations"`
+	Labels      []types.String `tfsdk:"labels"`
+	Namespace   types.String   `tfsdk:"namespace"`
+}
+
 type KubeVisionConfig struct {
-	CveScanConfig *CveScanConfig `tfsdk:"cve_scan_config"`
-	AiConfig      *AIConfig      `tfsdk:"ai_config"`
+	CveScanConfig        *CveScanConfig             `tfsdk:"cve_scan_config"`
+	AiConfig             *AIConfig                  `tfsdk:"ai_config"`
+	AdditionalAttributes []*AdditionalAttributeRule `tfsdk:"additional_attributes"`
 }
 
 type AppInAnyNamespaceConfig struct {

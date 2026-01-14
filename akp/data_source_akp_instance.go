@@ -7,6 +7,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
+	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
+	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
 	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
 	"github.com/akuity/terraform-provider-akp/akp/types"
 )
@@ -57,7 +59,11 @@ func (r *AkpInstanceDataSource) Read(ctx context.Context, req datasource.ReadReq
 	tflog.MaskLogStrings(ctx, data.GetSensitiveStrings(ctx, &resp.Diagnostics)...)
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 
-	if err := refreshState(ctx, &resp.Diagnostics, r.akpCli.Cli, &data, r.akpCli.OrgId, true); err != nil {
+	if err := refreshState(ctx, &resp.Diagnostics, r.akpCli.Cli, &data, &argocdv1.GetInstanceRequest{
+		OrganizationId: r.akpCli.OrgId,
+		IdType:         idv1.Type_NAME,
+		Id:             data.Name.ValueString(),
+	}, true); err != nil {
 		resp.Diagnostics.AddError("Failed to refresh instance state", err.Error())
 		return
 	}

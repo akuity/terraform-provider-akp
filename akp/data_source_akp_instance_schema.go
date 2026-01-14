@@ -717,6 +717,40 @@ func getKubeVisionConfigDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			Attributes:          getAIConfigDataSourceAttributes(),
 		},
+		"additional_attributes": schema.ListNestedAttribute{
+			MarkdownDescription: "Additional attributes to include when syncing resources to KubeVision",
+			Computed:            true,
+			NestedObject: schema.NestedAttributeObject{
+				Attributes: getAdditionalAttributeRuleDataSourceAttributes(),
+			},
+		},
+	}
+}
+
+func getAdditionalAttributeRuleDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"group": schema.StringAttribute{
+			MarkdownDescription: "Kubernetes resource group",
+			Computed:            true,
+		},
+		"kind": schema.StringAttribute{
+			MarkdownDescription: "Kubernetes resource kind",
+			Computed:            true,
+		},
+		"annotations": schema.ListAttribute{
+			MarkdownDescription: "List of annotations to include",
+			Computed:            true,
+			ElementType:         types.StringType,
+		},
+		"labels": schema.ListAttribute{
+			MarkdownDescription: "List of labels to include",
+			Computed:            true,
+			ElementType:         types.StringType,
+		},
+		"namespace": schema.StringAttribute{
+			MarkdownDescription: "Kubernetes namespace",
+			Computed:            true,
+		},
 	}
 }
 
@@ -774,6 +808,11 @@ func getRunbookDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			Attributes:          getTargetSelectorDataSourceAttributes(),
 		},
+		"slack_channel_names": schema.ListAttribute{
+			MarkdownDescription: "List of Slack channel names for runbook notifications",
+			Computed:            true,
+			ElementType:         types.StringType,
+		},
 	}
 }
 
@@ -792,6 +831,26 @@ func getIncidentsConfigDataSourceAttributes() map[string]schema.Attribute {
 			NestedObject: schema.NestedAttributeObject{
 				Attributes: getIncidentWebhookConfigDataSourceAttributes(),
 			},
+		},
+		"grouping": schema.SingleNestedAttribute{
+			MarkdownDescription: "Incident grouping configuration",
+			Computed:            true,
+			Attributes:          getIncidentsGroupingConfigDataSourceAttributes(),
+		},
+	}
+}
+
+func getIncidentsGroupingConfigDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"k8s_namespaces": schema.ListAttribute{
+			MarkdownDescription: "List of Kubernetes namespaces for incident grouping",
+			Computed:            true,
+			ElementType:         types.StringType,
+		},
+		"argocd_application_names": schema.ListAttribute{
+			MarkdownDescription: "List of ArgoCD application names for incident grouping",
+			Computed:            true,
+			ElementType:         types.StringType,
 		},
 	}
 }

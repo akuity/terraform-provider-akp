@@ -3,7 +3,7 @@ default: acc-test
 # Run acceptance tests
 .PHONY: acc-test
 acc-test:
-	TF_ACC=1 TF_LOG=INFO go test ./... --tags=acc -v $(TESTARGS) -timeout 120m
+	TF_ACC=1 go test -race ./... --tags=acc -v $(TESTARGS) -timeout 120m
 
 # Run unit tests
 .PHONY: unit-test
