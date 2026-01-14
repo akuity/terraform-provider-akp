@@ -614,7 +614,7 @@ func toClusterCustomizationAPIModel(ctx context.Context, diagnostics *diag.Diagn
 }
 
 func toIPAllowListAPIModel(entries []*IPAllowListEntry) []*v1alpha1.IPAllowListEntry {
-	var ipAllowList []*v1alpha1.IPAllowListEntry
+	ipAllowList := []*v1alpha1.IPAllowListEntry{}
 	for _, entry := range entries {
 		ipAllowList = append(ipAllowList, &v1alpha1.IPAllowListEntry{
 			Ip:          entry.Ip.ValueString(),
@@ -864,9 +864,13 @@ func (a *ArgoCD) toClusterCustomizationTFModel(ctx context.Context, diagnostics 
 func toIPAllowListTFModel(entries []*v1alpha1.IPAllowListEntry) []*IPAllowListEntry {
 	var ipAllowList []*IPAllowListEntry
 	for _, entry := range entries {
+		description := types.StringNull()
+		if entry.Description != "" {
+			description = types.StringValue(entry.Description)
+		}
 		ipAllowList = append(ipAllowList, &IPAllowListEntry{
 			Ip:          types.StringValue(entry.Ip),
-			Description: types.StringValue(entry.Description),
+			Description: description,
 		})
 	}
 	return ipAllowList
@@ -1451,6 +1455,9 @@ func toKubeVisionConfigTFModel(config *v1alpha1.KubeVisionConfig, plan *ArgoCD) 
 	if plan.Spec.InstanceSpec.KubeVisionConfig.AiConfig != nil {
 		res.AiConfig = toAIConfigTFModel(config.AiConfig)
 	}
+	if plan.Spec.InstanceSpec.KubeVisionConfig.AdditionalAttributes != nil {
+		res.AdditionalAttributes = toAdditionalAttributesTFModel(config.AdditionalAttributes)
+	}
 	return res
 }
 
@@ -1459,8 +1466,9 @@ func toKubeVisionConfigAPIModel(config *KubeVisionConfig) *v1alpha1.KubeVisionCo
 		return nil
 	}
 	return &v1alpha1.KubeVisionConfig{
-		CveScanConfig: toCveScanConfigAPIModel(config.CveScanConfig),
-		AiConfig:      toAIConfigAPIModel(config.AiConfig),
+		CveScanConfig:        toCveScanConfigAPIModel(config.CveScanConfig),
+		AiConfig:             toAIConfigAPIModel(config.AiConfig),
+		AdditionalAttributes: toAdditionalAttributesAPIModel(config.AdditionalAttributes),
 	}
 }
 
@@ -1496,6 +1504,21 @@ func toAIConfigTFModel(config *v1alpha1.AIConfig) *AIConfig {
 	}
 }
 
+func toAdditionalAttributesTFModel(config []*v1alpha1.AdditionalAttributeRule) []*AdditionalAttributeRule {
+	if config == nil {
+		return nil
+	}
+	return convertSlice(config, func(rule *v1alpha1.AdditionalAttributeRule) *AdditionalAttributeRule {
+		return &AdditionalAttributeRule{
+			Group:       types.StringValue(rule.Group),
+			Kind:        types.StringValue(rule.Kind),
+			Namespace:   types.StringValue(rule.Namespace),
+			Labels:      convertSlice(rule.Labels, stringToTFString),
+			Annotations: convertSlice(rule.Annotations, stringToTFString),
+		}
+	})
+}
+
 func toAIConfigAPIModel(config *AIConfig) *v1alpha1.AIConfig {
 	if config == nil {
 		return nil
@@ -1506,6 +1529,21 @@ func toAIConfigAPIModel(config *AIConfig) *v1alpha1.AIConfig {
 		ArgocdSlackService:  config.ArgocdSlackService.ValueStringPointer(),
 		ArgocdSlackChannels: convertSlice(config.ArgocdSlackChannels, tfStringToString),
 	}
+}
+
+func toAdditionalAttributesAPIModel(config []*AdditionalAttributeRule) []*v1alpha1.AdditionalAttributeRule {
+	if config == nil {
+		return nil
+	}
+	return convertSlice(config, func(rule *AdditionalAttributeRule) *v1alpha1.AdditionalAttributeRule {
+		return &v1alpha1.AdditionalAttributeRule{
+			Group:       rule.Group.ValueString(),
+			Kind:        rule.Kind.ValueString(),
+			Namespace:   rule.Namespace.ValueString(),
+			Labels:      convertSlice(rule.Labels, tfStringToString),
+			Annotations: convertSlice(rule.Annotations, tfStringToString),
+		}
+	})
 }
 
 func toRunbookTFModel(runbook *v1alpha1.Runbook) *Runbook {

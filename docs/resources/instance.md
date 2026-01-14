@@ -657,7 +657,7 @@ Optional:
 - `host_aliases` (Attributes List) Host Aliases that override the DNS entries for control plane Argo CD components such as API Server and Dex. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--host_aliases))
 - `image_updater_delegate` (Attributes) Select cluster in which you want to Install Image Updater (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--image_updater_delegate))
 - `image_updater_enabled` (Boolean) Enable Image Updater
-- `ip_allow_list` (Attributes List) IP allow list (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--ip_allow_list))
+- `ip_allow_list` (Attributes List, Deprecated) **Deprecated:** Use the `akp_instance_ip_allow_list` resource instead. IP allow list for instance access. When not specified in the configuration, this field will not be managed by this resource, allowing `akp_instance_ip_allow_list` resources to manage it independently. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--ip_allow_list))
 - `kube_vision_config` (Attributes) Advanced Akuity Intelligence configuration like CVE scanning and AI runbooks (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config))
 - `metrics_ingress_password_hash` (String, Sensitive) Password hash for metrics ingress authentication
 - `metrics_ingress_username` (String) Username for metrics ingress authentication
@@ -844,8 +844,21 @@ Optional:
 
 Optional:
 
+- `additional_attributes` (Attributes List) Additional attributes to include when syncing resources to KubeVision (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--additional_attributes))
 - `ai_config` (Attributes) AI advanced configuration like runbooks and incidents (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config))
 - `cve_scan_config` (Attributes) CVE scanning configuration (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--cve_scan_config))
+
+<a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--additional_attributes"></a>
+### Nested Schema for `argocd.spec.instance_spec.kube_vision_config.additional_attributes`
+
+Optional:
+
+- `annotations` (List of String) List of annotations to include
+- `group` (String) Kubernetes resource group
+- `kind` (String) Kubernetes resource kind
+- `labels` (List of String) List of labels to include
+- `namespace` (String) Kubernetes namespace
+
 
 <a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config"></a>
 ### Nested Schema for `argocd.spec.instance_spec.kube_vision_config.ai_config`
@@ -862,8 +875,18 @@ Optional:
 
 Optional:
 
+- `grouping` (Attributes) Incident grouping configuration (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents--grouping))
 - `triggers` (Attributes List) List of incident triggers (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents--triggers))
 - `webhooks` (Attributes List) List of incident webhooks (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents--webhooks))
+
+<a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents--grouping"></a>
+### Nested Schema for `argocd.spec.instance_spec.kube_vision_config.ai_config.incidents.grouping`
+
+Optional:
+
+- `argocd_application_names` (List of String) List of ArgoCD application names for incident grouping
+- `k8s_namespaces` (List of String) List of Kubernetes namespaces for incident grouping
+
 
 <a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents--triggers"></a>
 ### Nested Schema for `argocd.spec.instance_spec.kube_vision_config.ai_config.incidents.triggers`
@@ -900,6 +923,7 @@ Required:
 Optional:
 
 - `applied_to` (Attributes) Target selector for runbook application (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--runbooks--applied_to))
+- `slack_channel_names` (List of String) List of Slack channel names for runbook notifications
 
 <a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--runbooks--applied_to"></a>
 ### Nested Schema for `argocd.spec.instance_spec.kube_vision_config.ai_config.runbooks.applied_to`

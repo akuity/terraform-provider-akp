@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
+	listplanmodifier2 "github.com/akuity/terraform-provider-akp/akp/modifiers/list"
 	mapplanmodifier2 "github.com/akuity/terraform-provider-akp/akp/modifiers/map"
 )
 
@@ -209,10 +210,15 @@ func getArgoCDSpecAttributes() map[string]schema.Attribute {
 func getInstanceSpecAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"ip_allow_list": schema.ListNestedAttribute{
-			MarkdownDescription: "IP allow list",
+			MarkdownDescription: "**Deprecated:** Use the `akp_instance_ip_allow_list` resource instead. IP allow list for instance access. When not specified in the configuration, this field will not be managed by this resource, allowing `akp_instance_ip_allow_list` resources to manage it independently.",
 			Optional:            true,
+			Computed:            true,
+			DeprecationMessage:  "Use the akp_instance_ip_allow_list resource for managing IP allow lists. Remove this field from your configuration to allow akp_instance_ip_allow_list resources to manage the IP allow list independently.",
 			NestedObject: schema.NestedAttributeObject{
 				Attributes: getIPAllowListEntryAttributes(),
+			},
+			PlanModifiers: []planmodifier.List{
+				listplanmodifier2.IgnoreWhenNotConfigured(),
 			},
 		},
 		"subdomain": schema.StringAttribute{
@@ -893,6 +899,60 @@ func getKubeVisionConfigAttributes() map[string]schema.Attribute {
 			Optional:            true,
 			Attributes:          getAIConfigAttributes(),
 		},
+		"additional_attributes": schema.ListNestedAttribute{
+			MarkdownDescription: "Additional attributes to include when syncing resources to KubeVision",
+			Optional:            true,
+			NestedObject: schema.NestedAttributeObject{
+				Attributes: getAdditionalAttributeRuleAttributes(),
+			},
+		},
+	}
+}
+
+func getAdditionalAttributeRuleAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"group": schema.StringAttribute{
+			MarkdownDescription: "Kubernetes resource group",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"kind": schema.StringAttribute{
+			MarkdownDescription: "Kubernetes resource kind",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"annotations": schema.ListAttribute{
+			MarkdownDescription: "List of annotations to include",
+			Optional:            true,
+			Computed:            true,
+			ElementType:         types.StringType,
+			PlanModifiers: []planmodifier.List{
+				listplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"labels": schema.ListAttribute{
+			MarkdownDescription: "List of labels to include",
+			Optional:            true,
+			Computed:            true,
+			ElementType:         types.StringType,
+			PlanModifiers: []planmodifier.List{
+				listplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"namespace": schema.StringAttribute{
+			MarkdownDescription: "Kubernetes namespace",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
 	}
 }
 
@@ -966,6 +1026,11 @@ func getRunbookAttributes() map[string]schema.Attribute {
 			Optional:            true,
 			Attributes:          getTargetSelectorAttributes(),
 		},
+		"slack_channel_names": schema.ListAttribute{
+			MarkdownDescription: "List of Slack channel names for runbook notifications",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
 	}
 }
 
@@ -984,6 +1049,26 @@ func getIncidentsConfigAttributes() map[string]schema.Attribute {
 			NestedObject: schema.NestedAttributeObject{
 				Attributes: getIncidentWebhookConfigAttributes(),
 			},
+		},
+		"grouping": schema.SingleNestedAttribute{
+			MarkdownDescription: "Incident grouping configuration",
+			Optional:            true,
+			Attributes:          getIncidentsGroupingConfigAttributes(),
+		},
+	}
+}
+
+func getIncidentsGroupingConfigAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"k8s_namespaces": schema.ListAttribute{
+			MarkdownDescription: "List of Kubernetes namespaces for incident grouping",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
+		"argocd_application_names": schema.ListAttribute{
+			MarkdownDescription: "List of ArgoCD application names for incident grouping",
+			Optional:            true,
+			ElementType:         types.StringType,
 		},
 	}
 }

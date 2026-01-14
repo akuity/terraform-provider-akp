@@ -175,6 +175,7 @@ func (p *AkpProvider) Configure(ctx context.Context, req provider.ConfigureReque
 func (p *AkpProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewAkpInstanceResource,
+		NewAkpInstanceIPAllowListResource,
 		NewAkpClusterResource,
 		NewAkpKargoInstanceResource,
 		NewAkpKargoAgentResource,

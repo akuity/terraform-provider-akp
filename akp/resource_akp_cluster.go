@@ -599,12 +599,12 @@ func (r *AkpClusterResource) deleteCluster(ctx context.Context, plan *types.Clus
 }
 
 // waitForClusterDeletion polls the API to verify the cluster is actually deleted,
-// using exponential backoff with a maximum wait time of 5 minutes.
+// using exponential backoff with a maximum wait time of 10 minutes.
 func (r *AkpClusterResource) waitForClusterDeletion(ctx context.Context, instanceID, clusterID string) error {
 	const (
 		initialDelay  = 500 * time.Millisecond
 		maxDelay      = 8 * time.Second
-		maxWait       = 5 * time.Minute
+		maxWait       = 10 * time.Minute
 		backoffFactor = 2.0
 	)
 

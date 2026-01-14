@@ -263,8 +263,21 @@ Read-Only:
 
 Read-Only:
 
+- `additional_attributes` (Attributes List) Additional attributes to include when syncing resources to KubeVision (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--additional_attributes))
 - `ai_config` (Attributes) AI advanced configuration like runbooks and incidents (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config))
 - `cve_scan_config` (Attributes) CVE scanning configuration (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--cve_scan_config))
+
+<a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--additional_attributes"></a>
+### Nested Schema for `argocd.spec.instance_spec.kube_vision_config.additional_attributes`
+
+Read-Only:
+
+- `annotations` (List of String) List of annotations to include
+- `group` (String) Kubernetes resource group
+- `kind` (String) Kubernetes resource kind
+- `labels` (List of String) List of labels to include
+- `namespace` (String) Kubernetes namespace
+
 
 <a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config"></a>
 ### Nested Schema for `argocd.spec.instance_spec.kube_vision_config.ai_config`
@@ -281,8 +294,18 @@ Read-Only:
 
 Read-Only:
 
+- `grouping` (Attributes) Incident grouping configuration (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents--grouping))
 - `triggers` (Attributes List) List of incident triggers (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents--triggers))
 - `webhooks` (Attributes List) List of incident webhooks (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents--webhooks))
+
+<a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents--grouping"></a>
+### Nested Schema for `argocd.spec.instance_spec.kube_vision_config.ai_config.incidents.grouping`
+
+Read-Only:
+
+- `argocd_application_names` (List of String) List of ArgoCD application names for incident grouping
+- `k8s_namespaces` (List of String) List of Kubernetes namespaces for incident grouping
+
 
 <a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents--triggers"></a>
 ### Nested Schema for `argocd.spec.instance_spec.kube_vision_config.ai_config.incidents.triggers`
@@ -316,6 +339,7 @@ Read-Only:
 - `applied_to` (Attributes) Target selector for runbook application (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--runbooks--applied_to))
 - `content` (String) Runbook content
 - `name` (String) Runbook name
+- `slack_channel_names` (List of String) List of Slack channel names for runbook notifications
 
 <a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--runbooks--applied_to"></a>
 ### Nested Schema for `argocd.spec.instance_spec.kube_vision_config.ai_config.runbooks.applied_to`
