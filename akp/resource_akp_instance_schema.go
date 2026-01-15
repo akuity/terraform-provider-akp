@@ -83,7 +83,7 @@ func getAKPInstanceAttributes() map[string]schema.Attribute {
 			ElementType:         types.StringType,
 		},
 		"argocd_notifications_cm": schema.MapAttribute{
-			MarkdownDescription: "configures Argo CD notifications, and it is aligned with `argocd-notifications-cm` ConfigMap of Argo CD, for more details and examples, refer to [this documentation](https://argocd-notifications.readthedocs.io/en/stable/).",
+			MarkdownDescription: "configures Argo CD notifications, and it is aligned with `argocd-notifications-cm` ConfigMap of Argo CD, for more details and examples, refer to [this documentation](https://argo-cd.readthedocs.io/en/latest/operator-manual/notifications/).",
 			ElementType:         types.StringType,
 			Optional:            true,
 			Computed:            true,
@@ -92,7 +92,7 @@ func getAKPInstanceAttributes() map[string]schema.Attribute {
 			},
 		},
 		"argocd_notifications_secret": schema.MapAttribute{
-			MarkdownDescription: "contains sensitive data of Argo CD notifications, and it is aligned with `argocd-notifications-secret` Secret of Argo CD, for more details and examples, refer to [this documentation](https://argocd-notifications.readthedocs.io/en/stable/services/overview/#sensitive-data).",
+			MarkdownDescription: "contains sensitive data of Argo CD notifications, and it is aligned with `argocd-notifications-secret` Secret of Argo CD, for more details and examples, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/notifications/templates/#defining-and-using-secrets-within-notification-templates).",
 			Optional:            true,
 			Sensitive:           true,
 			ElementType:         types.StringType,
