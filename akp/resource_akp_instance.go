@@ -201,13 +201,23 @@ func (r *AkpInstanceResource) upsert(ctx context.Context, diagnostics *diag.Diag
 		return err
 	}
 
-	apiReq := buildApplyRequest(ctx, diagnostics, plan, r.akpCli.OrgId)
+	workspace, err := getWorkspace(ctx, r.akpCli.OrgCli, r.akpCli.OrgId, plan.Workspace.ValueString())
+	if err != nil {
+		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get workspace. %s", err))
+		return errors.New("Unable to get workspace")
+	}
+
+	apiReq := buildApplyRequest(ctx, diagnostics, plan, r.akpCli.OrgId, workspace.GetId())
 	tflog.Debug(ctx, fmt.Sprintf("Apply instance request: %s", apiReq.Argocd))
-	_, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.ApplyInstanceResponse, error) {
+	_, err = retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.ApplyInstanceResponse, error) {
 		return r.akpCli.Cli.ApplyInstance(ctx, apiReq)
 	}, "ApplyInstance")
 	if err != nil {
 		return errors.Wrap(err, "Unable to upsert Argo CD instance")
+	}
+
+	if plan.Workspace.ValueString() == "" {
+		plan.Workspace = tftypes.StringValue(workspace.GetName())
 	}
 
 	instanceName := plan.Name.ValueString()
@@ -252,7 +262,7 @@ func (r *AkpInstanceResource) upsert(ctx context.Context, diagnostics *diag.Diag
 	}, false)
 }
 
-func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, instance *types.Instance, orgID string) *argocdv1.ApplyInstanceRequest {
+func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, instance *types.Instance, orgID, workspaceID string) *argocdv1.ApplyInstanceRequest {
 	idType := idv1.Type_NAME
 	id := instance.Name.ValueString()
 
@@ -265,6 +275,7 @@ func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, insta
 		OrganizationId:                orgID,
 		IdType:                        idType,
 		Id:                            id,
+		WorkspaceId:                   workspaceID,
 		Argocd:                        buildArgoCD(ctx, diagnostics, instance),
 		ArgocdConfigmap:               buildConfigMap(ctx, diagnostics, instance.ArgoCDConfigMap, "argocd-cm"),
 		ArgocdRbacConfigmap:           buildConfigMap(ctx, diagnostics, instance.ArgoCDRBACConfigMap, "argocd-rbac-cm"),
@@ -398,6 +409,7 @@ func refreshState(ctx context.Context, diagnostics *diag.Diagnostics, client arg
 		OrganizationId: getInstanceReq.OrganizationId,
 		IdType:         idv1.Type_ID,
 		Id:             instance.ID.ValueString(),
+		WorkspaceId:    getInstanceResp.Instance.WorkspaceId,
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Export instance request: %s", exportReq))
 	exportResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.ExportInstanceResponse, error) {

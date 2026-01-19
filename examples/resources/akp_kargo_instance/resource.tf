@@ -58,6 +58,13 @@ resource "akp_kargo_instance" "example" {
             }
           }
         }
+        project_creator_account = {
+          claims = {
+            email = {
+              values = ["project-creator@example.com"]
+            }
+          }
+        }
       }
       kargo_instance_spec = {
         backend_ip_allow_list_enabled = true

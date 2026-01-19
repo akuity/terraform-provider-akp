@@ -47,6 +47,14 @@ func getAKPInstanceAttributes() map[string]schema.Attribute {
 				stringvalidator.RegexMatches(resourceNameRegex, resourceNameRegexDescription),
 			},
 		},
+		"workspace": schema.StringAttribute{
+			Optional:            true,
+			Computed:            true,
+			MarkdownDescription: "Workspace name for the ArgoCD instance. Defaults to the organization's default workspace.",
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
 		"argocd": schema.SingleNestedAttribute{
 			MarkdownDescription: "Argo CD instance configuration",
 			Required:            true,

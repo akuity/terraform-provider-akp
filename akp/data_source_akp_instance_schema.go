@@ -25,6 +25,10 @@ func getAKPInstanceDataSourceAttributes() map[string]schema.Attribute {
 			Required:            true,
 			MarkdownDescription: "Instance name",
 		},
+		"workspace": schema.StringAttribute{
+			Computed:            true,
+			MarkdownDescription: "Workspace name for the ArgoCD instance",
+		},
 		"argocd": schema.SingleNestedAttribute{
 			MarkdownDescription: "Argo CD instance",
 			Computed:            true,

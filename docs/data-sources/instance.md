@@ -44,6 +44,7 @@ data "akp_instance" "example" {
 - `id` (String) Instance ID
 - `repo_credential_secrets` (Map of Map of String) is a map of repo credential secrets, the key of map entry is the `name` of the secret, and the value is the aligned with options in `argocd-repositories.yaml.data` as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-repositories-yaml/).
 - `repo_template_credential_secrets` (Map of Map of String) is a map of repository credential templates secrets, the key of map entry is the `name` of the secret, and the value is the aligned with options in `argocd-repo-creds.yaml.data` as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-repo-creds.yaml/).
+- `workspace` (String) Workspace name for the ArgoCD instance
 
 <a id="nestedatt--argocd"></a>
 ### Nested Schema for `argocd`
