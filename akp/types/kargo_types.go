@@ -487,8 +487,8 @@ func (k *Kargo) toKargoOidcConfigTFModel(ctx context.Context, oidcConfig *v1alph
 		CliClientID:           types.StringValue(oidcConfig.CliClientID),
 		AdminAccount:          k.toKargoPredefinedAccountTFModel(oidcConfig.AdminAccount, adminAccount),
 		ViewerAccount:         k.toKargoPredefinedAccountTFModel(oidcConfig.ViewerAccount, viewerAccount),
-		UserAccount:           k.toKargoPredefinedAccountTFModel(oidcConfig.UserAccount, viewerAccount),
-		ProjectCreatorAccount: k.toKargoPredefinedAccountTFModel(oidcConfig.ProjectCreatorAccount, viewerAccount),
+		UserAccount:           k.toKargoPredefinedAccountTFModel(oidcConfig.UserAccount, userAccount),
+		ProjectCreatorAccount: k.toKargoPredefinedAccountTFModel(oidcConfig.ProjectCreatorAccount, projectCreatorAccount),
 		AdditionalScopes:      additionalScopes,
 	}
 }
@@ -514,6 +514,8 @@ type PredefinedAccountType int
 const (
 	adminAccount PredefinedAccountType = iota
 	viewerAccount
+	userAccount
+	projectCreatorAccount
 )
 
 func (k *Kargo) toKargoPredefinedAccountTFModel(account v1alpha1.KargoPredefinedAccountData, accountType PredefinedAccountType) types.Object {
@@ -533,10 +535,15 @@ func (k *Kargo) toKargoPredefinedAccountTFModel(account v1alpha1.KargoPredefined
 		// If no claims from API, check if we have a value in the plan/state
 		var existingAccount types.Object
 		if k.Spec.OidcConfig != nil {
-			if accountType == adminAccount {
+			switch accountType {
+			case adminAccount:
 				existingAccount = k.Spec.OidcConfig.AdminAccount
-			} else {
+			case viewerAccount:
 				existingAccount = k.Spec.OidcConfig.ViewerAccount
+			case userAccount:
+				existingAccount = k.Spec.OidcConfig.UserAccount
+			case projectCreatorAccount:
+				existingAccount = k.Spec.OidcConfig.ProjectCreatorAccount
 			}
 		}
 

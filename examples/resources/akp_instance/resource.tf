@@ -1,5 +1,6 @@
 resource "akp_instance" "example" {
-  name = "test"
+  name      = "test"
+  workspace = "test-workspace"
   argocd = {
     spec = {
       description = "test-inst"

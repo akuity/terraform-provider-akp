@@ -16,6 +16,7 @@ import (
 type Instance struct {
 	ID                            types.String                       `tfsdk:"id"`
 	Name                          types.String                       `tfsdk:"name"`
+	Workspace                     types.String                       `tfsdk:"workspace"`
 	ArgoCD                        *ArgoCD                            `tfsdk:"argocd"`
 	ArgoCDConfigMap               types.Map                          `tfsdk:"argocd_cm"`
 	ArgoCDRBACConfigMap           types.Map                          `tfsdk:"argocd_rbac_cm"`

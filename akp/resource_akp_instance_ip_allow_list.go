@@ -673,7 +673,7 @@ func convertAPIInstanceSpecToTF(spec *argocdv1.InstanceSpec) types.InstanceSpec 
 func (r *AkpInstanceIPAllowListResource) applyInstanceChanges(ctx context.Context, instance *types.Instance) (string, error) {
 	var diags resource.UpdateResponse
 
-	apiReq := buildApplyRequest(ctx, &diags.Diagnostics, instance, r.akpCli.OrgId)
+	apiReq := buildApplyRequest(ctx, &diags.Diagnostics, instance, r.akpCli.OrgId, "")
 	if diags.Diagnostics.HasError() {
 		return "", fmt.Errorf("failed to build apply request")
 	}
