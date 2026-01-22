@@ -81,6 +81,10 @@ func (k *KargoInstance) syncKargoResources(
 	appliedResources = append(appliedResources, exportResp.PromotionTasks...)
 	appliedResources = append(appliedResources, exportResp.ClusterPromotionTasks...)
 	appliedResources = append(appliedResources, exportResp.Projects...)
+	appliedResources = append(appliedResources, exportResp.ProjectConfigs...)
+	appliedResources = append(appliedResources, exportResp.MessageChannels...)
+	appliedResources = append(appliedResources, exportResp.ClusterMessageChannels...)
+	appliedResources = append(appliedResources, exportResp.EventRouters...)
 	appliedResources = append(appliedResources, exportResp.Warehouses...)
 	appliedResources = append(appliedResources, exportResp.Stages...)
 	// Include RBAC and core resources

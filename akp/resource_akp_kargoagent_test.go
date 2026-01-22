@@ -75,7 +75,7 @@ func createTestKargoInstance() string {
 		// Create minimal Kargo instance with required version
 		kargoVersion = os.Getenv("AKUITY_KARGO_VERSION")
 		if kargoVersion == "" {
-			kargoVersion = "v1.7.4-ak.0"
+			kargoVersion = "v1.8.4-ak.2"
 		}
 
 		kargoStruct, err := structpb.NewStruct(map[string]any{

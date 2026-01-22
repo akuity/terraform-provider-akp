@@ -326,20 +326,44 @@ var kargoResourceGroups = map[string]struct {
 			req.Configmaps = append(req.Configmaps, item)
 		},
 	},
+	"ProjectConfig": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.ProjectConfigs = append(req.ProjectConfigs, item)
+		},
+	},
+	"MessageChannel": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.MessageChannels = append(req.MessageChannels, item)
+		},
+	},
+	"ClusterMessageChannel": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.ClusterMessageChannels = append(req.ClusterMessageChannels, item)
+		},
+	},
+	"EventRouter": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.EventRouters = append(req.EventRouters, item)
+		},
+	},
 }
 
 // kargoSupportedGroupKinds maps supported GroupKinds to optional per-object validators.
 var kargoSupportedGroupKinds = map[schema.GroupKind]func(*unstructured.Unstructured) error{
-	{Group: "kargo.akuity.io", Kind: "Project"}:               nil,
-	{Group: "kargo.akuity.io", Kind: "Warehouse"}:             nil,
-	{Group: "kargo.akuity.io", Kind: "Stage"}:                 nil,
-	{Group: "kargo.akuity.io", Kind: "PromotionTask"}:         nil,
-	{Group: "kargo.akuity.io", Kind: "ClusterPromotionTask"}:  nil,
-	{Group: "argoproj.io", Kind: "AnalysisTemplate"}:          nil,
-	{Group: "rbac.authorization.k8s.io", Kind: "Role"}:        nil,
-	{Group: "rbac.authorization.k8s.io", Kind: "RoleBinding"}: nil,
-	{Group: "", Kind: "ServiceAccount"}:                       nil,
-	{Group: "", Kind: "ConfigMap"}:                            nil,
+	{Group: "kargo.akuity.io", Kind: "Project"}:                  nil,
+	{Group: "kargo.akuity.io", Kind: "ProjectConfig"}:            nil,
+	{Group: "kargo.akuity.io", Kind: "Warehouse"}:                nil,
+	{Group: "kargo.akuity.io", Kind: "Stage"}:                    nil,
+	{Group: "kargo.akuity.io", Kind: "PromotionTask"}:            nil,
+	{Group: "kargo.akuity.io", Kind: "ClusterPromotionTask"}:     nil,
+	{Group: "ee.kargo.akuity.io", Kind: "MessageChannel"}:        nil,
+	{Group: "ee.kargo.akuity.io", Kind: "ClusterMessageChannel"}: nil,
+	{Group: "ee.kargo.akuity.io", Kind: "EventRouter"}:           nil,
+	{Group: "argoproj.io", Kind: "AnalysisTemplate"}:             nil,
+	{Group: "rbac.authorization.k8s.io", Kind: "Role"}:           nil,
+	{Group: "rbac.authorization.k8s.io", Kind: "RoleBinding"}:    nil,
+	{Group: "", Kind: "ServiceAccount"}:                          nil,
+	{Group: "", Kind: "ConfigMap"}:                               nil,
 	{Group: "", Kind: "Secret"}: func(un *unstructured.Unstructured) error {
 		if v, ok := un.GetLabels()["kargo.akuity.io/cred-type"]; !ok || v == "" {
 			return errors.New("secret must have a kargo.akuity.io/cred-type label")
