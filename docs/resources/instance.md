@@ -147,13 +147,6 @@ resource "akp_instance" "example" {
             ip        = "1.2.3.4"
           },
         ]
-        crossplane_extension = {
-          resources = [
-            {
-              group = "*.example.crossplane.*",
-            }
-          ]
-        }
         agent_permissions_rules = [
           {
             api_groups = ["batch"]
@@ -175,16 +168,60 @@ resource "akp_instance" "example" {
         app_in_any_namespace_config = {
           enabled = true
         }
+
+        ##############################################################################
+        # Extensions Configuration
+        # The following extensions can be configured for ArgoCD instances:
+        #
+        # | Extension                  | Terraform Field                | Description                                      |
+        # |----------------------------|--------------------------------|--------------------------------------------------|
+        # | Argo Rollouts Dashboard    | extensions                     | View Rollout resources (versions: v0.2.1-v0.3.7) |
+        # | Akuity Audit Log           | audit_extension_enabled        | Audit log on application details page            |
+        # | Akuity Sync History        | sync_history_extension_enabled | Deployment frequency and duration graphs         |
+        # | Crossplane                 | crossplane_extension           | Improved Crossplane visualization & health check |
+        # | Cluster Addons             | cluster_addons_extension       | Install and manage helpful addons in cluster     |
+        # | Akuity Intelligence        | akuity_intelligence_extension  | AI-powered troubleshooting & auto-remediation    |
+        # |                            | kube_vision_config             | CVE scanning, runbooks & incident management     |
+        # | ApplicationSet Extension   | application_set_extension      | View and manage application sets                 |
+        ##############################################################################
+
+        # ApplicationSet Extension - View and manage application sets
         application_set_extension = {
           enabled = true
         }
+
+        # Argo Rollouts Dashboard Extension
+        # Resource extension for viewing a Rollout (supported versions: v0.2.1 - v0.3.7)
         extensions = [
           {
             id      = "argo_rollouts"
             version = "v0.3.7"
           }
         ]
-        # AI Intelligence Extension
+
+        # Crossplane Extension - Improved Crossplane visualization & health checks
+        crossplane_extension = {
+          resources = [
+            {
+              group = "*.example.crossplane.*",
+            }
+          ]
+        }
+
+        # Akuity Audit Log Extension - Audit log on application details page
+        audit_extension_enabled = true
+
+        # Akuity Sync History Extension - Deployment frequency and duration graphs
+        sync_history_extension_enabled = true
+
+        # Cluster Addons Extension - Install and manage helpful addons in your cluster
+        cluster_addons_extension = {
+          enabled           = true
+          allowed_usernames = ["*"]
+          allowed_groups    = ["*"]
+        }
+
+        # Akuity Intelligence Extension
         # Enables AI-powered features for enhanced ArgoCD experience including
         # intelligent troubleshooting, automated runbook execution, and incident management
         akuity_intelligence_extension = {
@@ -282,10 +319,10 @@ resource "akp_instance" "example" {
               ]
             }
           }
-          // Control plane metrics
-          metrics_ingress_username      = "user"
-          metrics_ingress_password_hash = "passwordhash"
         }
+        // Control plane metrics
+        metrics_ingress_username      = "user"
+        metrics_ingress_password_hash = "passwordhash"
       }
       version = "v2.11.4"
     }

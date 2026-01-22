@@ -1453,7 +1453,7 @@ func toKubeVisionConfigTFModel(config *v1alpha1.KubeVisionConfig, plan *ArgoCD) 
 		res.CveScanConfig = toCveScanConfigTFModel(config.CveScanConfig)
 	}
 	if plan.Spec.InstanceSpec.KubeVisionConfig.AiConfig != nil {
-		res.AiConfig = toAIConfigTFModel(config.AiConfig)
+		res.AiConfig = toAIConfigTFModel(config.AiConfig, plan.Spec.InstanceSpec.KubeVisionConfig.AiConfig)
 	}
 	if plan.Spec.InstanceSpec.KubeVisionConfig.AdditionalAttributes != nil {
 		res.AdditionalAttributes = toAdditionalAttributesTFModel(config.AdditionalAttributes)
@@ -1492,13 +1492,17 @@ func toCveScanConfigAPIModel(config *CveScanConfig) *v1alpha1.CveScanConfig {
 	}
 }
 
-func toAIConfigTFModel(config *v1alpha1.AIConfig) *AIConfig {
+func toAIConfigTFModel(config *v1alpha1.AIConfig, plan *AIConfig) *AIConfig {
 	if config == nil {
 		return nil
 	}
+	var incidents *IncidentsConfig
+	if config.Incidents != nil {
+		incidents = toIncidentsConfigTFModel(config.Incidents, plan)
+	}
 	return &AIConfig{
 		Runbooks:            convertSlice(config.Runbooks, toRunbookTFModel),
-		Incidents:           toIncidentsConfigTFModel(config.Incidents),
+		Incidents:           incidents,
 		ArgocdSlackService:  types.StringPointerValue(config.ArgocdSlackService),
 		ArgocdSlackChannels: convertSlice(config.ArgocdSlackChannels, stringToTFString),
 	}
@@ -1594,14 +1598,18 @@ func toTargetSelectorAPIModel(selector *TargetSelector) *v1alpha1.TargetSelector
 	}
 }
 
-func toIncidentsConfigTFModel(config *v1alpha1.IncidentsConfig) *IncidentsConfig {
+func toIncidentsConfigTFModel(config *v1alpha1.IncidentsConfig, plan *AIConfig) *IncidentsConfig {
 	if config == nil {
 		return nil
+	}
+	var grouping *IncidentsGroupingConfig
+	if plan != nil && plan.Incidents != nil && plan.Incidents.Grouping != nil {
+		grouping = toIncidentsGroupingConfigTFModel(config.Grouping)
 	}
 	return &IncidentsConfig{
 		Triggers: convertSlice(config.Triggers, toTargetSelectorTFModel),
 		Webhooks: convertSlice(config.Webhooks, toIncidentWebhookConfigTFModel),
-		Grouping: toIncidentsGroupingConfigTFModel(config.Grouping),
+		Grouping: grouping,
 	}
 }
 
