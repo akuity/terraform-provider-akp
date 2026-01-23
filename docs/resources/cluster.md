@@ -43,7 +43,7 @@ resource "akp_cluster" "my-cluster" {
   kube_config = {
     host                   = "https://${cluster.my-cluster.endpoint}"
     cluster_ca_certificate = "${base64decode(cluster.my-cluster.master_auth.0.cluster_ca_certificate)}"
-    // No need to hardcode a token!
+    # No need to hardcode a token!
     exec = {
       api_version = "client.authentication.k8s.io/v1"
       args        = ["eks", "get-token", "--cluster-name", "some-cluster"]
@@ -177,8 +177,15 @@ resource "akp_cluster" "example" {
     description      = "test-description"
     data = {
       size                  = "small"
-      auto_upgrade_disabled = true
-      target_version        = "0.4.0"
+      # app_replication can be set at the cluster level to override instance defaults
+      # If not set here, it will inherit from instance.cluster_customization_defaults.app_replication
+      app_replication                  = false
+      auto_upgrade_disabled            = false
+      target_version                   = "0.4.0"
+      redis_tunneling                  = false
+      server_side_diff_enabled         = false
+      multi_cluster_k8s_dashboard_enabled = false
+      project                          = "default"
       managed_cluster_config = {
         secret_key  = "secret"
         secret_name = "secret-name"
@@ -193,6 +200,10 @@ resource "akp_cluster" "example" {
         # default will be control plane. "true" means source is agent host
         in_cluster_settings = true
       }
+      # direct_cluster_spec = {
+      #   cluster_type      = "kargo"
+      #   kargo_instance_id = "kargo-instance-id"
+      # }
       kustomization = <<EOF
   apiVersion: kustomize.config.k8s.io/v1beta1
   kind: Kustomization
@@ -291,7 +302,7 @@ Optional:
 - `eks_addon_enabled` (Boolean) Enable this if you are installing this cluster on EKS.
 - `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
 - `managed_cluster_config` (Attributes) The config to access managed Kubernetes cluster. By default agent is using "in-cluster" config. (see [below for nested schema](#nestedatt--spec--data--managed_cluster_config))
-- `multi_cluster_k8s_dashboard_enabled` (Boolean) Enable the KubeVision feature on the managed cluster
+- `multi_cluster_k8s_dashboard_enabled` (Boolean) Enable the Akuity Intelligence feature on the managed cluster
 - `project` (String) Project name
 - `redis_tunneling` (Boolean) Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy
 - `server_side_diff_enabled` (Boolean) Enables the ability to set server-side diff on the application-controller.

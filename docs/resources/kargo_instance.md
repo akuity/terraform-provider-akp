@@ -39,7 +39,7 @@ resource "akp_kargo_instance" "example" {
     spec = {
       description = "test-description"
       version     = "v1.4.3"
-      // only set one of fqdn and subdomain
+      # only set one of fqdn and subdomain
       fqdn      = "fqdn.example.com"
       subdomain = ""
       oidc_config = {
@@ -160,6 +160,14 @@ EOT
 #   name: kargo-demo
 # ---
 # apiVersion: kargo.akuity.io/v1alpha1
+# kind: ProjectConfig
+# metadata:
+#   name: kargo-demo
+#   namespace: kargo-demo
+# spec:
+#   # Project configuration settings
+# ---
+# apiVersion: kargo.akuity.io/v1alpha1
 # kind: Warehouse
 # metadata:
 #   name: kargo-demo
@@ -170,6 +178,29 @@ EOT
 #       repoURL: public.ecr.aws/nginx/nginx
 #       semverConstraint: ^1.28.0
 #       discoveryLimit: 5
+# ---
+# apiVersion: kargo.akuity.io/v1alpha1
+# kind: MessageChannel
+# metadata:
+#   name: slack-channel
+#   namespace: kargo-demo
+# spec:
+#   # Message channel configuration
+# ---
+# apiVersion: kargo.akuity.io/v1alpha1
+# kind: ClusterMessageChannel
+# metadata:
+#   name: cluster-slack-channel
+# spec:
+#   # Cluster-scoped message channel configuration
+# ---
+# apiVersion: kargo.akuity.io/v1alpha1
+# kind: EventRouter
+# metadata:
+#   name: event-router
+#   namespace: kargo-demo
+# spec:
+#   # Event router configuration
 # ---
 # ...
 # ---------------------------------------------
@@ -200,7 +231,7 @@ locals {
 ### Optional
 
 - `kargo_cm` (Map of String) ConfigMap to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf
-- `kargo_resources` (Map of String) Map of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`, `ClusterPromotionTask`, `Stage`, `Warehouse`, `AnalysisTemplate`, `PromotionTask`(with Groups: `kargo.akuity.io`); `Secret`(only with `kargo.akuity.io/cred-type` label); `ConfigMap`; `Role`, `RoleBinding`, `ServiceAccount`(`rbac.kargo.akuity.io/managed="true"` annotation required)
+- `kargo_resources` (Map of String) Map of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`, `ProjectConfig`, `ClusterPromotionTask`, `Stage`, `Warehouse`, `AnalysisTemplate`, `PromotionTask`, `MessageChannel`, `ClusterMessageChannel`, `EventRouter`(with Groups: `kargo.akuity.io`); `Secret`(only with `kargo.akuity.io/cred-type` label); `ConfigMap`; `Role`, `RoleBinding`, `ServiceAccount`(`rbac.kargo.akuity.io/managed="true"` annotation required)
 - `kargo_secret` (Map of String, Sensitive) Secret to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf
 - `workspace` (String) Workspace name for the Kargo instance
 
