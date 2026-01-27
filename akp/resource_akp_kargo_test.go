@@ -1,3 +1,5 @@
+//go:build !unit
+
 package akp
 
 import (
@@ -9,6 +11,7 @@ import (
 )
 
 func TestAccKargoInstanceResourceAdminAccountNonAlphabeticalValues(t *testing.T) {
+	t.Parallel()
 	name := fmt.Sprintf("kargo-nonalpha-%s", acctest.RandString(10))
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
@@ -71,6 +74,7 @@ resource "akp_kargo_instance" "test" {
 }
 
 func TestAccKargoInstanceResourceDexConfig(t *testing.T) {
+	t.Parallel()
 	name := fmt.Sprintf("kargo-dex-%s", acctest.RandString(10))
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },

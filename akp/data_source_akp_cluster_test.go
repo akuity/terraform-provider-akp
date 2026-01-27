@@ -6,21 +6,24 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
 func TestAccClusterDataSource(t *testing.T) {
+	t.Parallel()
+	name := fmt.Sprintf("ds-cluster-%s", acctest.RandString(8))
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			// Read testing
 			{
-				Config: providerConfig + getAccClusterDataSourceConfig(getInstanceId()),
+				Config: providerConfig + getAccClusterDataSourceConfig(getInstanceId(), name),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("data.akp_cluster.test", "instance_id", getInstanceId()),
 					resource.TestCheckResourceAttrSet("data.akp_cluster.test", "id"),
-					resource.TestCheckResourceAttr("data.akp_cluster.test", "name", "data-source-cluster"),
+					resource.TestCheckResourceAttr("data.akp_cluster.test", "name", name),
 					resource.TestCheckResourceAttr("data.akp_cluster.test", "namespace", "akuity"),
 					resource.TestCheckResourceAttr("data.akp_cluster.test", "labels.test-label", "test"),
 					resource.TestCheckResourceAttr("data.akp_cluster.test", "annotations.test-annotation", "false"),
@@ -44,11 +47,11 @@ kind: Kustomization
 	})
 }
 
-func getAccClusterDataSourceConfig(instanceId string) string {
+func getAccClusterDataSourceConfig(instanceId, name string) string {
 	return fmt.Sprintf(`
 resource "akp_cluster" "test" {
   instance_id = %q
-  name        = "data-source-cluster"
+  name        = %q
   namespace   = "akuity"
   labels = {
     test-label = "test"
@@ -79,5 +82,5 @@ data "akp_cluster" "test" {
   instance_id = akp_cluster.test.instance_id
   name        = akp_cluster.test.name
 }
-`, instanceId)
+`, instanceId, name)
 }

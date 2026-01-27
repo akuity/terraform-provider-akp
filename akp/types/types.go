@@ -58,6 +58,65 @@ var (
 		"repo_server":            types.ObjectType{AttrTypes: repoServerAutoScalingAttrTypes},
 	}
 
+	cveScanConfigAttrTypes = map[string]attr.Type{
+		"scan_enabled":    types.BoolType,
+		"rescan_interval": types.StringType,
+	}
+
+	incidentsGroupingConfigAttrTypes = map[string]attr.Type{
+		"k8s_namespaces":           types.ListType{ElemType: types.StringType},
+		"argocd_application_names": types.ListType{ElemType: types.StringType},
+	}
+
+	targetSelectorAttrTypes = map[string]attr.Type{
+		"argocd_applications": types.ListType{ElemType: types.StringType},
+		"k8s_namespaces":      types.ListType{ElemType: types.StringType},
+		"clusters":            types.ListType{ElemType: types.StringType},
+		"degraded_for":        types.StringType,
+	}
+
+	incidentWebhookConfigAttrTypes = map[string]attr.Type{
+		"name":                         types.StringType,
+		"description_path":             types.StringType,
+		"cluster_path":                 types.StringType,
+		"k8s_namespace_path":           types.StringType,
+		"argocd_application_name_path": types.StringType,
+	}
+
+	incidentsConfigAttrTypes = map[string]attr.Type{
+		"triggers": types.ListType{ElemType: types.ObjectType{AttrTypes: targetSelectorAttrTypes}},
+		"webhooks": types.ListType{ElemType: types.ObjectType{AttrTypes: incidentWebhookConfigAttrTypes}},
+		"grouping": types.ObjectType{AttrTypes: incidentsGroupingConfigAttrTypes},
+	}
+
+	runbookAttrTypes = map[string]attr.Type{
+		"name":                types.StringType,
+		"content":             types.StringType,
+		"applied_to":          types.ObjectType{AttrTypes: targetSelectorAttrTypes},
+		"slack_channel_names": types.ListType{ElemType: types.StringType},
+	}
+
+	aiConfigAttrTypes = map[string]attr.Type{
+		"runbooks":              types.ListType{ElemType: types.ObjectType{AttrTypes: runbookAttrTypes}},
+		"incidents":             types.ObjectType{AttrTypes: incidentsConfigAttrTypes},
+		"argocd_slack_service":  types.StringType,
+		"argocd_slack_channels": types.ListType{ElemType: types.StringType},
+	}
+
+	additionalAttributeRuleAttrTypes = map[string]attr.Type{
+		"group":       types.StringType,
+		"kind":        types.StringType,
+		"annotations": types.ListType{ElemType: types.StringType},
+		"labels":      types.ListType{ElemType: types.StringType},
+		"namespace":   types.StringType,
+	}
+
+	kubeVisionConfigAttrTypes = map[string]attr.Type{
+		"cve_scan_config":       types.ObjectType{AttrTypes: cveScanConfigAttrTypes},
+		"ai_config":             types.ObjectType{AttrTypes: aiConfigAttrTypes},
+		"additional_attributes": types.ListType{ElemType: types.ObjectType{AttrTypes: additionalAttributeRuleAttrTypes}},
+	}
+
 	ClusterSizeString = map[argocdv1.ClusterSize]string{
 		argocdv1.ClusterSize_CLUSTER_SIZE_SMALL:       "small",
 		argocdv1.ClusterSize_CLUSTER_SIZE_MEDIUM:      "medium",
@@ -119,7 +178,9 @@ func (a *ArgoCD) Update(ctx context.Context, diagnostics *diag.Diagnostics, cd *
 	if cd.Spec.InstanceSpec.MetricsIngressUsername != nil {
 		metricsIngressUsername = types.StringValue(*cd.Spec.InstanceSpec.MetricsIngressUsername)
 	}
-	metricsIngressPasswordHash := types.StringNull()
+	// MetricsIngressPasswordHash is a write-only field that is not returned from the API.
+	// Preserve the plan's value to avoid "inconsistent values for sensitive attribute" error.
+	metricsIngressPasswordHash := a.Spec.InstanceSpec.MetricsIngressPasswordHash
 	if cd.Spec.InstanceSpec.MetricsIngressPasswordHash != nil {
 		metricsIngressPasswordHash = types.StringValue(*cd.Spec.InstanceSpec.MetricsIngressPasswordHash)
 	}
@@ -197,7 +258,7 @@ func (a *ArgoCD) ToArgoCDAPIModel(ctx context.Context, diag *diag.Diagnostics, n
 				Fqdn:                            a.Spec.InstanceSpec.Fqdn.ValueStringPointer(),
 				MultiClusterK8SDashboardEnabled: toBoolPointer(a.Spec.InstanceSpec.MultiClusterK8SDashboardEnabled),
 				AkuityIntelligenceExtension:     toAkuityIntelligenceExtensionAPIModel(a.Spec.InstanceSpec.AkuityIntelligenceExtension),
-				KubeVisionConfig:                toKubeVisionConfigAPIModel(a.Spec.InstanceSpec.KubeVisionConfig),
+				KubeVisionConfig:                toKubeVisionConfigAPIModel(ctx, diag, a.Spec.InstanceSpec.KubeVisionConfig),
 				AppInAnyNamespaceConfig:         toAppInAnyNamespaceConfigAPIModel(a.Spec.InstanceSpec.AppInAnyNamespaceConfig),
 				AppsetPlugins:                   toAppsetPluginsAPIModel(a.Spec.InstanceSpec.AppsetPlugins),
 				ApplicationSetExtension:         toApplicationSetExtensionAPIModel(a.Spec.InstanceSpec.ApplicationSetExtension),
@@ -1120,6 +1181,33 @@ func tfStringToString(str types.String) string {
 	return str.ValueString()
 }
 
+// stringSliceToTFList converts a []string to a types.List of strings.
+// This is needed for Computed list fields that may receive unknown values.
+func stringSliceToTFList(strs []string) types.List {
+	if strs == nil {
+		return types.ListNull(types.StringType)
+	}
+	elements := make([]attr.Value, len(strs))
+	for i, s := range strs {
+		elements[i] = types.StringValue(s)
+	}
+	return types.ListValueMust(types.StringType, elements)
+}
+
+// tfListToStringSlice converts a types.List to []string.
+// Returns nil if the list is null or unknown.
+func tfListToStringSlice(list types.List) []string {
+	if list.IsNull() || list.IsUnknown() {
+		return nil
+	}
+	elements := list.Elements()
+	result := make([]string, len(elements))
+	for i, elem := range elements {
+		result[i] = elem.(types.String).ValueString()
+	}
+	return result
+}
+
 func crossplaneExtensionResourceToTFModel(resource *v1alpha1.CrossplaneExtensionResource) *CrossplaneExtensionResource {
 	if resource == nil {
 		return nil
@@ -1441,71 +1529,238 @@ func toClusterAddonsExtensionAPIModel(extension *ClusterAddonsExtension) *v1alph
 	}
 }
 
-func toKubeVisionConfigTFModel(config *v1alpha1.KubeVisionConfig, plan *ArgoCD) *KubeVisionConfig {
-	if plan == nil {
-		return nil
+func toKubeVisionConfigTFModel(config *v1alpha1.KubeVisionConfig, plan *ArgoCD) types.Object {
+	// Get plan config if available
+	var planObj types.Object
+	if plan != nil {
+		planObj = plan.Spec.InstanceSpec.KubeVisionConfig
 	}
-	if plan.Spec.InstanceSpec.KubeVisionConfig == nil || config == nil {
-		return plan.Spec.InstanceSpec.KubeVisionConfig
+
+	if config == nil {
+		// No server config - return plan value if available and not null/unknown
+		if !planObj.IsNull() && !planObj.IsUnknown() {
+			return planObj
+		}
+		return types.ObjectNull(kubeVisionConfigAttrTypes)
 	}
-	res := &KubeVisionConfig{}
-	if plan.Spec.InstanceSpec.KubeVisionConfig.CveScanConfig != nil {
-		res.CveScanConfig = toCveScanConfigTFModel(config.CveScanConfig)
+
+	// If no plan or plan is null/unknown (data source), convert everything from server
+	if planObj.IsNull() || planObj.IsUnknown() {
+		return toKubeVisionConfigTFModelFromServer(config)
 	}
-	if plan.Spec.InstanceSpec.KubeVisionConfig.AiConfig != nil {
-		res.AiConfig = toAIConfigTFModel(config.AiConfig, plan.Spec.InstanceSpec.KubeVisionConfig.AiConfig)
+
+	// Extract plan config for plan-aware conversion
+	var planKubeVisionConfig KubeVisionConfig
+	planObj.As(context.Background(), &planKubeVisionConfig, basetypes.ObjectAsOptions{
+		UnhandledNullAsEmpty:    true,
+		UnhandledUnknownAsEmpty: true,
+	})
+
+	// Plan-aware conversion
+	res := KubeVisionConfig{}
+	if !planKubeVisionConfig.CveScanConfig.IsNull() {
+		res.CveScanConfig = toCveScanConfigTFModel(config.CveScanConfig, planKubeVisionConfig.CveScanConfig)
+	} else {
+		res.CveScanConfig = types.ObjectNull(cveScanConfigAttrTypes)
 	}
-	if plan.Spec.InstanceSpec.KubeVisionConfig.AdditionalAttributes != nil {
-		res.AdditionalAttributes = toAdditionalAttributesTFModel(config.AdditionalAttributes)
+	if !planKubeVisionConfig.AiConfig.IsNull() {
+		if config.AiConfig != nil {
+			res.AiConfig = toAIConfigTFModel(config.AiConfig, planKubeVisionConfig.AiConfig)
+		} else {
+			// Server didn't return this config - preserve plan value to avoid state inconsistency
+			res.AiConfig = planKubeVisionConfig.AiConfig
+		}
+	} else {
+		res.AiConfig = types.ObjectNull(aiConfigAttrTypes)
 	}
-	return res
+	if planKubeVisionConfig.AdditionalAttributes != nil {
+		if config.AdditionalAttributes != nil {
+			res.AdditionalAttributes = toAdditionalAttributesTFModel(config.AdditionalAttributes)
+		} else {
+			// Server didn't return this config - preserve plan value to avoid state inconsistency
+			res.AdditionalAttributes = planKubeVisionConfig.AdditionalAttributes
+		}
+	}
+	obj, _ := types.ObjectValueFrom(context.Background(), kubeVisionConfigAttrTypes, res)
+	return obj
 }
 
-func toKubeVisionConfigAPIModel(config *KubeVisionConfig) *v1alpha1.KubeVisionConfig {
+// toKubeVisionConfigTFModelFromServer converts KubeVisionConfig from server response
+// without plan awareness. Used for data sources where there's no prior plan.
+func toKubeVisionConfigTFModelFromServer(config *v1alpha1.KubeVisionConfig) types.Object {
 	if config == nil {
+		return types.ObjectNull(kubeVisionConfigAttrTypes)
+	}
+	result := KubeVisionConfig{
+		CveScanConfig:        toCveScanConfigTFModelFromServer(config.CveScanConfig),
+		AiConfig:             toAIConfigTFModelFromServer(config.AiConfig),
+		AdditionalAttributes: toAdditionalAttributesTFModel(config.AdditionalAttributes),
+	}
+	obj, _ := types.ObjectValueFrom(context.Background(), kubeVisionConfigAttrTypes, result)
+	return obj
+}
+
+// toCveScanConfigTFModelFromServer converts CveScanConfig from server without plan awareness.
+func toCveScanConfigTFModelFromServer(config *v1alpha1.CveScanConfig) types.Object {
+	if config == nil {
+		return types.ObjectNull(cveScanConfigAttrTypes)
+	}
+	scanEnabled := types.BoolNull()
+	if config.ScanEnabled != nil {
+		scanEnabled = types.BoolValue(*config.ScanEnabled)
+	}
+	result := CveScanConfig{
+		ScanEnabled:    scanEnabled,
+		RescanInterval: types.StringValue(config.RescanInterval),
+	}
+	obj, _ := types.ObjectValueFrom(context.Background(), cveScanConfigAttrTypes, result)
+	return obj
+}
+
+// toAIConfigTFModelFromServer converts AIConfig from server without plan awareness.
+func toAIConfigTFModelFromServer(config *v1alpha1.AIConfig) types.Object {
+	if config == nil {
+		return types.ObjectNull(aiConfigAttrTypes)
+	}
+	result := AIConfig{
+		ArgocdSlackService:  types.StringPointerValue(config.ArgocdSlackService),
+		ArgocdSlackChannels: stringSliceToTFList(config.ArgocdSlackChannels),
+		Runbooks:            convertSlice(config.Runbooks, toRunbookTFModel),
+		Incidents:           toIncidentsConfigTFModelFromServer(config.Incidents),
+	}
+	obj, _ := types.ObjectValueFrom(context.Background(), aiConfigAttrTypes, result)
+	return obj
+}
+
+// toIncidentsConfigTFModelFromServer converts IncidentsConfig from server without plan awareness.
+func toIncidentsConfigTFModelFromServer(config *v1alpha1.IncidentsConfig) types.Object {
+	if config == nil {
+		return types.ObjectNull(incidentsConfigAttrTypes)
+	}
+	result := IncidentsConfig{
+		Triggers: convertSlice(config.Triggers, toTargetSelectorTFModel),
+		Webhooks: convertSlice(config.Webhooks, toIncidentWebhookConfigTFModel),
+		Grouping: toIncidentsGroupingConfigTFModel(config.Grouping),
+	}
+	obj, _ := types.ObjectValueFrom(context.Background(), incidentsConfigAttrTypes, result)
+	return obj
+}
+
+func toKubeVisionConfigAPIModel(ctx context.Context, diag *diag.Diagnostics, config types.Object) *v1alpha1.KubeVisionConfig {
+	if config.IsNull() || config.IsUnknown() {
+		return nil
+	}
+	var kubeVisionConfig KubeVisionConfig
+	diag.Append(config.As(ctx, &kubeVisionConfig, basetypes.ObjectAsOptions{
+		UnhandledNullAsEmpty:    true,
+		UnhandledUnknownAsEmpty: true,
+	})...)
+	if diag.HasError() {
 		return nil
 	}
 	return &v1alpha1.KubeVisionConfig{
-		CveScanConfig:        toCveScanConfigAPIModel(config.CveScanConfig),
-		AiConfig:             toAIConfigAPIModel(config.AiConfig),
-		AdditionalAttributes: toAdditionalAttributesAPIModel(config.AdditionalAttributes),
+		CveScanConfig:        toCveScanConfigAPIModel(ctx, diag, kubeVisionConfig.CveScanConfig),
+		AiConfig:             toAIConfigAPIModel(ctx, diag, kubeVisionConfig.AiConfig),
+		AdditionalAttributes: toAdditionalAttributesAPIModel(kubeVisionConfig.AdditionalAttributes),
 	}
 }
 
-func toCveScanConfigTFModel(config *v1alpha1.CveScanConfig) *CveScanConfig {
+func toCveScanConfigTFModel(config *v1alpha1.CveScanConfig, plan types.Object) types.Object {
 	if config == nil {
+		if !plan.IsNull() && !plan.IsUnknown() {
+			return plan // Preserve plan if server returns nil
+		}
+		return types.ObjectNull(cveScanConfigAttrTypes)
+	}
+
+	var planConfig CveScanConfig
+	if !plan.IsNull() && !plan.IsUnknown() {
+		plan.As(context.Background(), &planConfig, basetypes.ObjectAsOptions{UnhandledNullAsEmpty: true, UnhandledUnknownAsEmpty: true})
+	}
+
+	result := CveScanConfig{}
+	// Handle ScanEnabled - preserve plan value if server returns nil
+	if config.ScanEnabled != nil {
+		result.ScanEnabled = types.BoolValue(*config.ScanEnabled)
+	} else if !plan.IsNull() && !plan.IsUnknown() {
+		result.ScanEnabled = planConfig.ScanEnabled
+	} else {
+		result.ScanEnabled = types.BoolNull()
+	}
+	// Handle RescanInterval - preserve plan value if server returns empty
+	if config.RescanInterval != "" {
+		result.RescanInterval = types.StringValue(config.RescanInterval)
+	} else if !plan.IsNull() && !plan.IsUnknown() {
+		result.RescanInterval = planConfig.RescanInterval
+	} else {
+		result.RescanInterval = types.StringNull()
+	}
+	obj, _ := types.ObjectValueFrom(context.Background(), cveScanConfigAttrTypes, result)
+	return obj
+}
+
+func toCveScanConfigAPIModel(ctx context.Context, diag *diag.Diagnostics, config types.Object) *v1alpha1.CveScanConfig {
+	if config.IsNull() || config.IsUnknown() {
 		return nil
 	}
-	return &CveScanConfig{
-		ScanEnabled:    types.BoolValue(config.ScanEnabled != nil && *config.ScanEnabled),
-		RescanInterval: types.StringValue(config.RescanInterval),
-	}
-}
-
-func toCveScanConfigAPIModel(config *CveScanConfig) *v1alpha1.CveScanConfig {
-	if config == nil {
+	var cveScanConfig CveScanConfig
+	diag.Append(config.As(ctx, &cveScanConfig, basetypes.ObjectAsOptions{
+		UnhandledNullAsEmpty:    true,
+		UnhandledUnknownAsEmpty: true,
+	})...)
+	if diag.HasError() {
 		return nil
 	}
 	return &v1alpha1.CveScanConfig{
-		ScanEnabled:    toBoolPointer(config.ScanEnabled),
-		RescanInterval: config.RescanInterval.ValueString(),
+		ScanEnabled:    toBoolPointer(cveScanConfig.ScanEnabled),
+		RescanInterval: cveScanConfig.RescanInterval.ValueString(),
 	}
 }
 
-func toAIConfigTFModel(config *v1alpha1.AIConfig, plan *AIConfig) *AIConfig {
+func toAIConfigTFModel(config *v1alpha1.AIConfig, plan types.Object) types.Object {
 	if config == nil {
-		return nil
+		if !plan.IsNull() && !plan.IsUnknown() {
+			return plan
+		}
+		return types.ObjectNull(aiConfigAttrTypes)
 	}
-	var incidents *IncidentsConfig
-	if config.Incidents != nil {
-		incidents = toIncidentsConfigTFModel(config.Incidents, plan)
+
+	// Extract plan config if available
+	var planConfig AIConfig
+	hasPlan := !plan.IsNull() && !plan.IsUnknown()
+	if hasPlan {
+		plan.As(context.Background(), &planConfig, basetypes.ObjectAsOptions{
+			UnhandledNullAsEmpty:    true,
+			UnhandledUnknownAsEmpty: true,
+		})
 	}
-	return &AIConfig{
-		Runbooks:            convertSlice(config.Runbooks, toRunbookTFModel),
-		Incidents:           incidents,
+
+	res := AIConfig{
 		ArgocdSlackService:  types.StringPointerValue(config.ArgocdSlackService),
-		ArgocdSlackChannels: convertSlice(config.ArgocdSlackChannels, stringToTFString),
+		ArgocdSlackChannels: stringSliceToTFList(config.ArgocdSlackChannels),
 	}
+	// Handle Runbooks - need plan-aware conversion to preserve applied_to structure
+	if len(config.Runbooks) > 0 {
+		if hasPlan {
+			res.Runbooks = toRunbooksTFModelWithPlan(config.Runbooks, &planConfig)
+		} else {
+			res.Runbooks = convertSlice(config.Runbooks, toRunbookTFModel)
+		}
+	} else if hasPlan {
+		res.Runbooks = planConfig.Runbooks
+	}
+	// Handle Incidents - only set if plan expected it (to avoid null vs empty object mismatch)
+	if hasPlan && !planConfig.Incidents.IsNull() {
+		if config.Incidents != nil {
+			res.Incidents = toIncidentsConfigTFModel(config.Incidents, planConfig.Incidents)
+		} else {
+			res.Incidents = planConfig.Incidents
+		}
+	} else {
+		res.Incidents = types.ObjectNull(incidentsConfigAttrTypes)
+	}
+	obj, _ := types.ObjectValueFrom(context.Background(), aiConfigAttrTypes, res)
+	return obj
 }
 
 func toAdditionalAttributesTFModel(config []*v1alpha1.AdditionalAttributeRule) []*AdditionalAttributeRule {
@@ -1523,15 +1778,23 @@ func toAdditionalAttributesTFModel(config []*v1alpha1.AdditionalAttributeRule) [
 	})
 }
 
-func toAIConfigAPIModel(config *AIConfig) *v1alpha1.AIConfig {
-	if config == nil {
+func toAIConfigAPIModel(ctx context.Context, diag *diag.Diagnostics, config types.Object) *v1alpha1.AIConfig {
+	if config.IsNull() || config.IsUnknown() {
+		return nil
+	}
+	var aiConfig AIConfig
+	diag.Append(config.As(ctx, &aiConfig, basetypes.ObjectAsOptions{
+		UnhandledNullAsEmpty:    true,
+		UnhandledUnknownAsEmpty: true,
+	})...)
+	if diag.HasError() {
 		return nil
 	}
 	return &v1alpha1.AIConfig{
-		Runbooks:            convertSlice(config.Runbooks, toRunbookAPIModel),
-		Incidents:           toIncidentsConfigAPIModel(config.Incidents),
-		ArgocdSlackService:  config.ArgocdSlackService.ValueStringPointer(),
-		ArgocdSlackChannels: convertSlice(config.ArgocdSlackChannels, tfStringToString),
+		Runbooks:            convertSlice(aiConfig.Runbooks, toRunbookAPIModel),
+		Incidents:           toIncidentsConfigAPIModel(ctx, diag, aiConfig.Incidents),
+		ArgocdSlackService:  aiConfig.ArgocdSlackService.ValueStringPointer(),
+		ArgocdSlackChannels: tfListToStringSlice(aiConfig.ArgocdSlackChannels),
 	}
 }
 
@@ -1560,6 +1823,62 @@ func toRunbookTFModel(runbook *v1alpha1.Runbook) *Runbook {
 		AppliedTo:         toTargetSelectorTFModel(runbook.AppliedTo),
 		SlackChannelNames: convertSlice(runbook.SlackChannelNames, stringToTFString),
 	}
+}
+
+// toRunbooksTFModelWithPlan converts runbooks while respecting the plan structure.
+// This ensures that if the plan had applied_to as null, we don't return an empty object.
+func toRunbooksTFModelWithPlan(runbooks []*v1alpha1.Runbook, plan *AIConfig) []*Runbook {
+	if runbooks == nil {
+		return nil
+	}
+	result := make([]*Runbook, len(runbooks))
+	for i, runbook := range runbooks {
+		if runbook == nil {
+			continue
+		}
+		rb := &Runbook{
+			Name:              types.StringValue(runbook.Name),
+			Content:           types.StringValue(runbook.Content),
+			SlackChannelNames: convertSlice(runbook.SlackChannelNames, stringToTFString),
+		}
+		// Check if plan had applied_to for this runbook
+		var planRunbook *Runbook
+		if plan != nil && i < len(plan.Runbooks) {
+			planRunbook = plan.Runbooks[i]
+		}
+		// Only set AppliedTo if plan expected it
+		if planRunbook != nil && planRunbook.AppliedTo != nil {
+			rb.AppliedTo = toTargetSelectorTFModelWithPlan(runbook.AppliedTo, planRunbook.AppliedTo)
+		}
+		result[i] = rb
+	}
+	return result
+}
+
+// toTargetSelectorTFModelWithPlan converts a target selector while preserving plan values
+// for fields that the server doesn't return (like degraded_for).
+func toTargetSelectorTFModelWithPlan(selector *v1alpha1.TargetSelector, plan *TargetSelector) *TargetSelector {
+	if selector == nil {
+		// Server returned nil but plan expected a value - preserve plan only if it has known values
+		if plan != nil && !plan.DegradedFor.IsUnknown() {
+			return plan
+		}
+		return nil
+	}
+	result := &TargetSelector{
+		ArgocdApplications: convertSlice(selector.ArgocdApplications, func(s string) types.String { return types.StringValue(s) }),
+		K8SNamespaces:      convertSlice(selector.K8SNamespaces, func(s string) types.String { return types.StringValue(s) }),
+		Clusters:           convertSlice(selector.Clusters, func(s string) types.String { return types.StringValue(s) }),
+	}
+	// Handle degraded_for - preserve plan value only if it's known (not unknown)
+	if selector.DegradedFor != nil {
+		result.DegradedFor = types.StringPointerValue(selector.DegradedFor)
+	} else if plan != nil && !plan.DegradedFor.IsUnknown() {
+		result.DegradedFor = plan.DegradedFor
+	} else {
+		result.DegradedFor = types.StringNull()
+	}
+	return result
 }
 
 func toRunbookAPIModel(runbook *Runbook) *v1alpha1.Runbook {
@@ -1598,49 +1917,98 @@ func toTargetSelectorAPIModel(selector *TargetSelector) *v1alpha1.TargetSelector
 	}
 }
 
-func toIncidentsConfigTFModel(config *v1alpha1.IncidentsConfig, plan *AIConfig) *IncidentsConfig {
+func toIncidentsConfigTFModel(config *v1alpha1.IncidentsConfig, plan types.Object) types.Object {
 	if config == nil {
-		return nil
+		if !plan.IsNull() && !plan.IsUnknown() {
+			return plan
+		}
+		return types.ObjectNull(incidentsConfigAttrTypes)
 	}
-	var grouping *IncidentsGroupingConfig
-	if plan != nil && plan.Incidents != nil && plan.Incidents.Grouping != nil {
-		grouping = toIncidentsGroupingConfigTFModel(config.Grouping)
+
+	// Extract plan config if available
+	var planIncidents IncidentsConfig
+	hasPlan := !plan.IsNull() && !plan.IsUnknown()
+	if hasPlan {
+		plan.As(context.Background(), &planIncidents, basetypes.ObjectAsOptions{
+			UnhandledNullAsEmpty:    true,
+			UnhandledUnknownAsEmpty: true,
+		})
 	}
-	return &IncidentsConfig{
-		Triggers: convertSlice(config.Triggers, toTargetSelectorTFModel),
-		Webhooks: convertSlice(config.Webhooks, toIncidentWebhookConfigTFModel),
-		Grouping: grouping,
+
+	res := IncidentsConfig{}
+	// Handle Triggers - preserve plan values if server returns nil
+	if config.Triggers != nil {
+		res.Triggers = convertSlice(config.Triggers, toTargetSelectorTFModel)
+	} else if hasPlan {
+		res.Triggers = planIncidents.Triggers
 	}
+	// Handle Webhooks - preserve plan values if server returns nil
+	if config.Webhooks != nil {
+		res.Webhooks = convertSlice(config.Webhooks, toIncidentWebhookConfigTFModel)
+	} else if hasPlan {
+		res.Webhooks = planIncidents.Webhooks
+	}
+	// Handle Grouping - only set if plan expected it, to avoid state inconsistency
+	// when server returns an empty grouping object but plan had null
+	if hasPlan && !planIncidents.Grouping.IsNull() {
+		if config.Grouping != nil {
+			res.Grouping = toIncidentsGroupingConfigTFModel(config.Grouping)
+		} else {
+			res.Grouping = planIncidents.Grouping
+		}
+	} else {
+		res.Grouping = types.ObjectNull(incidentsGroupingConfigAttrTypes)
+	}
+	obj, _ := types.ObjectValueFrom(context.Background(), incidentsConfigAttrTypes, res)
+	return obj
 }
 
-func toIncidentsGroupingConfigTFModel(config *v1alpha1.IncidentsGroupingConfig) *IncidentsGroupingConfig {
+func toIncidentsGroupingConfigTFModel(config *v1alpha1.IncidentsGroupingConfig) types.Object {
 	if config == nil {
-		return nil
+		return types.ObjectNull(incidentsGroupingConfigAttrTypes)
 	}
-	return &IncidentsGroupingConfig{
+	result := IncidentsGroupingConfig{
 		ArgocdApplicationNames: toStringArrayTFModel(config.ArgocdApplicationNames),
 		K8SNamespaces:          toStringArrayTFModel(config.K8SNamespaces),
 	}
+	obj, _ := types.ObjectValueFrom(context.Background(), incidentsGroupingConfigAttrTypes, result)
+	return obj
 }
 
-func toIncidentsGroupingConfigAPIMode(config *IncidentsGroupingConfig) *v1alpha1.IncidentsGroupingConfig {
-	if config == nil {
+func toIncidentsGroupingConfigAPIModel(ctx context.Context, diag *diag.Diagnostics, config types.Object) *v1alpha1.IncidentsGroupingConfig {
+	if config.IsNull() || config.IsUnknown() {
+		return nil
+	}
+	var groupingConfig IncidentsGroupingConfig
+	diag.Append(config.As(ctx, &groupingConfig, basetypes.ObjectAsOptions{
+		UnhandledNullAsEmpty:    true,
+		UnhandledUnknownAsEmpty: true,
+	})...)
+	if diag.HasError() {
 		return nil
 	}
 	return &v1alpha1.IncidentsGroupingConfig{
-		ArgocdApplicationNames: toStringArrayAPIModel(config.ArgocdApplicationNames),
-		K8SNamespaces:          toStringArrayAPIModel(config.K8SNamespaces),
+		ArgocdApplicationNames: toStringArrayAPIModel(groupingConfig.ArgocdApplicationNames),
+		K8SNamespaces:          toStringArrayAPIModel(groupingConfig.K8SNamespaces),
 	}
 }
 
-func toIncidentsConfigAPIModel(config *IncidentsConfig) *v1alpha1.IncidentsConfig {
-	if config == nil {
+func toIncidentsConfigAPIModel(ctx context.Context, diag *diag.Diagnostics, config types.Object) *v1alpha1.IncidentsConfig {
+	if config.IsNull() || config.IsUnknown() {
+		return nil
+	}
+	var incidentsConfig IncidentsConfig
+	diag.Append(config.As(ctx, &incidentsConfig, basetypes.ObjectAsOptions{
+		UnhandledNullAsEmpty:    true,
+		UnhandledUnknownAsEmpty: true,
+	})...)
+	if diag.HasError() {
 		return nil
 	}
 	return &v1alpha1.IncidentsConfig{
-		Triggers: convertSlice(config.Triggers, toTargetSelectorAPIModel),
-		Webhooks: convertSlice(config.Webhooks, toIncidentWebhookConfigAPIModel),
-		Grouping: toIncidentsGroupingConfigAPIMode(config.Grouping),
+		Triggers: convertSlice(incidentsConfig.Triggers, toTargetSelectorAPIModel),
+		Webhooks: convertSlice(incidentsConfig.Webhooks, toIncidentWebhookConfigAPIModel),
+		Grouping: toIncidentsGroupingConfigAPIModel(ctx, diag, incidentsConfig.Grouping),
 	}
 }
 

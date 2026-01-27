@@ -12,7 +12,7 @@ resource "akp_kargo_instance" "example" {
     spec = {
       description = "test-description"
       version     = "v1.4.3"
-      // only set one of fqdn and subdomain
+      # only set one of fqdn and subdomain
       fqdn      = "fqdn.example.com"
       subdomain = ""
       oidc_config = {
@@ -133,6 +133,14 @@ EOT
 #   name: kargo-demo
 # ---
 # apiVersion: kargo.akuity.io/v1alpha1
+# kind: ProjectConfig
+# metadata:
+#   name: kargo-demo
+#   namespace: kargo-demo
+# spec:
+#   # Project configuration settings
+# ---
+# apiVersion: kargo.akuity.io/v1alpha1
 # kind: Warehouse
 # metadata:
 #   name: kargo-demo
@@ -143,6 +151,29 @@ EOT
 #       repoURL: public.ecr.aws/nginx/nginx
 #       semverConstraint: ^1.28.0
 #       discoveryLimit: 5
+# ---
+# apiVersion: kargo.akuity.io/v1alpha1
+# kind: MessageChannel
+# metadata:
+#   name: slack-channel
+#   namespace: kargo-demo
+# spec:
+#   # Message channel configuration
+# ---
+# apiVersion: kargo.akuity.io/v1alpha1
+# kind: ClusterMessageChannel
+# metadata:
+#   name: cluster-slack-channel
+# spec:
+#   # Cluster-scoped message channel configuration
+# ---
+# apiVersion: kargo.akuity.io/v1alpha1
+# kind: EventRouter
+# metadata:
+#   name: event-router
+#   namespace: kargo-demo
+# spec:
+#   # Event router configuration
 # ---
 # ...
 # ---------------------------------------------

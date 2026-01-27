@@ -6,30 +6,33 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
 func TestAccKargoAgentsDataSource(t *testing.T) {
+	t.Parallel()
+	name := fmt.Sprintf("ds-kargo-agents-%s", acctest.RandString(8))
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: providerConfig + getTestAccKargoAgentsDataSourceConfig(getKargoInstanceId()),
+				Config: providerConfig + getTestAccKargoAgentsDataSourceConfig(getKargoInstanceId(), name),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					testAccCheckKargoAgentAttributes("data.akp_kargo_agents.test-agents", "test-agent"),
+					testAccCheckKargoAgentAttributes("data.akp_kargo_agents.test-agents", name),
 				),
 			},
 		},
 	})
 }
 
-func getTestAccKargoAgentsDataSourceConfig(instanceId string) string {
+func getTestAccKargoAgentsDataSourceConfig(instanceId, name string) string {
 	return fmt.Sprintf(`
 resource "akp_kargo_agent" "test" {
   instance_id = %q
-  name        = "test-agent"
+  name        = %q
   namespace   = "akuity"
   labels = {
     app = "test"
@@ -52,7 +55,7 @@ resource "akp_kargo_agent" "test" {
 data "akp_kargo_agents" "test-agents" {
   instance_id = akp_kargo_agent.test.instance_id
 }
-`, instanceId, getInstanceId())
+`, instanceId, name, getInstanceId())
 }
 
 func testAccCheckKargoAgentAttributes(dataSourceName, targetKargoAgentName string) resource.TestCheckFunc {
@@ -73,7 +76,7 @@ func testAccCheckKargoAgentAttributes(dataSourceName, targetKargoAgentName strin
 				if err := resource.TestCheckResourceAttrSet(dataSourceName, fmt.Sprintf("agents.%d.id", i))(s); err != nil {
 					return err
 				}
-				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("agents.%d.name", i), "test-agent")(s); err != nil {
+				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("agents.%d.name", i), targetKargoAgentName)(s); err != nil {
 					return err
 				}
 				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("agents.%d.namespace", i), "akuity")(s); err != nil {

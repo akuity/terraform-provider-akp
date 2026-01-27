@@ -395,7 +395,11 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 		"kube_vision_config": schema.SingleNestedAttribute{
 			MarkdownDescription: "Advanced Akuity Intelligence configuration like CVE scanning and AI runbooks",
 			Optional:            true,
-			Attributes:          getKubeVisionConfigAttributes(),
+			Computed:            true,
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier.UseStateForUnknown(),
+			},
+			Attributes: getKubeVisionConfigAttributes(),
 		},
 		"metrics_ingress_username": schema.StringAttribute{
 			MarkdownDescription: "Username for metrics ingress authentication",
@@ -900,12 +904,20 @@ func getKubeVisionConfigAttributes() map[string]schema.Attribute {
 		"cve_scan_config": schema.SingleNestedAttribute{
 			MarkdownDescription: "CVE scanning configuration",
 			Optional:            true,
-			Attributes:          getCveScanConfigAttributes(),
+			Computed:            true,
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier.UseStateForUnknown(),
+			},
+			Attributes: getCveScanConfigAttributes(),
 		},
 		"ai_config": schema.SingleNestedAttribute{
 			MarkdownDescription: "AI advanced configuration like runbooks and incidents",
 			Optional:            true,
-			Attributes:          getAIConfigAttributes(),
+			Computed:            true,
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier.UseStateForUnknown(),
+			},
+			Attributes: getAIConfigAttributes(),
 		},
 		"additional_attributes": schema.ListNestedAttribute{
 			MarkdownDescription: "Additional attributes to include when syncing resources to KubeVision",
@@ -997,7 +1009,11 @@ func getAIConfigAttributes() map[string]schema.Attribute {
 		"incidents": schema.SingleNestedAttribute{
 			MarkdownDescription: "Incident configuration",
 			Optional:            true,
-			Attributes:          getIncidentsConfigAttributes(),
+			Computed:            true,
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier.UseStateForUnknown(),
+			},
+			Attributes: getIncidentsConfigAttributes(),
 		},
 		"argocd_slack_service": schema.StringAttribute{
 			MarkdownDescription: "ArgoCD Slack service configuration",
@@ -1061,7 +1077,11 @@ func getIncidentsConfigAttributes() map[string]schema.Attribute {
 		"grouping": schema.SingleNestedAttribute{
 			MarkdownDescription: "Incident grouping configuration",
 			Optional:            true,
-			Attributes:          getIncidentsGroupingConfigAttributes(),
+			Computed:            true,
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier.UseStateForUnknown(),
+			},
+			Attributes: getIncidentsGroupingConfigAttributes(),
 		},
 	}
 }

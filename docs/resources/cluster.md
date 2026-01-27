@@ -43,7 +43,7 @@ resource "akp_cluster" "my-cluster" {
   kube_config = {
     host                   = "https://${cluster.my-cluster.endpoint}"
     cluster_ca_certificate = "${base64decode(cluster.my-cluster.master_auth.0.cluster_ca_certificate)}"
-    // No need to hardcode a token!
+    # No need to hardcode a token!
     exec = {
       api_version = "client.authentication.k8s.io/v1"
       args        = ["eks", "get-token", "--cluster-name", "some-cluster"]
@@ -176,9 +176,16 @@ resource "akp_cluster" "example" {
     namespace_scoped = true
     description      = "test-description"
     data = {
-      size                  = "small"
-      auto_upgrade_disabled = true
-      target_version        = "0.4.0"
+      size = "small"
+      # app_replication can be set at the cluster level to override instance defaults
+      # If not set here, it will inherit from instance.cluster_customization_defaults.app_replication
+      app_replication                     = false
+      auto_upgrade_disabled               = false
+      target_version                      = "0.4.0"
+      redis_tunneling                     = false
+      server_side_diff_enabled            = false
+      multi_cluster_k8s_dashboard_enabled = false
+      project                             = "default"
       managed_cluster_config = {
         secret_key  = "secret"
         secret_name = "secret-name"
@@ -193,6 +200,10 @@ resource "akp_cluster" "example" {
         # default will be control plane. "true" means source is agent host
         in_cluster_settings = true
       }
+      # direct_cluster_spec = {
+      #   cluster_type      = "kargo"
+      #   kargo_instance_id = "kargo-instance-id"
+      # }
       kustomization = <<EOF
   apiVersion: kustomize.config.k8s.io/v1beta1
   kind: Kustomization
