@@ -6,30 +6,33 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
 func TestAccClustersDataSource(t *testing.T) {
+	t.Parallel()
+	name := fmt.Sprintf("ds-clusters-%s", acctest.RandString(8))
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: providerConfig + getAccClustersDataSourceConfig(getInstanceId()),
+				Config: providerConfig + getAccClustersDataSourceConfig(getInstanceId(), name),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					testAccCheckClusterAttributes("data.akp_clusters.test", "data-source-cluster"),
+					testAccCheckClusterAttributes("data.akp_clusters.test", name),
 				),
 			},
 		},
 	})
 }
 
-func getAccClustersDataSourceConfig(instanceId string) string {
+func getAccClustersDataSourceConfig(instanceId, name string) string {
 	return fmt.Sprintf(`
 resource "akp_cluster" "test" {
   instance_id = %q
-  name        = "data-source-cluster"
+  name        = %q
   namespace   = "akuity"
   labels = {
     test-label = "test"
@@ -59,7 +62,7 @@ EOF
 data "akp_clusters" "test" {
   instance_id = akp_cluster.test.instance_id
 }
-`, instanceId)
+`, instanceId, name)
 }
 
 func testAccCheckClusterAttributes(dataSourceName, targetClusterName string) resource.TestCheckFunc {
@@ -80,7 +83,7 @@ func testAccCheckClusterAttributes(dataSourceName, targetClusterName string) res
 				if err := resource.TestCheckResourceAttrSet(dataSourceName, fmt.Sprintf("clusters.%d.id", i))(s); err != nil {
 					return err
 				}
-				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("clusters.%d.name", i), "data-source-cluster")(s); err != nil {
+				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("clusters.%d.name", i), targetClusterName)(s); err != nil {
 					return err
 				}
 				if err := resource.TestCheckResourceAttr(dataSourceName, fmt.Sprintf("clusters.%d.namespace", i), "akuity")(s); err != nil {

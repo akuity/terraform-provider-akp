@@ -135,7 +135,36 @@ resource "akp_instance" "example" {
           },
         ]
         cluster_customization_defaults = {
-          auto_upgrade_disabled = true
+          # app_replication can be set at the instance level as a default for all clusters
+          # Individual clusters can override this by setting app_replication in their spec.data
+          app_replication          = false
+          auto_upgrade_disabled    = false
+          redis_tunneling          = false
+          server_side_diff_enabled = false
+          kustomization            = <<-EOF
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+patches:
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: argocd-repo-server
+      spec:
+        template:
+          spec:
+            containers:
+            - name: argocd-repo-server
+              resources:
+                limits:
+                  memory: 2Gi
+                requests:
+                  cpu: 750m
+                  memory: 1Gi
+      target:
+        kind: Deployment
+        name: argocd-repo-server
+EOF
         }
         appset_policy = {
           policy          = "create-only"
@@ -295,7 +324,7 @@ resource "akp_instance" "example" {
               triggers = [
                 {
                   argocd_applications = ["guestbook-prod-oom"]
-                  // if degraded_for is not set, the incident will be triggered immediately when the condition is met
+                  # if degraded_for is not set, the incident will be triggered immediately when the condition is met
                   degraded_for = "2m"
                 },
                 {
@@ -320,7 +349,33 @@ resource "akp_instance" "example" {
             }
           }
         }
-        // Control plane metrics
+        # Instance subdomain (defaults to instance ID if not set)
+        subdomain = "my-argocd-instance"
+        # Enable Akuity Intelligence feature for multi-cluster Kubernetes dashboard
+        multi_cluster_k8s_dashboard_enabled = true
+        # Cluster name where notifications controller will be installed with elevated privileges
+        privileged_notification_cluster = "prod-cluster"
+        # Delegate Application Set controller to a specific cluster
+        # app_set_delegate = {
+        #   managed_cluster = {
+        #     cluster_name = "delegate-cluster"
+        #   }
+        # }
+        # Delegate repo server operations to a specific cluster (useful when clusters don't have network access to Git provider)
+        # repo_server_delegate = {
+        #   control_plane = false
+        #   managed_cluster = {
+        #     cluster_name = "delegate-cluster"
+        #   }
+        # }
+        # Delegate Image Updater to a specific cluster
+        # image_updater_delegate = {
+        #   control_plane = false
+        #   managed_cluster = {
+        #     cluster_name = "delegate-cluster"
+        #   }
+        #         }
+        # Control plane metrics
         metrics_ingress_username      = "user"
         metrics_ingress_password_hash = "passwordhash"
       }

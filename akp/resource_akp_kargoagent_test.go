@@ -1,3 +1,5 @@
+//go:build !unit
+
 package akp
 
 import (
@@ -30,32 +32,48 @@ var (
 	kargoInstanceName string
 	kargoVersion      string
 	kargoInstanceOnce sync.Once
+	kargoInstanceMu   sync.RWMutex
 )
 
 func getKargoInstanceId() string {
-	if kargoInstanceId == "" {
-		if v := os.Getenv("AKUITY_KARGO_INSTANCE_ID"); v == "" {
-			// Create a new Kargo instance for testing
-			kargoInstanceId = createTestKargoInstance()
-		} else {
-			kargoInstanceId = v
+	kargoInstanceMu.RLock()
+	id := kargoInstanceId
+	kargoInstanceMu.RUnlock()
+
+	if id == "" {
+		kargoInstanceMu.Lock()
+		defer kargoInstanceMu.Unlock()
+		// Double-check after acquiring write lock
+		if kargoInstanceId == "" {
+			if v := os.Getenv("AKUITY_KARGO_INSTANCE_ID"); v == "" {
+				// Create a new Kargo instance for testing
+				kargoInstanceId = createTestKargoInstance()
+			} else {
+				kargoInstanceId = v
+			}
 		}
+		return kargoInstanceId
 	}
 
-	return kargoInstanceId
+	return id
 }
 
 func getKargoVersion() string {
-	createTestKargoInstance()
+	getKargoInstanceId()
+	kargoInstanceMu.RLock()
+	defer kargoInstanceMu.RUnlock()
 	return kargoVersion
 }
 
 func getKargoInstanceName() string {
-	createTestKargoInstance()
+	getKargoInstanceId()
+	kargoInstanceMu.RLock()
+	defer kargoInstanceMu.RUnlock()
 	return kargoInstanceName
 }
 
 func createTestKargoInstance() string {
+	// Note: Caller (getKargoInstanceId) must hold kargoInstanceMu.Lock() when calling this function
 	kargoInstanceOnce.Do(func() {
 		if os.Getenv("TF_ACC") != "1" {
 			return
@@ -75,7 +93,7 @@ func createTestKargoInstance() string {
 		// Create minimal Kargo instance with required version
 		kargoVersion = os.Getenv("AKUITY_KARGO_VERSION")
 		if kargoVersion == "" {
-			kargoVersion = "v1.8.4-ak.2"
+			panic("AKUITY_KARGO_VERSION not set! This needs to be set to a valid Kargo version!")
 		}
 
 		kargoStruct, err := structpb.NewStruct(map[string]any{
@@ -95,29 +113,17 @@ func createTestKargoInstance() string {
 			panic(fmt.Sprintf("Failed to create Kargo struct: %v", err))
 		}
 
-		projectStruct, err := structpb.NewStruct(map[string]any{
-			"apiVersion": "kargo.akuity.io/v1alpha1",
-			"kind":       "Project",
-			"metadata": map[string]any{
-				"name": "kargo-demo",
-			},
-		})
-		if err != nil {
-			panic(fmt.Sprintf("Failed to create Project struct: %v", err))
-		}
-
-		// Create the instance with the Project first (this will create the namespace)
+		// First create the Kargo instance WITHOUT Projects (can't add Projects until instance is ready)
 		applyReq := &kargov1.ApplyKargoInstanceRequest{
 			OrganizationId: akpCli.OrgId,
 			Id:             kargoInstanceName,
 			IdType:         idv1.Type_NAME,
 			WorkspaceId:    workspace.Id,
 			Kargo:          kargoStruct,
-			Projects:       []*structpb.Struct{projectStruct},
 		}
 		_, err = akpCli.KargoCli.ApplyKargoInstance(ctx, applyReq)
 		if err != nil {
-			panic(fmt.Sprintf("Failed to create Kargo instance with Project: %v", err))
+			panic(fmt.Sprintf("Failed to create Kargo instance: %v", err))
 		}
 
 		// Get the created instance to get its ID
@@ -149,7 +155,7 @@ func createTestKargoInstance() string {
 			getStatusFunc,
 			[]healthv1.StatusCode{healthv1.StatusCode_STATUS_CODE_HEALTHY},
 			10*time.Second,
-			5*time.Minute,
+			10*time.Minute,
 			fmt.Sprintf("Test Kargo instance %s", kargoInstanceName),
 			"health",
 		)
@@ -159,8 +165,31 @@ func createTestKargoInstance() string {
 
 		kargoInstanceId = instanceResponse.Instance.Id
 
-		// Now that the instance is healthy and the Project namespace has been created,
-		// add the Warehouse resource
+		// Now that the instance is healthy, add the Project
+		projectStruct, err := structpb.NewStruct(map[string]any{
+			"apiVersion": "kargo.akuity.io/v1alpha1",
+			"kind":       "Project",
+			"metadata": map[string]any{
+				"name": "kargo-demo",
+			},
+		})
+		if err != nil {
+			panic(fmt.Sprintf("Failed to create Project struct: %v", err))
+		}
+
+		applyProjectReq := &kargov1.ApplyKargoInstanceRequest{
+			OrganizationId: akpCli.OrgId,
+			Id:             kargoInstanceId,
+			IdType:         idv1.Type_ID,
+			WorkspaceId:    workspace.Id,
+			Projects:       []*structpb.Struct{projectStruct},
+		}
+		_, err = akpCli.KargoCli.ApplyKargoInstance(ctx, applyProjectReq)
+		if err != nil {
+			panic(fmt.Sprintf("Failed to add Project to Kargo instance: %v", err))
+		}
+
+		// Now add the Warehouse resource
 		warehouseStruct, err := structpb.NewStruct(map[string]any{
 			"apiVersion": "kargo.akuity.io/v1alpha1",
 			"kind":       "Warehouse",
@@ -284,6 +313,7 @@ func clearDefaultShardAgent(instanceId string) error {
 }
 
 func TestAccKargoAgentResource(t *testing.T) {
+	t.Parallel()
 	name := fmt.Sprintf("kargoagent-%s", acctest.RandString(10))
 
 	// Ensure we clear the default shard agent before tests clean up
@@ -352,6 +382,7 @@ func TestAccKargoAgentResource(t *testing.T) {
 }
 
 func TestAccKargoAgentResourceRemoteArgoCD(t *testing.T) {
+	t.Parallel()
 	name := fmt.Sprintf("kargoagent-remote-%s", acctest.RandString(10))
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
@@ -370,6 +401,7 @@ func TestAccKargoAgentResourceRemoteArgoCD(t *testing.T) {
 }
 
 func TestAccKargoAgentResourceCustomNamespace(t *testing.T) {
+	t.Parallel()
 	name := fmt.Sprintf("kargoagent-ns-%s", acctest.RandString(10))
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
@@ -389,6 +421,7 @@ func TestAccKargoAgentResourceCustomNamespace(t *testing.T) {
 }
 
 func TestAccKargoAgentResourceReapplyManifests(t *testing.T) {
+	t.Parallel()
 	name := fmt.Sprintf("kargoagent-reapply-%s", acctest.RandString(10))
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
@@ -414,6 +447,7 @@ func TestAccKargoAgentResourceReapplyManifests(t *testing.T) {
 }
 
 func TestAccKargoAgentResourceTargetVersion(t *testing.T) {
+	t.Parallel()
 	name := fmt.Sprintf("kargoagent-version-%s", acctest.RandString(10))
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
@@ -569,6 +603,7 @@ resource "akp_kargo_agent" "test" {
 }
 
 func TestAccKargoAgentResourceKubeconfig(t *testing.T) {
+	t.Parallel()
 	name := fmt.Sprintf("kargoagent-kubeconfig-%s", acctest.RandString(10))
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },

@@ -94,14 +94,14 @@ type IncidentsGroupingConfig struct {
 type IncidentsConfig struct {
 	Triggers []*TargetSelector        `tfsdk:"triggers"`
 	Webhooks []*IncidentWebhookConfig `tfsdk:"webhooks"`
-	Grouping *IncidentsGroupingConfig `tfsdk:"grouping"`
+	Grouping types.Object             `tfsdk:"grouping"`
 }
 
 type AIConfig struct {
-	Runbooks            []*Runbook       `tfsdk:"runbooks"`
-	Incidents           *IncidentsConfig `tfsdk:"incidents"`
-	ArgocdSlackService  types.String     `tfsdk:"argocd_slack_service"`
-	ArgocdSlackChannels []types.String   `tfsdk:"argocd_slack_channels"`
+	Runbooks            []*Runbook   `tfsdk:"runbooks"`
+	Incidents           types.Object `tfsdk:"incidents"`
+	ArgocdSlackService  types.String `tfsdk:"argocd_slack_service"`
+	ArgocdSlackChannels types.List   `tfsdk:"argocd_slack_channels"`
 }
 
 type AdditionalAttributeRule struct {
@@ -113,8 +113,8 @@ type AdditionalAttributeRule struct {
 }
 
 type KubeVisionConfig struct {
-	CveScanConfig        *CveScanConfig             `tfsdk:"cve_scan_config"`
-	AiConfig             *AIConfig                  `tfsdk:"ai_config"`
+	CveScanConfig        types.Object               `tfsdk:"cve_scan_config"`
+	AiConfig             types.Object               `tfsdk:"ai_config"`
 	AdditionalAttributes []*AdditionalAttributeRule `tfsdk:"additional_attributes"`
 }
 
@@ -152,7 +152,7 @@ type InstanceSpec struct {
 	Fqdn                            types.String                 `tfsdk:"fqdn"`
 	MultiClusterK8SDashboardEnabled types.Bool                   `tfsdk:"multi_cluster_k8s_dashboard_enabled"`
 	AkuityIntelligenceExtension     *AkuityIntelligenceExtension `tfsdk:"akuity_intelligence_extension"`
-	KubeVisionConfig                *KubeVisionConfig            `tfsdk:"kube_vision_config"`
+	KubeVisionConfig                types.Object                 `tfsdk:"kube_vision_config"`
 	AppInAnyNamespaceConfig         *AppInAnyNamespaceConfig     `tfsdk:"app_in_any_namespace_config"`
 	AppsetPlugins                   []*AppsetPlugins             `tfsdk:"appset_plugins"`
 	ApplicationSetExtension         *ApplicationSetExtension     `tfsdk:"application_set_extension"`
