@@ -45,6 +45,7 @@ Required:
 Read-Only:
 
 - `annotations` (Map of String) Annotations
+- `ensure_healthy` (Boolean) If true, terraform apply will fail if the cluster agent becomes degraded or does not become healthy within the timeout period. When false (default), terraform will not wait for the resource status to be reported.
 - `id` (String) Cluster ID
 - `kube_config` (Attributes) Kubernetes connection settings. If configured, terraform will try to connect to the cluster and install the agent (see [below for nested schema](#nestedatt--clusters--kube_config))
 - `labels` (Map of String) Labels
