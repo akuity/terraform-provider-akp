@@ -13,7 +13,6 @@ import (
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/pkg/errors"
-	"golang.org/x/exp/slices"
 	"google.golang.org/genproto/googleapis/api/httpbody"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -204,7 +203,7 @@ func (r *AkpClusterResource) upsert(ctx context.Context, diagnostics *diag.Diagn
 	if diagnostics.HasError() {
 		return nil, nil
 	}
-	result, err := r.applyInstance(ctx, plan, apiReq, isCreate, r.akpCli.Cli.ApplyInstance, r.upsertKubeConfig)
+	result, err := r.applyInstance(ctx, plan, apiReq, isCreate, r.akpCli.Cli.ApplyInstance, r.upsertKubeConfig, r.waitForReconciliation, r.waitForHealth)
 	// Always refresh cluster state to ensure we have consistent state, even if kubeconfig application failed
 	if result != nil {
 		if akiSanitized {
@@ -219,7 +218,16 @@ func (r *AkpClusterResource) upsert(ctx context.Context, diagnostics *diag.Diagn
 	return result, err
 }
 
-func (r *AkpClusterResource) applyInstance(ctx context.Context, plan *types.Cluster, apiReq *argocdv1.ApplyInstanceRequest, isCreate bool, applyInstance func(context.Context, *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error), upsertKubeConfig func(ctx context.Context, plan *types.Cluster) error) (*types.Cluster, error) {
+func (r *AkpClusterResource) applyInstance(
+	ctx context.Context,
+	plan *types.Cluster,
+	apiReq *argocdv1.ApplyInstanceRequest,
+	isCreate bool,
+	applyInstance func(context.Context, *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error),
+	upsertKubeConfig func(ctx context.Context, plan *types.Cluster) error,
+	waitForReconciliation func(ctx context.Context, plan *types.Cluster) error,
+	waitForHealth func(ctx context.Context, plan *types.Cluster) error,
+) (*types.Cluster, error) {
 	kubeconfig := plan.Kubeconfig
 	plan.Kubeconfig = nil
 	tflog.Debug(ctx, fmt.Sprintf("Apply cluster request: %s", apiReq))
@@ -241,14 +249,25 @@ func (r *AkpClusterResource) applyInstance(ctx context.Context, plan *types.Clus
 		return nil, fmt.Errorf("unable to create Argo CD instance: %s", err)
 	}
 
+	if err := waitForReconciliation(ctx, plan); err != nil {
+		if isCreate {
+			tflog.Warn(ctx, fmt.Sprintf("Cluster reconciliation failed during create, cleaning up cluster %s", plan.Name.ValueString()))
+			cleanupErr := r.deleteCluster(ctx, plan, plan.RemoveAgentResourcesOnDestroy.ValueBool(), true)
+			if cleanupErr != nil {
+				tflog.Error(ctx, fmt.Sprintf("Failed to clean up dangling cluster %s: %v", plan.Name.ValueString(), cleanupErr))
+				return nil, fmt.Errorf("cluster reconciliation failed: %s (and failed to clean up cluster: %s)", err, cleanupErr)
+			}
+			tflog.Info(ctx, fmt.Sprintf("Successfully cleaned up dangling cluster %s", plan.Name.ValueString()))
+		}
+		return nil, fmt.Errorf("cluster reconciliation failed: %w", err)
+	}
+
 	if kubeconfig != nil {
 		plan.Kubeconfig = kubeconfig
 		shouldApply := isCreate || plan.ReapplyManifestsOnUpdate.ValueBool()
 		if shouldApply {
 			err = upsertKubeConfig(ctx, plan)
 			if err != nil {
-				// If this is a create operation and kubeconfig application fails,
-				// clean up the dangling cluster from the API
 				if isCreate {
 					tflog.Warn(ctx, fmt.Sprintf("Kubeconfig application failed during create, cleaning up cluster %s", plan.Name.ValueString()))
 					cleanupErr := r.deleteCluster(ctx, plan, plan.RemoveAgentResourcesOnDestroy.ValueBool(), true)
@@ -259,9 +278,19 @@ func (r *AkpClusterResource) applyInstance(ctx context.Context, plan *types.Clus
 					tflog.Info(ctx, fmt.Sprintf("Successfully cleaned up dangling cluster %s", plan.Name.ValueString()))
 					return nil, fmt.Errorf("unable to apply manifests: %s", err)
 				}
-				// For updates, just ensure kubeconfig won't be committed to state by setting it to nil
 				plan.Kubeconfig = nil
 				return plan, fmt.Errorf("unable to apply manifests: %s", err)
+			}
+		} else {
+			if err := waitForHealth(ctx, plan); err != nil {
+				return plan, fmt.Errorf("cluster health check failed: %w", err)
+			}
+		}
+	} else {
+		agentWillAutoUpdate := !isCreate && plan.Spec != nil && !plan.Spec.Data.AutoUpgradeDisabled.ValueBool()
+		if agentWillAutoUpdate {
+			if err := waitForHealth(ctx, plan); err != nil {
+				return plan, fmt.Errorf("cluster health check failed: %w", err)
 			}
 		}
 	}
@@ -287,9 +316,17 @@ func (r *AkpClusterResource) upsertKubeConfig(ctx context.Context, plan *types.C
 		if err != nil {
 			return err
 		}
-		return waitClusterHealthStatus(ctx, r.akpCli.Cli, r.akpCli.OrgId, plan)
+		return waitClusterHealthStatus(ctx, r.akpCli.Cli, r.akpCli.OrgId, plan, plan.EnsureHealthy.ValueBool())
 	}
 	return nil
+}
+
+func (r *AkpClusterResource) waitForReconciliation(ctx context.Context, plan *types.Cluster) error {
+	return waitForClusterReconciliation(ctx, r.akpCli.Cli, r.akpCli.OrgId, plan)
+}
+
+func (r *AkpClusterResource) waitForHealth(ctx context.Context, plan *types.Cluster) error {
+	return waitClusterHealthStatus(ctx, r.akpCli.Cli, r.akpCli.OrgId, plan, plan.EnsureHealthy.ValueBool())
 }
 
 func refreshClusterState(ctx context.Context, diagnostics *diag.Diagnostics, client argocdv1.ArgoCDServiceGatewayClient, cluster *types.Cluster,
@@ -437,53 +474,145 @@ func deleteManifests(ctx context.Context, manifests string, cfg *rest.Config) er
 	return nil
 }
 
-func waitClusterHealthStatus(ctx context.Context, client argocdv1.ArgoCDServiceGatewayClient, orgID string, c *types.Cluster) error {
-	cluster := &argocdv1.Cluster{}
-	healthStatus := cluster.GetHealthStatus()
-	breakStatusesHealth := []healthv1.StatusCode{healthv1.StatusCode_STATUS_CODE_HEALTHY, healthv1.StatusCode_STATUS_CODE_DEGRADED}
+func waitClusterHealthStatus(ctx context.Context, client argocdv1.ArgoCDServiceGatewayClient, orgID string, c *types.Cluster, ensureHealthy bool) error {
+	const (
+		healthStatusTimeout      = 10 * time.Minute
+		healthStatusPollInterval = 5 * time.Second
+	)
 
-	for !slices.Contains(breakStatusesHealth, healthStatus.GetCode()) {
-		time.Sleep(1 * time.Second)
-		apiResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.GetInstanceClusterResponse, error) {
-			return client.GetInstanceCluster(ctx, &argocdv1.GetInstanceClusterRequest{
-				OrganizationId: orgID,
-				InstanceId:     c.InstanceID.ValueString(),
-				Id:             c.Name.ValueString(),
-				IdType:         idv1.Type_NAME,
-			})
-		}, "GetInstanceCluster")
-		if err != nil {
-			return err
-		}
-		cluster = apiResp.GetCluster()
-		healthStatus = cluster.GetHealthStatus()
-		tflog.Debug(ctx, fmt.Sprintf("Cluster health status: %s", healthStatus.String()))
+	targetStatuses := []healthv1.StatusCode{
+		healthv1.StatusCode_STATUS_CODE_HEALTHY,
 	}
+	if !ensureHealthy {
+		return nil
+	}
+
+	var lastHealthMessage string
+	if err := waitForStatus(
+		ctx,
+		func(ctx context.Context) (*argocdv1.Cluster, error) {
+			resp, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.GetInstanceClusterResponse, error) {
+				return client.GetInstanceCluster(ctx, &argocdv1.GetInstanceClusterRequest{
+					OrganizationId: orgID,
+					InstanceId:     c.InstanceID.ValueString(),
+					Id:             c.Name.ValueString(),
+					IdType:         idv1.Type_NAME,
+				})
+			}, "GetInstanceCluster")
+			if err != nil {
+				return nil, err
+			}
+			return resp.GetCluster(), nil
+		},
+		func(cluster *argocdv1.Cluster) healthv1.StatusCode {
+			healthStatus := cluster.GetHealthStatus()
+			if msg := healthStatus.GetMessage(); msg != "" {
+				lastHealthMessage = msg
+			}
+			return healthStatus.GetCode()
+		},
+		targetStatuses,
+		healthStatusPollInterval,
+		healthStatusTimeout,
+		c.Name.ValueString(),
+		"health",
+	); err != nil {
+		var errMsg strings.Builder
+		errMsg.WriteString(err.Error())
+
+		if lastHealthMessage != "" {
+			errMsg.WriteString(fmt.Sprintf("\n\nHealth status message: %s", lastHealthMessage))
+		}
+
+		errMsg.WriteString("\n\nTroubleshooting steps:")
+		errMsg.WriteString("\n  1. Check the cluster health in the Akuity Console")
+		errMsg.WriteString("\n  2. Verify the Akuity agent is running in the cluster (for example in akuity namespace):")
+		errMsg.WriteString("\n       kubectl get pods -n akuity")
+		errMsg.WriteString("\n  3. Check agent logs for errors:")
+		errMsg.WriteString("\n       kubectl logs -n akuity -l app.kubernetes.io/name=akuity-agent --tail=100")
+		errMsg.WriteString("\n  4. Ensure the cluster has network connectivity to the Akuity Platform")
+
+		return errors.New(errMsg.String())
+	}
+
 	return nil
 }
 
 func waitClusterReconStatus(ctx context.Context, client argocdv1.ArgoCDServiceGatewayClient, cluster *argocdv1.Cluster, orgId, instanceId string) (*argocdv1.Cluster, error) {
-	reconStatus := cluster.GetReconciliationStatus()
-	breakStatusesRecon := []reconv1.StatusCode{reconv1.StatusCode_STATUS_CODE_SUCCESSFUL, reconv1.StatusCode_STATUS_CODE_FAILED}
+	const (
+		reconStatusTimeout      = 10 * time.Minute
+		reconStatusPollInterval = 5 * time.Second
+	)
 
-	for !slices.Contains(breakStatusesRecon, reconStatus.GetCode()) {
-		time.Sleep(1 * time.Second)
-		apiResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.GetInstanceClusterResponse, error) {
-			return client.GetInstanceCluster(ctx, &argocdv1.GetInstanceClusterRequest{
-				OrganizationId: orgId,
-				InstanceId:     instanceId,
-				Id:             cluster.Id,
-				IdType:         idv1.Type_ID,
-			})
-		}, "GetInstanceCluster")
-		if err != nil {
-			return nil, err
-		}
-		cluster = apiResp.GetCluster()
-		reconStatus = cluster.GetReconciliationStatus()
-		tflog.Debug(ctx, fmt.Sprintf("Cluster recon status: %s", reconStatus.String()))
+	targetStatuses := []reconv1.StatusCode{
+		reconv1.StatusCode_STATUS_CODE_SUCCESSFUL,
+		reconv1.StatusCode_STATUS_CODE_FAILED,
 	}
-	return cluster, nil
+
+	var finalCluster *argocdv1.Cluster
+
+	err := waitForStatus(
+		ctx,
+		func(ctx context.Context) (*argocdv1.Cluster, error) {
+			resp, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.GetInstanceClusterResponse, error) {
+				return client.GetInstanceCluster(ctx, &argocdv1.GetInstanceClusterRequest{
+					OrganizationId: orgId,
+					InstanceId:     instanceId,
+					Id:             cluster.Id,
+					IdType:         idv1.Type_ID,
+				})
+			}, "GetInstanceCluster")
+			if err != nil {
+				return nil, err
+			}
+			finalCluster = resp.GetCluster()
+			return finalCluster, nil
+		},
+		func(cluster *argocdv1.Cluster) reconv1.StatusCode {
+			return cluster.GetReconciliationStatus().GetCode()
+		},
+		targetStatuses,
+		reconStatusPollInterval,
+		reconStatusTimeout,
+		cluster.Name,
+		"reconciliation",
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return finalCluster, nil
+}
+
+func waitForClusterReconciliation(ctx context.Context, client argocdv1.ArgoCDServiceGatewayClient, orgID string, plan *types.Cluster) error {
+	clusterReq := &argocdv1.GetInstanceClusterRequest{
+		OrganizationId: orgID,
+		InstanceId:     plan.InstanceID.ValueString(),
+		Id:             plan.Name.ValueString(),
+		IdType:         idv1.Type_NAME,
+	}
+
+	clusterResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.GetInstanceClusterResponse, error) {
+		return client.GetInstanceCluster(ctx, clusterReq)
+	}, "GetInstanceCluster")
+	if err != nil {
+		return errors.Wrap(err, "unable to get cluster for reconciliation check")
+	}
+
+	finalCluster, err := waitClusterReconStatus(ctx, client, clusterResp.GetCluster(), orgID, plan.InstanceID.ValueString())
+	if err != nil {
+		return errors.Wrap(err, "unable to wait for cluster reconciliation")
+	}
+
+	if finalCluster.GetReconciliationStatus().GetCode() == reconv1.StatusCode_STATUS_CODE_FAILED {
+		msg := finalCluster.GetReconciliationStatus().GetMessage()
+		if msg == "" {
+			msg = "cluster reconciliation failed"
+		}
+		return errors.New(msg)
+	}
+
+	return nil
 }
 
 func readStream(resChan <-chan *httpbody.HttpBody, errChan <-chan error) ([]byte, error) {

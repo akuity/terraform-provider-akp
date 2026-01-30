@@ -290,6 +290,11 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 	} else {
 		c.ReapplyManifestsOnUpdate = plan.ReapplyManifestsOnUpdate
 	}
+	if c.EnsureHealthy.IsUnknown() || c.EnsureHealthy.IsNull() {
+		c.EnsureHealthy = types.BoolValue(false)
+	} else {
+		c.EnsureHealthy = plan.EnsureHealthy
+	}
 	labels, d := types.MapValueFrom(ctx, types.StringType, apiCluster.GetData().GetLabels())
 	if d.HasError() {
 		labels = types.MapNull(types.StringType)

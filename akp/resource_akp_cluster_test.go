@@ -1300,52 +1300,11 @@ resource "akp_cluster" "test" {
       kustomization = <<EOF
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-resources:
-  - base/deployment.yaml
-  - base/service.yaml
-patches:
-  - patch: |
-      apiVersion: apps/v1
-      kind: Deployment
-      metadata:
-        name: external-service
-      spec:
-        replicas: 2
-        template:
-          spec:
-            containers:
-            - name: external-service
-              resources:
-                requests:
-                  cpu: 500m
-                  memory: 512Mi
-                limits:
-                  cpu: 1000m
-                  memory: 1Gi
-    target:
-      kind: Deployment
-      name: external-service
-  - patch: |
-      apiVersion: v1
-      kind: ConfigMap
-      metadata:
-        name: app-config
-      data:
-        config.yaml: |
-          server:
-            port: 8080
-            host: 0.0.0.0
-    target:
-      kind: ConfigMap
-      name: app-config
-replicas:
-  - name: my-replica
-    count: 2
-configMapGenerator:
-  - name: env-config
-    literals:
-    - ENV=production
-    - DEBUG=false
+commonLabels:
+  team: platform
+  env: test
+commonAnnotations:
+  example.com/managed-by: terraform-test
 EOF
     }
   }
@@ -1354,11 +1313,16 @@ EOF
 }
 
 func TestAkpClusterResource_reApplyManifests(t *testing.T) {
+	noopReconciliation := func(ctx context.Context, plan *types.Cluster) error { return nil }
+	noopHealth := func(ctx context.Context, plan *types.Cluster) error { return nil }
+
 	type args struct {
-		plan             *types.Cluster
-		apiReq           *argocdv1.ApplyInstanceRequest
-		applyInstance    func(context.Context, *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error)
-		upsertKubeConfig func(ctx context.Context, plan *types.Cluster) error
+		plan                  *types.Cluster
+		apiReq                *argocdv1.ApplyInstanceRequest
+		applyInstance         func(context.Context, *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error)
+		upsertKubeConfig      func(ctx context.Context, plan *types.Cluster) error
+		waitForReconciliation func(ctx context.Context, plan *types.Cluster) error
+		waitForHealth         func(ctx context.Context, plan *types.Cluster) error
 	}
 	tests := []struct {
 		name  string
@@ -1381,17 +1345,98 @@ func TestAkpClusterResource_reApplyManifests(t *testing.T) {
 				upsertKubeConfig: func(ctx context.Context, plan *types.Cluster) error {
 					return errors.New("some kube apply error")
 				},
+				waitForReconciliation: noopReconciliation,
+				waitForHealth:         noopHealth,
 			},
 			want:  &types.Cluster{},
 			error: fmt.Errorf("unable to apply manifests: some kube apply error"),
+		},
+		{
+			name: "no kubeconfig - waits for reconciliation only",
+			args: args{
+				plan: &types.Cluster{
+					Kubeconfig: nil,
+				},
+				applyInstance: func(ctx context.Context, request *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error) {
+					return &argocdv1.ApplyInstanceResponse{}, nil
+				},
+				upsertKubeConfig:      nil,
+				waitForReconciliation: noopReconciliation,
+				waitForHealth:         noopHealth,
+			},
+			want:  nil,
+			error: nil,
+		},
+		{
+			name: "kubeconfig with reapply=false - waits for reconciliation and health",
+			args: args{
+				plan: &types.Cluster{
+					Kubeconfig: &types.Kubeconfig{
+						Host: hashitype.StringValue("some-host"),
+					},
+					ReapplyManifestsOnUpdate: hashitype.BoolValue(false),
+				},
+				applyInstance: func(ctx context.Context, request *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error) {
+					return &argocdv1.ApplyInstanceResponse{}, nil
+				},
+				upsertKubeConfig:      nil,
+				waitForReconciliation: noopReconciliation,
+				waitForHealth:         noopHealth,
+			},
+			want:  nil,
+			error: nil,
+		},
+		{
+			name: "reconciliation fails - returns error",
+			args: args{
+				plan: &types.Cluster{
+					Kubeconfig: nil,
+				},
+				applyInstance: func(ctx context.Context, request *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error) {
+					return &argocdv1.ApplyInstanceResponse{}, nil
+				},
+				upsertKubeConfig: nil,
+				waitForReconciliation: func(ctx context.Context, plan *types.Cluster) error {
+					return errors.New("reconciliation timed out")
+				},
+				waitForHealth: noopHealth,
+			},
+			want:  nil,
+			error: fmt.Errorf("cluster reconciliation failed: reconciliation timed out"),
+		},
+		{
+			name: "health check fails with kubeconfig and reapply=false - returns error with plan",
+			args: args{
+				plan: &types.Cluster{
+					Kubeconfig: &types.Kubeconfig{
+						Host: hashitype.StringValue("some-host"),
+					},
+					ReapplyManifestsOnUpdate: hashitype.BoolValue(false),
+				},
+				applyInstance: func(ctx context.Context, request *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error) {
+					return &argocdv1.ApplyInstanceResponse{}, nil
+				},
+				upsertKubeConfig:      nil,
+				waitForReconciliation: noopReconciliation,
+				waitForHealth: func(ctx context.Context, plan *types.Cluster) error {
+					return errors.New("health check timed out")
+				},
+			},
+			want:  nil,
+			error: fmt.Errorf("cluster health check failed: health check timed out"),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &AkpClusterResource{}
 			ctx := context.Background()
-			_, err := r.applyInstance(ctx, tt.args.plan, tt.args.apiReq, false, tt.args.applyInstance, tt.args.upsertKubeConfig)
-			assert.Equal(t, tt.error, err)
+			_, err := r.applyInstance(ctx, tt.args.plan, tt.args.apiReq, false, tt.args.applyInstance, tt.args.upsertKubeConfig, tt.args.waitForReconciliation, tt.args.waitForHealth)
+			if tt.error != nil {
+				assert.Error(t, err)
+				assert.Equal(t, tt.error.Error(), err.Error())
+			} else {
+				assert.NoError(t, err)
+			}
 		})
 	}
 }

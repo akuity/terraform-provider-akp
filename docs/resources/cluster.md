@@ -236,6 +236,9 @@ resource "akp_cluster" "example" {
     token       = "YOUR TOKEN"
   }
 
+  # Optional: Wait for the cluster to be healthy before completing the resource creation. Other states will be considered failures.
+  ensure_healthy = true
+
   # When using a Kubernetes token retrieved from a Terraform provider (e.g. aws_eks_cluster_auth or google_client_config) in the above `kube_config`,
   # the token value may change over time. This will cause Terraform to detect a diff in the `token` on each plan and apply.
   # To prevent constant changes, you can add the `token` field path to the `lifecycle` block's `ignore_changes` list:
@@ -261,6 +264,7 @@ resource "akp_cluster" "example" {
 ### Optional
 
 - `annotations` (Map of String) Annotations
+- `ensure_healthy` (Boolean) If true, terraform apply will fail if the cluster agent becomes degraded or does not become healthy within the timeout period. When false (default), terraform will not wait for the resource status to be reported.
 - `kube_config` (Attributes) Kubernetes connection settings. If configured, terraform will try to connect to the cluster and install the agent (see [below for nested schema](#nestedatt--kube_config))
 - `labels` (Map of String) Labels
 - `reapply_manifests_on_update` (Boolean) If true, re-apply generated Argo CD agent manifests to the target cluster on every update when `kube_config` is provided.

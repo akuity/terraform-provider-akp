@@ -21,6 +21,7 @@ type Cluster struct {
 	Kubeconfig                    *Kubeconfig  `tfsdk:"kube_config"`
 	RemoveAgentResourcesOnDestroy types.Bool   `tfsdk:"remove_agent_resources_on_destroy"`
 	ReapplyManifestsOnUpdate      types.Bool   `tfsdk:"reapply_manifests_on_update"`
+	EnsureHealthy                 types.Bool   `tfsdk:"ensure_healthy"`
 }
 
 type Clusters struct {

@@ -61,6 +61,10 @@ func getAKPClusterDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Whether to reapply manifests on update",
 			Computed:            true,
 		},
+		"ensure_healthy": schema.BoolAttribute{
+			MarkdownDescription: "If true, terraform apply will fail if the cluster agent becomes degraded or does not become healthy within the timeout period. When false (default), terraform will not wait for the resource status to be reported.",
+			Computed:            true,
+		},
 	}
 }
 
