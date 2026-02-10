@@ -387,8 +387,9 @@ EOF
     # Please note that the API will disallow the setting of  any key which isn't a known configuration option in `argocd-cm`.
     #
     # NOTE:
-    # `admin.enabled` can be set to `false` to disable the admin login.
-    # To enable the admin account, set `accounts.admin: "login"`, and to disable the admin login, set `admin.enabled: false`. They are mutually exclusive.
+    # Use `accounts.admin.enabled = false` to disable the admin login.
+    # To enable the admin account, set `accounts.admin = "login"`. 
+    # To disable it, set `accounts.admin.enabled = false`. They are mutually exclusive.
     "exec.enabled"                   = true
     "ga.anonymizeusers"              = false
     "helm.enabled"                   = true
