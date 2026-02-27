@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
@@ -299,16 +299,25 @@ func (ka *KargoAgent) Update(ctx context.Context, diagnostics *diag.Diagnostics,
 	}
 
 	size := types.StringValue(KargoAgentSizeString[apiKargoAgent.GetData().GetSize()])
+	var maintenanceModeExpiry types.String
+	if apiKargoAgent.GetData().GetMaintenanceModeExpiry() != nil {
+		maintenanceModeExpiry = types.StringValue(apiKargoAgent.GetData().GetMaintenanceModeExpiry().AsTime().Format(time.RFC3339))
+	} else {
+		maintenanceModeExpiry = types.StringNull()
+	}
 	ka.Spec = &KargoAgentSpec{
 		Description: types.StringValue(apiKargoAgent.GetDescription()),
 		Data: KargoAgentData{
-			Size:                size,
-			AutoUpgradeDisabled: types.BoolValue(apiKargoAgent.GetData().GetAutoUpgradeDisabled()),
-			TargetVersion:       types.StringValue(apiKargoAgent.GetData().GetTargetVersion()),
-			Kustomization:       kustomization,
-			RemoteArgocd:        types.StringValue(apiKargoAgent.GetData().GetRemoteArgocd()),
-			AkuityManaged:       types.BoolValue(apiKargoAgent.GetData().GetAkuityManaged()),
-			ArgocdNamespace:     types.StringValue(argocdNs),
+			Size:                  size,
+			AutoUpgradeDisabled:   types.BoolValue(apiKargoAgent.GetData().GetAutoUpgradeDisabled()),
+			TargetVersion:         types.StringValue(apiKargoAgent.GetData().GetTargetVersion()),
+			Kustomization:         kustomization,
+			RemoteArgocd:          types.StringValue(apiKargoAgent.GetData().GetRemoteArgocd()),
+			AkuityManaged:         types.BoolValue(apiKargoAgent.GetData().GetAkuityManaged()),
+			ArgocdNamespace:       types.StringValue(argocdNs),
+			AllowedJobSa:          stringSliceToTFList(apiKargoAgent.GetData().GetAllowedJobSa()),
+			MaintenanceMode:       types.BoolValue(apiKargoAgent.GetData().GetMaintenanceMode()),
+			MaintenanceModeExpiry: maintenanceModeExpiry,
 		},
 	}
 }
@@ -359,14 +368,29 @@ func toKargoAgentDataAPIModel(_ context.Context, diagnostics *diag.Diagnostics, 
 		return v1alpha1.KargoAgentData{}
 	}
 
+	var maintenanceModeExpiry *metav1.Time
+	if !data.MaintenanceModeExpiry.IsNull() && !data.MaintenanceModeExpiry.IsUnknown() {
+		s := data.MaintenanceModeExpiry.ValueString()
+		if s != "" {
+			parsed, err := time.Parse(time.RFC3339, s)
+			if err != nil {
+				diagnostics.AddError("Invalid maintenance_mode_expiry", fmt.Sprintf("Failed to parse maintenance_mode_expiry as RFC3339: %s", err))
+				return v1alpha1.KargoAgentData{}
+			}
+			maintenanceModeExpiry = &metav1.Time{Time: parsed}
+		}
+	}
 	return v1alpha1.KargoAgentData{
-		Size:                v1alpha1.KargoAgentSize(data.Size.ValueString()),
-		AutoUpgradeDisabled: toBoolPointer(data.AutoUpgradeDisabled),
-		TargetVersion:       data.TargetVersion.ValueString(),
-		Kustomization:       raw,
-		RemoteArgocd:        data.RemoteArgocd.ValueString(),
-		AkuityManaged:       data.AkuityManaged.ValueBool(),
-		ArgocdNamespace:     data.ArgocdNamespace.ValueString(),
+		Size:                  v1alpha1.KargoAgentSize(data.Size.ValueString()),
+		AutoUpgradeDisabled:   toBoolPointer(data.AutoUpgradeDisabled),
+		TargetVersion:         data.TargetVersion.ValueString(),
+		Kustomization:         raw,
+		RemoteArgocd:          data.RemoteArgocd.ValueString(),
+		AkuityManaged:         data.AkuityManaged.ValueBool(),
+		ArgocdNamespace:       data.ArgocdNamespace.ValueString(),
+		AllowedJobSa:          tfListToStringSlice(data.AllowedJobSa),
+		MaintenanceMode:       toBoolPointer(data.MaintenanceMode),
+		MaintenanceModeExpiry: maintenanceModeExpiry,
 	}
 }
 
@@ -615,7 +639,6 @@ func toKargoAkuityIntelligenceAPIModel(intelligence *AkuityIntelligence) *v1alph
 	if intelligence == nil {
 		return nil
 	}
-	tflog.Warn(context.Background(), fmt.Sprintf("hanxiaop model %+v", intelligence))
 	return &v1alpha1.AkuityIntelligence{
 		AiSupportEngineerEnabled: toBoolPointer(intelligence.AiSupportEngineerEnabled),
 		Enabled:                  toBoolPointer(intelligence.Enabled),

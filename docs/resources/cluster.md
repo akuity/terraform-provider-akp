@@ -305,6 +305,8 @@ Optional:
 - `direct_cluster_spec` (Attributes) Direct cluster integration spec. Currently supports `kargo` (see [below for nested schema](#nestedatt--spec--data--direct_cluster_spec))
 - `eks_addon_enabled` (Boolean) Enable this if you are installing this cluster on EKS.
 - `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
+- `maintenance_mode` (Boolean) Enable maintenance mode for the cluster. When enabled, alerts for degraded agents are muted.
+- `maintenance_mode_expiry` (String) Expiry time for maintenance mode in RFC3339 format. Maintenance mode will be automatically disabled after this time.
 - `managed_cluster_config` (Attributes) The config to access managed Kubernetes cluster. By default agent is using "in-cluster" config. (see [below for nested schema](#nestedatt--spec--data--managed_cluster_config))
 - `multi_cluster_k8s_dashboard_enabled` (Boolean) Enable the KubeVision feature on the managed cluster
 - `project` (String) Project name

@@ -164,7 +164,8 @@ func isRetryableError(err error) bool {
 			codes.DeadlineExceeded,
 			codes.Aborted,
 			codes.ResourceExhausted,
-			codes.Canceled:
+			codes.Canceled,
+			codes.Internal:
 			return true
 		case codes.InvalidArgument:
 			// Retry InvalidArgument only if it's due to provisioning delays

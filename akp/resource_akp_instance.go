@@ -15,10 +15,10 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
 	healthv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/health/v1"
-	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
 	"github.com/akuity/terraform-provider-akp/akp/marshal"
 	"github.com/akuity/terraform-provider-akp/akp/types"
 )
@@ -89,10 +89,11 @@ func (r *AkpInstanceResource) Create(ctx context.Context, req resource.CreateReq
 		return
 	}
 
-	err := r.upsert(ctx, &resp.Diagnostics, &plan)
+	applied, err := r.upsert(ctx, &resp.Diagnostics, &plan)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", err.Error())
-	} else {
+	}
+	if applied {
 		resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 	}
 }
@@ -132,10 +133,11 @@ func (r *AkpInstanceResource) Update(ctx context.Context, req resource.UpdateReq
 		return
 	}
 
-	err := r.upsert(ctx, &resp.Diagnostics, &plan)
+	applied, err := r.upsert(ctx, &resp.Diagnostics, &plan)
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", err.Error())
-	} else {
+	}
+	if applied {
 		resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 	}
 }
@@ -191,20 +193,20 @@ func (r *AkpInstanceResource) validateAKIntelligenceFeatures(ctx context.Context
 	return nil
 }
 
-func (r *AkpInstanceResource) upsert(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.Instance) error {
+func (r *AkpInstanceResource) upsert(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.Instance) (applied bool, err error) {
 	// Mark sensitive secret data
 	tflog.MaskLogStrings(ctx, plan.GetSensitiveStrings(ctx, diagnostics)...)
 
 	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 
 	if err := r.validateAKIntelligenceFeatures(ctx, plan); err != nil {
-		return err
+		return false, err
 	}
 
 	workspace, err := getWorkspace(ctx, r.akpCli.OrgCli, r.akpCli.OrgId, plan.Workspace.ValueString())
 	if err != nil {
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get workspace. %s", err))
-		return errors.New("Unable to get workspace")
+		return false, errors.New("Unable to get workspace")
 	}
 
 	apiReq := buildApplyRequest(ctx, diagnostics, plan, r.akpCli.OrgId, workspace.GetId())
@@ -213,7 +215,7 @@ func (r *AkpInstanceResource) upsert(ctx context.Context, diagnostics *diag.Diag
 		return r.akpCli.Cli.ApplyInstance(ctx, apiReq)
 	}, "ApplyInstance")
 	if err != nil {
-		return errors.Wrap(err, "Unable to upsert Argo CD instance")
+		return false, errors.Wrap(err, "Unable to upsert Argo CD instance")
 	}
 
 	if plan.Workspace.ValueString() == "" {
@@ -252,10 +254,10 @@ func (r *AkpInstanceResource) upsert(ctx context.Context, diagnostics *diag.Diag
 
 	if waitErr != nil {
 		diagnostics.AddError("Instance Wait Error", fmt.Sprintf("Instance '%s' did not become healthy: %s", instanceName, waitErr.Error()))
-		return waitErr
+		return true, waitErr
 	}
 
-	return refreshState(ctx, diagnostics, r.akpCli.Cli, plan, &argocdv1.GetInstanceRequest{
+	return true, refreshState(ctx, diagnostics, r.akpCli.Cli, plan, &argocdv1.GetInstanceRequest{
 		OrganizationId: r.akpCli.OrgId,
 		IdType:         idv1.Type_NAME,
 		Id:             plan.Name.ValueString(),

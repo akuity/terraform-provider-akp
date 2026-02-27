@@ -73,9 +73,12 @@ Read-Only:
 Read-Only:
 
 - `akuity_managed` (Boolean) Whether the Kargo agent is managed by Akuity
+- `allowed_job_sa` (List of String) The list of allowed job service accounts for the Kargo agent
 - `argocd_namespace` (String) The namespace of the Argo CD instance
 - `auto_upgrade_disabled` (Boolean) Whether auto upgrade is disabled
 - `kustomization` (String) Kustomize configuration that will be applied to generated Kargo agent installation manifests
+- `maintenance_mode` (Boolean) Whether maintenance mode is enabled for the agent.
+- `maintenance_mode_expiry` (String) Expiry time for maintenance mode in RFC3339 format.
 - `remote_argocd` (String) The ID of the remote Argo CD instance
 - `size` (String) The size of the Kargo agent
 - `target_version` (String) The target version of the Kargo agent

@@ -35,11 +35,14 @@ type KargoAgentSpec struct {
 }
 
 type KargoAgentData struct {
-	Size                types.String `tfsdk:"size"`
-	AutoUpgradeDisabled types.Bool   `tfsdk:"auto_upgrade_disabled"`
-	TargetVersion       types.String `tfsdk:"target_version"`
-	Kustomization       types.String `tfsdk:"kustomization"`
-	RemoteArgocd        types.String `tfsdk:"remote_argocd"`
-	AkuityManaged       types.Bool   `tfsdk:"akuity_managed"`
-	ArgocdNamespace     types.String `tfsdk:"argocd_namespace"`
+	Size                  types.String `tfsdk:"size"`
+	AutoUpgradeDisabled   types.Bool   `tfsdk:"auto_upgrade_disabled"`
+	TargetVersion         types.String `tfsdk:"target_version"`
+	Kustomization         types.String `tfsdk:"kustomization"`
+	RemoteArgocd          types.String `tfsdk:"remote_argocd"`
+	AkuityManaged         types.Bool   `tfsdk:"akuity_managed"`
+	ArgocdNamespace       types.String `tfsdk:"argocd_namespace"`
+	AllowedJobSa          types.List   `tfsdk:"allowed_job_sa"`
+	MaintenanceMode       types.Bool   `tfsdk:"maintenance_mode"`
+	MaintenanceModeExpiry types.String `tfsdk:"maintenance_mode_expiry"`
 }

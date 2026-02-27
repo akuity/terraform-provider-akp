@@ -162,6 +162,14 @@ func getClusterDataDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Enables the ability to set server-side diff on the application-controller.",
 			Computed:            true,
 		},
+		"maintenance_mode": schema.BoolAttribute{
+			MarkdownDescription: "Whether maintenance mode is enabled for the cluster.",
+			Computed:            true,
+		},
+		"maintenance_mode_expiry": schema.StringAttribute{
+			MarkdownDescription: "Expiry time for maintenance mode in RFC3339 format.",
+			Computed:            true,
+		},
 	}
 }
 
