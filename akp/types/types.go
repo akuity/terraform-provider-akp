@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -397,16 +398,19 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 		namespaceScoped = types.BoolValue(apiCluster.GetNamespaceScoped()) //nolint:staticcheck
 	}
 
-	/*
-		var serverSideDiffEnabled types.Bool
-		if plan != nil && plan.Spec != nil && !plan.Spec.Data.ServerSideDiffEnabled.IsUnknown() {
-			serverSideDiffEnabled = plan.Spec.Data.ServerSideDiffEnabled
-		} else {
-			serverSideDiffEnabled = types.BoolValue(apiCluster.GetData().GetServerSideDiffEnabled())
-		}
+	var serverSideDiffEnabled types.Bool
+	if plan != nil && plan.Spec != nil && !plan.Spec.Data.ServerSideDiffEnabled.IsUnknown() {
+		serverSideDiffEnabled = plan.Spec.Data.ServerSideDiffEnabled
+	} else {
+		serverSideDiffEnabled = types.BoolValue(apiCluster.GetData().GetServerSideDiffEnabled())
+	}
 
-	*/
-
+	var maintenanceModeExpiry types.String
+	if apiCluster.GetData().GetMaintenanceModeExpiry() != nil {
+		maintenanceModeExpiry = types.StringValue(apiCluster.GetData().GetMaintenanceModeExpiry().AsTime().Format(time.RFC3339))
+	} else {
+		maintenanceModeExpiry = types.StringNull()
+	}
 	c.Spec = &ClusterSpec{
 		NamespaceScoped: namespaceScoped,
 		Data: ClusterData{
@@ -425,7 +429,9 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 			Compatibility:                   toCompatibilityTFModel(plan, apiCluster.GetData().GetCompatibility()),
 			ArgocdNotificationsSettings:     toArgoCDNotificationsSettingsTFModel(plan, apiCluster.GetData().GetArgocdNotificationsSettings()),
 			DirectClusterSpec:               directClusterSpec,
-			// ServerSideDiffEnabled:           serverSideDiffEnabled,
+			MaintenanceMode:                 types.BoolValue(apiCluster.GetData().GetMaintenanceMode()),
+			MaintenanceModeExpiry:           maintenanceModeExpiry,
+			ServerSideDiffEnabled:           serverSideDiffEnabled,
 		},
 	}
 
@@ -574,6 +580,15 @@ func toClusterDataAPIModel(diagnostics *diag.Diagnostics, clusterData ClusterDat
 		apiSize = clusterSize
 	}
 
+	var maintenanceModeExpiry *metav1.Time
+	if !clusterData.MaintenanceModeExpiry.IsNull() && !clusterData.MaintenanceModeExpiry.IsUnknown() && clusterData.MaintenanceModeExpiry.ValueString() != "" {
+		parsed, err := time.Parse(time.RFC3339, clusterData.MaintenanceModeExpiry.ValueString())
+		if err != nil {
+			diagnostics.AddError("Invalid maintenance_mode_expiry", fmt.Sprintf("Failed to parse maintenance_mode_expiry as RFC3339: %s", err))
+			return v1alpha1.ClusterData{}
+		}
+		maintenanceModeExpiry = &metav1.Time{Time: parsed}
+	}
 	return v1alpha1.ClusterData{
 		Size:                            v1alpha1.ClusterSize(apiSize),
 		AutoUpgradeDisabled:             toBoolPointer(clusterData.AutoUpgradeDisabled),
@@ -591,6 +606,8 @@ func toClusterDataAPIModel(diagnostics *diag.Diagnostics, clusterData ClusterDat
 		Compatibility:                   toCompatibilityAPIModel(clusterData.Compatibility),
 		ArgocdNotificationsSettings:     toArgoCDNotificationsSettingsAPIModel(clusterData.ArgocdNotificationsSettings),
 		DirectClusterSpec:               directClusterSpec,
+		MaintenanceMode:                 toBoolPointer(clusterData.MaintenanceMode),
+		MaintenanceModeExpiry:           maintenanceModeExpiry,
 	}
 }
 
@@ -883,9 +900,16 @@ func (a *ArgoCD) toClusterCustomizationTFModel(ctx context.Context, diagnostics 
 	if customization == nil {
 		return types.ObjectNull(clusterCustomizationAttrTypes)
 	}
-	yamlData, err := yaml.JSONToYAML(customization.Kustomization.Raw)
-	if err != nil {
-		diagnostics.AddError("failed to convert json to yaml", err.Error())
+
+	var yamlData []byte
+	if len(customization.Kustomization.Raw) == 0 || string(customization.Kustomization.Raw) == "null" {
+		yamlData = []byte("")
+	} else {
+		var err error
+		yamlData, err = yaml.JSONToYAML(customization.Kustomization.Raw)
+		if err != nil {
+			diagnostics.AddError("failed to convert json to yaml", err.Error())
+		}
 	}
 
 	if !a.Spec.InstanceSpec.ClusterCustomizationDefaults.IsNull() && !a.Spec.InstanceSpec.ClusterCustomizationDefaults.IsUnknown() {
@@ -898,7 +922,7 @@ func (a *ArgoCD) toClusterCustomizationTFModel(ctx context.Context, diagnostics 
 		if !diagnostics.HasError() {
 			existingYaml := existingCustomization.Kustomization.ValueString()
 			newYaml := string(yamlData)
-			if yamlEqual(existingYaml, newYaml) {
+			if yamlEqual(existingYaml, newYaml) || isKustomizationSubset(newYaml, existingYaml) {
 				yamlData = []byte(existingYaml)
 			}
 		}

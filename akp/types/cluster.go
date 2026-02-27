@@ -103,6 +103,7 @@ type ClusterData struct {
 	DatadogAnnotationsEnabled       types.Bool                          `tfsdk:"datadog_annotations_enabled"`
 	EksAddonEnabled                 types.Bool                          `tfsdk:"eks_addon_enabled"`
 	ManagedClusterConfig            *ManagedClusterConfig               `tfsdk:"managed_cluster_config"`
+	MaintenanceMode                 types.Bool                          `tfsdk:"maintenance_mode"`
 	MultiClusterK8SDashboardEnabled types.Bool                          `tfsdk:"multi_cluster_k8s_dashboard_enabled"`
 	CustomAgentSizeConfig           *CustomAgentSizeConfig              `tfsdk:"custom_agent_size_config"`
 	AutoscalerConfig                basetypes.ObjectValue               `tfsdk:"auto_agent_size_config"`
@@ -110,4 +111,5 @@ type ClusterData struct {
 	Compatibility                   *ClusterCompatibility               `tfsdk:"compatibility"`
 	ArgocdNotificationsSettings     *ClusterArgoCDNotificationsSettings `tfsdk:"argocd_notifications_settings"`
 	ServerSideDiffEnabled           types.Bool                          `tfsdk:"server_side_diff_enabled"`
+	MaintenanceModeExpiry           types.String                        `tfsdk:"maintenance_mode_expiry"`
 }

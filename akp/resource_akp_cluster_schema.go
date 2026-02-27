@@ -273,6 +273,22 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 				boolplanmodifier.UseStateForUnknown(),
 			},
 		},
+		"maintenance_mode": schema.BoolAttribute{
+			MarkdownDescription: "Enable maintenance mode for the cluster. When enabled, alerts for degraded agents are muted.",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Bool{
+				boolplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"maintenance_mode_expiry": schema.StringAttribute{
+			MarkdownDescription: "Expiry time for maintenance mode in RFC3339 format. Maintenance mode will be automatically disabled after this time.",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
 	}
 }
 

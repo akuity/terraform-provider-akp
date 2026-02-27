@@ -135,9 +135,12 @@ Required:
 Optional:
 
 - `akuity_managed` (Boolean) This means the agent is managed by Akuity
+- `allowed_job_sa` (List of String) List of allowed service accounts for analysis jobs created by the agent
 - `argocd_namespace` (String) Provide the namespace your Argo CD is installed in. This is only available if you self-host your Kargo agent.
 - `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
 - `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
+- `maintenance_mode` (Boolean) Enable maintenance mode for the agent. When enabled, alerts for degraded agents are muted.
+- `maintenance_mode_expiry` (String) Expiry time for maintenance mode in RFC3339 format. Maintenance mode will be automatically disabled after this time.
 - `remote_argocd` (String) Remote Argo CD instance to connect to
 - `target_version` (String) Target version of the agent to install on your cluster
 

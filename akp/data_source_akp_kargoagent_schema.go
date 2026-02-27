@@ -112,5 +112,18 @@ func getAKPKargoAgentDataDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "The namespace of the Argo CD instance",
 			Computed:            true,
 		},
+		"allowed_job_sa": schema.ListAttribute{
+			ElementType:         types.StringType,
+			MarkdownDescription: "The list of allowed job service accounts for the Kargo agent",
+			Computed:            true,
+		},
+		"maintenance_mode": schema.BoolAttribute{
+			MarkdownDescription: "Whether maintenance mode is enabled for the agent.",
+			Computed:            true,
+		},
+		"maintenance_mode_expiry": schema.StringAttribute{
+			MarkdownDescription: "Expiry time for maintenance mode in RFC3339 format.",
+			Computed:            true,
+		},
 	}
 }

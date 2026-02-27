@@ -32,4 +32,8 @@ type KargoAgentData struct {
 	RemoteArgocd        string               `json:"remoteArgocd,omitempty"`
 	AkuityManaged       bool                 `json:"akuityManaged,omitempty"`
 	ArgocdNamespace     string               `json:"argocdNamespace,omitempty"`
+
+	AllowedJobSa          []string     `json:"allowedJobSa,omitempty"`
+	MaintenanceMode       *bool        `json:"maintenanceMode,omitempty"`
+	MaintenanceModeExpiry *metav1.Time `json:"maintenanceModeExpiry,omitempty"`
 }

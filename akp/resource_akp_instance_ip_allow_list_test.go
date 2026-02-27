@@ -11,9 +11,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 
+	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
-	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
 )
 
 func TestAccInstanceIPAllowListResource(t *testing.T) {

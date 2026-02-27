@@ -4,13 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"sort"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"google.golang.org/protobuf/types/known/structpb"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
 func ToFilteredConfigMapTFModel(ctx context.Context, diagnostics *diag.Diagnostics, data *structpb.Struct, oldCM tftypes.Map) tftypes.Map {
@@ -27,6 +30,8 @@ func ToFilteredConfigMapTFModel(ctx context.Context, diagnostics *diag.Diagnosti
 
 	m := data.AsMap()
 
+	mergedCustomizations := parseMergedResourceCustomizations(m)
+
 	// Only include values which are a part of the original resource map. The reason for doing so is that the API returns
 	// a lot of fields which can cause TF to have an inconsistent state. We rely on the backend being able to do the right
 	// thing in regard to PATCH requests; we don't actually need to have all the fields which the API returns in the state.
@@ -34,6 +39,11 @@ func ToFilteredConfigMapTFModel(ctx context.Context, diagnostics *diag.Diagnosti
 		if v, ok := m[k]; ok {
 			switch t := v.(type) {
 			case string:
+				if k == "resource.customizations" {
+					if yamlSemanticEqual(oldMap[k], t) {
+						continue
+					}
+				}
 				sortedValue, err := sortJSONString(t)
 				if err != nil {
 					diagnostics.AddError("Client Error", fmt.Sprintf("Unable to sort JSON keys for key %s. %s", k, err))
@@ -43,12 +53,85 @@ func ToFilteredConfigMapTFModel(ctx context.Context, diagnostics *diag.Diagnosti
 			default:
 				oldMap[k] = v
 			}
+		} else if v, ok := resolveResourceCustomizationKey(k, mergedCustomizations); ok {
+			oldMap[k] = v
 		}
 	}
 
 	newData, diag := tftypes.MapValueFrom(ctx, tftypes.StringType, &oldMap)
 	diagnostics.Append(diag...)
 	return newData
+}
+
+func parseMergedResourceCustomizations(apiMap map[string]any) map[string]string {
+	result := make(map[string]string)
+
+	raw, ok := apiMap["resource.customizations"]
+	if !ok {
+		return result
+	}
+	yamlStr, ok := raw.(string)
+	if !ok {
+		return result
+	}
+
+	var customizations map[string]map[string]any
+	if err := yaml.Unmarshal([]byte(yamlStr), &customizations); err != nil {
+		return result
+	}
+
+	for groupKind, fields := range customizations {
+		flatGroupKind := strings.ReplaceAll(groupKind, "/", "_")
+		for fieldName, fieldValue := range fields {
+			var valueStr string
+			switch v := fieldValue.(type) {
+			case string:
+				valueStr = strings.TrimSpace(v)
+			default:
+				data, err := yaml.Marshal(v)
+				if err != nil {
+					continue
+				}
+				valueStr = strings.TrimSpace(string(data))
+			}
+			key := fmt.Sprintf("resource.customizations.%s.%s", fieldName, flatGroupKind)
+			result[key] = valueStr
+		}
+	}
+
+	return result
+}
+
+func yamlSemanticEqual(oldVal interface{}, newYAML string) bool {
+	var oldStr string
+	switch v := oldVal.(type) {
+	case string:
+		oldStr = v
+	case tftypes.String:
+		if v.IsNull() || v.IsUnknown() {
+			return false
+		}
+		oldStr = v.ValueString()
+	default:
+		return false
+	}
+
+	var oldMap, newMap interface{}
+	if err := yaml.Unmarshal([]byte(oldStr), &oldMap); err != nil {
+		return false
+	}
+	if err := yaml.Unmarshal([]byte(newYAML), &newMap); err != nil {
+		return false
+	}
+	return reflect.DeepEqual(oldMap, newMap)
+}
+
+func resolveResourceCustomizationKey(key string, mergedCustomizations map[string]string) (string, bool) {
+	if !strings.HasPrefix(key, "resource.customizations.") {
+		return "", false
+	}
+	v, ok := mergedCustomizations[key]
+	return v, ok
 }
 
 func ToConfigMapTFModel(ctx context.Context, diagnostics *diag.Diagnostics, data *structpb.Struct, oldCM tftypes.Map) tftypes.Map {
@@ -143,6 +226,12 @@ func sortJSONString(jsonStr string) (string, error) {
 	err := json.Unmarshal([]byte(jsonStr), &data)
 	if err != nil {
 		return "", err
+	}
+
+	switch data.(type) {
+	case map[string]any, []any:
+	default:
+		return jsonStr, nil
 	}
 
 	sortedData, err := sortJSONKeys(data)

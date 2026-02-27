@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -181,6 +182,31 @@ func getAKPKargoAgentDataAttributes() map[string]schema.Attribute {
 		},
 		"argocd_namespace": schema.StringAttribute{
 			MarkdownDescription: "Provide the namespace your Argo CD is installed in. This is only available if you self-host your Kargo agent.",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"allowed_job_sa": schema.ListAttribute{
+			ElementType:         types.StringType,
+			MarkdownDescription: "List of allowed service accounts for analysis jobs created by the agent",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.List{
+				listplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"maintenance_mode": schema.BoolAttribute{
+			MarkdownDescription: "Enable maintenance mode for the agent. When enabled, alerts for degraded agents are muted.",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Bool{
+				boolplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"maintenance_mode_expiry": schema.StringAttribute{
+			MarkdownDescription: "Expiry time for maintenance mode in RFC3339 format. Maintenance mode will be automatically disabled after this time.",
 			Optional:            true,
 			Computed:            true,
 			PlanModifiers: []planmodifier.String{
