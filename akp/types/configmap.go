@@ -40,7 +40,7 @@ func ToFilteredConfigMapTFModel(ctx context.Context, diagnostics *diag.Diagnosti
 			switch t := v.(type) {
 			case string:
 				if k == "resource.customizations" {
-					if yamlSemanticEqual(oldMap[k], t) {
+					if yamlIsSubset(t, oldMap[k]) {
 						continue
 					}
 				}
@@ -102,28 +102,48 @@ func parseMergedResourceCustomizations(apiMap map[string]any) map[string]string 
 	return result
 }
 
-func yamlSemanticEqual(oldVal interface{}, newYAML string) bool {
-	var oldStr string
-	switch v := oldVal.(type) {
-	case string:
-		oldStr = v
-	case tftypes.String:
-		if v.IsNull() || v.IsUnknown() {
-			return false
-		}
-		oldStr = v.ValueString()
-	default:
+func yamlIsSubset(sub, super any) bool {
+	subStr, ok := toYAMLString(sub)
+	if !ok {
+		return false
+	}
+	superStr, ok := toYAMLString(super)
+	if !ok {
 		return false
 	}
 
-	var oldMap, newMap interface{}
-	if err := yaml.Unmarshal([]byte(oldStr), &oldMap); err != nil {
+	var subMap, superMap map[string]any
+	if err := yaml.Unmarshal([]byte(subStr), &subMap); err != nil {
 		return false
 	}
-	if err := yaml.Unmarshal([]byte(newYAML), &newMap); err != nil {
+	if err := yaml.Unmarshal([]byte(superStr), &superMap); err != nil {
 		return false
 	}
-	return reflect.DeepEqual(oldMap, newMap)
+
+	for k, subVal := range subMap {
+		superVal, exists := superMap[k]
+		if !exists {
+			return false
+		}
+		if !reflect.DeepEqual(subVal, superVal) {
+			return false
+		}
+	}
+	return true
+}
+
+func toYAMLString(val any) (string, bool) {
+	switch v := val.(type) {
+	case string:
+		return v, true
+	case tftypes.String:
+		if v.IsNull() || v.IsUnknown() {
+			return "", false
+		}
+		return v.ValueString(), true
+	default:
+		return "", false
+	}
 }
 
 func resolveResourceCustomizationKey(key string, mergedCustomizations map[string]string) (string, bool) {

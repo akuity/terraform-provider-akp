@@ -521,7 +521,7 @@ func waitClusterHealthStatus(ctx context.Context, client argocdv1.ArgoCDServiceG
 		errMsg.WriteString(err.Error())
 
 		if lastHealthMessage != "" {
-			errMsg.WriteString(fmt.Sprintf("\n\nHealth status message: %s", lastHealthMessage))
+			fmt.Fprintf(&errMsg, "\n\nHealth status message: %s", lastHealthMessage)
 		}
 
 		errMsg.WriteString("\n\nTroubleshooting steps:")
