@@ -73,6 +73,52 @@ resource "akp_kargo_instance" "test" {
 `, name, getKargoVersion())
 }
 
+func TestAccKargoInstanceResourceRename(t *testing.T) {
+	t.Skip("Requires server-side fix for toPatchInstanceRequest to include metadata.name in the patch. Remove skip once the fix is deployed.")
+	t.Parallel()
+	name := fmt.Sprintf("kargo-rename-%s", acctest.RandString(10))
+	newName := fmt.Sprintf("kargo-renamed-%s", acctest.RandString(10))
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Step 1: Create the instance with the original name
+			{
+				Config: providerConfig + testAccKargoInstanceResourceConfigBasic(name),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("akp_kargo_instance.test", "id"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "name", name),
+				),
+			},
+			// Step 2: Rename the instance
+			{
+				Config: providerConfig + testAccKargoInstanceResourceConfigBasic(newName),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("akp_kargo_instance.test", "id"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "name", newName),
+				),
+			},
+		},
+	})
+}
+
+func testAccKargoInstanceResourceConfigBasic(name string) string {
+	return fmt.Sprintf(`
+resource "akp_kargo_instance" "test" {
+  name = %q
+  kargo = {
+    spec = {
+      version = %q
+      description = "Test Kargo instance for rename testing"
+      kargo_instance_spec = {
+        backend_ip_allow_list_enabled = false
+      }
+    }
+  }
+}
+`, name, getKargoVersion())
+}
+
 func TestAccKargoInstanceResourceDexConfig(t *testing.T) {
 	t.Parallel()
 	name := fmt.Sprintf("kargo-dex-%s", acctest.RandString(10))
