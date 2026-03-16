@@ -1137,19 +1137,23 @@ func getIncidentWebhookConfigAttributes() map[string]schema.Attribute {
 		},
 		"description_path": schema.StringAttribute{
 			MarkdownDescription: "JSON path for description field",
-			Required:            true,
+			Optional:            true,
 		},
 		"cluster_path": schema.StringAttribute{
 			MarkdownDescription: "JSON path for cluster field",
-			Required:            true,
+			Optional:            true,
 		},
 		"k8s_namespace_path": schema.StringAttribute{
 			MarkdownDescription: "JSON path for Kubernetes namespace field",
-			Required:            true,
+			Optional:            true,
 		},
 		"argocd_application_name_path": schema.StringAttribute{
 			MarkdownDescription: "JSON path for ArgoCD application name field",
-			Required:            true,
+			Optional:            true,
+		},
+		"argocd_application_namespace_path": schema.StringAttribute{
+			MarkdownDescription: "JSON path for ArgoCD application name field",
+			Optional:            true,
 		},
 	}
 }

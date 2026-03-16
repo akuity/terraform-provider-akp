@@ -179,6 +179,7 @@ func (p *AkpProvider) Resources(ctx context.Context) []func() resource.Resource 
 		NewAkpClusterResource,
 		NewAkpKargoInstanceResource,
 		NewAkpKargoAgentResource,
+		NewAkpKargoDefaultShardAgentResource,
 	}
 }
 

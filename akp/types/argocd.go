@@ -79,11 +79,12 @@ type Runbook struct {
 }
 
 type IncidentWebhookConfig struct {
-	Name                      types.String `tfsdk:"name"`
-	DescriptionPath           types.String `tfsdk:"description_path"`
-	ClusterPath               types.String `tfsdk:"cluster_path"`
-	K8SNamespacePath          types.String `tfsdk:"k8s_namespace_path"`
-	ArgocdApplicationNamePath types.String `tfsdk:"argocd_application_name_path"`
+	Name                           types.String `tfsdk:"name"`
+	DescriptionPath                types.String `tfsdk:"description_path"`
+	ClusterPath                    types.String `tfsdk:"cluster_path"`
+	K8SNamespacePath               types.String `tfsdk:"k8s_namespace_path"`
+	ArgocdApplicationNamePath      types.String `tfsdk:"argocd_application_name_path"`
+	ArgocdApplicationNamespacePath types.String `tfsdk:"argocd_application_namespace_path"`
 }
 
 type IncidentsGroupingConfig struct {

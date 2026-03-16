@@ -2046,11 +2046,12 @@ func toIncidentWebhookConfigTFModel(webhook *v1alpha1.IncidentWebhookConfig) *In
 		return nil
 	}
 	return &IncidentWebhookConfig{
-		Name:                      types.StringValue(webhook.Name),
-		DescriptionPath:           types.StringValue(webhook.DescriptionPath),
-		ClusterPath:               types.StringValue(webhook.ClusterPath),
-		K8SNamespacePath:          types.StringValue(webhook.K8SNamespacePath),
-		ArgocdApplicationNamePath: types.StringValue(webhook.ArgocdApplicationNamePath),
+		Name:                           types.StringValue(webhook.Name),
+		DescriptionPath:                types.StringValue(webhook.DescriptionPath),
+		ClusterPath:                    types.StringValue(webhook.ClusterPath),
+		K8SNamespacePath:               types.StringValue(webhook.K8SNamespacePath),
+		ArgocdApplicationNamePath:      types.StringValue(webhook.ArgocdApplicationNamePath),
+		ArgocdApplicationNamespacePath: types.StringValue(webhook.ArgocdApplicationNamespacePath),
 	}
 }
 
@@ -2059,11 +2060,12 @@ func toIncidentWebhookConfigAPIModel(webhook *IncidentWebhookConfig) *v1alpha1.I
 		return nil
 	}
 	return &v1alpha1.IncidentWebhookConfig{
-		Name:                      webhook.Name.ValueString(),
-		DescriptionPath:           webhook.DescriptionPath.ValueString(),
-		ClusterPath:               webhook.ClusterPath.ValueString(),
-		K8SNamespacePath:          webhook.K8SNamespacePath.ValueString(),
-		ArgocdApplicationNamePath: webhook.ArgocdApplicationNamePath.ValueString(),
+		Name:                           webhook.Name.ValueString(),
+		DescriptionPath:                webhook.DescriptionPath.ValueString(),
+		ClusterPath:                    webhook.ClusterPath.ValueString(),
+		K8SNamespacePath:               webhook.K8SNamespacePath.ValueString(),
+		ArgocdApplicationNamePath:      webhook.ArgocdApplicationNamePath.ValueString(),
+		ArgocdApplicationNamespacePath: webhook.ArgocdApplicationNamespacePath.ValueString(),
 	}
 }
 

@@ -410,6 +410,12 @@ func buildKargo(ctx context.Context, diagnostics *diag.Diagnostics, kargo *types
 	}
 
 	if spec, ok := rawMap["spec"].(map[string]any); ok {
+		// Ignore default shard agent
+		kargoInstanceSpec, sok := spec["kargoInstanceSpec"].(map[string]any)
+		if sok {
+			delete(kargoInstanceSpec, "defaultShardAgent")
+		}
+
 		_, fok := spec["fqdn"].(string)
 		if !fok {
 			spec["fqdn"] = ""
