@@ -84,11 +84,12 @@ type Runbook struct {
 }
 
 type IncidentWebhookConfig struct {
-	Name                      string `json:"name,omitempty"`
-	DescriptionPath           string `json:"descriptionPath,omitempty"`
-	ClusterPath               string `json:"clusterPath,omitempty"`
-	K8SNamespacePath          string `json:"k8sNamespacePath,omitempty"`
-	ArgocdApplicationNamePath string `json:"argocdApplicationNamePath,omitempty"`
+	Name                           string `json:"name,omitempty"`
+	DescriptionPath                string `json:"descriptionPath,omitempty"`
+	ClusterPath                    string `json:"clusterPath,omitempty"`
+	K8SNamespacePath               string `json:"k8sNamespacePath,omitempty"`
+	ArgocdApplicationNamePath      string `json:"argocdApplicationNamePath,omitempty"`
+	ArgocdApplicationNamespacePath string `json:"argocdApplicationNamespacePath,omitempty"`
 }
 
 type IncidentsGroupingConfig struct {

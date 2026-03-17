@@ -905,5 +905,9 @@ func getIncidentWebhookConfigDataSourceAttributes() map[string]schema.Attribute 
 			MarkdownDescription: "JSON path for ArgoCD application name field",
 			Computed:            true,
 		},
+		"argocd_application_namespace_path": schema.StringAttribute{
+			MarkdownDescription: "JSON path for ArgoCD application name field",
+			Computed:            true,
+		},
 	}
 }

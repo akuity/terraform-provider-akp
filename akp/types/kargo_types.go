@@ -70,12 +70,9 @@ func (k *Kargo) Update(ctx context.Context, diagnostics *diag.Diagnostics, kargo
 	}
 
 	defaultShardAgent := types.StringValue(kargo.Spec.KargoInstanceSpec.DefaultShardAgent)
-	if agentMaps != nil && !k.Spec.KargoInstanceSpec.DefaultShardAgent.IsNull() && !k.Spec.KargoInstanceSpec.DefaultShardAgent.IsUnknown() {
-		userInput := k.Spec.KargoInstanceSpec.DefaultShardAgent.ValueString()
-		apiValue := kargo.Spec.KargoInstanceSpec.DefaultShardAgent
-		if agentMaps.IDToName[apiValue] == userInput || apiValue == userInput {
-			defaultShardAgent = k.Spec.KargoInstanceSpec.DefaultShardAgent
-		}
+	if !k.Spec.KargoInstanceSpec.DefaultShardAgent.IsNull() && !k.Spec.KargoInstanceSpec.DefaultShardAgent.IsUnknown() {
+		// Deprecated field: always retain what the user set in the config/plan to prevent "inconsistent result" errors
+		defaultShardAgent = k.Spec.KargoInstanceSpec.DefaultShardAgent
 	}
 
 	k.Spec = KargoSpec{

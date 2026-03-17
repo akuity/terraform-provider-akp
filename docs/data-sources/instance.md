@@ -325,6 +325,7 @@ Read-Only:
 Read-Only:
 
 - `argocd_application_name_path` (String) JSON path for ArgoCD application name field
+- `argocd_application_namespace_path` (String) JSON path for ArgoCD application name field
 - `cluster_path` (String) JSON path for cluster field
 - `description_path` (String) JSON path for description field
 - `k8s_namespace_path` (String) JSON path for Kubernetes namespace field

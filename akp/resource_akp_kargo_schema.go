@@ -154,12 +154,13 @@ func getKargoSpecInstanceAttributes() map[string]schema.Attribute {
 			Attributes:          getKargoAgentCustomizationAttributes(),
 		},
 		"default_shard_agent": schema.StringAttribute{
-			MarkdownDescription: "Default shard agent, either agent id or agent name",
+			MarkdownDescription: "**Deprecated:** Default shard agent, either agent id or agent name. Use `akp_kargo_default_shard_agent` resource instead.",
 			Optional:            true,
 			Computed:            true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
 			},
+			DeprecationMessage: "Use `akp_kargo_default_shard_agent` resource instead. Remove this field from your configuration to allow akp_kargo_default_shard_agent resources to manage the default shard agent independently.",
 		},
 		"global_credentials_ns": schema.ListAttribute{
 			MarkdownDescription: "List of global credentials namespaces",
