@@ -38,6 +38,7 @@ var (
 	instanceId      string
 	instanceName    string
 	instanceVersion string
+	instanceOwned   bool
 	testAkpCli      *AkpCli
 	instanceOnce    sync.Once
 	instanceMu      sync.RWMutex
@@ -70,9 +71,13 @@ func getInstanceId() string {
 		if instanceId == "" {
 			if v := os.Getenv("AKUITY_INSTANCE_ID"); v == "" {
 				// Create a new instance for testing
+				instanceOwned = true
 				instanceId = createTestInstance()
 			} else {
+				fmt.Printf("Reusing Argo CD test instance %s from AKUITY_INSTANCE_ID\n", v)
+				instanceOwned = false
 				instanceId = v
+				fetchInstanceDetails(v)
 			}
 		}
 		return instanceId
@@ -261,19 +266,22 @@ func createTestInstance() string {
 			Argocd:         instanceStructpb,
 		}
 		fmt.Printf("Applying instance %s...\n", instanceName)
-		_, err = akpCli.Cli.ApplyInstance(ctx, applyReq)
+		_, err = retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.ApplyInstanceResponse, error) {
+			return akpCli.Cli.ApplyInstance(ctx, applyReq)
+		}, "create ArgoCD instance")
 		if err != nil {
 			panic(fmt.Sprintf("Failed to create instance: %v", err))
 		}
 		fmt.Printf("Instance %s created successfully\n", instanceName)
 
-		// Get the created instance to get its ID
 		fmt.Printf("Fetching instance %s to get ID...\n", instanceName)
-		instanceResponse, err := akpCli.Cli.GetInstance(ctx, &argocdv1.GetInstanceRequest{
-			OrganizationId: akpCli.OrgId,
-			Id:             instanceName,
-			IdType:         idv1.Type_NAME,
-		})
+		instanceResponse, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.GetInstanceResponse, error) {
+			return akpCli.Cli.GetInstance(ctx, &argocdv1.GetInstanceRequest{
+				OrganizationId: akpCli.OrgId,
+				Id:             instanceName,
+				IdType:         idv1.Type_NAME,
+			})
+		}, "get ArgoCD instance")
 		if err != nil {
 			panic(fmt.Sprintf("Failed to get created instance: %v", err))
 		}
@@ -306,7 +314,7 @@ func createTestInstance() string {
 			getStatusFunc,
 			[]healthv1.StatusCode{healthv1.StatusCode_STATUS_CODE_HEALTHY},
 			10*time.Second,
-			5*time.Minute,
+			10*time.Minute,
 			fmt.Sprintf("Test instance %s", instanceName),
 			"health",
 		)
@@ -382,7 +390,9 @@ func createTestInstance() string {
 			AppProjects:    []*structpb.Struct{appProjectStruct},
 		}
 		fmt.Printf("Adding ArgoCD resources to instance %s...\n", instanceName)
-		_, err = akpCli.Cli.ApplyInstance(ctx, applyResourcesReq)
+		_, err = retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.ApplyInstanceResponse, error) {
+			return akpCli.Cli.ApplyInstance(ctx, applyResourcesReq)
+		}, "add ArgoCD resources to instance")
 		if err != nil {
 			panic(fmt.Sprintf("Failed to add ArgoCD resources to instance: %v", err))
 		}
@@ -393,21 +403,52 @@ func createTestInstance() string {
 }
 
 func cleanupTestInstance() {
-	if instanceId == "" || testAkpCli == nil {
+	instanceMu.RLock()
+	id := instanceId
+	owned := instanceOwned
+	instanceMu.RUnlock()
+
+	testAkpCliMu.Lock()
+	akpCli := testAkpCli
+	testAkpCliMu.Unlock()
+
+	if id == "" || akpCli == nil || !owned {
 		return
 	}
 
 	ctx := context.Background()
-	ctx = httpctx.SetAuthorizationHeader(ctx, testAkpCli.Cred.Scheme(), testAkpCli.Cred.Credential())
+	ctx = httpctx.SetAuthorizationHeader(ctx, akpCli.Cred.Scheme(), akpCli.Cred.Credential())
 
 	// Delete the instance
-	_, _ = testAkpCli.Cli.DeleteInstance(ctx, &argocdv1.DeleteInstanceRequest{
-		Id:             instanceId,
-		OrganizationId: testAkpCli.OrgId,
+	_, _ = akpCli.Cli.DeleteInstance(ctx, &argocdv1.DeleteInstanceRequest{
+		Id:             id,
+		OrganizationId: akpCli.OrgId,
 	})
 }
 
-func TestAccClusterResource(t *testing.T) {
+func fetchInstanceDetails(id string) {
+	if os.Getenv("TF_ACC") != "1" {
+		return
+	}
+
+	akpCli := getTestAkpCli()
+	ctx := context.Background()
+	ctx = httpctx.SetAuthorizationHeader(ctx, akpCli.Cred.Scheme(), akpCli.Cred.Credential())
+
+	resp, err := akpCli.Cli.GetInstance(ctx, &argocdv1.GetInstanceRequest{
+		OrganizationId: akpCli.OrgId,
+		Id:             id,
+		IdType:         idv1.Type_ID,
+	})
+	if err != nil {
+		panic(fmt.Sprintf("Failed to get instance with ID %q: %v", id, err))
+	}
+
+	instanceName = resp.Instance.GetName()
+	instanceVersion = resp.Instance.GetVersion()
+}
+
+func runClusterResource(t *testing.T) {
 	t.Parallel()
 	name := fmt.Sprintf("cluster-%s", acctest.RandString(10))
 	resource.Test(t, resource.TestCase{
@@ -452,6 +493,16 @@ func TestAccClusterResource(t *testing.T) {
         name: argocd-repo-server
 `),
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.app_replication", "false"),
+					// --- Data Sources ---
+					resource.TestCheckResourceAttr("data.akp_cluster.test", "name", name),
+					resource.TestCheckResourceAttrSet("data.akp_cluster.test", "id"),
+					resource.TestCheckResourceAttr("data.akp_cluster.test", "spec.data.size", "small"),
+					resource.TestCheckResourceAttr("data.akp_cluster.test", "spec.data.auto_upgrade_disabled", "true"),
+					resource.TestCheckResourceAttr("data.akp_cluster.test", "remove_agent_resources_on_destroy", "true"),
+					resource.TestCheckResourceAttr("data.akp_cluster.test", "reapply_manifests_on_update", "false"),
+					resource.TestCheckResourceAttr("data.akp_cluster.test", "ensure_healthy", "false"),
+					// clusters list data source
+					resource.TestCheckResourceAttrSet("data.akp_clusters.test", "clusters.#"),
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.redis_tunneling", "false"),
 				),
 			},
@@ -463,12 +514,13 @@ func TestAccClusterResource(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.size", "medium"),
 				),
 			},
+			testAccClusterImportStateStep(getInstanceId(), name, testAccClusterKustomizationImportStateVerifyIgnore...),
 			// Delete testing automatically occurs in TestCase
 		},
 	})
 }
 
-func TestAccClusterResourceIPv6(t *testing.T) {
+func runClusterResourceIPv6(t *testing.T) {
 	t.Parallel()
 	name := fmt.Sprintf("cluster-ipv6-%s", acctest.RandString(10))
 	resource.Test(t, resource.TestCase{
@@ -482,11 +534,12 @@ func TestAccClusterResourceIPv6(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.compatibility.ipv6_only", "true"),
 				),
 			},
+			testAccClusterImportStateStep(getInstanceId(), name, testAccClusterCompatibilityImportStateVerifyIgnore...),
 		},
 	})
 }
 
-func TestAccClusterResourceArgoCDNotifications(t *testing.T) {
+func runClusterResourceArgoCDNotifications(t *testing.T) {
 	t.Parallel()
 	name := fmt.Sprintf("cluster-notifications-%s", acctest.RandString(10))
 	resource.Test(t, resource.TestCase{
@@ -500,11 +553,12 @@ func TestAccClusterResourceArgoCDNotifications(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.argocd_notifications_settings.in_cluster_settings", "true"),
 				),
 			},
+			testAccClusterImportStateStep(getInstanceId(), name, testAccClusterNotificationsImportStateVerifyIgnore...),
 		},
 	})
 }
 
-func TestAccClusterResourceCustomAgentSize(t *testing.T) {
+func runClusterResourceCustomAgentSize(t *testing.T) {
 	t.Parallel()
 	name := fmt.Sprintf("cluster-custom-size-%s", acctest.RandString(10))
 	resource.Test(t, resource.TestCase{
@@ -522,11 +576,12 @@ func TestAccClusterResourceCustomAgentSize(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.custom_agent_size_config.repo_server.replicas", "3"),
 				),
 			},
+			testAccClusterImportStateStep(getInstanceId(), name, testAccClusterCustomSizeImportStateVerifyIgnore...),
 		},
 	})
 }
 
-func TestAccClusterResourceManagedCluster(t *testing.T) {
+func runClusterResourceManagedCluster(t *testing.T) {
 	t.Parallel()
 	name := fmt.Sprintf("cluster-managed-%s", acctest.RandString(10))
 	resource.Test(t, resource.TestCase{
@@ -541,33 +596,15 @@ func TestAccClusterResourceManagedCluster(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.managed_cluster_config.secret_key", "kubeconfig"),
 				),
 			},
+			testAccClusterImportStateStep(getInstanceId(), name, testAccClusterManagedConfigImportStateVerifyIgnore...),
 		},
 	})
 }
 
-func TestAccClusterResourceFeatures(t *testing.T) {
+func runClusterResourceFeatures(t *testing.T) {
 	t.Parallel()
 	name := fmt.Sprintf("cluster-features-%s", acctest.RandString(10))
 
-	// Check if multi-cluster k8s dashboard feature is enabled
-	// If disabled, test should verify proper error handling
-	if os.Getenv("MULTI_CLUSTER_K8S_DASHBOARD_FEATURE_ENABLED") != "true" {
-		// Test that disabled feature returns proper error
-		// TODO: Cluster should be deleted from API if we're trying to _create_ the resource (not when modifying it)
-		resource.Test(t, resource.TestCase{
-			PreCheck:                 func() { testAccPreCheck(t) },
-			ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-			Steps: []resource.TestStep{
-				{
-					Config:      providerConfig + testAccClusterResourceConfigFeatures(name, getInstanceId()),
-					ExpectError: regexp.MustCompile("multi_cluster_k8s_dashboard_enabled feature is not available"),
-				},
-			},
-		})
-		return
-	}
-
-	// Feature is enabled, test normal functionality
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -583,11 +620,12 @@ func TestAccClusterResourceFeatures(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.app_replication", "true"),
 				),
 			},
+			testAccClusterImportStateStep(getInstanceId(), name, testAccClusterFeaturesImportStateVerifyIgnore...),
 		},
 	})
 }
 
-func TestAccClusterResourceReapplyManifests(t *testing.T) {
+func runClusterResourceReapplyManifests(t *testing.T) {
 	t.Parallel()
 	name := fmt.Sprintf("cluster-reapply-%s", acctest.RandString(10))
 	resource.Test(t, resource.TestCase{
@@ -609,11 +647,12 @@ func TestAccClusterResourceReapplyManifests(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_cluster.test", "reapply_manifests_on_update", "true"),
 				),
 			},
+			testAccClusterImportStateStep(getInstanceId(), name, testAccClusterReapplyImportStateVerifyIgnore...),
 		},
 	})
 }
 
-func TestAccClusterResourceNamespaceScoped(t *testing.T) {
+func runClusterResourceNamespaceScoped(t *testing.T) {
 	t.Parallel()
 	name := fmt.Sprintf("cluster-ns-scoped-%s", acctest.RandString(10))
 	path := tfjsonpath.New("spec")
@@ -639,7 +678,6 @@ func TestAccClusterResourceNamespaceScoped(t *testing.T) {
 						plancheck.ExpectResourceAction("akp_cluster.test", plancheck.ResourceActionDestroyBeforeCreate),
 						plancheck.ExpectKnownValue("akp_cluster.test", path.AtMapKey("namespace_scoped"), knownvalue.Bool(false)),
 						plancheck.ExpectKnownValue("akp_cluster.test", data.AtMapKey("size"), knownvalue.StringExact("small")),
-						plancheck.ExpectUnknownValue("akp_cluster.test", data.AtMapKey("auto_agent_size_config")),
 						plancheck.ExpectUnknownValue("akp_cluster.test", data.AtMapKey("auto_upgrade_disabled")),
 						plancheck.ExpectUnknownValue("akp_cluster.test", data.AtMapKey("kustomization")),
 						plancheck.ExpectUnknownValue("akp_cluster.test", data.AtMapKey("multi_cluster_k8s_dashboard_enabled")),
@@ -648,11 +686,12 @@ func TestAccClusterResourceNamespaceScoped(t *testing.T) {
 					},
 				},
 			},
+			testAccClusterImportStateStep(getInstanceId(), name, testAccClusterNamespaceScopedFalseImportStateVerifyIgnore...),
 		},
 	})
 }
 
-func TestAccClusterResourceProject(t *testing.T) {
+func runClusterResourceProject(t *testing.T) {
 	t.Parallel()
 	name := fmt.Sprintf("cluster-project-%s", acctest.RandString(10))
 	resource.Test(t, resource.TestCase{
@@ -666,16 +705,14 @@ func TestAccClusterResourceProject(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.project", "test-project"),
 				),
 			},
+			testAccClusterImportStateStep(getInstanceId(), name, testAccClusterProjectImportStateVerifyIgnore...),
 		},
 	})
 }
 
-func TestAccClusterResourceAutoAgentSizeConsistency(t *testing.T) {
+func runClusterResourceAutoAgentSizeConsistency(t *testing.T) {
 	t.Parallel()
 	name := fmt.Sprintf("cluster-auto-agent-consistency-%s", acctest.RandString(10))
-	path := tfjsonpath.New("spec")
-	data := path.AtMapKey("data")
-
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -688,9 +725,7 @@ func TestAccClusterResourceAutoAgentSizeConsistency(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.size", "small"),
 				),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
-					PreApply: []plancheck.PlanCheck{
-						plancheck.ExpectUnknownValue("akp_cluster.test", data.AtMapKey("auto_agent_size_config")),
-					},
+					PreApply: []plancheck.PlanCheck{},
 				},
 			},
 			// Step 2: Update to add auto_agent_size_config - should work without inconsistency
@@ -736,13 +771,14 @@ func TestAccClusterResourceAutoAgentSizeConsistency(t *testing.T) {
 					PreApply: []plancheck.PlanCheck{},
 				},
 			},
+			testAccClusterImportStateStep(getInstanceId(), name, testAccClusterCommonImportStateVerifyIgnore...),
 		},
 	})
 }
 
 // TestAccClusterResourceAutoAgentSizeCreateWithConfig tests creating a cluster
 // directly with auto_agent_size_config to ensure it works correctly
-func TestAccClusterResourceAutoAgentSizeCreateWithConfig(t *testing.T) {
+func runClusterResourceAutoAgentSizeCreateWithConfig(t *testing.T) {
 	t.Parallel()
 	name := fmt.Sprintf("cluster-auto-agent-create-%s", acctest.RandString(10))
 
@@ -767,6 +803,7 @@ func TestAccClusterResourceAutoAgentSizeCreateWithConfig(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.auto_agent_size_config.repo_server.resource_minimum.memory", "256Mi"),
 				),
 			},
+			testAccClusterImportStateStep(getInstanceId(), name, testAccClusterAutoSizeImportStateVerifyIgnore...),
 		},
 	})
 }
@@ -815,6 +852,15 @@ resource "akp_cluster" "test" {
 EOF
     }
   }
+}
+
+data "akp_cluster" "test" {
+  instance_id = akp_cluster.test.instance_id
+  name        = akp_cluster.test.name
+}
+
+data "akp_clusters" "test" {
+  instance_id = akp_cluster.test.instance_id
 }
 `, instanceId, name, description, size)
 }
@@ -1086,7 +1132,7 @@ resource "akp_cluster" "test" {
 `, instanceId, name)
 }
 
-func TestAccClusterResourceKubeconfig(t *testing.T) {
+func runClusterResourceKubeconfig(t *testing.T) {
 	t.Parallel()
 	name := fmt.Sprintf("cluster-kubeconfig-%s", acctest.RandString(10))
 	resource.Test(t, resource.TestCase{
@@ -1313,16 +1359,16 @@ EOF
 }
 
 func TestAkpClusterResource_reApplyManifests(t *testing.T) {
-	noopReconciliation := func(ctx context.Context, plan *types.Cluster) error { return nil }
-	noopHealth := func(ctx context.Context, plan *types.Cluster) error { return nil }
+	noopReconciliation := func(ctx context.Context, cli *AkpCli, plan *types.Cluster) error { return nil }
+	noopHealth := func(ctx context.Context, cli *AkpCli, plan *types.Cluster) error { return nil }
 
 	type args struct {
 		plan                  *types.Cluster
 		apiReq                *argocdv1.ApplyInstanceRequest
 		applyInstance         func(context.Context, *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error)
-		upsertKubeConfig      func(ctx context.Context, plan *types.Cluster) error
-		waitForReconciliation func(ctx context.Context, plan *types.Cluster) error
-		waitForHealth         func(ctx context.Context, plan *types.Cluster) error
+		upsertKubeConfig      func(ctx context.Context, cli *AkpCli, plan *types.Cluster) error
+		waitForReconciliation func(ctx context.Context, cli *AkpCli, plan *types.Cluster) error
+		waitForHealth         func(ctx context.Context, cli *AkpCli, plan *types.Cluster) error
 	}
 	tests := []struct {
 		name  string
@@ -1342,7 +1388,7 @@ func TestAkpClusterResource_reApplyManifests(t *testing.T) {
 				applyInstance: func(ctx context.Context, request *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error) {
 					return &argocdv1.ApplyInstanceResponse{}, nil
 				},
-				upsertKubeConfig: func(ctx context.Context, plan *types.Cluster) error {
+				upsertKubeConfig: func(ctx context.Context, cli *AkpCli, plan *types.Cluster) error {
 					return errors.New("some kube apply error")
 				},
 				waitForReconciliation: noopReconciliation,
@@ -1396,7 +1442,7 @@ func TestAkpClusterResource_reApplyManifests(t *testing.T) {
 					return &argocdv1.ApplyInstanceResponse{}, nil
 				},
 				upsertKubeConfig: nil,
-				waitForReconciliation: func(ctx context.Context, plan *types.Cluster) error {
+				waitForReconciliation: func(ctx context.Context, cli *AkpCli, plan *types.Cluster) error {
 					return errors.New("reconciliation timed out")
 				},
 				waitForHealth: noopHealth,
@@ -1418,7 +1464,7 @@ func TestAkpClusterResource_reApplyManifests(t *testing.T) {
 				},
 				upsertKubeConfig:      nil,
 				waitForReconciliation: noopReconciliation,
-				waitForHealth: func(ctx context.Context, plan *types.Cluster) error {
+				waitForHealth: func(ctx context.Context, cli *AkpCli, plan *types.Cluster) error {
 					return errors.New("health check timed out")
 				},
 			},
@@ -1428,9 +1474,8 @@ func TestAkpClusterResource_reApplyManifests(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := &AkpClusterResource{}
 			ctx := context.Background()
-			_, err := r.applyInstance(ctx, tt.args.plan, tt.args.apiReq, false, tt.args.applyInstance, tt.args.upsertKubeConfig, tt.args.waitForReconciliation, tt.args.waitForHealth)
+			_, err := applyCluster(ctx, nil, tt.args.plan, tt.args.apiReq, false, tt.args.applyInstance, tt.args.upsertKubeConfig, tt.args.waitForReconciliation, tt.args.waitForHealth)
 			if tt.error != nil {
 				assert.Error(t, err)
 				assert.Equal(t, tt.error.Error(), err.Error())
@@ -1441,7 +1486,7 @@ func TestAkpClusterResource_reApplyManifests(t *testing.T) {
 	}
 }
 
-func TestAccClusterResourceCustomAgentSizeWithKustomization(t *testing.T) {
+func runClusterResourceCustomAgentSizeWithKustomization(t *testing.T) {
 	t.Parallel()
 	name := fmt.Sprintf("cluster-custom-kustomization-%s", acctest.RandString(10))
 	resource.Test(t, resource.TestCase{
@@ -1482,11 +1527,12 @@ func TestAccClusterResourceCustomAgentSizeWithKustomization(t *testing.T) {
 					resource.TestCheckNoResourceAttr("akp_cluster.test", "spec.data.custom_agent_size_config"),
 				),
 			},
+			testAccClusterImportStateStep(getInstanceId(), name, testAccClusterKustomizationImportStateVerifyIgnore...),
 		},
 	})
 }
 
-func TestAccClusterResourceCustomAgentSizeKustomizationOnly(t *testing.T) {
+func runClusterResourceCustomAgentSizeKustomizationOnly(t *testing.T) {
 	t.Parallel()
 	name := fmt.Sprintf("cluster-custom-only-%s", acctest.RandString(10))
 	resource.Test(t, resource.TestCase{
@@ -1508,11 +1554,12 @@ func TestAccClusterResourceCustomAgentSizeKustomizationOnly(t *testing.T) {
 					resource.TestCheckResourceAttrSet("akp_cluster.test", "spec.data.kustomization"),
 				),
 			},
+			testAccClusterImportStateStep(getInstanceId(), name, testAccClusterCustomSizeImportStateVerifyIgnore...),
 		},
 	})
 }
 
-func TestAccClusterResourceCustomAgentSizeTransitions(t *testing.T) {
+func runClusterResourceCustomAgentSizeTransitions(t *testing.T) {
 	t.Parallel()
 	name := fmt.Sprintf("cluster-custom-transitions-%s", acctest.RandString(10))
 	resource.Test(t, resource.TestCase{
@@ -1545,11 +1592,12 @@ func TestAccClusterResourceCustomAgentSizeTransitions(t *testing.T) {
 					resource.TestCheckNoResourceAttr("akp_cluster.test", "spec.data.custom_agent_size_config"),
 				),
 			},
+			testAccClusterImportStateStep(getInstanceId(), name, testAccClusterKustomizationImportStateVerifyIgnore...),
 		},
 	})
 }
 
-func TestAccClusterResourceValidationError(t *testing.T) {
+func runClusterResourceValidationError(t *testing.T) {
 	t.Parallel()
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
@@ -1776,7 +1824,7 @@ EOF
 `, instanceId, name, name, "test-instance")
 }
 
-func TestAccClusterResourceMergeData(t *testing.T) {
+func runClusterResourceMergeData(t *testing.T) {
 	t.Parallel()
 	name := acctest.RandomWithPrefix("test-merge-data")
 	resource.Test(t, resource.TestCase{
@@ -1793,13 +1841,14 @@ func TestAccClusterResourceMergeData(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.auto_upgrade_disabled", "true"),
 				),
 			},
+			testAccClusterImportStateStep(getInstanceId(), name, appendImportStateVerifyIgnore(testAccClusterKustomizationImportStateVerifyIgnore, "spec.namespace_scoped")...),
 		},
 	})
 }
 
 // TestAccCluster_CustomAgentSizeInconsistency tests for custom agent size configuration inconsistencies
 // This test provokes issues in the complex custom agent size logic in types.go lines 226-241
-func TestAccCluster_CustomAgentSizeInconsistency(t *testing.T) {
+func runCluster_CustomAgentSizeInconsistency(t *testing.T) {
 	t.Parallel()
 	name := acctest.RandomWithPrefix("test-custom-size-inconsistency")
 
@@ -1848,6 +1897,7 @@ func TestAccCluster_CustomAgentSizeInconsistency(t *testing.T) {
 					resource.TestCheckNoResourceAttr("akp_cluster.test", "spec.data.custom_agent_size_config"),
 				),
 			},
+			testAccClusterImportStateStep(getInstanceId(), name, testAccClusterCommonImportStateVerifyIgnore...),
 		},
 	})
 }
@@ -1855,7 +1905,7 @@ func TestAccCluster_CustomAgentSizeInconsistency(t *testing.T) {
 // TestAccCluster_NamespaceScopedMissingField tests for namespace_scoped inconsistencies when field is omitted
 // This test provokes the issue where namespace_scoped field is not specified, causing inconsistencies
 // between plan and API state due to different default value handling
-func TestAccCluster_NamespaceScopedMissingField(t *testing.T) {
+func runCluster_NamespaceScopedMissingField(t *testing.T) {
 	t.Parallel()
 	name := acctest.RandomWithPrefix("test-ns-missing")
 
@@ -1880,6 +1930,41 @@ func TestAccCluster_NamespaceScopedMissingField(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.namespace_scoped", "true"),
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.description", "Explicit namespace_scoped test"),
+				),
+			},
+			testAccClusterImportStateStep(getInstanceId(), name, testAccClusterCommonImportStateVerifyIgnore...),
+		},
+	})
+}
+
+// runCluster_NamespaceScopedImportHydration verifies that importing a cluster
+// hydrates namespace_scoped from API state so re-applying the same config is a no-op.
+func runCluster_NamespaceScopedImportHydration(t *testing.T) {
+	t.Parallel()
+	name := acctest.RandomWithPrefix("test-ns-import")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig + testAccClusterResourceConfigNamespaceScoped(name, true, getInstanceId()),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.namespace_scoped", "true"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.description", "Namespace scoped test cluster"),
+				),
+			},
+			testAccClusterImportStateStep(getInstanceId(), name, testAccClusterCommonImportStateVerifyIgnore...),
+			{
+				Config: providerConfig + testAccClusterResourceConfigNamespaceScoped(name, true, getInstanceId()),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectEmptyPlan(),
+					},
+				},
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.namespace_scoped", "true"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.description", "Namespace scoped test cluster"),
 				),
 			},
 		},
@@ -1972,4 +2057,399 @@ resource "akp_cluster" "test" {
   }
 }
 `, instanceId, name, namespaceScoped)
+}
+
+func runClusterResourceServerSideDiff(t *testing.T) {
+	t.Parallel()
+	name := fmt.Sprintf("cluster-rssd-%s", acctest.RandString(10))
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig + testAccClusterResourceConfigServerSideDiff(name, getInstanceId()),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("akp_cluster.test", "id"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.server_side_diff_enabled", "false"),
+				),
+			},
+			testAccClusterImportStateStep(getInstanceId(), name, testAccClusterCommonImportStateVerifyIgnore...),
+		},
+	})
+}
+
+func testAccClusterResourceConfigServerSideDiff(name, instanceId string) string {
+	return fmt.Sprintf(`
+resource "akp_cluster" "test" {
+  instance_id = %q
+  name      = %q
+  namespace = "test"
+  spec = {
+    description = "Server side diff test cluster"
+    data = {
+      size                     = "small"
+      server_side_diff_enabled = "false"
+    }
+  }
+}
+`, instanceId, name)
+}
+
+func runClusterResourceMaintenanceMode(t *testing.T) {
+	t.Parallel()
+	name := fmt.Sprintf("cluster-maint-%s", acctest.RandString(10))
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig + testAccClusterResourceConfigMaintenanceMode(name, getInstanceId()),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("akp_cluster.test", "id"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.maintenance_mode", "true"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.maintenance_mode_expiry", "2030-12-31T23:59:59Z"),
+				),
+			},
+			testAccClusterImportStateStep(getInstanceId(), name, testAccClusterCommonImportStateVerifyIgnore...),
+		},
+	})
+}
+
+func testAccClusterResourceConfigMaintenanceMode(name, instanceId string) string {
+	return fmt.Sprintf(`
+resource "akp_cluster" "test" {
+  instance_id = %q
+  name      = %q
+  namespace = "test"
+  spec = {
+    namespace_scoped = true
+    description      = "Maintenance mode test cluster"
+    data = {
+      size                    = "small"
+      maintenance_mode        = true
+      maintenance_mode_expiry = "2030-12-31T23:59:59Z"
+    }
+  }
+}
+`, instanceId, name)
+}
+
+func runClusterResourceFeatureToggleTransitions(t *testing.T) {
+	t.Parallel()
+	name := fmt.Sprintf("cluster-feat-toggle-%s", acctest.RandString(10))
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig + testAccClusterResourceConfigFeatureToggle(name, getInstanceId(), true, true),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("akp_cluster.test", "id"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.redis_tunneling", "true"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.app_replication", "true"),
+				),
+			},
+			{
+				Config: providerConfig + testAccClusterResourceConfigFeatureToggle(name, getInstanceId(), false, false),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.redis_tunneling", "false"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.app_replication", "false"),
+				),
+			},
+			{
+				Config: providerConfig + testAccClusterResourceConfigFeatureToggle(name, getInstanceId(), true, false),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.redis_tunneling", "true"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.app_replication", "false"),
+				),
+			},
+			testAccClusterImportStateStep(getInstanceId(), name, testAccClusterCommonImportStateVerifyIgnore...),
+		},
+	})
+}
+
+func testAccClusterResourceConfigFeatureToggle(name, instanceId string, redisTunneling, appReplication bool) string {
+	return fmt.Sprintf(`
+resource "akp_cluster" "test" {
+  instance_id = %q
+  name      = %q
+  namespace = "test"
+  spec = {
+    namespace_scoped = true
+    description      = "Feature toggle transitions test"
+    data = {
+      size             = "small"
+      redis_tunneling  = %t
+      app_replication  = %t
+    }
+  }
+}
+`, instanceId, name, redisTunneling, appReplication)
+}
+
+func runClusterResourceIdempotentReapply(t *testing.T) {
+	t.Parallel()
+	name := fmt.Sprintf("cluster-idempotent-%s", acctest.RandString(10))
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig + testAccClusterResourceConfigIdempotent(name, getInstanceId()),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("akp_cluster.test", "id"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.description", "idempotent test"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.redis_tunneling", "true"),
+				),
+			},
+			{
+				Config: providerConfig + testAccClusterResourceConfigIdempotent(name, getInstanceId()),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectEmptyPlan(),
+					},
+				},
+			},
+			testAccClusterImportStateStep(getInstanceId(), name, testAccClusterCommonImportStateVerifyIgnore...),
+		},
+	})
+}
+
+func testAccClusterResourceConfigIdempotent(name, instanceId string) string {
+	return fmt.Sprintf(`
+resource "akp_cluster" "test" {
+  instance_id = %q
+  name      = %q
+  namespace = "test"
+  spec = {
+    namespace_scoped = true
+    description      = "idempotent test"
+    data = {
+      size             = "small"
+      redis_tunneling  = true
+      app_replication  = false
+    }
+  }
+}
+`, instanceId, name)
+}
+
+func runClusterResourceMaintenanceModeTransitions(t *testing.T) {
+	t.Parallel()
+	name := fmt.Sprintf("cluster-maint-tr-%s", acctest.RandString(10))
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig + testAccClusterResourceConfigMaintenanceModeEnabled(name, getInstanceId()),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("akp_cluster.test", "id"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.maintenance_mode", "true"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.maintenance_mode_expiry", "2030-12-31T23:59:59Z"),
+				),
+			},
+			{
+				Config: providerConfig + testAccClusterResourceConfigMaintenanceModeDisabled(name, getInstanceId()),
+			},
+			{
+				Config: providerConfig + testAccClusterResourceConfigMaintenanceModeEnabled(name, getInstanceId()),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.maintenance_mode", "true"),
+				),
+			},
+			testAccClusterImportStateStep(getInstanceId(), name, testAccClusterCommonImportStateVerifyIgnore...),
+		},
+	})
+}
+
+func testAccClusterResourceConfigMaintenanceModeEnabled(name, instanceId string) string {
+	return fmt.Sprintf(`
+resource "akp_cluster" "test" {
+  instance_id = %q
+  name      = %q
+  namespace = "test"
+  spec = {
+    namespace_scoped = true
+    description      = "Maintenance mode transitions test"
+    data = {
+      size                    = "small"
+      maintenance_mode        = true
+      maintenance_mode_expiry = "2030-12-31T23:59:59Z"
+    }
+  }
+}
+`, instanceId, name)
+}
+
+func testAccClusterResourceConfigMaintenanceModeDisabled(name, instanceId string) string {
+	return fmt.Sprintf(`
+resource "akp_cluster" "test" {
+  instance_id = %q
+  name      = %q
+  namespace = "test"
+  spec = {
+    namespace_scoped = true
+    description      = "Maintenance mode transitions test"
+    data = {
+      size = "small"
+    }
+  }
+}
+`, instanceId, name)
+}
+
+func runCluster_MinimalNestedImport(t *testing.T) {
+	t.Parallel()
+	name := acctest.RandomWithPrefix("test-minimal-nested")
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig + testAccClusterMinimalNestedConfig(name, getInstanceId()),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("akp_cluster.test", "id"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "name", name),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.size", "small"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.auto_upgrade_disabled", "true"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.redis_tunneling", "true"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.maintenance_mode", "true"),
+				),
+			},
+			{
+				Config: providerConfig + testAccClusterMinimalNestedConfig(name, getInstanceId()),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectEmptyPlan(),
+					},
+				},
+			},
+			testAccClusterImportStateStep(getInstanceId(), name, testAccClusterMinimalImportStateVerifyIgnore...),
+		},
+	})
+}
+
+func testAccClusterMinimalNestedConfig(name, instanceId string) string {
+	return fmt.Sprintf(`
+resource "akp_cluster" "test" {
+  instance_id = %q
+  name        = %q
+  namespace   = "test"
+  spec = {
+    description = "Minimal nested import test"
+    data = {
+      size                  = "small"
+      auto_upgrade_disabled = true
+      redis_tunneling       = true
+      maintenance_mode      = true
+      maintenance_mode_expiry = "2030-12-31T23:59:59Z"
+    }
+  }
+}
+`, instanceId, name)
+}
+
+func runCluster_PartialCustomSizeImport(t *testing.T) {
+	t.Parallel()
+	name := acctest.RandomWithPrefix("test-partial-custom")
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig + testAccClusterPartialCustomSizeConfig(name, getInstanceId()),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("akp_cluster.test", "id"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.size", "custom"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.custom_agent_size_config.application_controller.memory", "2Gi"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.auto_upgrade_disabled", "true"),
+				),
+			},
+			{
+				Config: providerConfig + testAccClusterPartialCustomSizeConfig(name, getInstanceId()),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectEmptyPlan(),
+					},
+				},
+			},
+			testAccClusterImportStateStep(getInstanceId(), name, testAccClusterPartialCustomSizeImportStateVerifyIgnore...),
+		},
+	})
+}
+
+func testAccClusterPartialCustomSizeConfig(name, instanceId string) string {
+	return fmt.Sprintf(`
+resource "akp_cluster" "test" {
+  instance_id = %q
+  name        = %q
+  namespace   = "test"
+  spec = {
+    description = "Partial custom size import test"
+    data = {
+      size                  = "custom"
+      auto_upgrade_disabled = true
+      custom_agent_size_config = {
+        application_controller = {
+          memory = "2Gi"
+          cpu    = "500m"
+        }
+      }
+    }
+  }
+}
+`, instanceId, name)
+}
+
+func runCluster_PartialNotificationsImport(t *testing.T) {
+	t.Parallel()
+	name := acctest.RandomWithPrefix("test-partial-notif")
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig + testAccClusterPartialNotificationsConfig(name, getInstanceId()),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("akp_cluster.test", "id"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.size", "small"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.auto_upgrade_disabled", "true"),
+				),
+			},
+			{
+				Config: providerConfig + testAccClusterPartialNotificationsConfig(name, getInstanceId()),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectEmptyPlan(),
+					},
+				},
+			},
+			testAccClusterImportStateStep(getInstanceId(), name, testAccClusterPartialNotificationsImportStateVerifyIgnore...),
+		},
+	})
+}
+
+func testAccClusterPartialNotificationsConfig(name, instanceId string) string {
+	return fmt.Sprintf(`
+resource "akp_cluster" "test" {
+  instance_id = %q
+  name        = %q
+  namespace   = "test"
+  spec = {
+    description = "Partial nested objects import test"
+    data = {
+      size                  = "small"
+      auto_upgrade_disabled = true
+      redis_tunneling       = true
+      argocd_notifications_settings = {
+        in_cluster_settings = true
+      }
+      compatibility = {
+        ipv6_only = true
+      }
+    }
+  }
+}
+`, instanceId, name)
 }

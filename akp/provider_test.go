@@ -43,14 +43,6 @@ provider "akp" {
 
 	code := m.Run()
 
-	if os.Getenv("CLEANUP_TEST_INSTANCE") == "true" {
-		cleanupTestInstance()
-	}
-
-	if os.Getenv("CLEANUP_TEST_KARGO_INSTANCE") == "true" {
-		cleanupTestKargoInstance()
-	}
-
 	os.Exit(code)
 }
 

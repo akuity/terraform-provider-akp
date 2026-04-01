@@ -22,28 +22,11 @@ func NewAkpKargoAgentsDataSource() datasource.DataSource {
 
 // AkpKargoAgentsDataSource defines the data source implementation.
 type AkpKargoAgentsDataSource struct {
-	akpCli *AkpCli
+	BaseDataSource
 }
 
 func (a *AkpKargoAgentsDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_kargo_agents"
-}
-
-func (a *AkpKargoAgentsDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	// Prevent panic if the provider has not been configured.
-	if req.ProviderData == nil {
-		return
-	}
-	akpCli, ok := req.ProviderData.(*AkpCli)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *AkpCli, got: %T. Please report this issue to the provider developers.", req.ProviderData),
-		)
-
-		return
-	}
-	a.akpCli = akpCli
 }
 
 func (a *AkpKargoAgentsDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
@@ -91,6 +74,7 @@ func (a *AkpKargoAgentsDataSource) Read(ctx context.Context, req datasource.Read
 
 	data.ID = data.InstanceID
 	agents := apiResp.GetAgents()
+	data.Agents = make([]types.KargoAgent, 0, len(agents))
 	for _, agent := range agents {
 		stateAgent := types.KargoAgent{
 			InstanceID: data.InstanceID,

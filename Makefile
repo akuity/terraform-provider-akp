@@ -1,18 +1,8 @@
 default: acc-test
 
-# Run all acceptance tests
 .PHONY: acc-test
-acc-test: acc-test-argocd acc-test-kargo
-
-# Run ArgoCD acceptance tests (excludes Kargo tests)
-.PHONY: acc-test-argocd
-acc-test-argocd:
-	TF_ACC=1 go test -race ./... --tags=acc -v -skip 'Kargo' $(TESTARGS) -timeout 60m -parallel 2
-
-# Run Kargo acceptance tests
-.PHONY: acc-test-kargo
-acc-test-kargo:
-	TF_ACC=1 go test -race ./... --tags=acc -v -run 'Kargo' $(TESTARGS) -timeout 60m -parallel 2
+acc-test:
+	TF_ACC=1 go test -race ./akp/... --tags=acc -v -run 'TestAccAll' -parallel 3 $(TESTARGS) -timeout 60m
 
 # Run unit tests
 .PHONY: unit-test

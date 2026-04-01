@@ -123,6 +123,14 @@ EOF
         # Akuity Sync History Extension - Deployment frequency and duration graphs
         sync_history_extension_enabled = true
 
+        # Manifest Generation - Configure config management tool versions
+        manifest_generation = {
+          kustomize = {
+            default_version     = "v5.4.3"
+            additional_versions = ["v5.3.0", "v5.2.1"]
+          }
+        }
+
         # Cluster Addons Extension - Install and manage helpful addons in your cluster
         cluster_addons_extension = {
           enabled           = true

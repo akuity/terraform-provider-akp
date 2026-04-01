@@ -89,9 +89,10 @@ Read-Only:
 - `eks_addon_enabled` (Boolean) Enable this if you are installing this cluster on EKS.
 - `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
 - `maintenance_mode` (Boolean) Whether maintenance mode is enabled for the cluster.
-- `maintenance_mode_expiry` (String) Expiry time for maintenance mode in RFC3339 format.
+- `maintenance_mode_expiry` (String) Expiry time for maintenance mode in RFC3339 format when maintenance mode is enabled.
 - `managed_cluster_config` (Attributes) The config to access managed Kubernetes cluster. By default agent is using "in-cluster" config. (see [below for nested schema](#nestedatt--spec--data--managed_cluster_config))
 - `multi_cluster_k8s_dashboard_enabled` (Boolean) Enable the KubeVision feature on the managed cluster
+- `pod_inherit_metadata` (Boolean) Whether pod metadata inheritance is enabled for the cluster.
 - `project` (String) Project name
 - `redis_tunneling` (Boolean) Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy
 - `server_side_diff_enabled` (Boolean) Enables the ability to set server-side diff on the application-controller.

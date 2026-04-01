@@ -5,12 +5,9 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
-	"github.com/akuity/terraform-provider-akp/akp/apis/v1alpha1"
-	"github.com/akuity/terraform-provider-akp/akp/marshal"
 )
 
 type Instance struct {
@@ -59,20 +56,21 @@ func (i *Instance) GetSensitiveStrings(ctx context.Context, diagnostics *diag.Di
 }
 
 func (i *Instance) Update(ctx context.Context, diagnostics *diag.Diagnostics, exportResp *argocdv1.ExportInstanceResponse, isDataSource bool) error {
-	var argoCD *v1alpha1.ArgoCD
-	err := marshal.RemarshalTo(exportResp.Argocd.AsMap(), &argoCD)
-	if err != nil {
-		return errors.Wrap(err, "Unable to get Argo CD instance")
-	}
 	if i.ArgoCD == nil {
 		i.ArgoCD = &ArgoCD{}
 	}
-	if argoCD.Spec.InstanceSpec.Fqdn == nil {
-		fqdn := ""
-		argoCD.Spec.InstanceSpec.Fqdn = &fqdn
+	apiMap := exportResp.Argocd.AsMap()
+	if isDataSource {
+		diagnostics.Append(BuildStateFromAPI(ctx, apiMap, i.ArgoCD, nil, ReverseOverridesMap, ReverseRenamesMap, "argocd")...)
+	} else {
+		plan := DeepCopyArgoCD(i.ArgoCD)
+		diagnostics.Append(BuildStateFromAPI(ctx, apiMap, i.ArgoCD, plan, ReverseOverridesMap, ReverseRenamesMap, "argocd")...)
 	}
-	i.ArgoCD.Update(ctx, diagnostics, argoCD)
-	i.ArgoCDConfigMap = ToFilteredConfigMapTFModel(ctx, diagnostics, exportResp.ArgocdConfigmap, i.ArgoCDConfigMap)
+	if isDataSource {
+		i.ArgoCDConfigMap = ToDataSourceConfigMapTFModel(ctx, diagnostics, exportResp.ArgocdConfigmap, i.ArgoCDConfigMap)
+	} else {
+		i.ArgoCDConfigMap = ToConfigMapTFModel(ctx, diagnostics, exportResp.ArgocdConfigmap, i.ArgoCDConfigMap)
+	}
 	i.ArgoCDRBACConfigMap = ToConfigMapTFModel(ctx, diagnostics, exportResp.ArgocdRbacConfigmap, i.ArgoCDRBACConfigMap)
 	i.NotificationsConfigMap = ToConfigMapTFModel(ctx, diagnostics, exportResp.NotificationsConfigmap, i.NotificationsConfigMap)
 	i.ImageUpdaterConfigMap = ToConfigMapTFModel(ctx, diagnostics, exportResp.ImageUpdaterConfigmap, i.ImageUpdaterConfigMap)

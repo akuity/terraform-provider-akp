@@ -1,22 +1,24 @@
 package akp
 
 import (
-	"context"
-
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
-	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+
+	boolplanmodifier2 "github.com/akuity/terraform-provider-akp/akp/modifiers/bool"
+	objectplanmodifier2 "github.com/akuity/terraform-provider-akp/akp/modifiers/object"
+	stringplanmodifier2 "github.com/akuity/terraform-provider-akp/akp/modifiers/string"
 )
 
-func (r *AkpKargoInstanceResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
-	resp.Schema = schema.Schema{
+func kargoInstanceSchema() schema.Schema {
+	return schema.Schema{
 		MarkdownDescription: "Manages an AKP Kargo instance.",
 		Attributes:          getAKPKargoInstanceAttributes(),
 	}
@@ -65,6 +67,7 @@ func getAKPKargoInstanceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Workspace name for the Kargo instance",
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
+				stringplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
 		"kargo_resources": schema.MapAttribute{
@@ -113,6 +116,7 @@ func getKargoSpecAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
+				stringplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
 		"subdomain": schema.StringAttribute{
@@ -126,7 +130,11 @@ func getKargoSpecAttributes() map[string]schema.Attribute {
 		"oidc_config": schema.SingleNestedAttribute{
 			MarkdownDescription: "OIDC configuration",
 			Optional:            true,
+			Computed:            true,
 			Attributes:          getKargoOidcConfigAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier2.UseStateForNullUnknown(),
+			},
 		},
 	}
 }
@@ -151,16 +159,11 @@ func getKargoSpecInstanceAttributes() map[string]schema.Attribute {
 		"agent_customization_defaults": schema.SingleNestedAttribute{
 			MarkdownDescription: "Default agent customization settings",
 			Optional:            true,
-			Attributes:          getKargoAgentCustomizationAttributes(),
-		},
-		"default_shard_agent": schema.StringAttribute{
-			MarkdownDescription: "**Deprecated:** Default shard agent, either agent id or agent name. Use `akp_kargo_default_shard_agent` resource instead.",
-			Optional:            true,
 			Computed:            true,
-			PlanModifiers: []planmodifier.String{
-				stringplanmodifier.UseStateForUnknown(),
+			Attributes:          getKargoAgentCustomizationAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier2.UseStateForNullUnknown(),
 			},
-			DeprecationMessage: "Use `akp_kargo_default_shard_agent` resource instead. Remove this field from your configuration to allow akp_kargo_default_shard_agent resources to manage the default shard agent independently.",
 		},
 		"global_credentials_ns": schema.ListAttribute{
 			MarkdownDescription: "List of global credentials namespaces",
@@ -175,12 +178,20 @@ func getKargoSpecInstanceAttributes() map[string]schema.Attribute {
 		"akuity_intelligence": schema.SingleNestedAttribute{
 			MarkdownDescription: "Akuity Intelligence configuration for AI-powered features",
 			Optional:            true,
+			Computed:            true,
 			Attributes:          getKargoAkuityIntelligenceAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier2.UseStateForNullUnknown(),
+			},
 		},
 		"gc_config": schema.SingleNestedAttribute{
 			MarkdownDescription: "Garbage collector configuration",
 			Optional:            true,
+			Computed:            true,
 			Attributes:          getGarbageCollectorConfigAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier2.UseStateForNullUnknown(),
+			},
 		},
 		"promo_controller_enabled": schema.BoolAttribute{
 			MarkdownDescription: "Whether Kargo Promotion Controller is enabled for this instance",
@@ -188,7 +199,22 @@ func getKargoSpecInstanceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
+				boolplanmodifier2.SuppressProtobufDefault(),
 			},
+		},
+		"argocd_ui": schema.SingleNestedAttribute{
+			MarkdownDescription: "Controls behavior of Argo CD user interface in the Kargo instance",
+			Optional:            true,
+			Attributes:          getKargoArgoCDUIConfigAttributes(),
+		},
+	}
+}
+
+func getKargoArgoCDUIConfigAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"idp_groups_mapping": schema.BoolAttribute{
+			MarkdownDescription: "When enabled, group claims from the user's Kargo IDP token are mapped to Argo CD to authorize edit operations",
+			Optional:            true,
 		},
 	}
 }
@@ -241,12 +267,13 @@ func getKargoOidcConfigAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
+				stringplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
 		"dex_config_secret": schema.MapAttribute{
 			MarkdownDescription: "DEX configuration secret",
 			Optional:            true,
-			Computed:            true,
+			Sensitive:           true,
 			ElementType:         types.StringType,
 		},
 		"issuer_url": schema.StringAttribute{
@@ -255,6 +282,7 @@ func getKargoOidcConfigAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
+				stringplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
 		"client_id": schema.StringAttribute{
@@ -263,6 +291,7 @@ func getKargoOidcConfigAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
+				stringplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
 		"cli_client_id": schema.StringAttribute{
@@ -271,6 +300,7 @@ func getKargoOidcConfigAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
+				stringplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
 		"admin_account": schema.SingleNestedAttribute{
@@ -278,12 +308,18 @@ func getKargoOidcConfigAttributes() map[string]schema.Attribute {
 			Optional:            true,
 			Computed:            true,
 			Attributes:          getKargoPredefinedAccountAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier2.UseStateForNullUnknown(),
+			},
 		},
 		"viewer_account": schema.SingleNestedAttribute{
 			MarkdownDescription: "Viewer account",
 			Optional:            true,
 			Computed:            true,
 			Attributes:          getKargoPredefinedAccountAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier2.UseStateForNullUnknown(),
+			},
 		},
 		"additional_scopes": schema.ListAttribute{
 			MarkdownDescription: "Additional scopes",
@@ -295,12 +331,18 @@ func getKargoOidcConfigAttributes() map[string]schema.Attribute {
 			Optional:            true,
 			Computed:            true,
 			Attributes:          getKargoPredefinedAccountAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier2.UseStateForNullUnknown(),
+			},
 		},
 		"project_creator_account": schema.SingleNestedAttribute{
 			MarkdownDescription: "Project creator account",
 			Optional:            true,
 			Computed:            true,
 			Attributes:          getKargoPredefinedAccountAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier2.UseStateForNullUnknown(),
+			},
 		},
 	}
 }
@@ -328,18 +370,34 @@ func getGarbageCollectorConfigAttributes() map[string]schema.Attribute {
 		"max_retained_freight": schema.Int64Attribute{
 			MarkdownDescription: "Maximum number of freight objects to retain",
 			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Int64{
+				int64planmodifier.UseStateForUnknown(),
+			},
 		},
 		"max_retained_promotions": schema.Int64Attribute{
 			MarkdownDescription: "Maximum number of promotion objects to retain",
 			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Int64{
+				int64planmodifier.UseStateForUnknown(),
+			},
 		},
 		"min_freight_deletion_age": schema.Int64Attribute{
 			MarkdownDescription: "Minimum age in seconds before freight objects can be deleted",
 			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Int64{
+				int64planmodifier.UseStateForUnknown(),
+			},
 		},
 		"min_promotion_deletion_age": schema.Int64Attribute{
 			MarkdownDescription: "Minimum age in seconds before promotion objects can be deleted",
 			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Int64{
+				int64planmodifier.UseStateForUnknown(),
+			},
 		},
 	}
 }
@@ -378,6 +436,7 @@ func getKargoAkuityIntelligenceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
+				stringplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
 	}

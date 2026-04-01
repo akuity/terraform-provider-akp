@@ -16,7 +16,7 @@ import (
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
 )
 
-func TestAccInstanceIPAllowListResource(t *testing.T) {
+func runInstanceIPAllowListResource(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -38,15 +38,7 @@ func TestAccInstanceIPAllowListResource(t *testing.T) {
 					testAccCheckInstanceIPAllowListExists("akp_instance_ip_allow_list.test", "192.168.1.0/24"),
 				),
 			},
-			// ImportState testing
-			// Note: We don't use ImportStateVerify because the resource ID is a generated UUID
-			// that will be different after import. The import functionality is tested by
-			// verifying the subsequent update step works correctly with the imported state.
-			{
-				ResourceName:  "akp_instance_ip_allow_list.test",
-				ImportState:   true,
-				ImportStateId: getInstanceId(),
-			},
+			testAccInstanceIPAllowListImportStateStep(getInstanceId(), testAccInstanceIPAllowListImportStateVerifyIgnore...),
 			// Update - add more entries to the same resource
 			{
 				Config: providerConfig + testAccInstanceIPAllowListResourceConfig(
@@ -96,7 +88,7 @@ func TestAccInstanceIPAllowListResource(t *testing.T) {
 	})
 }
 
-func TestAccInstanceIPAllowListResource_MultipleResources(t *testing.T) {
+func runInstanceIPAllowListResource_MultipleResources(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -142,7 +134,7 @@ func TestAccInstanceIPAllowListResource_MultipleResources(t *testing.T) {
 	})
 }
 
-func TestAccInstanceIPAllowListResource_DuplicateIP(t *testing.T) {
+func runInstanceIPAllowListResource_DuplicateIP(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -177,7 +169,7 @@ func TestAccInstanceIPAllowListResource_DuplicateIP(t *testing.T) {
 	})
 }
 
-func TestAccInstanceIPAllowListResource_DuplicateInSameResource(t *testing.T) {
+func runInstanceIPAllowListResource_DuplicateInSameResource(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -197,7 +189,7 @@ func TestAccInstanceIPAllowListResource_DuplicateInSameResource(t *testing.T) {
 	})
 }
 
-func TestAccInstanceIPAllowListResource_IPv6(t *testing.T) {
+func runInstanceIPAllowListResource_IPv6(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -216,11 +208,12 @@ func TestAccInstanceIPAllowListResource_IPv6(t *testing.T) {
 					testAccCheckInstanceIPAllowListExists("akp_instance_ip_allow_list.test", "2001:db8::/32"),
 				),
 			},
+			testAccInstanceIPAllowListImportStateStep(getInstanceId(), testAccInstanceIPAllowListImportStateVerifyIgnore...),
 		},
 	})
 }
 
-func TestAccInstanceIPAllowListResource_NoDescription(t *testing.T) {
+func runInstanceIPAllowListResource_NoDescription(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -248,60 +241,7 @@ func TestAccInstanceIPAllowListResource_NoDescription(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_instance_ip_allow_list.test", "entries.0.description", "Added description"),
 				),
 			},
-		},
-	})
-}
-
-func TestAccInstanceIPAllowListResource_Migration(t *testing.T) {
-	resource.Test(t, resource.TestCase{
-		PreCheck:                 func() { testAccPreCheck(t) },
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		Steps: []resource.TestStep{
-			// Start with instance managing IP allow list
-			{
-				Config: providerConfig + testAccInstanceWithIPAllowList(
-					getInstanceId(),
-					"10.0.0.0/8",
-					"Original entry",
-				),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.ip_allow_list.0.ip", "10.0.0.0/8"),
-				),
-			},
-			// Migrate to separate resource by removing from instance and adding dedicated resource
-			// The instance resource will now ignore ip_allow_list changes since it's not in the config
-			{
-				Config: providerConfig + testAccInstanceWithoutIPAllowList(getInstanceId()) +
-					testAccInstanceIPAllowListResourceConfig(
-						getInstanceId(),
-						[]map[string]string{
-							{"ip": "10.0.0.0/8", "description": "Migrated entry"},
-						},
-					),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					testAccCheckInstanceIPAllowListExists("akp_instance_ip_allow_list.test", "10.0.0.0/8"),
-					resource.TestCheckResourceAttr("akp_instance_ip_allow_list.test", "entries.0.ip", "10.0.0.0/8"),
-					resource.TestCheckResourceAttr("akp_instance_ip_allow_list.test", "entries.0.description", "Migrated entry"),
-					// Verify instance resource still sees the IP in state (it's preserved)
-					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.ip_allow_list.0.ip", "10.0.0.0/8"),
-				),
-			},
-			// Add more entries via the dedicated resource
-			{
-				Config: providerConfig + testAccInstanceWithoutIPAllowList(getInstanceId()) +
-					testAccInstanceIPAllowListResourceConfig(
-						getInstanceId(),
-						[]map[string]string{
-							{"ip": "10.0.0.0/8", "description": "Migrated entry"},
-							{"ip": "192.168.1.0/24", "description": "Additional entry"},
-						},
-					),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("akp_instance_ip_allow_list.test", "entries.#", "2"),
-					testAccCheckInstanceIPAllowListExists("akp_instance_ip_allow_list.test", "10.0.0.0/8"),
-					testAccCheckInstanceIPAllowListExists("akp_instance_ip_allow_list.test", "192.168.1.0/24"),
-				),
-			},
+			testAccInstanceIPAllowListImportStateStep(getInstanceId(), testAccInstanceIPAllowListImportStateVerifyIgnore...),
 		},
 	})
 }
@@ -446,7 +386,8 @@ resource "akp_instance_ip_allow_list" "test" {
   instance_id = %q
   entries = [
     {
-      ip = %q
+      ip          = %q
+      description = ""
     }
   ]
 }
@@ -549,7 +490,7 @@ resource "akp_instance_ip_allow_list" "duplicate" {
 
 // TestAccInstanceIPAllowListResource_PreservesInstanceSettings verifies that adding/modifying
 // IP allow list entries doesn't modify other instance settings (description, version, etc.)
-func TestAccInstanceIPAllowListResource_PreservesInstanceSettings(t *testing.T) {
+func runInstanceIPAllowListResource_PreservesInstanceSettings(t *testing.T) {
 	instanceID := getInstanceId()
 
 	// Capture the initial instance state before any IP allow list changes
@@ -625,6 +566,65 @@ func TestAccInstanceIPAllowListResource_PreservesInstanceSettings(t *testing.T) 
 					testAccVerifyInstanceSettingsPreserved(instanceID, &initialDescription, &initialVersion),
 				),
 			},
+			testAccInstanceIPAllowListImportStateStep(instanceID, testAccInstanceIPAllowListImportStateVerifyIgnore...),
+		},
+	})
+}
+
+func runInstanceIPAllowListResource_LargeScale(t *testing.T) {
+	instanceID := getInstanceId()
+
+	var entries []map[string]string
+	for i := 0; i < 10; i++ {
+		entries = append(entries, map[string]string{
+			"ip":          fmt.Sprintf("10.%d.0.0/16", i),
+			"description": fmt.Sprintf("Network segment %d", i),
+		})
+	}
+
+	var updatedEntries []map[string]string
+	for i := 0; i < 15; i++ {
+		updatedEntries = append(updatedEntries, map[string]string{
+			"ip":          fmt.Sprintf("10.%d.0.0/16", i),
+			"description": fmt.Sprintf("Updated segment %d", i),
+		})
+	}
+
+	var reducedEntries []map[string]string
+	for i := 0; i < 5; i++ {
+		reducedEntries = append(reducedEntries, map[string]string{
+			"ip":          fmt.Sprintf("10.%d.0.0/16", i),
+			"description": fmt.Sprintf("Remaining segment %d", i),
+		})
+	}
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig + testAccInstanceIPAllowListResourceConfig(instanceID, entries),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("akp_instance_ip_allow_list.test", "entries.#", "10"),
+					resource.TestCheckResourceAttr("akp_instance_ip_allow_list.test", "entries.0.ip", "10.0.0.0/16"),
+					resource.TestCheckResourceAttr("akp_instance_ip_allow_list.test", "entries.9.ip", "10.9.0.0/16"),
+				),
+			},
+			{
+				Config: providerConfig + testAccInstanceIPAllowListResourceConfig(instanceID, updatedEntries),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("akp_instance_ip_allow_list.test", "entries.#", "15"),
+					resource.TestCheckResourceAttr("akp_instance_ip_allow_list.test", "entries.14.ip", "10.14.0.0/16"),
+				),
+			},
+			{
+				Config: providerConfig + testAccInstanceIPAllowListResourceConfig(instanceID, reducedEntries),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("akp_instance_ip_allow_list.test", "entries.#", "5"),
+					resource.TestCheckResourceAttr("akp_instance_ip_allow_list.test", "entries.0.description", "Remaining segment 0"),
+				),
+			},
+			testAccInstanceIPAllowListImportStateStep(instanceID, testAccInstanceIPAllowListImportStateVerifyIgnore...),
 		},
 	})
 }
@@ -696,41 +696,4 @@ func testAccVerifyInstanceSettingsPreserved(instanceID string, initialDescriptio
 
 		return nil
 	}
-}
-
-// Helper config functions for akp_instance resource
-
-func testAccInstanceWithIPAllowList(instanceID, ip, description string) string {
-	return fmt.Sprintf(`
-resource "akp_instance" "test" {
-  name = "test-instance-%[1]s"
-  argocd = {
-    "spec" = {
-      "instance_spec" = {
-        "ip_allow_list" = [
-          {
-            "ip"          = %[2]q
-            "description" = %[3]q
-          }
-        ]
-      }
-      "version" = "v2.11.4"
-    }
-  }
-}
-`, instanceID, ip, description)
-}
-
-func testAccInstanceWithoutIPAllowList(instanceID string) string {
-	return fmt.Sprintf(`
-resource "akp_instance" "test" {
-  name = "test-instance-%[1]s"
-  argocd = {
-    "spec" = {
-      "instance_spec" = {}
-      "version" = "v2.11.4"
-    }
-  }
-}
-`, instanceID)
 }

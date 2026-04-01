@@ -14,16 +14,15 @@ import (
 // If this test fails, a field has been added/removed to the AKP Instance type.
 // Update the schema attribute accordingly.
 func TestNoNewAKPInstanceDataSourceFields(t *testing.T) {
-	assert.Equal(t, reflect.TypeOf(types.Instance{}).NumField(), len(getAKPInstanceDataSourceAttributes()))
+	assert.Equal(t, reflect.TypeOf(types.InstanceDataSource{}).NumField(), len(getAKPInstanceDataSourceAttributes()))
 }
 
 // If this test fails, a field has been added/removed to the ArgoCD related type.
 // Update the schema attribute accordingly.
 func TestNoNewArgoCDDataSourceFields(t *testing.T) {
-	assert.Equal(t, reflect.TypeOf(types.ArgoCD{}).NumField(), len(getArgoCDDataSourceAttributes()))
-	assert.Equal(t, reflect.TypeOf(types.ArgoCDSpec{}).NumField(), len(getArgoCDSpecDataSourceAttributes()))
-	assert.Equal(t, reflect.TypeOf(types.InstanceSpec{}).NumField(), len(getInstanceSpecDataSourceAttributes()))
-	assert.Equal(t, reflect.TypeOf(types.IPAllowListEntry{}).NumField(), len(getIPAllowListEntryDataSourceAttributes()))
+	assert.Equal(t, reflect.TypeOf(types.ArgoCDDataSource{}).NumField(), len(getArgoCDDataSourceAttributes()))
+	assert.Equal(t, reflect.TypeOf(types.ArgoCDSpecDataSource{}).NumField(), len(getArgoCDSpecDataSourceAttributes()))
+	assert.Equal(t, reflect.TypeOf(types.InstanceSpecDataSource{}).NumField(), len(getInstanceSpecDataSourceAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.ArgoCDExtensionInstallEntry{}).NumField(), len(getArgoCDExtensionInstallEntryDataSourceAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.ClusterCustomization{}).NumField(), len(getClusterCustomizationDataSourceAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.RepoServerDelegate{}).NumField(), len(getRepoServerDelegateDataSourceAttributes()))
@@ -31,8 +30,13 @@ func TestNoNewArgoCDDataSourceFields(t *testing.T) {
 	assert.Equal(t, reflect.TypeOf(types.AppSetDelegate{}).NumField(), len(getAppSetDelegateDataSourceAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.ManagedCluster{}).NumField(), len(getManagedClusterDataSourceAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.AppsetPolicy{}).NumField(), len(getAppsetPolicyDataSourceAttributes()))
-	assert.Equal(t, reflect.TypeOf(types.HostAliases{}).NumField(), len(getAppsetPolicyDataSourceAttributes()))
+	assert.Equal(t, reflect.TypeOf(types.HostAliases{}).NumField(), len(getHostAliasesDataSourceAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.AppsetPlugins{}).NumField(), len(getAppsetPluginsDataSourceAttributes()))
+}
+
+func TestNoNewManifestGenerationDataSourceFields(t *testing.T) {
+	assert.Equal(t, reflect.TypeOf(types.ManifestGeneration{}).NumField(), len(getManifestGenerationDataSourceAttributes()))
+	assert.Equal(t, reflect.TypeOf(types.ConfigManagementToolVersions{}).NumField(), len(getConfigManagementToolVersionsDataSourceAttributes()))
 }
 
 // If this test fails, a field has been added/removed to the ConfigManagementPlugin related type.

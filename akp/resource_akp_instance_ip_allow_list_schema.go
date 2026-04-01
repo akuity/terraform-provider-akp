@@ -9,8 +9,12 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 )
 
-func (r *AkpInstanceIPAllowListResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
-	resp.Schema = schema.Schema{
+func (r *AkpInstanceIPAllowListResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+	resp.Schema = ipAllowListSchema()
+}
+
+func ipAllowListSchema() schema.Schema {
+	return schema.Schema{
 		MarkdownDescription: "Manages the IP allow list for an Argo CD instance. This resource allows you to configure IP addresses that are allowed to access the Argo CD instance. This resource replaces the deprecated `ip_allow_list` field in the `akp_instance` resource.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{

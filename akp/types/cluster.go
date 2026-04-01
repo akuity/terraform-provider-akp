@@ -7,7 +7,6 @@ package types
 
 import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 )
 
 type Cluster struct {
@@ -106,10 +105,11 @@ type ClusterData struct {
 	MaintenanceMode                 types.Bool                          `tfsdk:"maintenance_mode"`
 	MultiClusterK8SDashboardEnabled types.Bool                          `tfsdk:"multi_cluster_k8s_dashboard_enabled"`
 	CustomAgentSizeConfig           *CustomAgentSizeConfig              `tfsdk:"custom_agent_size_config"`
-	AutoscalerConfig                basetypes.ObjectValue               `tfsdk:"auto_agent_size_config"`
+	AutoscalerConfig                *AutoScalerConfig                   `tfsdk:"auto_agent_size_config"`
 	Project                         types.String                        `tfsdk:"project"`
 	Compatibility                   *ClusterCompatibility               `tfsdk:"compatibility"`
 	ArgocdNotificationsSettings     *ClusterArgoCDNotificationsSettings `tfsdk:"argocd_notifications_settings"`
 	ServerSideDiffEnabled           types.Bool                          `tfsdk:"server_side_diff_enabled"`
 	MaintenanceModeExpiry           types.String                        `tfsdk:"maintenance_mode_expiry"`
+	PodInheritMetadata              types.Bool                          `tfsdk:"pod_inherit_metadata"`
 }

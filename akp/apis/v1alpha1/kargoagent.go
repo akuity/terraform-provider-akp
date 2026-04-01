@@ -36,4 +36,5 @@ type KargoAgentData struct {
 	AllowedJobSa          []string     `json:"allowedJobSa,omitempty"`
 	MaintenanceMode       *bool        `json:"maintenanceMode,omitempty"`
 	MaintenanceModeExpiry *metav1.Time `json:"maintenanceModeExpiry,omitempty"`
+	PodInheritMetadata    *bool        `json:"podInheritMetadata,omitempty"`
 }

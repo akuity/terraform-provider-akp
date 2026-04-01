@@ -21,28 +21,11 @@ func NewAkpClustersDataSource() datasource.DataSource {
 
 // AkpClustersDataSource defines the data source implementation.
 type AkpClustersDataSource struct {
-	akpCli *AkpCli
+	BaseDataSource
 }
 
 func (d *AkpClustersDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_clusters"
-}
-
-func (d *AkpClustersDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	// Prevent panic if the provider has not been configured.
-	if req.ProviderData == nil {
-		return
-	}
-	akpCli, ok := req.ProviderData.(*AkpCli)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *AkpCli, got: %T. Please report this issue to the provider developers.", req.ProviderData),
-		)
-
-		return
-	}
-	d.akpCli = akpCli
 }
 
 func (d *AkpClustersDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
@@ -71,6 +54,7 @@ func (d *AkpClustersDataSource) Read(ctx context.Context, req datasource.ReadReq
 
 	data.ID = data.InstanceID
 	clusters := apiResp.GetClusters()
+	data.Clusters = make([]types.Cluster, 0, len(clusters))
 	for _, cluster := range clusters {
 		stateCluster := types.Cluster{
 			InstanceID: data.InstanceID,

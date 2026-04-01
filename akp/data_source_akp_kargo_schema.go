@@ -35,11 +35,6 @@ func getAKPKargoDataSourceAttributes() map[string]schema.Attribute {
 			ElementType:         types.StringType,
 			Computed:            true,
 		},
-		"kargo_secret": schema.MapAttribute{
-			MarkdownDescription: "Secret to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf",
-			ElementType:         types.StringType,
-			Computed:            true,
-		},
 		"workspace": schema.StringAttribute{
 			MarkdownDescription: "Workspace name for the Kargo instance",
 			Computed:            true,
@@ -111,10 +106,6 @@ func getKargoInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			Attributes:          getKargoAgentCustomizationDataSourceAttributes(),
 		},
-		"default_shard_agent": schema.StringAttribute{
-			MarkdownDescription: "Default shard agent, either agent id or agent name",
-			Computed:            true,
-		},
 		"global_credentials_ns": schema.ListAttribute{
 			MarkdownDescription: "List of global credentials namespaces",
 			Computed:            true,
@@ -137,6 +128,20 @@ func getKargoInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 		},
 		"promo_controller_enabled": schema.BoolAttribute{
 			MarkdownDescription: "Whether Kargo Promotion Controller is enabled for this instance",
+			Computed:            true,
+		},
+		"argocd_ui": schema.SingleNestedAttribute{
+			MarkdownDescription: "Controls behavior of Argo CD user interface in the Kargo instance",
+			Computed:            true,
+			Attributes:          getKargoArgoCDUIConfigDataSourceAttributes(),
+		},
+	}
+}
+
+func getKargoArgoCDUIConfigDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"idp_groups_mapping": schema.BoolAttribute{
+			MarkdownDescription: "When enabled, group claims from the user's Kargo IDP token are mapped to Argo CD to authorize edit operations",
 			Computed:            true,
 		},
 	}
@@ -181,11 +186,6 @@ func getOIDCConfigDataSourceAttributes() map[string]schema.Attribute {
 		"dex_config": schema.StringAttribute{
 			MarkdownDescription: "DEX configuration",
 			Computed:            true,
-		},
-		"dex_config_secret": schema.MapAttribute{
-			MarkdownDescription: "DEX configuration secret",
-			Computed:            true,
-			ElementType:         types.StringType,
 		},
 		"issuer_url": schema.StringAttribute{
 			MarkdownDescription: "Issuer URL",

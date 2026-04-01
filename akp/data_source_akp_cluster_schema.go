@@ -167,7 +167,11 @@ func getClusterDataDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 		},
 		"maintenance_mode_expiry": schema.StringAttribute{
-			MarkdownDescription: "Expiry time for maintenance mode in RFC3339 format.",
+			MarkdownDescription: "Expiry time for maintenance mode in RFC3339 format when maintenance mode is enabled.",
+			Computed:            true,
+		},
+		"pod_inherit_metadata": schema.BoolAttribute{
+			MarkdownDescription: "Whether pod metadata inheritance is enabled for the cluster.",
 			Computed:            true,
 		},
 	}

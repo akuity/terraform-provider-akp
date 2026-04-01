@@ -8,24 +8,24 @@ import (
 
 // UseStateForNullUnknown is similar to the upstream UseStateForUnknown, but it also use the state if the prior state is null.
 func UseStateForNullUnknown() planmodifier.Map {
-	return useStateForNullUnknownModifier{}
+	return UseStateForNullUnknownModifier{}
 }
 
-// useStateForNullUnknownModifier implements the plan modifier.
-type useStateForNullUnknownModifier struct{}
+// UseStateForNullUnknownModifier implements the plan modifier.
+type UseStateForNullUnknownModifier struct{}
 
 // Description returns a human-readable description of the plan modifier.
-func (m useStateForNullUnknownModifier) Description(_ context.Context) string {
+func (m UseStateForNullUnknownModifier) Description(_ context.Context) string {
 	return "Once set, the value of this attribute in state will not change."
 }
 
 // MarkdownDescription returns a markdown description of the plan modifier.
-func (m useStateForNullUnknownModifier) MarkdownDescription(_ context.Context) string {
+func (m UseStateForNullUnknownModifier) MarkdownDescription(_ context.Context) string {
 	return "Once set, the value of this attribute in state will not change."
 }
 
 // PlanModifyMap implements the plan modification logic.
-func (m useStateForNullUnknownModifier) PlanModifyMap(_ context.Context, req planmodifier.MapRequest, resp *planmodifier.MapResponse) {
+func (m UseStateForNullUnknownModifier) PlanModifyMap(_ context.Context, req planmodifier.MapRequest, resp *planmodifier.MapResponse) {
 	// Do nothing if there is a known planned value.
 	if !req.PlanValue.IsUnknown() {
 		return

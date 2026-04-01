@@ -243,6 +243,14 @@ EOF
         # Akuity Sync History Extension - Deployment frequency and duration graphs
         sync_history_extension_enabled = true
 
+        # Manifest Generation - Configure config management tool versions
+        manifest_generation = {
+          kustomize = {
+            default_version     = "v5.4.3"
+            additional_versions = ["v5.3.0", "v5.2.1"]
+          }
+        }
+
         # Cluster Addons Extension - Install and manage helpful addons in your cluster
         cluster_addons_extension = {
           enabled           = true
@@ -752,8 +760,8 @@ Optional:
 - `host_aliases` (Attributes List) Host Aliases that override the DNS entries for control plane Argo CD components such as API Server and Dex. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--host_aliases))
 - `image_updater_delegate` (Attributes) Select cluster in which you want to Install Image Updater (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--image_updater_delegate))
 - `image_updater_enabled` (Boolean) Enable Image Updater
-- `ip_allow_list` (Attributes List, Deprecated) **Deprecated:** Use the `akp_instance_ip_allow_list` resource instead. IP allow list for instance access. When not specified in the configuration, this field will not be managed by this resource, allowing `akp_instance_ip_allow_list` resources to manage it independently. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--ip_allow_list))
 - `kube_vision_config` (Attributes) Advanced Akuity Intelligence configuration like CVE scanning and AI runbooks (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config))
+- `manifest_generation` (Attributes) Manifest generation configuration for config management tool versions (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--manifest_generation))
 - `metrics_ingress_password_hash` (String, Sensitive) Password hash for metrics ingress authentication
 - `metrics_ingress_username` (String) Username for metrics ingress authentication
 - `multi_cluster_k8s_dashboard_enabled` (Boolean) Enable the KubeVision feature
@@ -922,18 +930,6 @@ Required:
 
 
 
-<a id="nestedatt--argocd--spec--instance_spec--ip_allow_list"></a>
-### Nested Schema for `argocd.spec.instance_spec.ip_allow_list`
-
-Required:
-
-- `ip` (String) IP address
-
-Optional:
-
-- `description` (String) IP description
-
-
 <a id="nestedatt--argocd--spec--instance_spec--kube_vision_config"></a>
 ### Nested Schema for `argocd.spec.instance_spec.kube_vision_config`
 
@@ -1004,7 +1000,7 @@ Required:
 Optional:
 
 - `argocd_application_name_path` (String) JSON path for ArgoCD application name field
-- `argocd_application_namespace_path` (String) JSON path for ArgoCD application name field
+- `argocd_application_namespace_path` (String) JSON path for ArgoCD application namespace field
 - `cluster_path` (String) JSON path for cluster field
 - `description_path` (String) JSON path for description field
 - `k8s_namespace_path` (String) JSON path for Kubernetes namespace field
@@ -1044,6 +1040,23 @@ Optional:
 
 - `rescan_interval` (String) CVE rescan interval
 - `scan_enabled` (Boolean) Enable CVE scanning
+
+
+
+<a id="nestedatt--argocd--spec--instance_spec--manifest_generation"></a>
+### Nested Schema for `argocd.spec.instance_spec.manifest_generation`
+
+Optional:
+
+- `kustomize` (Attributes) Kustomize version configuration (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--manifest_generation--kustomize))
+
+<a id="nestedatt--argocd--spec--instance_spec--manifest_generation--kustomize"></a>
+### Nested Schema for `argocd.spec.instance_spec.manifest_generation.kustomize`
+
+Optional:
+
+- `additional_versions` (List of String) Additional versions of the config management tool (e.g. ["v5.6.0", "v5.7.0"])
+- `default_version` (String) Default version of the config management tool (e.g. "v5.4.3")
 
 
 

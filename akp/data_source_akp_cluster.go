@@ -2,7 +2,6 @@ package akp
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -20,28 +19,11 @@ func NewAkpClusterDataSource() datasource.DataSource {
 
 // AkpClusterDataSource defines the data source implementation.
 type AkpClusterDataSource struct {
-	akpCli *AkpCli
+	BaseDataSource
 }
 
 func (d *AkpClusterDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_cluster"
-}
-
-func (d *AkpClusterDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	// Prevent panic if the provider has not been configured.
-	if req.ProviderData == nil {
-		return
-	}
-	akpCli, ok := req.ProviderData.(*AkpCli)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *AkpCli, got: %T. Please report this issue to the provider developers.", req.ProviderData),
-		)
-
-		return
-	}
-	d.akpCli = akpCli
 }
 
 func (d *AkpClusterDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
@@ -54,7 +36,7 @@ func (d *AkpClusterDataSource) Read(ctx context.Context, req datasource.ReadRequ
 		return
 	}
 	ctx = httpctx.SetAuthorizationHeader(ctx, d.akpCli.Cred.Scheme(), d.akpCli.Cred.Credential())
-	if err := refreshClusterState(ctx, &resp.Diagnostics, d.akpCli.Cli, &data, d.akpCli.OrgId, &data); err != nil {
+	if err := refreshClusterState(ctx, &resp.Diagnostics, d.akpCli.Cli, &data, d.akpCli.OrgId, nil); err != nil {
 		resp.Diagnostics.AddError("Failed to refresh cluster state", err.Error())
 		return
 	}

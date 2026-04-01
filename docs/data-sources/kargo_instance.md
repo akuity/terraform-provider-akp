@@ -31,7 +31,6 @@ data "akp_kargo_instance" "example" {
 - `kargo` (Attributes) Specification of the Kargo instance (see [below for nested schema](#nestedatt--kargo))
 - `kargo_cm` (Map of String) ConfigMap to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf
 - `kargo_resources` (Map of String) Map of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`,`ClusterPromotionTask`, `Stage`, `Warehouse`, `AnalysisTemplate`, `PromotionTask`(with Groups: `kargo.akuity.io`); `Secret`(only with `kargo.akuity.io/cred-type` label); `ConfigMap`; `Role`, `RoleBinding`, `ServiceAccount`(`rbac.kargo.akuity.io/managed="true"` annotation required)
-- `kargo_secret` (Map of String) Secret to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf
 - `workspace` (String) Workspace name for the Kargo instance
 
 <a id="nestedatt--kargo"></a>
@@ -60,8 +59,8 @@ Read-Only:
 
 - `agent_customization_defaults` (Attributes) Default agent customization settings (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--agent_customization_defaults))
 - `akuity_intelligence` (Attributes) Akuity Intelligence configuration for AI-powered features (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--akuity_intelligence))
+- `argocd_ui` (Attributes) Controls behavior of Argo CD user interface in the Kargo instance (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--argocd_ui))
 - `backend_ip_allow_list_enabled` (Boolean) Whether IP allow list is enabled for the backend
-- `default_shard_agent` (String) Default shard agent, either agent id or agent name
 - `gc_config` (Attributes) Garbage collector configuration (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--gc_config))
 - `global_credentials_ns` (List of String) List of global credentials namespaces
 - `global_service_account_ns` (List of String) List of global service account namespaces
@@ -87,6 +86,14 @@ Read-Only:
 - `allowed_usernames` (List of String) List of usernames allowed to use AI features
 - `enabled` (Boolean) Enable Akuity Intelligence for AI-powered features
 - `model_version` (String) AI model version to use
+
+
+<a id="nestedatt--kargo--spec--kargo_instance_spec--argocd_ui"></a>
+### Nested Schema for `kargo.spec.kargo_instance_spec.argocd_ui`
+
+Read-Only:
+
+- `idp_groups_mapping` (Boolean) When enabled, group claims from the user's Kargo IDP token are mapped to Argo CD to authorize edit operations
 
 
 <a id="nestedatt--kargo--spec--kargo_instance_spec--gc_config"></a>
@@ -120,7 +127,6 @@ Read-Only:
 - `cli_client_id` (String) CLI Client ID
 - `client_id` (String) Client ID
 - `dex_config` (String) DEX configuration
-- `dex_config_secret` (Map of String) DEX configuration secret
 - `dex_enabled` (Boolean) Whether DEX is enabled
 - `enabled` (Boolean) Whether OIDC is enabled
 - `issuer_url` (String) Issuer URL

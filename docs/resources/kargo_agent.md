@@ -141,6 +141,7 @@ Optional:
 - `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
 - `maintenance_mode` (Boolean) Enable maintenance mode for the agent. When enabled, alerts for degraded agents are muted.
 - `maintenance_mode_expiry` (String) Expiry time for maintenance mode in RFC3339 format. Maintenance mode will be automatically disabled after this time.
+- `pod_inherit_metadata` (Boolean) Enable pod metadata inheritance. When enabled, pods inherit labels and annotations from the agent.
 - `remote_argocd` (String) Remote Argo CD instance to connect to
 - `target_version` (String) Target version of the agent to install on your cluster
 

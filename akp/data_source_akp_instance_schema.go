@@ -44,23 +44,8 @@ func getAKPInstanceDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			ElementType:         types.StringType,
 		},
-		"argocd_secret": schema.MapAttribute{
-			MarkdownDescription: "is aligned with the options in `argocd-secret` Secret as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-secret-yaml/).",
-			Computed:            true,
-			ElementType:         types.StringType,
-		},
-		"application_set_secret": schema.MapAttribute{
-			MarkdownDescription: "stores secret key-value that will be used by `ApplicationSet`. For an example of how to use this in your ApplicationSet's pull request generator, see [here](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/applicationset/Generators-Pull-Request.md#github). In this example, `tokenRef.secretName` would be application-set-secret.",
-			Computed:            true,
-			ElementType:         types.StringType,
-		},
 		"argocd_notifications_cm": schema.MapAttribute{
 			MarkdownDescription: "configures Argo CD notifications, and it is aligned with `argocd-notifications-cm` ConfigMap of Argo CD, for more details and examples, refer to [this documentation](https://argo-cd.readthedocs.io/en/latest/operator-manual/notifications/).",
-			Computed:            true,
-			ElementType:         types.StringType,
-		},
-		"argocd_notifications_secret": schema.MapAttribute{
-			MarkdownDescription: "contains sensitive data of Argo CD notifications, and it is aligned with `argocd-notifications-secret` Secret of Argo CD, for more details and examples, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/notifications/templates/#defining-and-using-secrets-within-notification-templates).",
 			Computed:            true,
 			ElementType:         types.StringType,
 		},
@@ -74,11 +59,6 @@ func getAKPInstanceDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			ElementType:         types.StringType,
 		},
-		"argocd_image_updater_secret": schema.MapAttribute{
-			MarkdownDescription: "contains sensitive data (e.g., credentials for image updater to access registries) of Argo CD image updater, for available options and examples, refer to [this documentation](https://argocd-image-updater.readthedocs.io/en/stable/).",
-			Computed:            true,
-			ElementType:         types.StringType,
-		},
 		"argocd_ssh_known_hosts_cm": schema.MapAttribute{
 			MarkdownDescription: "is aligned with the options in `argocd-ssh-known-hosts-cm` ConfigMap as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-ssh-known-hosts-cm-yaml/).",
 			Computed:            true,
@@ -88,16 +68,6 @@ func getAKPInstanceDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "is aligned with the options in `argocd-tls-certs-cm` ConfigMap as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-tls-certs-cm-yaml/).",
 			Computed:            true,
 			ElementType:         types.StringType,
-		},
-		"repo_credential_secrets": schema.MapAttribute{
-			MarkdownDescription: "is a map of repo credential secrets, the key of map entry is the `name` of the secret, and the value is the aligned with options in `argocd-repositories.yaml.data` as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-repositories-yaml/).",
-			Computed:            true,
-			ElementType:         types.MapType{ElemType: types.StringType},
-		},
-		"repo_template_credential_secrets": schema.MapAttribute{
-			MarkdownDescription: "is a map of repository credential templates secrets, the key of map entry is the `name` of the secret, and the value is the aligned with options in `argocd-repo-creds.yaml.data` as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-repo-creds.yaml/).",
-			Computed:            true,
-			ElementType:         types.MapType{ElemType: types.StringType},
 		},
 		"config_management_plugins": schema.MapNestedAttribute{
 			MarkdownDescription: "is a map of [Config Management Plugins](https://argo-cd.readthedocs.io/en/stable/operator-manual/config-management-plugins/#config-management-plugins), the key of map entry is the `name` of the plugin, and the value is the definition of the Config Management Plugin(v2).",
@@ -144,13 +114,6 @@ func getArgoCDSpecDataSourceAttributes() map[string]schema.Attribute {
 
 func getInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
-		"ip_allow_list": schema.ListNestedAttribute{
-			MarkdownDescription: "IP allow list",
-			Computed:            true,
-			NestedObject: schema.NestedAttributeObject{
-				Attributes: getIPAllowListEntryDataSourceAttributes(),
-			},
-		},
 		"subdomain": schema.StringAttribute{
 			MarkdownDescription: "Instance subdomain. By default equals to instance id",
 			Computed:            true,
@@ -273,17 +236,40 @@ func getInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 		},
 		"metrics_ingress_username": schema.StringAttribute{
 			MarkdownDescription: "Username for metrics ingress authentication",
-			Optional:            true,
 			Computed:            true,
-		},
-		"metrics_ingress_password_hash": schema.StringAttribute{
-			MarkdownDescription: "Password hash for metrics ingress authentication",
-			Optional:            true,
-			Sensitive:           true,
 		},
 		"privileged_notification_cluster": schema.StringAttribute{
 			MarkdownDescription: "Cluster name where notifications controller will be installed with elevated privileges to see controlplane and intg. cluster apps",
 			Computed:            true,
+		},
+		"manifest_generation": schema.SingleNestedAttribute{
+			MarkdownDescription: "Manifest generation configuration for config management tool versions",
+			Computed:            true,
+			Attributes:          getManifestGenerationDataSourceAttributes(),
+		},
+	}
+}
+
+func getManifestGenerationDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"kustomize": schema.SingleNestedAttribute{
+			MarkdownDescription: "Kustomize version configuration",
+			Computed:            true,
+			Attributes:          getConfigManagementToolVersionsDataSourceAttributes(),
+		},
+	}
+}
+
+func getConfigManagementToolVersionsDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"default_version": schema.StringAttribute{
+			MarkdownDescription: "Default version of the config management tool",
+			Computed:            true,
+		},
+		"additional_versions": schema.ListAttribute{
+			MarkdownDescription: "Additional versions of the config management tool",
+			Computed:            true,
+			ElementType:         types.StringType,
 		},
 	}
 }
@@ -331,19 +317,6 @@ func getAppsetPolicyDataSourceAttributes() map[string]schema.Attribute {
 		},
 		"override_policy": schema.BoolAttribute{
 			MarkdownDescription: "Allows per `ApplicationSet` sync policy.",
-			Computed:            true,
-		},
-	}
-}
-
-func getIPAllowListEntryDataSourceAttributes() map[string]schema.Attribute {
-	return map[string]schema.Attribute{
-		"ip": schema.StringAttribute{
-			MarkdownDescription: "IP address",
-			Computed:            true,
-		},
-		"description": schema.StringAttribute{
-			MarkdownDescription: "IP description",
 			Computed:            true,
 		},
 	}
@@ -906,7 +879,7 @@ func getIncidentWebhookConfigDataSourceAttributes() map[string]schema.Attribute 
 			Computed:            true,
 		},
 		"argocd_application_namespace_path": schema.StringAttribute{
-			MarkdownDescription: "JSON path for ArgoCD application name field",
+			MarkdownDescription: "JSON path for ArgoCD application namespace field",
 			Computed:            true,
 		},
 	}

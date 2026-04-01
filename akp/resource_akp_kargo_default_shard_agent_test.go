@@ -15,7 +15,7 @@ import (
 	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
 )
 
-func TestAccKargoDefaultShardAgentResource(t *testing.T) {
+func runKargoDefaultShardAgentResource(t *testing.T) {
 	t.Parallel()
 	agentName := fmt.Sprintf("kargoagent-default-%s", acctest.RandString(8))
 
@@ -35,6 +35,15 @@ func TestAccKargoDefaultShardAgentResource(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_kargo_default_shard_agent.test", "kargo_instance_id", getKargoInstanceId()),
 					resource.TestCheckResourceAttrSet("akp_kargo_default_shard_agent.test", "agent_id"),
 					testAccCheckDefaultShardAgentIsSet("akp_kargo_default_shard_agent.test"),
+				),
+			},
+			// Data source testing
+			{
+				Config: providerConfig + testAccKargoDefaultShardAgentResourceConfig(agentName, getKargoInstanceId()) + testAccKargoDefaultShardAgentDataSourceConfig(getKargoInstanceId()),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("data.akp_kargo_default_shard_agent.test", "id"),
+					resource.TestCheckResourceAttr("data.akp_kargo_default_shard_agent.test", "kargo_instance_id", getKargoInstanceId()),
+					resource.TestCheckResourceAttrPair("data.akp_kargo_default_shard_agent.test", "agent_id", "akp_kargo_default_shard_agent.test", "agent_id"),
 				),
 			},
 			// ImportState testing
@@ -113,4 +122,12 @@ resource "akp_kargo_default_shard_agent" "test" {
   agent_id          = akp_kargo_agent.default.id
 }
 `, kargoInstanceId, agentName, getInstanceId(), kargoInstanceId)
+}
+
+func testAccKargoDefaultShardAgentDataSourceConfig(kargoInstanceId string) string {
+	return fmt.Sprintf(`
+data "akp_kargo_default_shard_agent" "test" {
+  kargo_instance_id = %q
+}
+`, kargoInstanceId)
 }

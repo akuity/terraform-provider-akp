@@ -1,30 +1,30 @@
 package akp
 
 import (
-	"context"
 	"regexp"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/mapvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
-	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
+	boolplanmodifier2 "github.com/akuity/terraform-provider-akp/akp/modifiers/bool"
 	listplanmodifier2 "github.com/akuity/terraform-provider-akp/akp/modifiers/list"
 	mapplanmodifier2 "github.com/akuity/terraform-provider-akp/akp/modifiers/map"
+	objectplanmodifier2 "github.com/akuity/terraform-provider-akp/akp/modifiers/object"
+	stringplanmodifier2 "github.com/akuity/terraform-provider-akp/akp/modifiers/string"
 )
 
-func (r *AkpInstanceResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
-	resp.Schema = schema.Schema{
+func instanceSchema() schema.Schema {
+	return schema.Schema{
 		MarkdownDescription: "Manages an Argo CD instance",
 		Attributes:          getAKPInstanceAttributes(),
 	}
@@ -66,7 +66,7 @@ func getAKPInstanceAttributes() map[string]schema.Attribute {
 			Optional:            true,
 			Computed:            true,
 			PlanModifiers: []planmodifier.Map{
-				mapplanmodifier.UseStateForUnknown(),
+				mapplanmodifier2.SuppressNonConfigKeys(),
 			},
 		},
 		"argocd_rbac_cm": schema.MapAttribute{
@@ -217,18 +217,6 @@ func getArgoCDSpecAttributes() map[string]schema.Attribute {
 
 func getInstanceSpecAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
-		"ip_allow_list": schema.ListNestedAttribute{
-			MarkdownDescription: "**Deprecated:** Use the `akp_instance_ip_allow_list` resource instead. IP allow list for instance access. When not specified in the configuration, this field will not be managed by this resource, allowing `akp_instance_ip_allow_list` resources to manage it independently.",
-			Optional:            true,
-			Computed:            true,
-			DeprecationMessage:  "Use the akp_instance_ip_allow_list resource for managing IP allow lists. Remove this field from your configuration to allow akp_instance_ip_allow_list resources to manage the IP allow list independently.",
-			NestedObject: schema.NestedAttributeObject{
-				Attributes: getIPAllowListEntryAttributes(),
-			},
-			PlanModifiers: []planmodifier.List{
-				listplanmodifier2.IgnoreWhenNotConfigured(),
-			},
-		},
 		"subdomain": schema.StringAttribute{
 			MarkdownDescription: "Instance subdomain. By default equals to instance id",
 			Optional:            true,
@@ -253,7 +241,7 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 				Attributes: getArgoCDExtensionInstallEntryAttributes(),
 			},
 			PlanModifiers: []planmodifier.List{
-				listplanmodifier.UseStateForUnknown(),
+				listplanmodifier2.IgnoreWhenNotConfigured(),
 			},
 		},
 		"cluster_customization_defaults": schema.SingleNestedAttribute{
@@ -262,7 +250,7 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			Attributes:          getClusterCustomizationAttributes(),
 			PlanModifiers: []planmodifier.Object{
-				objectplanmodifier.UseStateForUnknown(),
+				objectplanmodifier2.UseStateForNullUnknown(),
 			},
 		},
 		"image_updater_enabled": schema.BoolAttribute{
@@ -271,6 +259,7 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
+				boolplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
 		"backend_ip_allow_list_enabled": schema.BoolAttribute{
@@ -279,6 +268,7 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
+				boolplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
 		"repo_server_delegate": schema.SingleNestedAttribute{
@@ -292,6 +282,7 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
+				boolplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
 		"sync_history_extension_enabled": schema.BoolAttribute{
@@ -300,6 +291,7 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
+				boolplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
 		"image_updater_delegate": schema.SingleNestedAttribute{
@@ -319,12 +311,17 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 			DeprecationMessage:  "assistant_extension_enabled field will be removed in a future release; remove it from configs.",
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
+				boolplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
 		"application_set_extension": schema.SingleNestedAttribute{
 			MarkdownDescription: "Configuration for the ApplicationSet extension, enabling the controller and UI integration within Argo CD.",
 			Optional:            true,
+			Computed:            true,
 			Attributes:          getApplicationSetExtensionAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier2.UseStateForNullUnknown(),
+			},
 		},
 		"appset_policy": schema.SingleNestedAttribute{
 			MarkdownDescription: "Configures Application Set policy settings.",
@@ -332,7 +329,7 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			Attributes:          getAppsetPolicyAttributes(),
 			PlanModifiers: []planmodifier.Object{
-				objectplanmodifier.UseStateForUnknown(),
+				objectplanmodifier2.UseStateForNullUnknown(),
 			},
 		},
 		"host_aliases": schema.ListNestedAttribute{
@@ -345,7 +342,11 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 		"crossplane_extension": schema.SingleNestedAttribute{
 			MarkdownDescription: "Custom Resource Definition group name that identifies the Crossplane resource in kubernetes. We will include built-in crossplane resources. Note that you can use glob pattern to match the group. ie. *.crossplane.io",
 			Optional:            true,
+			Computed:            true,
 			Attributes:          getCrossplaneExtensionAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier2.UseStateForNullUnknown(),
+			},
 		},
 		"agent_permissions_rules": schema.ListNestedAttribute{
 			MarkdownDescription: "The ability to configure agent permissions rules.",
@@ -360,6 +361,7 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
+				stringplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
 		"multi_cluster_k8s_dashboard_enabled": schema.BoolAttribute{
@@ -368,12 +370,17 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
+				boolplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
 		"app_in_any_namespace_config": schema.SingleNestedAttribute{
 			MarkdownDescription: "App in any namespace config",
 			Optional:            true,
+			Computed:            true,
 			Attributes:          getAppInAnyNamespaceConfigAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier2.UseStateForNullUnknown(),
+			},
 		},
 		"appset_plugins": schema.ListNestedAttribute{
 			MarkdownDescription: "Application Set plugins",
@@ -385,21 +392,29 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 		"akuity_intelligence_extension": schema.SingleNestedAttribute{
 			MarkdownDescription: "Akuity Intelligence Extension configuration for enhanced AI-powered features",
 			Optional:            true,
+			Computed:            true,
 			Attributes:          getAkuityIntelligenceExtensionAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier2.UseStateForNullUnknown(),
+			},
 		},
 		"cluster_addons_extension": schema.SingleNestedAttribute{
 			MarkdownDescription: "Cluster Addons Extension configuration for managing cluster addons",
 			Optional:            true,
+			Computed:            true,
 			Attributes:          getClusterAddonsExtensionAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier2.UseStateForNullUnknown(),
+			},
 		},
 		"kube_vision_config": schema.SingleNestedAttribute{
 			MarkdownDescription: "Advanced Akuity Intelligence configuration like CVE scanning and AI runbooks",
 			Optional:            true,
 			Computed:            true,
+			Attributes:          getKubeVisionConfigAttributes(),
 			PlanModifiers: []planmodifier.Object{
-				objectplanmodifier.UseStateForUnknown(),
+				objectplanmodifier2.UseStateForNullUnknown(),
 			},
-			Attributes: getKubeVisionConfigAttributes(),
 		},
 		"metrics_ingress_username": schema.StringAttribute{
 			MarkdownDescription: "Username for metrics ingress authentication",
@@ -407,6 +422,7 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
+				stringplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
 		"metrics_ingress_password_hash": schema.StringAttribute{
@@ -420,7 +436,51 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
+				stringplanmodifier2.SuppressProtobufDefault(),
 			},
+		},
+		"manifest_generation": schema.SingleNestedAttribute{
+			MarkdownDescription: "Manifest generation configuration for config management tool versions",
+			Optional:            true,
+			Computed:            true,
+			Attributes:          getManifestGenerationAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier2.UseStateForNullUnknown(),
+			},
+		},
+	}
+}
+
+func getManifestGenerationAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"kustomize": schema.SingleNestedAttribute{
+			MarkdownDescription: "Kustomize version configuration",
+			Optional:            true,
+			Computed:            true,
+			Attributes:          getConfigManagementToolVersionsAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier2.UseStateForNullUnknown(),
+			},
+		},
+	}
+}
+
+func getConfigManagementToolVersionsAttributes() map[string]schema.Attribute {
+	semverValidator := stringvalidator.RegexMatches(
+		regexp.MustCompile(`^v\d+\.\d+\.\d+$`),
+		"must be a semantic version with 'v' prefix (e.g. \"v5.4.3\")",
+	)
+	return map[string]schema.Attribute{
+		"default_version": schema.StringAttribute{
+			MarkdownDescription: "Default version of the config management tool (e.g. \"v5.4.3\")",
+			Optional:            true,
+			Validators:          []validator.String{semverValidator},
+		},
+		"additional_versions": schema.ListAttribute{
+			MarkdownDescription: "Additional versions of the config management tool (e.g. [\"v5.6.0\", \"v5.7.0\"])",
+			Optional:            true,
+			ElementType:         types.StringType,
+			Validators:          []validator.List{listvalidator.ValueStringsAre(semverValidator)},
 		},
 	}
 }
@@ -484,19 +544,6 @@ func getAppsetPolicyAttributes() map[string]schema.Attribute {
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
 			},
-		},
-	}
-}
-
-func getIPAllowListEntryAttributes() map[string]schema.Attribute {
-	return map[string]schema.Attribute{
-		"ip": schema.StringAttribute{
-			MarkdownDescription: "IP address",
-			Required:            true,
-		},
-		"description": schema.StringAttribute{
-			MarkdownDescription: "IP description",
-			Optional:            true,
 		},
 	}
 }
@@ -631,6 +678,9 @@ func getPluginSpecAttributes() map[string]schema.Attribute {
 		"version": schema.StringAttribute{
 			MarkdownDescription: "Plugin version",
 			Optional:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier2.SuppressProtobufDefault(),
+			},
 		},
 		"init": schema.SingleNestedAttribute{
 			MarkdownDescription: "The init command runs in the Application source directory at the beginning of each manifest generation. The init command can output anything. A non-zero status code will fail manifest generation. Init always happens immediately before generate, but its output is not treated as manifests. This is a good place to, for example, download chart dependencies.",
@@ -905,19 +955,15 @@ func getKubeVisionConfigAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "CVE scanning configuration",
 			Optional:            true,
 			Computed:            true,
+			Attributes:          getCveScanConfigAttributes(),
 			PlanModifiers: []planmodifier.Object{
-				objectplanmodifier.UseStateForUnknown(),
+				objectplanmodifier2.UseStateForNullUnknown(),
 			},
-			Attributes: getCveScanConfigAttributes(),
 		},
 		"ai_config": schema.SingleNestedAttribute{
 			MarkdownDescription: "AI advanced configuration like runbooks and incidents",
 			Optional:            true,
-			Computed:            true,
-			PlanModifiers: []planmodifier.Object{
-				objectplanmodifier.UseStateForUnknown(),
-			},
-			Attributes: getAIConfigAttributes(),
+			Attributes:          getAIConfigAttributes(),
 		},
 		"additional_attributes": schema.ListNestedAttribute{
 			MarkdownDescription: "Additional attributes to include when syncing resources to KubeVision",
@@ -934,44 +980,24 @@ func getAdditionalAttributeRuleAttributes() map[string]schema.Attribute {
 		"group": schema.StringAttribute{
 			MarkdownDescription: "Kubernetes resource group",
 			Optional:            true,
-			Computed:            true,
-			PlanModifiers: []planmodifier.String{
-				stringplanmodifier.UseStateForUnknown(),
-			},
 		},
 		"kind": schema.StringAttribute{
 			MarkdownDescription: "Kubernetes resource kind",
 			Optional:            true,
-			Computed:            true,
-			PlanModifiers: []planmodifier.String{
-				stringplanmodifier.UseStateForUnknown(),
-			},
 		},
 		"annotations": schema.ListAttribute{
 			MarkdownDescription: "List of annotations to include",
 			Optional:            true,
-			Computed:            true,
 			ElementType:         types.StringType,
-			PlanModifiers: []planmodifier.List{
-				listplanmodifier.UseStateForUnknown(),
-			},
 		},
 		"labels": schema.ListAttribute{
 			MarkdownDescription: "List of labels to include",
 			Optional:            true,
-			Computed:            true,
 			ElementType:         types.StringType,
-			PlanModifiers: []planmodifier.List{
-				listplanmodifier.UseStateForUnknown(),
-			},
 		},
 		"namespace": schema.StringAttribute{
 			MarkdownDescription: "Kubernetes namespace",
 			Optional:            true,
-			Computed:            true,
-			PlanModifiers: []planmodifier.String{
-				stringplanmodifier.UseStateForUnknown(),
-			},
 		},
 	}
 }
@@ -981,18 +1007,10 @@ func getCveScanConfigAttributes() map[string]schema.Attribute {
 		"scan_enabled": schema.BoolAttribute{
 			MarkdownDescription: "Enable CVE scanning",
 			Optional:            true,
-			Computed:            true,
-			PlanModifiers: []planmodifier.Bool{
-				boolplanmodifier.UseStateForUnknown(),
-			},
 		},
 		"rescan_interval": schema.StringAttribute{
 			MarkdownDescription: "CVE rescan interval",
 			Optional:            true,
-			Computed:            true,
-			PlanModifiers: []planmodifier.String{
-				stringplanmodifier.UseStateForUnknown(),
-			},
 		},
 	}
 }
@@ -1010,27 +1028,19 @@ func getAIConfigAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Incident configuration",
 			Optional:            true,
 			Computed:            true,
+			Attributes:          getIncidentsConfigAttributes(),
 			PlanModifiers: []planmodifier.Object{
-				objectplanmodifier.UseStateForUnknown(),
+				objectplanmodifier2.UseStateForNullUnknown(),
 			},
-			Attributes: getIncidentsConfigAttributes(),
 		},
 		"argocd_slack_service": schema.StringAttribute{
 			MarkdownDescription: "ArgoCD Slack service configuration",
 			Optional:            true,
-			Computed:            true,
-			PlanModifiers: []planmodifier.String{
-				stringplanmodifier.UseStateForUnknown(),
-			},
 		},
 		"argocd_slack_channels": schema.ListAttribute{
 			MarkdownDescription: "List of ArgoCD Slack channels",
 			Optional:            true,
-			Computed:            true,
 			ElementType:         types.StringType,
-			PlanModifiers: []planmodifier.List{
-				listplanmodifier.UseStateForUnknown(),
-			},
 		},
 	}
 }
@@ -1048,7 +1058,11 @@ func getRunbookAttributes() map[string]schema.Attribute {
 		"applied_to": schema.SingleNestedAttribute{
 			MarkdownDescription: "Target selector for runbook application",
 			Optional:            true,
+			Computed:            true,
 			Attributes:          getTargetSelectorAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier2.UseStateForNullUnknown(),
+			},
 		},
 		"slack_channel_names": schema.ListAttribute{
 			MarkdownDescription: "List of Slack channel names for runbook notifications",
@@ -1078,10 +1092,10 @@ func getIncidentsConfigAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Incident grouping configuration",
 			Optional:            true,
 			Computed:            true,
+			Attributes:          getIncidentsGroupingConfigAttributes(),
 			PlanModifiers: []planmodifier.Object{
-				objectplanmodifier.UseStateForUnknown(),
+				objectplanmodifier2.UseStateForNullUnknown(),
 			},
-			Attributes: getIncidentsGroupingConfigAttributes(),
 		},
 	}
 }
@@ -1121,10 +1135,6 @@ func getTargetSelectorAttributes() map[string]schema.Attribute {
 		"degraded_for": schema.StringAttribute{
 			MarkdownDescription: "Trigger an incident after this duration of degradation. Can be a duration string like '1h' '10m' or '10s'.",
 			Optional:            true,
-			Computed:            true,
-			PlanModifiers: []planmodifier.String{
-				stringplanmodifier.UseStateForUnknown(),
-			},
 		},
 	}
 }
@@ -1152,7 +1162,7 @@ func getIncidentWebhookConfigAttributes() map[string]schema.Attribute {
 			Optional:            true,
 		},
 		"argocd_application_namespace_path": schema.StringAttribute{
-			MarkdownDescription: "JSON path for ArgoCD application name field",
+			MarkdownDescription: "JSON path for ArgoCD application namespace field",
 			Optional:            true,
 		},
 	}

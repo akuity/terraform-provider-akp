@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -15,6 +16,26 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
+
+func FilterMapToPlannedKeys(_ context.Context, diagnostics *diag.Diagnostics, current, planned tftypes.Map) tftypes.Map {
+	if planned.IsNull() || planned.IsUnknown() || current.IsNull() || current.IsUnknown() {
+		return current
+	}
+
+	plannedElems := planned.Elements()
+	currentElems := current.Elements()
+
+	filtered := make(map[string]attr.Value, len(plannedElems))
+	for k := range plannedElems {
+		if v, ok := currentElems[k]; ok {
+			filtered[k] = v
+		}
+	}
+
+	result, d := tftypes.MapValue(tftypes.StringType, filtered)
+	diagnostics.Append(d...)
+	return result
+}
 
 func ToFilteredConfigMapTFModel(ctx context.Context, diagnostics *diag.Diagnostics, data *structpb.Struct, oldCM tftypes.Map) tftypes.Map {
 	if data == nil || len(data.AsMap()) == 0 {
@@ -36,6 +57,8 @@ func ToFilteredConfigMapTFModel(ctx context.Context, diagnostics *diag.Diagnosti
 	// a lot of fields which can cause TF to have an inconsistent state. We rely on the backend being able to do the right
 	// thing in regard to PATCH requests; we don't actually need to have all the fields which the API returns in the state.
 	for k := range oldMap {
+		oldValue := oldMap[k]
+		oldString, hasOldString := configMapStringValue(oldValue)
 		if v, ok := m[k]; ok {
 			switch t := v.(type) {
 			case string:
@@ -43,6 +66,10 @@ func ToFilteredConfigMapTFModel(ctx context.Context, diagnostics *diag.Diagnosti
 					if yamlIsSubset(t, oldMap[k]) {
 						continue
 					}
+				}
+				if hasOldString && equivalentConfigMapString(k, oldString, t) {
+					oldMap[k] = oldValue
+					continue
 				}
 				sortedValue, err := sortJSONString(t)
 				if err != nil {
@@ -54,6 +81,10 @@ func ToFilteredConfigMapTFModel(ctx context.Context, diagnostics *diag.Diagnosti
 				oldMap[k] = v
 			}
 		} else if v, ok := resolveResourceCustomizationKey(k, mergedCustomizations); ok {
+			if hasOldString && equivalentConfigMapString(k, oldString, v) {
+				oldMap[k] = oldValue
+				continue
+			}
 			oldMap[k] = v
 		}
 	}
@@ -61,6 +92,69 @@ func ToFilteredConfigMapTFModel(ctx context.Context, diagnostics *diag.Diagnosti
 	newData, diag := tftypes.MapValueFrom(ctx, tftypes.StringType, &oldMap)
 	diagnostics.Append(diag...)
 	return newData
+}
+
+func configMapStringValue(val any) (string, bool) {
+	switch v := val.(type) {
+	case string:
+		return v, true
+	case tftypes.String:
+		if v.IsNull() || v.IsUnknown() {
+			return "", false
+		}
+		return v.ValueString(), true
+	default:
+		return "", false
+	}
+}
+
+func equivalentConfigMapString(key, oldValue, newValue string) bool {
+	if isAccountCapabilitiesKey(key) {
+		return normalizeAccountCapabilities(oldValue) == normalizeAccountCapabilities(newValue)
+	}
+	if json.Valid([]byte(oldValue)) && json.Valid([]byte(newValue)) {
+		sortedOld, err := sortJSONString(oldValue)
+		if err != nil {
+			return false
+		}
+		sortedNew, err := sortJSONString(newValue)
+		if err != nil {
+			return false
+		}
+		return sortedOld == sortedNew
+	}
+	return strings.TrimSpace(oldValue) == strings.TrimSpace(newValue)
+}
+
+func isAccountCapabilitiesKey(key string) bool {
+	if !strings.HasPrefix(key, "accounts.") || strings.HasSuffix(key, ".enabled") {
+		return false
+	}
+	return strings.Count(key, ".") == 1
+}
+
+func normalizeAccountCapabilities(value string) string {
+	capabilities := strings.Split(value, ",")
+	normalized := make([]string, 0, len(capabilities))
+	for _, capability := range capabilities {
+		capability = strings.TrimSpace(capability)
+		if capability == "" {
+			continue
+		}
+		normalized = append(normalized, capability)
+	}
+	sort.Strings(normalized)
+	return strings.Join(normalized, ",")
+}
+
+func ToDataSourceConfigMapTFModel(ctx context.Context, diagnostics *diag.Diagnostics, data *structpb.Struct, oldCM tftypes.Map) tftypes.Map {
+	if data == nil || len(data.AsMap()) == 0 {
+		return ToFilteredConfigMapTFModel(ctx, diagnostics, data, oldCM)
+	}
+	if oldCM.IsUnknown() || oldCM.IsNull() || len(oldCM.Elements()) == 0 {
+		return ToConfigMapTFModel(ctx, diagnostics, data, oldCM)
+	}
+	return ToFilteredConfigMapTFModel(ctx, diagnostics, data, oldCM)
 }
 
 func parseMergedResourceCustomizations(apiMap map[string]any) map[string]string {
