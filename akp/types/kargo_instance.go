@@ -14,8 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
-	"github.com/akuity/terraform-provider-akp/akp/apis/v1alpha1"
-	"github.com/akuity/terraform-provider-akp/akp/marshal"
 )
 
 type KargoInstance struct {
@@ -29,13 +27,15 @@ type KargoInstance struct {
 }
 
 func (k *KargoInstance) Update(ctx context.Context, diagnostics *diag.Diagnostics, exportResp *kargov1.ExportKargoInstanceResponse, agentMaps *AgentMaps, isDataSource bool) error {
-	var kargo *v1alpha1.Kargo
-	err := marshal.RemarshalTo(exportResp.GetKargo().AsMap(), &kargo)
-	if err != nil {
-		return errors.Wrap(err, "Unable to get Kargo instance")
-	}
 	if k.Kargo == nil {
 		k.Kargo = &Kargo{}
+	}
+	plan := DeepCopyKargo(k.Kargo)
+	apiMap := exportResp.GetKargo().AsMap()
+	if isDataSource {
+		diagnostics.Append(BuildStateFromAPI(ctx, apiMap, k.Kargo, nil, KargoReverseOverridesMap, KargoReverseRenamesMap, "kargo")...)
+	} else {
+		diagnostics.Append(BuildStateFromAPI(ctx, apiMap, k.Kargo, plan, KargoReverseOverridesMap, KargoReverseRenamesMap, "kargo")...)
 	}
 
 	// Convert ConfigMap values, ensuring booleans are converted to strings
@@ -61,7 +61,6 @@ func (k *KargoInstance) Update(ctx context.Context, diagnostics *diag.Diagnostic
 		return errors.Wrap(err, "Unable to convert ConfigMap to struct")
 	}
 	k.KargoConfigMap = ToConfigMapTFModel(ctx, diagnostics, configMapStruct, k.KargoConfigMap)
-	k.Kargo.Update(ctx, diagnostics, kargo, agentMaps)
 
 	if err := k.syncKargoResources(ctx, exportResp, diagnostics, isDataSource); err != nil {
 		return err
@@ -169,9 +168,28 @@ func syncResources(
 
 	elementsToAdd := make(map[string]attr.Value)
 	if isDataSource {
-		// For data sources: if no existing resources, add all exported resources
-		for key, obj := range exportedResourceMap {
-			elementsToAdd[key] = types.StringValue(obj.String())
+		// Data sources should expose API resources as canonical JSON strings.
+		for _, obj := range exportedResourceMap {
+			if shouldExcludeDefaultDataSourceResource(resourceType, obj.AsMap()) {
+				continue
+			}
+			key, err := normalizeDataSourceResourceKey(resourceType, obj.AsMap())
+			if err != nil {
+				diagnostics.AddError(
+					"Exported Resource Metadata Error",
+					fmt.Sprintf("Error normalizing exported %s resource key: %s. Resource: %v", resourceType, err.Error(), obj.AsMap()),
+				)
+				continue
+			}
+			data, err := json.Marshal(obj.AsMap())
+			if err != nil {
+				diagnostics.AddError(
+					"Exported Resource Serialization Error",
+					fmt.Sprintf("Error serializing exported %s resource %s: %s", resourceType, key, err.Error()),
+				)
+				continue
+			}
+			elementsToAdd[key] = types.StringValue(string(data))
 		}
 	} else {
 		// For resources: only keep existing resources that are also in the exported map
@@ -203,4 +221,47 @@ func syncResources(
 	}
 
 	return newMap, nil
+}
+
+func shouldExcludeDefaultDataSourceResource(resourceType string, resourceMap map[string]any) bool {
+	if resourceType != "ArgoCD" {
+		return false
+	}
+
+	kind, _ := resourceMap["kind"].(string)
+	if kind != "AppProject" {
+		return false
+	}
+	metadata, ok := resourceMap["metadata"].(map[string]any)
+	if !ok {
+		return false
+	}
+
+	name, _ := metadata["name"].(string)
+	namespace, _ := metadata["namespace"].(string)
+	return name == "default" && namespace == "argocd"
+}
+
+func normalizeDataSourceResourceKey(resourceType string, resourceMap map[string]any) (string, error) {
+	key, kind, err := extractResourceMetadata(resourceMap)
+	if err != nil {
+		return "", err
+	}
+	if resourceType != "ArgoCD" {
+		return key, nil
+	}
+
+	metadata, _ := resourceMap["metadata"].(map[string]any)
+	namespace, _ := metadata["namespace"].(string)
+	if namespace != "argocd" {
+		return key, nil
+	}
+
+	if kind != "Application" && kind != "ApplicationSet" && kind != "AppProject" {
+		return key, nil
+	}
+
+	apiVersion, _ := resourceMap["apiVersion"].(string)
+	name, _ := metadata["name"].(string)
+	return fmt.Sprintf("%s/%s//%s", apiVersion, kind, name), nil
 }

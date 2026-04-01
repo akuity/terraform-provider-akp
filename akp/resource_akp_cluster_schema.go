@@ -5,7 +5,6 @@ import (
 	"regexp"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
-	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
@@ -17,6 +16,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+
+	boolplanmodifier2 "github.com/akuity/terraform-provider-akp/akp/modifiers/bool"
+	objectplanmodifier2 "github.com/akuity/terraform-provider-akp/akp/modifiers/object"
+	stringplanmodifier2 "github.com/akuity/terraform-provider-akp/akp/modifiers/string"
 )
 
 var (
@@ -31,8 +34,8 @@ var (
 	resourceNameRegexDescription = "resource name must consist of lower case alphanumeric characters, digits or '-', and must start with an alphanumeric character, and end with an alphanumeric character or a digit"
 )
 
-func (r *AkpClusterResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
-	resp.Schema = schema.Schema{
+func clusterSchema() schema.Schema {
+	return schema.Schema{
 		MarkdownDescription: "Manages a cluster attached to an Argo CD instance.",
 		Attributes:          getAKPClusterAttributes(),
 	}
@@ -117,6 +120,7 @@ func getAKPClusterAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
+				boolplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
 		"ensure_healthy": schema.BoolAttribute{
@@ -167,6 +171,7 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
+				boolplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
 		"kustomization": schema.StringAttribute{
@@ -175,6 +180,7 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
+				stringplanmodifier2.UnknownWhenCustomSize(),
 			},
 		},
 		"app_replication": schema.BoolAttribute{
@@ -183,6 +189,7 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
+				boolplanmodifier2.SuppressProtobufDefault(),
 				boolplanmodifier.RequiresReplace(),
 			},
 		},
@@ -200,6 +207,7 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
+				boolplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
 		"datadog_annotations_enabled": schema.BoolAttribute{
@@ -227,16 +235,13 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
+				boolplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
 		"auto_agent_size_config": schema.SingleNestedAttribute{
 			MarkdownDescription: "Autoscaler config for auto agent size",
 			Optional:            true,
-			Computed:            true,
-			PlanModifiers: []planmodifier.Object{
-				objectplanmodifier.UseStateForUnknown(),
-			},
-			Attributes: getAutoScalerConfigAttributes(),
+			Attributes:          getAutoScalerConfigAttributes(),
 		},
 		"custom_agent_size_config": schema.SingleNestedAttribute{
 			MarkdownDescription: "Custom agent size config",
@@ -253,12 +258,20 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 		"compatibility": schema.SingleNestedAttribute{
 			MarkdownDescription: "Cluster compatibility settings",
 			Optional:            true,
+			Computed:            true,
 			Attributes:          getCompatibilityAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier2.UseStateForNullUnknown(),
+			},
 		},
 		"argocd_notifications_settings": schema.SingleNestedAttribute{
 			MarkdownDescription: "ArgoCD notifications settings",
 			Optional:            true,
+			Computed:            true,
 			Attributes:          getArgoCDNotificationsSettingsAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier2.UseStateForNullUnknown(),
+			},
 		},
 		"direct_cluster_spec": schema.SingleNestedAttribute{
 			MarkdownDescription: "Direct cluster integration spec. Currently supports `kargo`",
@@ -271,6 +284,7 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
+				boolplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
 		"maintenance_mode": schema.BoolAttribute{
@@ -279,14 +293,25 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
+				boolplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
 		"maintenance_mode_expiry": schema.StringAttribute{
-			MarkdownDescription: "Expiry time for maintenance mode in RFC3339 format. Maintenance mode will be automatically disabled after this time.",
+			MarkdownDescription: "Expiry time for maintenance mode in RFC3339 format. Requires `maintenance_mode = true`. The control plane clears the expiry when maintenance mode is disabled.",
 			Optional:            true,
 			Computed:            true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
+				stringplanmodifier2.SuppressProtobufDefault(),
+			},
+		},
+		"pod_inherit_metadata": schema.BoolAttribute{
+			MarkdownDescription: "Enable pod metadata inheritance. When enabled, pods inherit labels and annotations from the cluster.",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Bool{
+				boolplanmodifier.UseStateForUnknown(),
+				boolplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
 	}

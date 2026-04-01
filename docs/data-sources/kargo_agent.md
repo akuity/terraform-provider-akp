@@ -79,6 +79,7 @@ Read-Only:
 - `kustomization` (String) Kustomize configuration that will be applied to generated Kargo agent installation manifests
 - `maintenance_mode` (Boolean) Whether maintenance mode is enabled for the agent.
 - `maintenance_mode_expiry` (String) Expiry time for maintenance mode in RFC3339 format.
+- `pod_inherit_metadata` (Boolean) Whether pod metadata inheritance is enabled for the agent.
 - `remote_argocd` (String) The ID of the remote Argo CD instance
 - `size` (String) The size of the Kargo agent
 - `target_version` (String) The target version of the Kargo agent

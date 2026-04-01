@@ -95,14 +95,14 @@ type IncidentsGroupingConfig struct {
 type IncidentsConfig struct {
 	Triggers []*TargetSelector        `tfsdk:"triggers"`
 	Webhooks []*IncidentWebhookConfig `tfsdk:"webhooks"`
-	Grouping types.Object             `tfsdk:"grouping"`
+	Grouping *IncidentsGroupingConfig `tfsdk:"grouping"`
 }
 
 type AIConfig struct {
-	Runbooks            []*Runbook   `tfsdk:"runbooks"`
-	Incidents           types.Object `tfsdk:"incidents"`
-	ArgocdSlackService  types.String `tfsdk:"argocd_slack_service"`
-	ArgocdSlackChannels types.List   `tfsdk:"argocd_slack_channels"`
+	Runbooks            []*Runbook       `tfsdk:"runbooks"`
+	Incidents           *IncidentsConfig `tfsdk:"incidents"`
+	ArgocdSlackService  types.String     `tfsdk:"argocd_slack_service"`
+	ArgocdSlackChannels []types.String   `tfsdk:"argocd_slack_channels"`
 }
 
 type AdditionalAttributeRule struct {
@@ -114,8 +114,8 @@ type AdditionalAttributeRule struct {
 }
 
 type KubeVisionConfig struct {
-	CveScanConfig        types.Object               `tfsdk:"cve_scan_config"`
-	AiConfig             types.Object               `tfsdk:"ai_config"`
+	CveScanConfig        *CveScanConfig             `tfsdk:"cve_scan_config"`
+	AiConfig             *AIConfig                  `tfsdk:"ai_config"`
 	AdditionalAttributes []*AdditionalAttributeRule `tfsdk:"additional_attributes"`
 }
 
@@ -132,35 +132,44 @@ type ApplicationSetExtension struct {
 	Enabled types.Bool `tfsdk:"enabled"`
 }
 
+type ConfigManagementToolVersions struct {
+	DefaultVersion     types.String   `tfsdk:"default_version"`
+	AdditionalVersions []types.String `tfsdk:"additional_versions"`
+}
+
+type ManifestGeneration struct {
+	Kustomize *ConfigManagementToolVersions `tfsdk:"kustomize"`
+}
+
 type InstanceSpec struct {
-	IpAllowList                     []*IPAllowListEntry          `tfsdk:"ip_allow_list"`
-	Subdomain                       types.String                 `tfsdk:"subdomain"`
-	DeclarativeManagementEnabled    types.Bool                   `tfsdk:"declarative_management_enabled"`
-	Extensions                      types.List                   `tfsdk:"extensions"`
-	ClusterCustomizationDefaults    types.Object                 `tfsdk:"cluster_customization_defaults"`
-	ImageUpdaterEnabled             types.Bool                   `tfsdk:"image_updater_enabled"`
-	BackendIpAllowListEnabled       types.Bool                   `tfsdk:"backend_ip_allow_list_enabled"`
-	RepoServerDelegate              *RepoServerDelegate          `tfsdk:"repo_server_delegate"`
-	AuditExtensionEnabled           types.Bool                   `tfsdk:"audit_extension_enabled"`
-	SyncHistoryExtensionEnabled     types.Bool                   `tfsdk:"sync_history_extension_enabled"`
-	CrossplaneExtension             *CrossplaneExtension         `tfsdk:"crossplane_extension"`
-	ImageUpdaterDelegate            *ImageUpdaterDelegate        `tfsdk:"image_updater_delegate"`
-	AppSetDelegate                  *AppSetDelegate              `tfsdk:"app_set_delegate"`
-	AssistantExtensionEnabled       types.Bool                   `tfsdk:"assistant_extension_enabled"`
-	AppsetPolicy                    types.Object                 `tfsdk:"appset_policy"`
-	HostAliases                     []*HostAliases               `tfsdk:"host_aliases"`
-	AgentPermissionsRules           []*AgentPermissionsRule      `tfsdk:"agent_permissions_rules"`
-	Fqdn                            types.String                 `tfsdk:"fqdn"`
-	MultiClusterK8SDashboardEnabled types.Bool                   `tfsdk:"multi_cluster_k8s_dashboard_enabled"`
-	AkuityIntelligenceExtension     *AkuityIntelligenceExtension `tfsdk:"akuity_intelligence_extension"`
-	KubeVisionConfig                types.Object                 `tfsdk:"kube_vision_config"`
-	AppInAnyNamespaceConfig         *AppInAnyNamespaceConfig     `tfsdk:"app_in_any_namespace_config"`
-	AppsetPlugins                   []*AppsetPlugins             `tfsdk:"appset_plugins"`
-	ApplicationSetExtension         *ApplicationSetExtension     `tfsdk:"application_set_extension"`
-	MetricsIngressUsername          types.String                 `tfsdk:"metrics_ingress_username"`
-	MetricsIngressPasswordHash      types.String                 `tfsdk:"metrics_ingress_password_hash"`
-	PrivilegedNotificationCluster   types.String                 `tfsdk:"privileged_notification_cluster"`
-	ClusterAddonsExtension          *ClusterAddonsExtension      `tfsdk:"cluster_addons_extension"`
+	Subdomain                       types.String                   `tfsdk:"subdomain"`
+	DeclarativeManagementEnabled    types.Bool                     `tfsdk:"declarative_management_enabled"`
+	Extensions                      []*ArgoCDExtensionInstallEntry `tfsdk:"extensions"`
+	ClusterCustomizationDefaults    types.Object                   `tfsdk:"cluster_customization_defaults"`
+	ImageUpdaterEnabled             types.Bool                     `tfsdk:"image_updater_enabled"`
+	BackendIpAllowListEnabled       types.Bool                     `tfsdk:"backend_ip_allow_list_enabled"`
+	RepoServerDelegate              *RepoServerDelegate            `tfsdk:"repo_server_delegate"`
+	AuditExtensionEnabled           types.Bool                     `tfsdk:"audit_extension_enabled"`
+	SyncHistoryExtensionEnabled     types.Bool                     `tfsdk:"sync_history_extension_enabled"`
+	CrossplaneExtension             *CrossplaneExtension           `tfsdk:"crossplane_extension"`
+	ImageUpdaterDelegate            *ImageUpdaterDelegate          `tfsdk:"image_updater_delegate"`
+	AppSetDelegate                  *AppSetDelegate                `tfsdk:"app_set_delegate"`
+	AssistantExtensionEnabled       types.Bool                     `tfsdk:"assistant_extension_enabled"`
+	AppsetPolicy                    types.Object                   `tfsdk:"appset_policy"`
+	HostAliases                     []*HostAliases                 `tfsdk:"host_aliases"`
+	AgentPermissionsRules           []*AgentPermissionsRule        `tfsdk:"agent_permissions_rules"`
+	Fqdn                            types.String                   `tfsdk:"fqdn"`
+	MultiClusterK8SDashboardEnabled types.Bool                     `tfsdk:"multi_cluster_k8s_dashboard_enabled"`
+	AkuityIntelligenceExtension     *AkuityIntelligenceExtension   `tfsdk:"akuity_intelligence_extension"`
+	KubeVisionConfig                *KubeVisionConfig              `tfsdk:"kube_vision_config"`
+	AppInAnyNamespaceConfig         *AppInAnyNamespaceConfig       `tfsdk:"app_in_any_namespace_config"`
+	AppsetPlugins                   []*AppsetPlugins               `tfsdk:"appset_plugins"`
+	ApplicationSetExtension         *ApplicationSetExtension       `tfsdk:"application_set_extension"`
+	MetricsIngressUsername          types.String                   `tfsdk:"metrics_ingress_username"`
+	MetricsIngressPasswordHash      types.String                   `tfsdk:"metrics_ingress_password_hash"`
+	PrivilegedNotificationCluster   types.String                   `tfsdk:"privileged_notification_cluster"`
+	ClusterAddonsExtension          *ClusterAddonsExtension        `tfsdk:"cluster_addons_extension"`
+	ManifestGeneration              *ManifestGeneration            `tfsdk:"manifest_generation"`
 }
 
 type AppsetPlugins struct {

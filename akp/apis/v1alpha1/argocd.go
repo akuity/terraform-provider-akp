@@ -137,8 +137,16 @@ type ApplicationSetExtension struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
+type ConfigManagementToolVersions struct {
+	DefaultVersion     string   `json:"defaultVersion,omitempty"`
+	AdditionalVersions []string `json:"additionalVersions,omitempty"`
+}
+
+type ManifestGeneration struct {
+	Kustomize *ConfigManagementToolVersions `json:"kustomize,omitempty"`
+}
+
 type InstanceSpec struct {
-	IpAllowList                     []*IPAllowListEntry            `json:"ipAllowList,omitempty"`
 	Subdomain                       string                         `json:"subdomain,omitempty"`
 	DeclarativeManagementEnabled    *bool                          `json:"declarativeManagementEnabled,omitempty"`
 	Extensions                      []*ArgoCDExtensionInstallEntry `json:"extensions,omitempty"`
@@ -169,6 +177,7 @@ type InstanceSpec struct {
 	MetricsIngressPasswordHash    *string                 `json:"metricsIngressPasswordHash,omitempty"`
 	PrivilegedNotificationCluster *string                 `json:"privilegedNotificationCluster,omitempty"`
 	ClusterAddonsExtension        *ClusterAddonsExtension `json:"clusterAddonsExtension,omitempty"`
+	ManifestGeneration            *ManifestGeneration     `json:"manifestGeneration,omitempty"`
 }
 
 type AppsetPlugins struct {

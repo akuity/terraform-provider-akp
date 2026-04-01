@@ -2,7 +2,6 @@ package akp
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -16,134 +15,57 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
 	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
 	orgcv1 "github.com/akuity/api-client-go/pkg/api/gen/organization/v1"
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
 	healthv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/health/v1"
+	reconv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/reconciliation/v1"
 	"github.com/akuity/terraform-provider-akp/akp/types"
 )
 
-// Ensure provider defined types fully satisfy framework interfaces
-var (
-	_ resource.Resource                = &AkpKargoInstanceResource{}
-	_ resource.ResourceWithImportState = &AkpKargoInstanceResource{}
-)
-
 func NewAkpKargoInstanceResource() resource.Resource {
-	return &AkpKargoInstanceResource{}
-}
-
-type AkpKargoInstanceResource struct {
-	akpCli *AkpCli
-}
-
-func (r *AkpKargoInstanceResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_kargo_instance"
-}
-
-func (r *AkpKargoInstanceResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	// Prevent panic if the provider has not been configured.
-	if req.ProviderData == nil {
-		return
-	}
-
-	akpCli, ok := req.ProviderData.(*AkpCli)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *AkpCli, got: %T. Please report this issue to the provider developers.", req.ProviderData),
-		)
-
-		return
-	}
-	r.akpCli = akpCli
-}
-
-func (r *AkpKargoInstanceResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	tflog.Debug(ctx, "Creating an instance")
-	var plan types.KargoInstance
-
-	// Read Terraform plan data into the model
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	err := r.upsert(ctx, &resp.Diagnostics, &plan)
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", err.Error())
-	} else {
-		resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+	return &GenericResource[types.KargoInstance]{
+		TypeNameSuffix: "kargo_instance",
+		SchemaFunc:     kargoInstanceSchema,
+		CreateFunc:     kargoInstanceCreateOrUpdate,
+		ReadFunc:       kargoInstanceRead,
+		UpdateFunc:     kargoInstanceCreateOrUpdate,
+		DeleteFunc:     kargoInstanceDelete,
+		ImportStateFunc: func(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+			resource.ImportStatePassthroughID(ctx, path.Root("name"), req, resp)
+		},
 	}
 }
 
-func (r *AkpKargoInstanceResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	tflog.Debug(ctx, "Reading a Kargo instance")
-	var data types.KargoInstance
-	// Read Terraform prior state data into the model
-	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
-	if resp.Diagnostics.HasError() {
-		return
+func kargoInstanceCreateOrUpdate(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, plan *types.KargoInstance) (*types.KargoInstance, error) {
+	applied, err := kargoInstanceUpsert(ctx, cli, diags, plan)
+	if applied {
+		return plan, err
 	}
-
-	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
-
-	err := refreshKargoState(ctx, &resp.Diagnostics, r.akpCli.KargoCli, &data, r.akpCli.OrgId, false)
-	if err != nil {
-		handleReadResourceError(ctx, resp, err)
-		return
-	}
-	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	return nil, err
 }
 
-func (r *AkpKargoInstanceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	tflog.Debug(ctx, "Updating a Kargo instance")
-	var plan types.KargoInstance
-
-	// Read Terraform plan data into the model
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
+func kargoInstanceRead(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, data *types.KargoInstance) error {
+	if data.Kargo == nil || data.ID.IsNull() || data.ID.ValueString() == "" {
+		ctx = types.WithReadContext(ctx)
 	}
-
-	err := r.upsert(ctx, &resp.Diagnostics, &plan)
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", err.Error())
-	} else {
-		resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
-	}
+	return refreshKargoState(ctx, diags, cli, data, cli.OrgId, false)
 }
 
-func (r *AkpKargoInstanceResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	tflog.Debug(ctx, "Deleting a Kargo instance")
-	var state types.KargoInstance
-
-	diags := req.State.Get(ctx, &state)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
-	_, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.DeleteInstanceResponse, error) {
-		return r.akpCli.KargoCli.DeleteInstance(ctx, &kargov1.DeleteInstanceRequest{
+func kargoInstanceDelete(ctx context.Context, cli *AkpCli, _ *diag.Diagnostics, state *types.KargoInstance) error {
+	err := deleteWithCooldown(ctx, func(ctx context.Context) (*kargov1.DeleteInstanceResponse, error) {
+		return cli.KargoCli.DeleteInstance(ctx, &kargov1.DeleteInstanceRequest{
 			Id:             state.ID.ValueString(),
-			OrganizationId: r.akpCli.OrgId,
+			OrganizationId: cli.OrgId,
 		})
-	}, "DeleteInstance")
+	}, "DeleteInstance", 2*time.Second)
 	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete Argo CD instance, got error: %s", err))
-		return
+		return fmt.Errorf("unable to delete Kargo instance, got error: %s", err)
 	}
-	// Give it some time to remove the Kargo instance. This is useful when the terraform provider is performing a replace operation, to give it enough time to destroy the previous instance.
-	time.Sleep(2 * time.Second)
+	return nil
 }
 
-func (r *AkpKargoInstanceResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resource.ImportStatePassthroughID(ctx, path.Root("name"), req, resp)
-}
-
-func (r *AkpKargoInstanceResource) validateAKIntelligenceFeatures(ctx context.Context, plan *types.KargoInstance) error {
+func validateKargoInstanceAIFeatures(ctx context.Context, plan *types.KargoInstance) error {
 	if plan.Kargo == nil || plan.Kargo.Spec.KargoInstanceSpec.AkuityIntelligence == nil {
 		return nil
 	}
@@ -167,69 +89,84 @@ func (r *AkpKargoInstanceResource) validateAKIntelligenceFeatures(ctx context.Co
 	return nil
 }
 
-func (r *AkpKargoInstanceResource) upsert(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.KargoInstance) error {
-	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
+func kargoInstanceUpsert(ctx context.Context, cli *AkpCli, diagnostics *diag.Diagnostics, plan *types.KargoInstance) (applied bool, err error) {
+	lc := &ResourceLifecycle[types.KargoInstance, *kargov1.GetKargoInstanceResponse, healthv1.StatusCode]{
+		Apply: func(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.KargoInstance) error {
+			if err := validateKargoInstanceAIFeatures(ctx, plan); err != nil {
+				return err
+			}
 
-	if err := r.validateAKIntelligenceFeatures(ctx, plan); err != nil {
-		return err
+			workspace, err := getWorkspace(ctx, cli.OrgCli, cli.OrgId, plan.Workspace.ValueString())
+			if err != nil {
+				diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get workspace. %s", err))
+				return errors.New("Unable to get workspace")
+			}
+
+			apiReq := buildKargoApplyRequest(ctx, diagnostics, cli.KargoCli, plan, cli.OrgId, workspace.GetId())
+			if diagnostics.HasError() {
+				return errors.New("Unable to build Kargo instance request")
+			}
+			tflog.Debug(ctx, fmt.Sprintf("Apply instance request: %s", apiReq))
+
+			_, err = retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ApplyKargoInstanceResponse, error) {
+				return cli.KargoCli.ApplyKargoInstance(ctx, apiReq)
+			}, "ApplyKargoInstance")
+			if err != nil {
+				return errors.Wrap(err, "Unable to upsert Kargo instance")
+			}
+
+			if plan.Workspace.ValueString() == "" {
+				plan.Workspace = tftypes.StringValue(workspace.GetName())
+			}
+			return nil
+		},
+		Get: func(ctx context.Context, plan *types.KargoInstance) (*kargov1.GetKargoInstanceResponse, error) {
+			return retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.GetKargoInstanceResponse, error) {
+				return cli.KargoCli.GetKargoInstance(ctx, &kargov1.GetKargoInstanceRequest{
+					OrganizationId: cli.OrgId,
+					Name:           plan.Name.ValueString(),
+					WorkspaceId:    plan.Workspace.ValueString(),
+				})
+			}, "GetKargoInstance")
+		},
+		GetStatus: func(resp *kargov1.GetKargoInstanceResponse) healthv1.StatusCode {
+			if resp == nil || resp.Instance == nil {
+				return healthv1.StatusCode_STATUS_CODE_UNKNOWN
+			}
+			return resp.Instance.GetHealthStatus().GetCode()
+		},
+		GetGeneration: func(resp *kargov1.GetKargoInstanceResponse) uint32 {
+			if resp == nil || resp.Instance == nil {
+				return 0
+			}
+			return resp.Instance.GetGeneration()
+		},
+		GetReconciliationDone: func(resp *kargov1.GetKargoInstanceResponse) bool {
+			if resp == nil || resp.Instance == nil {
+				return false
+			}
+			code := resp.Instance.GetReconciliationStatus().GetCode()
+			return code == reconv1.StatusCode_STATUS_CODE_SUCCESSFUL
+		},
+		GetReconciliationFailed: func(resp *kargov1.GetKargoInstanceResponse) bool {
+			if resp == nil || resp.Instance == nil {
+				return false
+			}
+			return resp.Instance.GetReconciliationStatus().GetCode() == reconv1.StatusCode_STATUS_CODE_FAILED
+		},
+		TargetStatuses: []healthv1.StatusCode{healthv1.StatusCode_STATUS_CODE_HEALTHY},
+		Refresh: func(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.KargoInstance) error {
+			return refreshKargoState(ctx, diagnostics, cli, plan, cli.OrgId, false)
+		},
+		ResourceName: func(plan *types.KargoInstance) string {
+			return fmt.Sprintf("Instance %s", plan.Name.ValueString())
+		},
+		StatusName:   "health",
+		PollInterval: 10 * time.Second,
+		Timeout:      5 * time.Minute,
 	}
 
-	workspace, err := getWorkspace(ctx, r.akpCli.OrgCli, r.akpCli.OrgId, plan.Workspace.ValueString())
-	if err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get workspace. %s", err))
-		return errors.New("Unable to get workspace")
-	}
-	apiReq := buildKargoApplyRequest(ctx, diagnostics, r.akpCli.KargoCli, plan, r.akpCli.OrgId, workspace.GetId())
-	if diagnostics.HasError() {
-		return errors.New("Unable to build Kargo instance request")
-	}
-	tflog.Debug(ctx, fmt.Sprintf("Apply instance request: %s", apiReq))
-
-	_, err = retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ApplyKargoInstanceResponse, error) {
-		return r.akpCli.KargoCli.ApplyKargoInstance(ctx, apiReq)
-	}, "ApplyKargoInstance")
-	if err != nil {
-		return errors.Wrap(err, "Unable to upsert Kargo instance")
-	}
-
-	if plan.Workspace.ValueString() == "" {
-		plan.Workspace = tftypes.StringValue(workspace.GetName())
-	}
-
-	getResourceFunc := func(ctx context.Context) (*kargov1.GetKargoInstanceResponse, error) {
-		return retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.GetKargoInstanceResponse, error) {
-			return r.akpCli.KargoCli.GetKargoInstance(ctx, &kargov1.GetKargoInstanceRequest{
-				OrganizationId: r.akpCli.OrgId,
-				Name:           plan.Name.ValueString(),
-				WorkspaceId:    plan.Workspace.ValueString(),
-			})
-		}, "GetKargoInstance")
-	}
-
-	getStatusFunc := func(resp *kargov1.GetKargoInstanceResponse) healthv1.StatusCode {
-		if resp == nil || resp.Instance == nil {
-			return healthv1.StatusCode_STATUS_CODE_UNKNOWN
-		}
-		return resp.Instance.GetHealthStatus().GetCode()
-	}
-
-	waitErr := waitForStatus(
-		ctx,
-		getResourceFunc,
-		getStatusFunc,
-		[]healthv1.StatusCode{healthv1.StatusCode_STATUS_CODE_HEALTHY},
-		10*time.Second,
-		5*time.Minute,
-		fmt.Sprintf("Instance %s", plan.Name.ValueString()),
-		"health",
-	)
-
-	if waitErr != nil {
-		diagnostics.AddError("Instance Wait Error", fmt.Sprintf("Instance '%s' did not become healthy: %s", plan.Name.ValueString(), waitErr.Error()))
-		return waitErr
-	}
-
-	return refreshKargoState(ctx, diagnostics, r.akpCli.KargoCli, plan, r.akpCli.OrgId, false)
+	return lc.Upsert(ctx, diagnostics, plan)
 }
 
 func buildKargoApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, client kargov1.KargoServiceGatewayClient, kargo *types.KargoInstance, orgID, workspaceID string) *kargov1.ApplyKargoInstanceRequest {
@@ -348,7 +285,6 @@ var kargoResourceGroups = map[string]struct {
 	},
 }
 
-// kargoSupportedGroupKinds maps supported GroupKinds to optional per-object validators.
 var kargoSupportedGroupKinds = map[schema.GroupKind]func(*unstructured.Unstructured) error{
 	{Group: "kargo.akuity.io", Kind: "Project"}:                  nil,
 	{Group: "kargo.akuity.io", Kind: "ProjectConfig"}:            nil,
@@ -392,25 +328,25 @@ func isKargoResourceValid(un *unstructured.Unstructured) error {
 	return nil
 }
 
-func buildKargo(ctx context.Context, diagnostics *diag.Diagnostics, kargo *types.KargoInstance, agentMaps *types.AgentMaps) *structpb.Struct {
-	apiKargo := kargo.Kargo.ToKargoAPIModel(ctx, diagnostics, kargo.Name.ValueString(), agentMaps)
-	if diagnostics.HasError() {
-		return nil
-	}
-	jsonBytes, err := json.Marshal(apiKargo)
-	if err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to marshal Kargo instance. %s", err))
+func buildKargo(_ context.Context, diagnostics *diag.Diagnostics, kargo *types.KargoInstance, agentMaps *types.AgentMaps) *structpb.Struct {
+	subdomain := kargo.Kargo.Spec.Subdomain.ValueString()
+	fqdn := kargo.Kargo.Spec.Fqdn.ValueString()
+	if subdomain != "" && fqdn != "" {
+		diagnostics.AddError("subdomain and fqdn cannot be set at the same time", "subdomain and fqdn are mutually exclusive")
 		return nil
 	}
 
-	var rawMap map[string]any
-	if err = json.Unmarshal(jsonBytes, &rawMap); err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to unmarshal Kargo instance. %s", err))
+	rawMap := types.TFToMapWithOverrides(kargo.Kargo, types.KargoOverridesMap, types.KargoRenamesMap)
+	if rawMap == nil {
+		diagnostics.AddError("Client Error", "Unable to convert Kargo instance to map")
 		return nil
+	}
+
+	rawMap["metadata"] = map[string]any{
+		"name": kargo.Name.ValueString(),
 	}
 
 	if spec, ok := rawMap["spec"].(map[string]any); ok {
-		// Ignore default shard agent
 		kargoInstanceSpec, sok := spec["kargoInstanceSpec"].(map[string]any)
 		if sok {
 			delete(kargoInstanceSpec, "defaultShardAgent")
@@ -425,26 +361,33 @@ func buildKargo(ctx context.Context, diagnostics *diag.Diagnostics, kargo *types
 	s, err := structpb.NewStruct(rawMap)
 	if err != nil {
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Kargo instance struct. %s", err))
+		return nil
 	}
 	return s
 }
 
-func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, client kargov1.KargoServiceGatewayClient, kargo *types.KargoInstance, orgID string, isDataSource bool) error {
+func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, cli *AkpCli, kargo *types.KargoInstance, orgID string, isDataSource bool) error {
 	req := &kargov1.GetKargoInstanceRequest{
 		OrganizationId: orgID,
 		Name:           kargo.Name.ValueString(),
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Get Kargo instance request: %s", req))
 	resp, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.GetKargoInstanceResponse, error) {
-		return client.GetKargoInstance(ctx, req)
+		return cli.KargoCli.GetKargoInstance(ctx, req)
 	}, "GetKargoInstance")
 	if err != nil {
 		return errors.Wrap(err, "Unable to read Kargo instance")
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Get Kargo instance response: %s", resp))
 	kargo.ID = tftypes.StringValue(resp.Instance.Id)
+	if kargo.Workspace.IsNull() || kargo.Workspace.ValueString() == "" {
+		workspace, wErr := getWorkspaceByID(ctx, cli.OrgCli, orgID, resp.Instance.WorkspaceId)
+		if wErr == nil && workspace != nil {
+			kargo.Workspace = tftypes.StringValue(workspace.GetName())
+		}
+	}
 
-	agentMaps := buildAgentMaps(ctx, client, kargo.ID.ValueString(), orgID, idv1.Type_ID)
+	agentMaps := buildAgentMaps(ctx, cli.KargoCli, kargo.ID.ValueString(), orgID, idv1.Type_ID)
 
 	exportReq := &kargov1.ExportKargoInstanceRequest{
 		OrganizationId: orgID,
@@ -453,7 +396,7 @@ func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, clien
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Export Kargo instance request: %s", exportReq))
 	exportResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ExportKargoInstanceResponse, error) {
-		return client.ExportKargoInstance(ctx, exportReq)
+		return cli.KargoCli.ExportKargoInstance(ctx, exportReq)
 	}, "ExportKargoInstance")
 	if err != nil {
 		return errors.Wrap(err, "Unable to export Kargo instance")
@@ -518,7 +461,6 @@ func getWorkspace(ctx context.Context, orgc orgcv1.OrganizationServiceGatewayCli
 	}
 	for _, w := range workspaces.GetWorkspaces() {
 		if name == "" && w.IsDefault {
-			// if no workspace name is provided, return the default workspace
 			return w, nil
 		}
 		if w.Name == name {
@@ -527,4 +469,21 @@ func getWorkspace(ctx context.Context, orgc orgcv1.OrganizationServiceGatewayCli
 	}
 
 	return nil, fmt.Errorf("workspace %s not found", name)
+}
+
+func getWorkspaceByID(ctx context.Context, orgc orgcv1.OrganizationServiceGatewayClient, orgid, id string) (*orgcv1.Workspace, error) {
+	workspaces, err := retryWithBackoff(ctx, func(ctx context.Context) (*orgcv1.ListWorkspacesResponse, error) {
+		return orgc.ListWorkspaces(ctx, &orgcv1.ListWorkspacesRequest{
+			OrganizationId: orgid,
+		})
+	}, "ListWorkspaces")
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to read org workspaces")
+	}
+	for _, w := range workspaces.GetWorkspaces() {
+		if w.Id == id {
+			return w, nil
+		}
+	}
+	return nil, fmt.Errorf("workspace with id %s not found", id)
 }

@@ -145,6 +145,10 @@ EOT
           min_freight_deletion_age   = 86400
           min_promotion_deletion_age = 604800
         }
+
+        argocd_ui = {
+          idp_groups_mapping = true
+        }
       }
     }
   }
@@ -268,8 +272,8 @@ Optional:
 
 - `agent_customization_defaults` (Attributes) Default agent customization settings (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--agent_customization_defaults))
 - `akuity_intelligence` (Attributes) Akuity Intelligence configuration for AI-powered features (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--akuity_intelligence))
+- `argocd_ui` (Attributes) Controls behavior of Argo CD user interface in the Kargo instance (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--argocd_ui))
 - `backend_ip_allow_list_enabled` (Boolean) Whether IP allow list is enabled for the backend
-- `default_shard_agent` (String, Deprecated) **Deprecated:** Default shard agent, either agent id or agent name. Use `akp_kargo_default_shard_agent` resource instead.
 - `gc_config` (Attributes) Garbage collector configuration (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--gc_config))
 - `global_credentials_ns` (List of String) List of global credentials namespaces
 - `global_service_account_ns` (List of String) List of global service account namespaces
@@ -295,6 +299,14 @@ Optional:
 - `allowed_usernames` (List of String) List of usernames allowed to use AI features
 - `enabled` (Boolean) Enable Akuity Intelligence for AI-powered features
 - `model_version` (String) AI model version to use
+
+
+<a id="nestedatt--kargo--spec--kargo_instance_spec--argocd_ui"></a>
+### Nested Schema for `kargo.spec.kargo_instance_spec.argocd_ui`
+
+Optional:
+
+- `idp_groups_mapping` (Boolean) When enabled, group claims from the user's Kargo IDP token are mapped to Argo CD to authorize edit operations
 
 
 <a id="nestedatt--kargo--spec--kargo_instance_spec--gc_config"></a>
@@ -331,7 +343,7 @@ Optional:
 - `cli_client_id` (String) CLI Client ID
 - `client_id` (String) Client ID
 - `dex_config` (String) DEX configuration
-- `dex_config_secret` (Map of String) DEX configuration secret
+- `dex_config_secret` (Map of String, Sensitive) DEX configuration secret
 - `dex_enabled` (Boolean) Whether DEX is enabled
 - `enabled` (Boolean) Whether OIDC is enabled
 - `issuer_url` (String) Issuer URL

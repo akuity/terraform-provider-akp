@@ -15,24 +15,24 @@ import (
 // the state value, allowing external resources to manage it. When the field is
 // specified in the configuration, it works normally for backward compatibility.
 func IgnoreWhenNotConfigured() planmodifier.List {
-	return ignoreWhenNotConfiguredModifier{}
+	return IgnoreWhenNotConfiguredModifier{}
 }
 
-// ignoreWhenNotConfiguredModifier implements the plan modifier.
-type ignoreWhenNotConfiguredModifier struct{}
+// IgnoreWhenNotConfiguredModifier implements the plan modifier.
+type IgnoreWhenNotConfiguredModifier struct{}
 
 // Description returns a human-readable description of the plan modifier.
-func (m ignoreWhenNotConfiguredModifier) Description(_ context.Context) string {
+func (m IgnoreWhenNotConfiguredModifier) Description(_ context.Context) string {
 	return "When the configuration value is null, the state value is preserved to allow external management."
 }
 
 // MarkdownDescription returns a markdown description of the plan modifier.
-func (m ignoreWhenNotConfiguredModifier) MarkdownDescription(_ context.Context) string {
+func (m IgnoreWhenNotConfiguredModifier) MarkdownDescription(_ context.Context) string {
 	return "When the configuration value is null, the state value is preserved to allow external management."
 }
 
 // PlanModifyList implements the plan modification logic.
-func (m ignoreWhenNotConfiguredModifier) PlanModifyList(_ context.Context, req planmodifier.ListRequest, resp *planmodifier.ListResponse) {
+func (m IgnoreWhenNotConfiguredModifier) PlanModifyList(_ context.Context, req planmodifier.ListRequest, resp *planmodifier.ListResponse) {
 	// If the config value is null (not specified in configuration),
 	// preserve the state value to allow external management
 	if req.ConfigValue.IsNull() {

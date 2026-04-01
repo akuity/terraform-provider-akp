@@ -125,5 +125,9 @@ func getAKPKargoAgentDataDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Expiry time for maintenance mode in RFC3339 format.",
 			Computed:            true,
 		},
+		"pod_inherit_metadata": schema.BoolAttribute{
+			MarkdownDescription: "Whether pod metadata inheritance is enabled for the agent.",
+			Computed:            true,
+		},
 	}
 }

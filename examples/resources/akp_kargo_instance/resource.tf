@@ -118,6 +118,10 @@ EOT
           min_freight_deletion_age   = 86400
           min_promotion_deletion_age = 604800
         }
+
+        argocd_ui = {
+          idp_groups_mapping = true
+        }
       }
     }
   }

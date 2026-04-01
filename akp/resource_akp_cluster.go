@@ -2,6 +2,7 @@ package akp
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -17,174 +18,104 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"k8s.io/client-go/rest"
+	"sigs.k8s.io/yaml"
 
-	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
 	healthv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/health/v1"
 	reconv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/reconciliation/v1"
 	"github.com/akuity/terraform-provider-akp/akp/kube"
-	"github.com/akuity/terraform-provider-akp/akp/marshal"
 	"github.com/akuity/terraform-provider-akp/akp/types"
 )
 
-// Ensure provider defined types fully satisfy framework interfaces
-var (
-	_ resource.Resource                     = &AkpClusterResource{}
-	_ resource.ResourceWithImportState      = &AkpClusterResource{}
-	_ resource.ResourceWithConfigValidators = &AkpClusterResource{}
-)
-
 func NewAkpClusterResource() resource.Resource {
-	return &AkpClusterResource{}
-}
+	return &GenericResource[types.Cluster]{
+		TypeNameSuffix: "cluster",
+		SchemaFunc:     clusterSchema,
+		CreateFunc:     clusterCreate,
+		ReadFunc:       clusterRead,
+		UpdateFunc:     clusterUpdate,
+		DeleteFunc:     clusterDelete,
+		ImportStateFunc: func(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+			idParts := strings.Split(req.ID, "/")
+			if len(idParts) != 2 || idParts[0] == "" || idParts[1] == "" {
+				resp.Diagnostics.AddError(
+					"Unexpected Import Identifier",
+					fmt.Sprintf("Expected import identifier with format: instance_id/name. Got: %q", req.ID),
+				)
+				return
+			}
 
-// AkpClusterResource defines the resource implementation.
-type AkpClusterResource struct {
-	akpCli *AkpCli
-}
-
-func (r *AkpClusterResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_cluster"
-}
-
-func (r *AkpClusterResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	// Prevent panic if the provider has not been configured.
-	if req.ProviderData == nil {
-		return
+			resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("instance_id"), idParts[0])...)
+			resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("name"), idParts[1])...)
+		},
+		ConfigValidatorsFunc: func() []resource.ConfigValidator {
+			return []resource.ConfigValidator{
+				// auto_agent_size_config and custom_agent_size_config are mutually exclusive
+				resourcevalidator.Conflicting(
+					path.MatchRoot("spec").AtName("data").AtName("auto_agent_size_config"),
+					path.MatchRoot("spec").AtName("data").AtName("custom_agent_size_config"),
+				),
+				clusterConfigValidator{},
+				// Use custom validator to handle size-specific logic
+				&sizeConfigValidator{},
+			}
+		},
 	}
-
-	akpCli, ok := req.ProviderData.(*AkpCli)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *AkpCli, got: %T. Please report this issue to the provider developers.", req.ProviderData),
-		)
-
-		return
-	}
-	r.akpCli = akpCli
 }
 
-func (r *AkpClusterResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	tflog.Debug(ctx, "Creating a Cluster")
-	var plan types.Cluster
-
-	// Read Terraform plan data into the model
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	result, err := r.upsert(ctx, &resp.Diagnostics, &plan, true)
+func clusterCreate(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, plan *types.Cluster) (*types.Cluster, error) {
+	result, err := clusterUpsert(ctx, cli, diags, plan, true)
 	if err != nil {
-		resp.Diagnostics.AddError("Client Error", err.Error())
+		diags.AddError("Client Error", err.Error())
 		tflog.Warn(ctx, fmt.Sprintf("refreshClusterState failed during create, cleaning up cluster %s", plan.Name.ValueString()))
-		cleanupErr := r.deleteCluster(ctx, &plan, plan.RemoveAgentResourcesOnDestroy.ValueBool(), true)
+		cleanupErr := deleteCluster(ctx, cli, plan, plan.RemoveAgentResourcesOnDestroy.ValueBool(), true)
 		if cleanupErr != nil {
 			tflog.Error(ctx, fmt.Sprintf("Failed to clean up dangling cluster %s: %v", plan.Name.ValueString(), cleanupErr))
 		}
 		tflog.Info(ctx, fmt.Sprintf("Successfully cleaned up dangling cluster %s", plan.Name.ValueString()))
-	} else if result != nil {
-		resp.Diagnostics.Append(resp.State.Set(ctx, &result)...)
+		return nil, nil // Return nil error - we already added the diagnostic
 	}
+	return result, nil
 }
 
-func (r *AkpClusterResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	tflog.Debug(ctx, "Reading a Cluster")
-	var data types.Cluster
-	// Read Terraform prior state data into the model
-	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
-	if resp.Diagnostics.HasError() {
-		return
+func clusterRead(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, data *types.Cluster) error {
+	if data.Spec == nil {
+		ctx = types.WithReadContext(ctx)
 	}
+	return refreshClusterState(ctx, diags, cli.Cli, data, cli.OrgId, data)
+}
 
-	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
-	err := refreshClusterState(ctx, &resp.Diagnostics, r.akpCli.Cli, &data, r.akpCli.OrgId, &data)
+func clusterUpdate(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, plan *types.Cluster) (*types.Cluster, error) {
+	result, err := clusterUpsert(ctx, cli, diags, plan, false)
 	if err != nil {
-		handleReadResourceError(ctx, resp, err)
-		return
+		diags.AddError("Client Error", err.Error())
+		return result, nil // Return nil error - we already added the diagnostic. Return result to commit partial state.
 	}
-	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	return result, nil
 }
 
-func (r *AkpClusterResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	tflog.Debug(ctx, "Updating a Cluster")
-	var plan types.Cluster
-
-	// Read Terraform plan data into the model
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	result, err := r.upsert(ctx, &resp.Diagnostics, &plan, false)
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", err.Error())
-	}
-	// In this case we commit state regardless whether there's an error or not. This is because there can be partial
-	// state (e.g. a cluster could be created in AKP but the manifests failed to be applied).
-	if result != nil {
-		resp.Diagnostics.Append(resp.State.Set(ctx, &result)...)
-	}
+func clusterDelete(ctx context.Context, cli *AkpCli, _ *diag.Diagnostics, plan *types.Cluster) error {
+	return deleteCluster(ctx, cli, plan, plan.RemoveAgentResourcesOnDestroy.ValueBool(), false)
 }
 
-func (r *AkpClusterResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	tflog.Debug(ctx, "Deleting a Cluster")
-	var plan types.Cluster
-	// Read Terraform prior state data into the model
-	resp.Diagnostics.Append(req.State.Get(ctx, &plan)...)
-
-	if resp.Diagnostics.HasError() {
-		return
+func clusterUpsert(ctx context.Context, cli *AkpCli, diagnostics *diag.Diagnostics, plan *types.Cluster, isCreate bool) (*types.Cluster, error) {
+	validateClusterConfig(diagnostics, plan)
+	if diagnostics.HasError() {
+		return nil, nil
 	}
-
-	err := r.deleteCluster(ctx, &plan, plan.RemoveAgentResourcesOnDestroy.ValueBool(), false)
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", err.Error())
-		return
-	}
-}
-
-func (r *AkpClusterResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	idParts := strings.Split(req.ID, "/")
-	if len(idParts) != 2 || idParts[0] == "" || idParts[1] == "" {
-		resp.Diagnostics.AddError(
-			"Unexpected Import Identifier",
-			fmt.Sprintf("Expected import identifier with format: instance_id/name. Got: %q", req.ID),
-		)
-		return
-	}
-
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("instance_id"), idParts[0])...)
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("name"), idParts[1])...)
-}
-
-func (r *AkpClusterResource) ConfigValidators(ctx context.Context) []resource.ConfigValidator {
-	return []resource.ConfigValidator{
-		// auto_agent_size_config and custom_agent_size_config are mutually exclusive
-		resourcevalidator.Conflicting(
-			path.MatchRoot("spec").AtName("data").AtName("auto_agent_size_config"),
-			path.MatchRoot("spec").AtName("data").AtName("custom_agent_size_config"),
-		),
-		// Use custom validator to handle size-specific logic
-		&sizeConfigValidator{},
-	}
-}
-
-func (r *AkpClusterResource) upsert(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.Cluster, isCreate bool) (*types.Cluster, error) {
-	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
 
 	var akiSanitized bool
 	if plan != nil && plan.Spec != nil && !plan.Spec.Data.MultiClusterK8SDashboardEnabled.IsNull() && !plan.Spec.Data.MultiClusterK8SDashboardEnabled.IsUnknown() && plan.Spec.Data.MultiClusterK8SDashboardEnabled.ValueBool() {
 		instReq := &argocdv1.GetInstanceRequest{
-			OrganizationId: r.akpCli.OrgId,
+			OrganizationId: cli.OrgId,
 			Id:             plan.InstanceID.ValueString(),
 			IdType:         idv1.Type_ID,
 		}
 		instResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.GetInstanceResponse, error) {
-			return r.akpCli.Cli.GetInstance(ctx, instReq)
+			return cli.Cli.GetInstance(ctx, instReq)
 		}, "GetInstance")
 		if err != nil {
 			return nil, errors.Wrap(err, "Unable to get Argo CD instance for capability check")
@@ -199,17 +130,22 @@ func (r *AkpClusterResource) upsert(ctx context.Context, diagnostics *diag.Diagn
 		}
 	}
 
-	apiReq := buildClusterApplyRequest(ctx, diagnostics, plan, r.akpCli.OrgId)
+	apiReq := buildClusterApplyRequest(ctx, diagnostics, plan, cli.OrgId)
 	if diagnostics.HasError() {
 		return nil, nil
 	}
-	result, err := r.applyInstance(ctx, plan, apiReq, isCreate, r.akpCli.Cli.ApplyInstance, r.upsertKubeConfig, r.waitForReconciliation, r.waitForHealth)
+	result, err := applyCluster(ctx, cli, plan, apiReq, isCreate, cli.Cli.ApplyInstance, clusterUpsertKubeConfig, clusterWaitForReconciliation, clusterWaitForHealth)
+	if result != nil && akiSanitized {
+		plan.Spec.Data.MultiClusterK8SDashboardEnabled = tftypes.BoolValue(true)
+	}
+	if err == nil {
+		if syncErr := syncClusterMaintenanceMode(ctx, cli, plan); syncErr != nil {
+			err = syncErr
+		}
+	}
 	// Always refresh cluster state to ensure we have consistent state, even if kubeconfig application failed
 	if result != nil {
-		if akiSanitized {
-			plan.Spec.Data.MultiClusterK8SDashboardEnabled = tftypes.BoolValue(true)
-		}
-		refreshErr := refreshClusterState(ctx, diagnostics, r.akpCli.Cli, result, r.akpCli.OrgId, plan)
+		refreshErr := refreshClusterState(ctx, diagnostics, cli.Cli, result, cli.OrgId, plan)
 		if refreshErr != nil && err == nil {
 			// If we didn't have an error before but refresh failed, return the refresh error
 			return result, refreshErr
@@ -218,15 +154,83 @@ func (r *AkpClusterResource) upsert(ctx context.Context, diagnostics *diag.Diagn
 	return result, err
 }
 
-func (r *AkpClusterResource) applyInstance(
+func syncClusterMaintenanceMode(ctx context.Context, cli *AkpCli, plan *types.Cluster) error {
+	if cli == nil || cli.Cli == nil || cli.OrgCli == nil || plan == nil || plan.Spec == nil {
+		return nil
+	}
+
+	maintenanceModeConfigured := !plan.Spec.Data.MaintenanceMode.IsNull() && !plan.Spec.Data.MaintenanceMode.IsUnknown()
+	maintenanceModeExpiryConfigured := isKnownNonEmptyString(plan.Spec.Data.MaintenanceModeExpiry)
+	if !maintenanceModeConfigured && !maintenanceModeExpiryConfigured {
+		return nil
+	}
+
+	workspaceID, err := resolveClusterWorkspaceID(ctx, cli, plan.InstanceID.ValueString())
+	if err != nil {
+		return fmt.Errorf("unable to resolve cluster workspace: %w", err)
+	}
+
+	req := &argocdv1.SetClusterMaintenanceModeRequest{
+		OrganizationId:  cli.OrgId,
+		InstanceId:      plan.InstanceID.ValueString(),
+		WorkspaceId:     workspaceID,
+		ClusterNames:    []string{plan.Name.ValueString()},
+		MaintenanceMode: plan.Spec.Data.MaintenanceMode.ValueBool(),
+	}
+	if maintenanceModeExpiryConfigured {
+		expiry, err := time.Parse(time.RFC3339, plan.Spec.Data.MaintenanceModeExpiry.ValueString())
+		if err != nil {
+			return fmt.Errorf("unable to parse maintenance_mode_expiry: %w", err)
+		}
+		req.Expiry = timestamppb.New(expiry)
+	}
+
+	_, err = retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.SetClusterMaintenanceModeResponse, error) {
+		return cli.Cli.SetClusterMaintenanceMode(ctx, req)
+	}, "SetClusterMaintenanceMode")
+	if err != nil {
+		return fmt.Errorf("unable to set cluster maintenance mode: %w", err)
+	}
+	return nil
+}
+
+func resolveClusterWorkspaceID(ctx context.Context, cli *AkpCli, instanceID string) (string, error) {
+	if cli == nil || cli.Cli == nil || cli.OrgCli == nil {
+		return "", fmt.Errorf("client is not configured")
+	}
+
+	resp, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.GetInstanceResponse, error) {
+		return cli.Cli.GetInstance(ctx, &argocdv1.GetInstanceRequest{
+			OrganizationId: cli.OrgId,
+			Id:             instanceID,
+			IdType:         idv1.Type_ID,
+		})
+	}, "GetInstance")
+	if err != nil {
+		return "", err
+	}
+
+	if workspaceID := resp.GetInstance().GetWorkspaceId(); workspaceID != "" {
+		return workspaceID, nil
+	}
+
+	workspace, err := getWorkspace(ctx, cli.OrgCli, cli.OrgId, "")
+	if err != nil {
+		return "", err
+	}
+	return workspace.GetId(), nil
+}
+
+func applyCluster(
 	ctx context.Context,
+	cli *AkpCli,
 	plan *types.Cluster,
 	apiReq *argocdv1.ApplyInstanceRequest,
 	isCreate bool,
 	applyInstance func(context.Context, *argocdv1.ApplyInstanceRequest) (*argocdv1.ApplyInstanceResponse, error),
-	upsertKubeConfig func(ctx context.Context, plan *types.Cluster) error,
-	waitForReconciliation func(ctx context.Context, plan *types.Cluster) error,
-	waitForHealth func(ctx context.Context, plan *types.Cluster) error,
+	upsertKubeConfig func(ctx context.Context, cli *AkpCli, plan *types.Cluster) error,
+	waitForReconciliation func(ctx context.Context, cli *AkpCli, plan *types.Cluster) error,
+	waitForHealth func(ctx context.Context, cli *AkpCli, plan *types.Cluster) error,
 ) (*types.Cluster, error) {
 	kubeconfig := plan.Kubeconfig
 	plan.Kubeconfig = nil
@@ -239,7 +243,7 @@ func (r *AkpClusterResource) applyInstance(
 		// clean up the dangling cluster from the API
 		if isCreate {
 			tflog.Warn(ctx, fmt.Sprintf("applyInstance failed during create, cleaning up cluster %s", plan.Name.ValueString()))
-			cleanupErr := r.deleteCluster(ctx, plan, plan.RemoveAgentResourcesOnDestroy.ValueBool(), true)
+			cleanupErr := deleteCluster(ctx, cli, plan, plan.RemoveAgentResourcesOnDestroy.ValueBool(), true)
 			if cleanupErr != nil {
 				tflog.Error(ctx, fmt.Sprintf("Failed to clean up dangling cluster %s: %v", plan.Name.ValueString(), cleanupErr))
 				return nil, fmt.Errorf("unable to create Argo CD instance %s (and failed to clean up cluster: %s)", err, cleanupErr)
@@ -249,10 +253,10 @@ func (r *AkpClusterResource) applyInstance(
 		return nil, fmt.Errorf("unable to create Argo CD instance: %s", err)
 	}
 
-	if err := waitForReconciliation(ctx, plan); err != nil {
+	if err := waitForReconciliation(ctx, cli, plan); err != nil {
 		if isCreate {
 			tflog.Warn(ctx, fmt.Sprintf("Cluster reconciliation failed during create, cleaning up cluster %s", plan.Name.ValueString()))
-			cleanupErr := r.deleteCluster(ctx, plan, plan.RemoveAgentResourcesOnDestroy.ValueBool(), true)
+			cleanupErr := deleteCluster(ctx, cli, plan, plan.RemoveAgentResourcesOnDestroy.ValueBool(), true)
 			if cleanupErr != nil {
 				tflog.Error(ctx, fmt.Sprintf("Failed to clean up dangling cluster %s: %v", plan.Name.ValueString(), cleanupErr))
 				return nil, fmt.Errorf("cluster reconciliation failed: %s (and failed to clean up cluster: %s)", err, cleanupErr)
@@ -266,11 +270,11 @@ func (r *AkpClusterResource) applyInstance(
 		plan.Kubeconfig = kubeconfig
 		shouldApply := isCreate || plan.ReapplyManifestsOnUpdate.ValueBool()
 		if shouldApply {
-			err = upsertKubeConfig(ctx, plan)
+			err = upsertKubeConfig(ctx, cli, plan)
 			if err != nil {
 				if isCreate {
 					tflog.Warn(ctx, fmt.Sprintf("Kubeconfig application failed during create, cleaning up cluster %s", plan.Name.ValueString()))
-					cleanupErr := r.deleteCluster(ctx, plan, plan.RemoveAgentResourcesOnDestroy.ValueBool(), true)
+					cleanupErr := deleteCluster(ctx, cli, plan, plan.RemoveAgentResourcesOnDestroy.ValueBool(), true)
 					if cleanupErr != nil {
 						tflog.Error(ctx, fmt.Sprintf("Failed to clean up dangling cluster %s: %v", plan.Name.ValueString(), cleanupErr))
 						return nil, fmt.Errorf("unable to apply manifests: %s (and failed to clean up cluster: %s)", err, cleanupErr)
@@ -282,14 +286,14 @@ func (r *AkpClusterResource) applyInstance(
 				return plan, fmt.Errorf("unable to apply manifests: %s", err)
 			}
 		} else {
-			if err := waitForHealth(ctx, plan); err != nil {
+			if err := waitForHealth(ctx, cli, plan); err != nil {
 				return plan, fmt.Errorf("cluster health check failed: %w", err)
 			}
 		}
 	} else {
 		agentWillAutoUpdate := !isCreate && plan.Spec != nil && !plan.Spec.Data.AutoUpgradeDisabled.ValueBool()
 		if agentWillAutoUpdate {
-			if err := waitForHealth(ctx, plan); err != nil {
+			if err := waitForHealth(ctx, cli, plan); err != nil {
 				return plan, fmt.Errorf("cluster health check failed: %w", err)
 			}
 		}
@@ -298,7 +302,7 @@ func (r *AkpClusterResource) applyInstance(
 	return plan, nil
 }
 
-func (r *AkpClusterResource) upsertKubeConfig(ctx context.Context, plan *types.Cluster) error {
+func clusterUpsertKubeConfig(ctx context.Context, cli *AkpCli, plan *types.Cluster) error {
 	// Apply agent manifests to clusters if the kubeconfig is specified for cluster.
 	kubeconfig, err := getKubeconfig(ctx, plan.Kubeconfig)
 	if err != nil {
@@ -307,7 +311,7 @@ func (r *AkpClusterResource) upsertKubeConfig(ctx context.Context, plan *types.C
 
 	// Apply the manifests
 	if kubeconfig != nil {
-		manifests, err := getManifests(ctx, r.akpCli.Cli, r.akpCli.OrgId, plan)
+		manifests, err := getManifests(ctx, cli.Cli, cli.OrgId, plan)
 		if err != nil {
 			return err
 		}
@@ -316,17 +320,17 @@ func (r *AkpClusterResource) upsertKubeConfig(ctx context.Context, plan *types.C
 		if err != nil {
 			return err
 		}
-		return waitClusterHealthStatus(ctx, r.akpCli.Cli, r.akpCli.OrgId, plan, plan.EnsureHealthy.ValueBool())
+		return waitClusterHealthStatus(ctx, cli.Cli, cli.OrgId, plan, plan.EnsureHealthy.ValueBool())
 	}
 	return nil
 }
 
-func (r *AkpClusterResource) waitForReconciliation(ctx context.Context, plan *types.Cluster) error {
-	return waitForClusterReconciliation(ctx, r.akpCli.Cli, r.akpCli.OrgId, plan)
+func clusterWaitForReconciliation(ctx context.Context, cli *AkpCli, plan *types.Cluster) error {
+	return waitForClusterReconciliation(ctx, cli.Cli, cli.OrgId, plan)
 }
 
-func (r *AkpClusterResource) waitForHealth(ctx context.Context, plan *types.Cluster) error {
-	return waitClusterHealthStatus(ctx, r.akpCli.Cli, r.akpCli.OrgId, plan, plan.EnsureHealthy.ValueBool())
+func clusterWaitForHealth(ctx context.Context, cli *AkpCli, plan *types.Cluster) error {
+	return waitClusterHealthStatus(ctx, cli.Cli, cli.OrgId, plan, plan.EnsureHealthy.ValueBool())
 }
 
 func refreshClusterState(ctx context.Context, diagnostics *diag.Diagnostics, client argocdv1.ArgoCDServiceGatewayClient, cluster *types.Cluster,
@@ -344,6 +348,7 @@ func refreshClusterState(ctx context.Context, diagnostics *diag.Diagnostics, cli
 		return client.GetInstanceCluster(ctx, clusterReq)
 	}, "GetInstanceCluster")
 	if err != nil {
+		err = normalizeMissingClusterReadError(ctx, client, orgID, cluster.InstanceID.ValueString(), cluster.Name.ValueString(), err)
 		return errors.Wrap(err, "Unable to read Argo CD cluster")
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Get cluster response: %s", clusterResp))
@@ -361,6 +366,32 @@ func refreshClusterState(ctx context.Context, diagnostics *diag.Diagnostics, cli
 	return nil
 }
 
+func normalizeMissingClusterReadError(
+	ctx context.Context,
+	client argocdv1.ArgoCDServiceGatewayClient,
+	orgID string,
+	instanceID string,
+	clusterName string,
+	err error,
+) error {
+	if status.Code(err) != codes.PermissionDenied {
+		return err
+	}
+
+	_, instanceErr := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.GetInstanceResponse, error) {
+		return client.GetInstance(ctx, &argocdv1.GetInstanceRequest{
+			OrganizationId: orgID,
+			Id:             instanceID,
+			IdType:         idv1.Type_ID,
+		})
+	}, "GetInstance")
+	if instanceErr == nil {
+		return status.Errorf(codes.NotFound, "cluster %q not found", clusterName)
+	}
+
+	return err
+}
+
 func buildClusterApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, cluster *types.Cluster, orgId string) *argocdv1.ApplyInstanceRequest {
 	applyReq := &argocdv1.ApplyInstanceRequest{
 		OrganizationId: orgId,
@@ -372,15 +403,91 @@ func buildClusterApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics
 }
 
 func buildClusters(ctx context.Context, diagnostics *diag.Diagnostics, cluster *types.Cluster) []*structpb.Struct {
-	var cs []*structpb.Struct
-	apiCluster := cluster.ToClusterAPIModel(ctx, diagnostics)
-	s, err := marshal.ApiModelToPBStruct(apiCluster)
+	var labels map[string]string
+	var annotations map[string]string
+	diagnostics.Append(cluster.Labels.ElementsAs(ctx, &labels, true)...)
+	diagnostics.Append(cluster.Annotations.ElementsAs(ctx, &annotations, true)...)
+
+	// Validate directClusterSpec if present
+	if cluster.Spec.Data.DirectClusterSpec != nil {
+		clusterType := cluster.Spec.Data.DirectClusterSpec.ClusterType.ValueString()
+		if clusterType == "" || clusterType != types.DirectClusterTypeString[argocdv1.DirectClusterType_DIRECT_CLUSTER_TYPE_KARGO] {
+			diagnostics.AddError("unsupported cluster type", fmt.Sprintf("cluster_type %s is not supported, supported cluster_type: `kargo`", cluster.Spec.Data.DirectClusterSpec.ClusterType.String()))
+			return nil
+		}
+	}
+
+	rawMap := types.TFToMapWithOverrides(cluster.Spec, types.OverridesMap, types.RenamesMap)
+	if rawMap == nil {
+		diagnostics.AddError("Client Error", "Unable to convert cluster spec to map")
+		return nil
+	}
+
+	clusterSize := cluster.Spec.Data.Size.ValueString()
+	var kustomizationStr string
+	if clusterSize == "custom" {
+		var err error
+		kustomizationStr, err = types.GenerateExpectedKustomization(cluster.Spec.Data.CustomAgentSizeConfig, cluster.Spec.Data.Kustomization.ValueString())
+		if err != nil {
+			diagnostics.AddError("failed to generate expected kustomization", err.Error())
+			return nil
+		}
+	} else {
+		kustomizationStr = cluster.Spec.Data.Kustomization.ValueString()
+	}
+
+	if kustomizationStr != "" {
+		jsonBytes, err := yaml.YAMLToJSON([]byte(kustomizationStr))
+		if err != nil {
+			diagnostics.AddError("failed to convert kustomization YAML to JSON", err.Error())
+			return nil
+		}
+		var kustomizationObj map[string]any
+		if err := json.Unmarshal(jsonBytes, &kustomizationObj); err != nil {
+			diagnostics.AddError("failed to unmarshal kustomization JSON", err.Error())
+			return nil
+		}
+		if dataMap, ok := rawMap["data"].(map[string]any); ok {
+			dataMap["kustomization"] = kustomizationObj
+		}
+	} else if !cluster.Spec.Data.Kustomization.IsNull() && !cluster.Spec.Data.Kustomization.IsUnknown() {
+		if dataMap, ok := rawMap["data"].(map[string]any); ok {
+			dataMap["kustomization"] = map[string]any{}
+		}
+	}
+
+	metadata := map[string]any{
+		"name":      cluster.Name.ValueString(),
+		"namespace": cluster.Namespace.ValueString(),
+	}
+	if len(labels) > 0 {
+		labelsAny := make(map[string]any, len(labels))
+		for k, v := range labels {
+			labelsAny[k] = v
+		}
+		metadata["labels"] = labelsAny
+	}
+	if len(annotations) > 0 {
+		annotationsAny := make(map[string]any, len(annotations))
+		for k, v := range annotations {
+			annotationsAny[k] = v
+		}
+		metadata["annotations"] = annotationsAny
+	}
+
+	rawMap = map[string]any{
+		"kind":       "Cluster",
+		"apiVersion": "argocd.akuity.io/v1alpha1",
+		"metadata":   metadata,
+		"spec":       rawMap,
+	}
+
+	s, err := structpb.NewStruct(rawMap)
 	if err != nil {
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Cluster. %s", err))
 		return nil
 	}
-	cs = append(cs, s)
-	return cs
+	return []*structpb.Struct{s}
 }
 
 func getKubeconfig(ctx context.Context, kubeConfig *types.Kubeconfig) (*rest.Config, error) {
@@ -640,21 +747,19 @@ func readStream(resChan <-chan *httpbody.HttpBody, errChan <-chan error) ([]byte
 
 // deleteCluster handles the deletion of a cluster and optionally its manifests.
 // If getIdByName is true, it will lookup the cluster ID by name before deletion.
-func (r *AkpClusterResource) deleteCluster(ctx context.Context, plan *types.Cluster, includeManifests, getIdByName bool) error {
-	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
-
+func deleteCluster(ctx context.Context, cli *AkpCli, plan *types.Cluster, includeManifests, getIdByName bool) error {
 	var clusterID string
 
 	if getIdByName {
 		existingClusterReq := &argocdv1.GetInstanceClusterRequest{
-			OrganizationId: r.akpCli.OrgId,
+			OrganizationId: cli.OrgId,
 			InstanceId:     plan.InstanceID.ValueString(),
 			Id:             plan.Name.ValueString(),
 			IdType:         idv1.Type_NAME,
 		}
 
 		existingResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.GetInstanceClusterResponse, error) {
-			return r.akpCli.Cli.GetInstanceCluster(ctx, existingClusterReq)
+			return cli.Cli.GetInstanceCluster(ctx, existingClusterReq)
 		}, "GetInstanceCluster")
 		if err != nil {
 			if status.Code(err) == codes.NotFound || status.Code(err) == codes.PermissionDenied {
@@ -684,7 +789,7 @@ func (r *AkpClusterResource) deleteCluster(ctx context.Context, plan *types.Clus
 		}
 
 		if kubeconfig != nil {
-			manifests, err := getManifests(ctx, r.akpCli.Cli, r.akpCli.OrgId, plan)
+			manifests, err := getManifests(ctx, cli.Cli, cli.OrgId, plan)
 			if err != nil {
 				return fmt.Errorf("failed to get manifests: %s", err)
 			}
@@ -698,13 +803,13 @@ func (r *AkpClusterResource) deleteCluster(ctx context.Context, plan *types.Clus
 
 	// Delete the cluster from the API
 	apiReq := &argocdv1.DeleteInstanceClusterRequest{
-		OrganizationId: r.akpCli.OrgId,
+		OrganizationId: cli.OrgId,
 		InstanceId:     plan.InstanceID.ValueString(),
 		Id:             clusterID,
 	}
 
 	_, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.DeleteInstanceClusterResponse, error) {
-		return r.akpCli.Cli.DeleteInstanceCluster(ctx, apiReq)
+		return cli.Cli.DeleteInstanceCluster(ctx, apiReq)
 	}, "DeleteInstanceCluster")
 	if err != nil && (status.Code(err) != codes.NotFound && status.Code(err) != codes.PermissionDenied) {
 		return fmt.Errorf("unable to delete Akuity cluster: %s", err)
@@ -712,24 +817,24 @@ func (r *AkpClusterResource) deleteCluster(ctx context.Context, plan *types.Clus
 
 	// Quick check if cluster is already deleted before starting the polling loop
 	getReq := &argocdv1.GetInstanceClusterRequest{
-		OrganizationId: r.akpCli.OrgId,
+		OrganizationId: cli.OrgId,
 		InstanceId:     plan.InstanceID.ValueString(),
 		Id:             clusterID,
 		IdType:         idv1.Type_ID,
 	}
-	_, err = r.akpCli.Cli.GetInstanceCluster(ctx, getReq)
+	_, err = cli.Cli.GetInstanceCluster(ctx, getReq)
 	if err != nil && (status.Code(err) == codes.NotFound || status.Code(err) == codes.PermissionDenied) {
 		tflog.Debug(ctx, fmt.Sprintf("Cluster %s already deleted", clusterID))
 		return nil
 	}
 
 	// Wait for the cluster to actually be deleted with exponential backoff
-	return r.waitForClusterDeletion(ctx, plan.InstanceID.ValueString(), clusterID)
+	return waitForClusterDeletion(ctx, cli, plan.InstanceID.ValueString(), clusterID)
 }
 
 // waitForClusterDeletion polls the API to verify the cluster is actually deleted,
 // using exponential backoff with a maximum wait time of 10 minutes.
-func (r *AkpClusterResource) waitForClusterDeletion(ctx context.Context, instanceID, clusterID string) error {
+func waitForClusterDeletion(ctx context.Context, cli *AkpCli, instanceID, clusterID string) error {
 	const (
 		initialDelay  = 500 * time.Millisecond
 		maxDelay      = 8 * time.Second
@@ -748,14 +853,14 @@ func (r *AkpClusterResource) waitForClusterDeletion(ctx context.Context, instanc
 
 		// Try to get the cluster - if it's gone, we're done
 		getReq := &argocdv1.GetInstanceClusterRequest{
-			OrganizationId: r.akpCli.OrgId,
+			OrganizationId: cli.OrgId,
 			InstanceId:     instanceID,
 			Id:             clusterID,
 			IdType:         idv1.Type_ID,
 		}
 
 		resp, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.GetInstanceClusterResponse, error) {
-			return r.akpCli.Cli.GetInstanceCluster(ctx, getReq)
+			return cli.Cli.GetInstanceCluster(ctx, getReq)
 		}, "GetInstanceCluster")
 		if err != nil {
 			if status.Code(err) == codes.NotFound || status.Code(err) == codes.PermissionDenied {
@@ -784,6 +889,79 @@ func (r *AkpClusterResource) waitForClusterDeletion(ctx context.Context, instanc
 		if delay > maxDelay {
 			delay = maxDelay
 		}
+	}
+}
+
+type clusterConfigValidator struct{}
+
+func (v clusterConfigValidator) Description(context.Context) string {
+	return "Validates cluster field combinations that the control plane normalizes or rejects"
+}
+
+func (v clusterConfigValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (v clusterConfigValidator) ValidateResource(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	dataPath := path.Root("spec").AtName("data")
+
+	var data tftypes.Object
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, dataPath, &data)...)
+	if resp.Diagnostics.HasError() || data.IsNull() || data.IsUnknown() {
+		return
+	}
+
+	var maintenanceMode tftypes.Bool
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, dataPath.AtName("maintenance_mode"), &maintenanceMode)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	var maintenanceModeExpiry tftypes.String
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, dataPath.AtName("maintenance_mode_expiry"), &maintenanceModeExpiry)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	validateMaintenanceModeExpiry(
+		&resp.Diagnostics,
+		dataPath.AtName("maintenance_mode_expiry"),
+		maintenanceMode,
+		maintenanceModeExpiry,
+	)
+}
+
+func validateClusterConfig(diagnostics *diag.Diagnostics, plan *types.Cluster) {
+	if diagnostics == nil || plan == nil || plan.Spec == nil {
+		return
+	}
+
+	validateMaintenanceModeExpiry(
+		diagnostics,
+		path.Root("spec").AtName("data").AtName("maintenance_mode_expiry"),
+		plan.Spec.Data.MaintenanceMode,
+		plan.Spec.Data.MaintenanceModeExpiry,
+	)
+}
+
+func validateMaintenanceModeExpiry(
+	diagnostics *diag.Diagnostics,
+	attrPath path.Path,
+	maintenanceMode tftypes.Bool,
+	maintenanceModeExpiry tftypes.String,
+) {
+	if diagnostics == nil {
+		return
+	}
+
+	maintenanceModeExpiryConfigured := isKnownNonEmptyString(maintenanceModeExpiry)
+	maintenanceModeMissingOrDisabled := maintenanceMode.IsNull() || (!maintenanceMode.IsUnknown() && !maintenanceMode.ValueBool())
+	if maintenanceModeExpiryConfigured && maintenanceModeMissingOrDisabled {
+		diagnostics.AddAttributeError(
+			attrPath,
+			"Invalid maintenance_mode_expiry",
+			"maintenance_mode_expiry requires maintenance_mode = true. The control plane clears the expiry when maintenance mode is disabled.",
+		)
 	}
 }
 

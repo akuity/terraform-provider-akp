@@ -18,28 +18,11 @@ func NewAkpKargoAgentDataSource() datasource.DataSource {
 }
 
 type AkpKargoAgentDataSource struct {
-	akpCli *AkpCli
+	BaseDataSource
 }
 
 func (a *AkpKargoAgentDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_kargo_agent"
-}
-
-func (a *AkpKargoAgentDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	// Prevent panic if the provider has not been configured.
-	if req.ProviderData == nil {
-		return
-	}
-	akpCli, ok := req.ProviderData.(*AkpCli)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *AkpCli, got: %T. Please report this issue to the provider developers.", req.ProviderData),
-		)
-
-		return
-	}
-	a.akpCli = akpCli
 }
 
 func (a *AkpKargoAgentDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
@@ -52,7 +35,7 @@ func (a *AkpKargoAgentDataSource) Read(ctx context.Context, req datasource.ReadR
 		return
 	}
 	ctx = httpctx.SetAuthorizationHeader(ctx, a.akpCli.Cred.Scheme(), a.akpCli.Cred.Credential())
-	if err := refreshKargoAgentState(ctx, &resp.Diagnostics, a.akpCli.KargoCli, &data, a.akpCli.OrgId, &data); err != nil {
+	if err := refreshKargoAgentState(ctx, &resp.Diagnostics, a.akpCli, &data, nil); err != nil {
 		resp.Diagnostics.AddError(
 			"Failed to refresh Kargo Agent state",
 			fmt.Sprintf("Error: %v", err),

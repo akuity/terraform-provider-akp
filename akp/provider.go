@@ -191,6 +191,7 @@ func (p *AkpProvider) DataSources(ctx context.Context) []func() datasource.DataS
 		NewAkpKargoDataSource,
 		NewAkpKargoAgentDataSource,
 		NewAkpKargoAgentsDataSource,
+		NewAkpKargoDefaultShardAgentDataSource,
 	}
 }
 

@@ -11,10 +11,9 @@ import (
 	"testing"
 	"time"
 
-	hashitype "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
-	"github.com/pkg/errors"
+	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -24,15 +23,15 @@ import (
 	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
 	healthv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/health/v1"
-	"github.com/akuity/terraform-provider-akp/akp/types"
 )
 
 var (
-	kargoInstanceId   string
-	kargoInstanceName string
-	kargoVersion      string
-	kargoInstanceOnce sync.Once
-	kargoInstanceMu   sync.RWMutex
+	kargoInstanceId    string
+	kargoInstanceName  string
+	kargoVersion       string
+	kargoInstanceOwned bool
+	kargoInstanceOnce  sync.Once
+	kargoInstanceMu    sync.RWMutex
 )
 
 func getKargoInstanceId() string {
@@ -47,9 +46,13 @@ func getKargoInstanceId() string {
 		if kargoInstanceId == "" {
 			if v := os.Getenv("AKUITY_KARGO_INSTANCE_ID"); v == "" {
 				// Create a new Kargo instance for testing
+				kargoInstanceOwned = true
 				kargoInstanceId = createTestKargoInstance()
 			} else {
+				fmt.Printf("Reusing Kargo test instance %s from AKUITY_KARGO_INSTANCE_ID\n", v)
+				kargoInstanceOwned = false
 				kargoInstanceId = v
+				fetchKargoInstanceDetails(v)
 			}
 		}
 		return kargoInstanceId
@@ -121,16 +124,19 @@ func createTestKargoInstance() string {
 			WorkspaceId:    workspace.Id,
 			Kargo:          kargoStruct,
 		}
-		_, err = akpCli.KargoCli.ApplyKargoInstance(ctx, applyReq)
+		_, err = retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ApplyKargoInstanceResponse, error) {
+			return akpCli.KargoCli.ApplyKargoInstance(ctx, applyReq)
+		}, "create Kargo instance")
 		if err != nil {
 			panic(fmt.Sprintf("Failed to create Kargo instance: %v", err))
 		}
 
-		// Get the created instance to get its ID
-		instanceResponse, err := akpCli.KargoCli.GetKargoInstance(ctx, &kargov1.GetKargoInstanceRequest{
-			OrganizationId: akpCli.OrgId,
-			Name:           kargoInstanceName,
-		})
+		instanceResponse, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.GetKargoInstanceResponse, error) {
+			return akpCli.KargoCli.GetKargoInstance(ctx, &kargov1.GetKargoInstanceRequest{
+				OrganizationId: akpCli.OrgId,
+				Name:           kargoInstanceName,
+			})
+		}, "get Kargo instance")
 		if err != nil {
 			panic(fmt.Sprintf("Failed to get created Kargo instance: %v", err))
 		}
@@ -184,7 +190,9 @@ func createTestKargoInstance() string {
 			WorkspaceId:    workspace.Id,
 			Projects:       []*structpb.Struct{projectStruct},
 		}
-		_, err = akpCli.KargoCli.ApplyKargoInstance(ctx, applyProjectReq)
+		_, err = retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ApplyKargoInstanceResponse, error) {
+			return akpCli.KargoCli.ApplyKargoInstance(ctx, applyProjectReq)
+		}, "add Project to Kargo instance")
 		if err != nil {
 			panic(fmt.Sprintf("Failed to add Project to Kargo instance: %v", err))
 		}
@@ -221,7 +229,9 @@ func createTestKargoInstance() string {
 			Projects:       []*structpb.Struct{projectStruct},
 			Warehouses:     []*structpb.Struct{warehouseStruct},
 		}
-		_, err = akpCli.KargoCli.ApplyKargoInstance(ctx, applyWarehouseReq)
+		_, err = retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ApplyKargoInstanceResponse, error) {
+			return akpCli.KargoCli.ApplyKargoInstance(ctx, applyWarehouseReq)
+		}, "add Warehouse to Kargo instance")
 		if err != nil {
 			panic(fmt.Sprintf("Failed to add Warehouse to Kargo instance: %v", err))
 		}
@@ -230,18 +240,54 @@ func createTestKargoInstance() string {
 	return kargoInstanceId
 }
 
+func fetchKargoInstanceDetails(instanceId string) {
+	if os.Getenv("TF_ACC") != "1" {
+		return
+	}
+
+	akpCli := getTestAkpCli()
+	ctx := context.Background()
+	ctx = httpctx.SetAuthorizationHeader(ctx, akpCli.Cred.Scheme(), akpCli.Cred.Credential())
+
+	listResp, err := akpCli.KargoCli.ListKargoInstances(ctx, &kargov1.ListKargoInstancesRequest{
+		OrganizationId: akpCli.OrgId,
+	})
+	if err != nil {
+		panic(fmt.Sprintf("Failed to list Kargo instances: %v", err))
+	}
+
+	for _, instance := range listResp.GetInstances() {
+		if instance.GetId() == instanceId {
+			kargoInstanceName = instance.GetName()
+			kargoVersion = instance.GetVersion()
+			return
+		}
+	}
+
+	panic(fmt.Sprintf("Kargo instance with ID %q not found", instanceId))
+}
+
 func cleanupTestKargoInstance() {
-	if kargoInstanceId == "" || testAkpCli == nil {
+	kargoInstanceMu.RLock()
+	id := kargoInstanceId
+	owned := kargoInstanceOwned
+	kargoInstanceMu.RUnlock()
+
+	testAkpCliMu.Lock()
+	akpCli := testAkpCli
+	testAkpCliMu.Unlock()
+
+	if id == "" || akpCli == nil || !owned {
 		return
 	}
 
 	ctx := context.Background()
-	ctx = httpctx.SetAuthorizationHeader(ctx, testAkpCli.Cred.Scheme(), testAkpCli.Cred.Credential())
+	ctx = httpctx.SetAuthorizationHeader(ctx, akpCli.Cred.Scheme(), akpCli.Cred.Credential())
 
 	// Delete the Kargo instance
-	_, _ = testAkpCli.KargoCli.DeleteInstance(ctx, &kargov1.DeleteInstanceRequest{
-		Id:             kargoInstanceId,
-		OrganizationId: testAkpCli.OrgId,
+	_, _ = akpCli.KargoCli.DeleteInstance(ctx, &kargov1.DeleteInstanceRequest{
+		Id:             id,
+		OrganizationId: akpCli.OrgId,
 	})
 }
 
@@ -312,7 +358,7 @@ func clearDefaultShardAgent(instanceId string) error {
 	return nil
 }
 
-func TestAccKargoAgentResource(t *testing.T) {
+func runKargoAgentResource(t *testing.T) {
 	t.Parallel()
 	name := fmt.Sprintf("kargoagent-%s", acctest.RandString(10))
 
@@ -364,6 +410,15 @@ func TestAccKargoAgentResource(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.remote_argocd", getInstanceId()),
 					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.akuity_managed", "false"),
 					resource.TestCheckResourceAttr("akp_kargo_agent.test", "remove_agent_resources_on_destroy", "true"),
+					// --- Data Sources ---
+					resource.TestCheckResourceAttr("data.akp_kargo_agent.test", "name", name),
+					resource.TestCheckResourceAttrSet("data.akp_kargo_agent.test", "id"),
+					resource.TestCheckResourceAttr("data.akp_kargo_agent.test", "spec.data.size", "small"),
+					resource.TestCheckResourceAttr("data.akp_kargo_agent.test", "spec.data.auto_upgrade_disabled", "true"),
+					resource.TestCheckResourceAttr("data.akp_kargo_agent.test", "remove_agent_resources_on_destroy", "true"),
+					resource.TestCheckResourceAttr("data.akp_kargo_agent.test", "reapply_manifests_on_update", "false"),
+					// kargo agents list data source
+					resource.TestCheckResourceAttrSet("data.akp_kargo_agents.test", "agents.#"),
 				),
 			},
 			// Update and Read testing
@@ -376,12 +431,13 @@ func TestAccKargoAgentResource(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.akuity_managed", "false"),
 				),
 			},
+			testAccKargoAgentImportStateStep(getKargoInstanceId(), name, testAccKargoAgentKustomizationImportStateVerifyIgnore...),
 			// Delete testing automatically occurs in TestCase
 		},
 	})
 }
 
-func TestAccKargoAgentResourceRemoteArgoCD(t *testing.T) {
+func runKargoAgentResourceRemoteArgoCD(t *testing.T) {
 	t.Parallel()
 	name := fmt.Sprintf("kargoagent-remote-%s", acctest.RandString(10))
 	resource.Test(t, resource.TestCase{
@@ -396,11 +452,12 @@ func TestAccKargoAgentResourceRemoteArgoCD(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.akuity_managed", "false"),
 				),
 			},
+			testAccKargoAgentImportStateStep(getKargoInstanceId(), name, testAccKargoAgentCommonImportStateVerifyIgnore...),
 		},
 	})
 }
 
-func TestAccKargoAgentResourceCustomNamespace(t *testing.T) {
+func runKargoAgentResourceCustomNamespace(t *testing.T) {
 	t.Parallel()
 	name := fmt.Sprintf("kargoagent-ns-%s", acctest.RandString(10))
 	resource.Test(t, resource.TestCase{
@@ -408,19 +465,14 @@ func TestAccKargoAgentResourceCustomNamespace(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: providerConfig + testAccKargoAgentResourceConfigCustomNamespace(name, getKargoInstanceId()),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrSet("akp_kargo_agent.test", "id"),
-					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.argocd_namespace", "custom-argocd"),
-					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.remote_argocd", getInstanceId()),
-					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.akuity_managed", "false"),
-				),
+				Config:      providerConfig + testAccKargoAgentResourceConfigCustomNamespace(name, getKargoInstanceId()),
+				ExpectError: regexp.MustCompile(`Invalid argocd_namespace`),
 			},
 		},
 	})
 }
 
-func TestAccKargoAgentResourceReapplyManifests(t *testing.T) {
+func runKargoAgentResourceReapplyManifests(t *testing.T) {
 	t.Parallel()
 	name := fmt.Sprintf("kargoagent-reapply-%s", acctest.RandString(10))
 	resource.Test(t, resource.TestCase{
@@ -442,11 +494,12 @@ func TestAccKargoAgentResourceReapplyManifests(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_kargo_agent.test", "reapply_manifests_on_update", "true"),
 				),
 			},
+			testAccKargoAgentImportStateStep(getKargoInstanceId(), name, testAccKargoAgentReapplyImportStateVerifyIgnore...),
 		},
 	})
 }
 
-func TestAccKargoAgentResourceTargetVersion(t *testing.T) {
+func runKargoAgentResourceTargetVersion(t *testing.T) {
 	t.Parallel()
 	name := fmt.Sprintf("kargoagent-version-%s", acctest.RandString(10))
 	resource.Test(t, resource.TestCase{
@@ -469,6 +522,7 @@ func TestAccKargoAgentResourceTargetVersion(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.akuity_managed", "false"),
 				),
 			},
+			testAccKargoAgentImportStateStep(getKargoInstanceId(), name, testAccKargoAgentCommonImportStateVerifyIgnore...),
 		},
 	})
 }
@@ -519,6 +573,15 @@ EOF
     }
   }
   remove_agent_resources_on_destroy = true
+}
+
+data "akp_kargo_agent" "test" {
+  instance_id = akp_kargo_agent.test.instance_id
+  name        = akp_kargo_agent.test.name
+}
+
+data "akp_kargo_agents" "test" {
+  instance_id = akp_kargo_agent.test.instance_id
 }
 `, kargoInstanceId, name, description, size, getInstanceId())
 }
@@ -602,7 +665,7 @@ resource "akp_kargo_agent" "test" {
 `, kargoInstanceId, name, getInstanceId())
 }
 
-func TestAccKargoAgentResourceKubeconfig(t *testing.T) {
+func runKargoAgentResourceKubeconfig(t *testing.T) {
 	t.Parallel()
 	name := fmt.Sprintf("kargoagent-kubeconfig-%s", acctest.RandString(10))
 	resource.Test(t, resource.TestCase{
@@ -621,26 +684,36 @@ func TestAccKargoAgentResourceKubeconfig(t *testing.T) {
 }
 
 func testCheckKargoAgentCleanedUp(agentName, kargoInstanceId string) error {
-	// Check that the agent was automatically cleaned up by the provider
 	akpCli := getTestAkpCli()
 	ctx := context.Background()
 	ctx = httpctx.SetAuthorizationHeader(ctx, akpCli.Cred.Scheme(), akpCli.Cred.Credential())
 
-	agents, err := akpCli.KargoCli.ListKargoInstanceAgents(ctx, &kargov1.ListKargoInstanceAgentsRequest{
-		OrganizationId: akpCli.OrgId,
-		InstanceId:     kargoInstanceId,
-	})
-	if err != nil && (status.Code(err) == codes.NotFound || status.Code(err) == codes.PermissionDenied) {
-		return nil
-	}
+	for attempt := 0; attempt < 5; attempt++ {
+		if attempt > 0 {
+			time.Sleep(2 * time.Second)
+		}
 
-	for _, agent := range agents.GetAgents() {
-		if agent.GetName() == agentName {
-			return fmt.Errorf("kargo agent %s should have been automatically cleaned up but still exists in API", agentName)
+		agents, err := akpCli.KargoCli.ListKargoInstanceAgents(ctx, &kargov1.ListKargoInstanceAgentsRequest{
+			OrganizationId: akpCli.OrgId,
+			InstanceId:     kargoInstanceId,
+		})
+		if err != nil && (status.Code(err) == codes.NotFound || status.Code(err) == codes.PermissionDenied) {
+			return nil
+		}
+
+		found := false
+		for _, agent := range agents.GetAgents() {
+			if agent.GetName() == agentName {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil
 		}
 	}
 
-	return nil
+	return fmt.Errorf("kargo agent %s should have been automatically cleaned up but still exists in API after retries", agentName)
 }
 
 func testAccKargoAgentResourceConfigKubeconfig(name, kargoInstanceId string) string {
@@ -667,45 +740,392 @@ resource "akp_kargo_agent" "test" {
 `, kargoInstanceId, name, getInstanceId())
 }
 
-func TestAkpKargoAgentResource_reApplyManifests(t *testing.T) {
-	type args struct {
-		plan               *types.KargoAgent
-		apiReq             *kargov1.ApplyKargoInstanceRequest
-		applyKargoInstance func(context.Context, *kargov1.ApplyKargoInstanceRequest) (*kargov1.ApplyKargoInstanceResponse, error)
-		upsertKubeConfig   func(ctx context.Context, plan *types.KargoAgent) error
+func runKargoAgentResourceAllowedJobSA(t *testing.T) {
+	t.Parallel()
+	name := fmt.Sprintf("kargoagent-jobsa-%s", acctest.RandString(10))
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig + testAccKargoAgentResourceConfigAllowedJobSA(name, getKargoInstanceId()),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("akp_kargo_agent.test", "id"),
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.allowed_job_sa.#", "2"),
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.allowed_job_sa.0", "job-runner"),
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.allowed_job_sa.1", "analysis-runner"),
+				),
+			},
+			testAccKargoAgentImportStateStep(getKargoInstanceId(), name, testAccKargoAgentAllowedJobSAImportStateVerifyIgnore...),
+		},
+	})
+}
+
+func testAccKargoAgentResourceConfigAllowedJobSA(name, kargoInstanceId string) string {
+	return fmt.Sprintf(`
+resource "akp_kargo_agent" "test" {
+  instance_id = %q
+  name        = %q
+  namespace   = "test"
+  spec = {
+    description = "Allowed job SA test kargo agent"
+    data = {
+      size           = "small"
+      remote_argocd  = %q
+      akuity_managed = false
+      allowed_job_sa = ["job-runner", "analysis-runner"]
+    }
+  }
+  remove_agent_resources_on_destroy = true
+}
+`, kargoInstanceId, name, getInstanceId())
+}
+
+func runKargoAgentResourceMaintenanceMode(t *testing.T) {
+	t.Parallel()
+	name := fmt.Sprintf("kargoagent-maint-%s", acctest.RandString(10))
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig + testAccKargoAgentResourceConfigMaintenanceMode(name, getKargoInstanceId()),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("akp_kargo_agent.test", "id"),
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.maintenance_mode", "true"),
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.maintenance_mode_expiry", "2030-12-31T23:59:59Z"),
+				),
+			},
+			testAccKargoAgentImportStateStep(getKargoInstanceId(), name, testAccKargoAgentCommonImportStateVerifyIgnore...),
+		},
+	})
+}
+
+func testAccKargoAgentResourceConfigMaintenanceMode(name, kargoInstanceId string) string {
+	return fmt.Sprintf(`
+resource "akp_kargo_agent" "test" {
+  instance_id = %q
+  name        = %q
+  namespace   = "test"
+  spec = {
+    description = "Maintenance mode test kargo agent"
+    data = {
+      size                    = "small"
+      remote_argocd           = %q
+      akuity_managed          = false
+      maintenance_mode        = true
+      maintenance_mode_expiry = "2030-12-31T23:59:59Z"
+    }
+  }
+  remove_agent_resources_on_destroy = true
+}
+`, kargoInstanceId, name, getInstanceId())
+}
+
+func runKargoAgentResourceMaintenanceModeTransitions(t *testing.T) {
+	t.Parallel()
+	name := fmt.Sprintf("kargoagent-maint-tr-%s", acctest.RandString(10))
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig + testAccKargoAgentResourceConfigMaintenanceModeToggle(name, getKargoInstanceId(), true),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("akp_kargo_agent.test", "id"),
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.maintenance_mode", "true"),
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.maintenance_mode_expiry", "2030-12-31T23:59:59Z"),
+				),
+			},
+			{
+				Config: providerConfig + testAccKargoAgentResourceConfigMaintenanceModeToggle(name, getKargoInstanceId(), false),
+			},
+			{
+				Config: providerConfig + testAccKargoAgentResourceConfigMaintenanceModeToggle(name, getKargoInstanceId(), true),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.maintenance_mode", "true"),
+				),
+			},
+			testAccKargoAgentImportStateStep(getKargoInstanceId(), name, testAccKargoAgentCommonImportStateVerifyIgnore...),
+		},
+	})
+}
+
+func testAccKargoAgentResourceConfigMaintenanceModeToggle(name, kargoInstanceId string, maintenanceMode bool) string {
+	if maintenanceMode {
+		return fmt.Sprintf(`
+resource "akp_kargo_agent" "test" {
+  instance_id = %q
+  name        = %q
+  namespace   = "test"
+  spec = {
+    description = "Maintenance mode toggle test"
+    data = {
+      size                    = "small"
+      remote_argocd           = %q
+      akuity_managed          = false
+      maintenance_mode        = true
+      maintenance_mode_expiry = "2030-12-31T23:59:59Z"
+    }
+  }
+  remove_agent_resources_on_destroy = true
+}
+`, kargoInstanceId, name, getInstanceId())
 	}
-	tests := []struct {
-		name  string
-		args  args
-		want  *types.KargoAgent
-		error error
-	}{
-		{
-			name: "error path, with kubeconfig",
-			args: args{
-				plan: &types.KargoAgent{
-					Kubeconfig: &types.Kubeconfig{
-						Host: hashitype.StringValue("some-host"),
+	return fmt.Sprintf(`
+resource "akp_kargo_agent" "test" {
+  instance_id = %q
+  name        = %q
+  namespace   = "test"
+  spec = {
+    description = "Maintenance mode toggle test"
+    data = {
+      size           = "small"
+      remote_argocd  = %q
+      akuity_managed = false
+    }
+  }
+  remove_agent_resources_on_destroy = true
+}
+`, kargoInstanceId, name, getInstanceId())
+}
+
+func runKargoAgentResourceAllowedJobSATransitions(t *testing.T) {
+	t.Parallel()
+	name := fmt.Sprintf("kargoagent-jobsa-tr-%s", acctest.RandString(10))
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig + testAccKargoAgentResourceConfigJobSAList(name, getKargoInstanceId(), `["job-runner", "analysis-runner"]`),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("akp_kargo_agent.test", "id"),
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.allowed_job_sa.#", "2"),
+				),
+			},
+			{
+				Config: providerConfig + testAccKargoAgentResourceConfigJobSAList(name, getKargoInstanceId(), `["job-runner", "analysis-runner", "build-runner"]`),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.allowed_job_sa.#", "3"),
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.allowed_job_sa.2", "build-runner"),
+				),
+			},
+			{
+				Config: providerConfig + testAccKargoAgentResourceConfigJobSAList(name, getKargoInstanceId(), `["job-runner"]`),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.allowed_job_sa.#", "1"),
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.allowed_job_sa.0", "job-runner"),
+				),
+			},
+			testAccKargoAgentImportStateStep(getKargoInstanceId(), name, testAccKargoAgentAllowedJobSAImportStateVerifyIgnore...),
+		},
+	})
+}
+
+func testAccKargoAgentResourceConfigJobSAList(name, kargoInstanceId, saList string) string {
+	return fmt.Sprintf(`
+resource "akp_kargo_agent" "test" {
+  instance_id = %q
+  name        = %q
+  namespace   = "test"
+  spec = {
+    description = "Job SA transitions test"
+    data = {
+      size           = "small"
+      remote_argocd  = %q
+      akuity_managed = false
+      allowed_job_sa = %s
+    }
+  }
+  remove_agent_resources_on_destroy = true
+}
+`, kargoInstanceId, name, getInstanceId(), saList)
+}
+
+func runKargoAgentResourceIdempotentReapply(t *testing.T) {
+	t.Parallel()
+	name := fmt.Sprintf("kargoagent-idempotent-%s", acctest.RandString(10))
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig + testAccKargoAgentResourceConfigIdempotent(name, getKargoInstanceId()),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("akp_kargo_agent.test", "id"),
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.description", "idempotent test"),
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.size", "small"),
+				),
+			},
+			{
+				Config: providerConfig + testAccKargoAgentResourceConfigIdempotent(name, getKargoInstanceId()),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectEmptyPlan(),
 					},
-					ReapplyManifestsOnUpdate: hashitype.BoolValue(true),
-				},
-				applyKargoInstance: func(ctx context.Context, request *kargov1.ApplyKargoInstanceRequest) (*kargov1.ApplyKargoInstanceResponse, error) {
-					return &kargov1.ApplyKargoInstanceResponse{}, nil
-				},
-				upsertKubeConfig: func(ctx context.Context, plan *types.KargoAgent) error {
-					return errors.New("some kube apply error")
 				},
 			},
-			want:  &types.KargoAgent{},
-			error: fmt.Errorf("unable to apply kargo manifests: some kube apply error"),
+			testAccKargoAgentImportStateStep(getKargoInstanceId(), name, testAccKargoAgentAllowedJobSAImportStateVerifyIgnore...),
 		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			r := &AkpKargoAgentResource{}
-			ctx := context.Background()
-			_, err := r.applyKargoInstance(ctx, tt.args.plan, tt.args.apiReq, false, tt.args.applyKargoInstance, tt.args.upsertKubeConfig)
-			assert.Equal(t, tt.error, err)
-		})
-	}
+	})
+}
+
+func testAccKargoAgentResourceConfigIdempotent(name, kargoInstanceId string) string {
+	return fmt.Sprintf(`
+resource "akp_kargo_agent" "test" {
+  instance_id = %q
+  name        = %q
+  namespace   = "test"
+  spec = {
+    description = "idempotent test"
+    data = {
+      size                  = "small"
+      auto_upgrade_disabled = true
+      remote_argocd         = %q
+      akuity_managed        = false
+      allowed_job_sa        = ["job-runner"]
+    }
+  }
+  remove_agent_resources_on_destroy = true
+}
+`, kargoInstanceId, name, getInstanceId())
+}
+
+func runKargoAgent_MinimalNestedImport(t *testing.T) {
+	t.Parallel()
+	name := fmt.Sprintf("kargoagent-minimal-%s", acctest.RandString(10))
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig + testAccKargoAgentMinimalNestedConfig(name, getKargoInstanceId()),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("akp_kargo_agent.test", "id"),
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "name", name),
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.size", "small"),
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.auto_upgrade_disabled", "true"),
+				),
+			},
+			{
+				Config: providerConfig + testAccKargoAgentMinimalNestedConfig(name, getKargoInstanceId()),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectEmptyPlan(),
+					},
+				},
+			},
+			testAccKargoAgentImportStateStep(getKargoInstanceId(), name, testAccKargoAgentMinimalImportStateVerifyIgnore...),
+		},
+	})
+}
+
+func testAccKargoAgentMinimalNestedConfig(name, kargoInstanceId string) string {
+	return fmt.Sprintf(`
+resource "akp_kargo_agent" "test" {
+  instance_id = %q
+  name        = %q
+  namespace   = "test"
+  spec = {
+    description = "Minimal nested import test"
+    data = {
+      size                  = "small"
+      auto_upgrade_disabled = true
+      remote_argocd         = %q
+      akuity_managed        = false
+    }
+  }
+  remove_agent_resources_on_destroy = true
+}
+`, kargoInstanceId, name, getInstanceId())
+}
+
+func runKargoAgent_PartialDataImport(t *testing.T) {
+	t.Parallel()
+	name := fmt.Sprintf("kargoagent-partial-%s", acctest.RandString(10))
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig + testAccKargoAgentPartialDataConfig(name, getKargoInstanceId()),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("akp_kargo_agent.test", "id"),
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.size", "small"),
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.auto_upgrade_disabled", "true"),
+					resource.TestCheckResourceAttrSet("akp_kargo_agent.test", "spec.data.kustomization"),
+				),
+			},
+			{
+				Config: providerConfig + testAccKargoAgentPartialDataConfig(name, getKargoInstanceId()),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectEmptyPlan(),
+					},
+				},
+			},
+			testAccKargoAgentImportStateStep(getKargoInstanceId(), name, testAccKargoAgentPartialDataImportStateVerifyIgnore...),
+		},
+	})
+}
+
+func testAccKargoAgentPartialDataConfig(name, kargoInstanceId string) string {
+	return fmt.Sprintf(`
+resource "akp_kargo_agent" "test" {
+  instance_id = %q
+  name        = %q
+  namespace   = "test"
+  spec = {
+    description = "Partial data import test"
+    data = {
+      size                  = "small"
+      auto_upgrade_disabled = true
+      remote_argocd         = %q
+      akuity_managed        = false
+      kustomization         = "apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\n"
+    }
+  }
+  remove_agent_resources_on_destroy = true
+}
+`, kargoInstanceId, name, getInstanceId())
+}
+
+func runKargoAgentResourcePodInheritMetadata(t *testing.T) {
+	t.Parallel()
+	name := fmt.Sprintf("kargoagent-pod-inherit-%s", acctest.RandString(10))
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig + testAccKargoAgentResourceConfigPodInheritMetadata(name, getKargoInstanceId()),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("akp_kargo_agent.test", "id"),
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.pod_inherit_metadata", "true"),
+				),
+			},
+			testAccKargoAgentImportStateStep(getKargoInstanceId(), name, testAccKargoAgentCommonImportStateVerifyIgnore...),
+		},
+	})
+}
+
+func testAccKargoAgentResourceConfigPodInheritMetadata(name, kargoInstanceId string) string {
+	return fmt.Sprintf(`
+resource "akp_kargo_agent" "test" {
+  instance_id = %q
+  name        = %q
+  namespace   = "test"
+  spec = {
+    description = "Pod inherit metadata test kargo agent"
+    data = {
+      size                 = "small"
+      remote_argocd        = %q
+      akuity_managed       = false
+      pod_inherit_metadata = true
+    }
+  }
+  remove_agent_resources_on_destroy = true
+}
+`, kargoInstanceId, name, getInstanceId())
 }

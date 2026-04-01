@@ -1,23 +1,22 @@
 package akp
 
 import (
-	"context"
-
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
-	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+
+	boolplanmodifier2 "github.com/akuity/terraform-provider-akp/akp/modifiers/bool"
+	stringplanmodifier2 "github.com/akuity/terraform-provider-akp/akp/modifiers/string"
 )
 
-func (r *AkpKargoAgentResource) Schema(ctx context.Context, request resource.SchemaRequest, response *resource.SchemaResponse) {
-	response.Schema = schema.Schema{
+func kargoAgentSchema() schema.Schema {
+	return schema.Schema{
 		MarkdownDescription: "Manages an AKP Kargo agent.",
 		Attributes:          getAKPKargoAgentResourceAttributes(),
 	}
@@ -106,6 +105,7 @@ func getAKPKargoAgentResourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
+				boolplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
 	}
@@ -144,6 +144,7 @@ func getAKPKargoAgentDataAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
+				boolplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
 		"target_version": schema.StringAttribute{
@@ -160,6 +161,7 @@ func getAKPKargoAgentDataAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
+				stringplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
 		"remote_argocd": schema.StringAttribute{
@@ -192,10 +194,6 @@ func getAKPKargoAgentDataAttributes() map[string]schema.Attribute {
 			ElementType:         types.StringType,
 			MarkdownDescription: "List of allowed service accounts for analysis jobs created by the agent",
 			Optional:            true,
-			Computed:            true,
-			PlanModifiers: []planmodifier.List{
-				listplanmodifier.UseStateForUnknown(),
-			},
 		},
 		"maintenance_mode": schema.BoolAttribute{
 			MarkdownDescription: "Enable maintenance mode for the agent. When enabled, alerts for degraded agents are muted.",
@@ -211,6 +209,15 @@ func getAKPKargoAgentDataAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"pod_inherit_metadata": schema.BoolAttribute{
+			MarkdownDescription: "Enable pod metadata inheritance. When enabled, pods inherit labels and annotations from the agent.",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Bool{
+				boolplanmodifier.UseStateForUnknown(),
+				boolplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
 	}

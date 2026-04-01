@@ -23,7 +23,6 @@ func TestNoNewArgoCDFields(t *testing.T) {
 	assert.Equal(t, reflect.TypeOf(types.ArgoCD{}).NumField(), len(getArgoCDAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.ArgoCDSpec{}).NumField(), len(getArgoCDSpecAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.InstanceSpec{}).NumField(), len(getInstanceSpecAttributes()))
-	assert.Equal(t, reflect.TypeOf(types.IPAllowListEntry{}).NumField(), len(getIPAllowListEntryAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.ArgoCDExtensionInstallEntry{}).NumField(), len(getArgoCDExtensionInstallEntryAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.ClusterCustomization{}).NumField(), len(getClusterCustomizationAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.RepoServerDelegate{}).NumField(), len(getRepoServerDelegateAttributes()))
@@ -31,8 +30,13 @@ func TestNoNewArgoCDFields(t *testing.T) {
 	assert.Equal(t, reflect.TypeOf(types.AppSetDelegate{}).NumField(), len(getAppSetDelegateAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.ManagedCluster{}).NumField(), len(getManagedClusterAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.AppsetPolicy{}).NumField(), len(getAppsetPolicyAttributes()))
-	assert.Equal(t, reflect.TypeOf(types.HostAliases{}).NumField(), len(getAppsetPolicyAttributes()))
+	assert.Equal(t, reflect.TypeOf(types.HostAliases{}).NumField(), len(getHostAliasAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.AppsetPlugins{}).NumField(), len(getAppsetPluginsAttributes()))
+}
+
+func TestNoNewManifestGenerationFields(t *testing.T) {
+	assert.Equal(t, reflect.TypeOf(types.ManifestGeneration{}).NumField(), len(getManifestGenerationAttributes()))
+	assert.Equal(t, reflect.TypeOf(types.ConfigManagementToolVersions{}).NumField(), len(getConfigManagementToolVersionsAttributes()))
 }
 
 // If this test fails, a field has been added/removed to the ConfigManagementPlugin related type.

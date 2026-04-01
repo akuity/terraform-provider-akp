@@ -2,7 +2,6 @@ package akp
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -15,18 +14,12 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
 	healthv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/health/v1"
+	reconv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/reconciliation/v1"
 	"github.com/akuity/terraform-provider-akp/akp/marshal"
 	"github.com/akuity/terraform-provider-akp/akp/types"
-)
-
-// Ensure provider defined types fully satisfy framework interfaces
-var (
-	_ resource.Resource                = &AkpInstanceResource{}
-	_ resource.ResourceWithImportState = &AkpInstanceResource{}
 )
 
 var argoResourceGroups = map[string]struct {
@@ -50,127 +43,74 @@ var argoResourceGroups = map[string]struct {
 }
 
 func NewAkpInstanceResource() resource.Resource {
-	return &AkpInstanceResource{}
+	return &GenericResource[types.Instance]{
+		TypeNameSuffix: "instance",
+		SchemaFunc:     instanceSchema,
+		CreateFunc:     instanceCreateOrUpdate,
+		ReadFunc:       instanceRead,
+		UpdateFunc:     instanceCreateOrUpdate,
+		DeleteFunc:     instanceDelete,
+		ImportStateFunc: func(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+			resource.ImportStatePassthroughID(ctx, path.Root("name"), req, resp)
+		},
+	}
 }
 
-type AkpInstanceResource struct {
-	akpCli *AkpCli
-}
-
-func (r *AkpInstanceResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_instance"
-}
-
-func (r *AkpInstanceResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	// Prevent panic if the provider has not been configured.
-	if req.ProviderData == nil {
-		return
-	}
-
-	akpCli, ok := req.ProviderData.(*AkpCli)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *AkpCli, got: %T. Please report this issue to the provider developers.", req.ProviderData),
-		)
-
-		return
-	}
-	r.akpCli = akpCli
-}
-
-func (r *AkpInstanceResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	tflog.Debug(ctx, "Creating an instance")
-	var plan types.Instance
-
-	// Read Terraform plan data into the model
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	applied, err := r.upsert(ctx, &resp.Diagnostics, &plan)
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", err.Error())
-	}
+func instanceCreateOrUpdate(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, plan *types.Instance) (*types.Instance, error) {
+	plannedCM := plan.ArgoCDConfigMap
+	applied, err := instanceUpsert(ctx, cli, diags, plan)
 	if applied {
-		resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+		plan.ArgoCDConfigMap = types.FilterMapToPlannedKeys(ctx, diags, plan.ArgoCDConfigMap, plannedCM)
+		return plan, err
 	}
+	return nil, err
 }
 
-func (r *AkpInstanceResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	tflog.Debug(ctx, "Reading an instance")
-	var data types.Instance
-	// Read Terraform prior state data into the model
-	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
-	if resp.Diagnostics.HasError() {
-		return
+func instanceRead(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, data *types.Instance) error {
+	if data.ArgoCD == nil || data.ID.IsNull() || data.ID.ValueString() == "" {
+		ctx = types.WithReadContext(ctx)
 	}
-
-	tflog.MaskLogStrings(ctx, data.GetSensitiveStrings(ctx, &resp.Diagnostics)...)
-	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
-
-	err := refreshState(ctx, &resp.Diagnostics, r.akpCli.Cli, &data, &argocdv1.GetInstanceRequest{
-		OrganizationId: r.akpCli.OrgId,
+	tflog.MaskLogStrings(ctx, data.GetSensitiveStrings(ctx, diags)...)
+	return refreshState(ctx, diags, cli, data, &argocdv1.GetInstanceRequest{
+		OrganizationId: cli.OrgId,
 		IdType:         idv1.Type_NAME,
 		Id:             data.Name.ValueString(),
 	}, false)
-	if err != nil {
-		handleReadResourceError(ctx, resp, err)
-		return
-	}
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
-func (r *AkpInstanceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	tflog.Debug(ctx, "Updating an instance")
-	var plan types.Instance
-
-	// Read Terraform plan data into the model
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
+func instanceDelete(ctx context.Context, cli *AkpCli, _ *diag.Diagnostics, state *types.Instance) error {
+	deleteCtx := ctx
+	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
+		var cancel context.CancelFunc
+		deleteCtx, cancel = context.WithTimeout(ctx, 2*time.Minute)
+		defer cancel()
 	}
 
-	applied, err := r.upsert(ctx, &resp.Diagnostics, &plan)
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", err.Error())
-	}
-	if applied {
-		resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+	for {
+		err := deleteWithCooldown(deleteCtx, func(ctx context.Context) (*argocdv1.DeleteInstanceResponse, error) {
+			return cli.Cli.DeleteInstance(ctx, &argocdv1.DeleteInstanceRequest{
+				Id:             state.ID.ValueString(),
+				OrganizationId: cli.OrgId,
+			})
+		}, "DeleteInstance", 2*time.Second)
+		if err == nil {
+			return nil
+		}
+		if !isConnectedKargoAgentsDeleteError(err) {
+			return fmt.Errorf("unable to delete Argo CD instance, got error: %s", err)
+		}
+
+		tflog.Warn(ctx, fmt.Sprintf("DeleteInstance blocked by connected Kargo agents for instance %s; retrying until detach completes", state.Name.ValueString()))
+
+		select {
+		case <-time.After(5 * time.Second):
+		case <-deleteCtx.Done():
+			return fmt.Errorf("unable to delete Argo CD instance, got error: %s", err)
+		}
 	}
 }
 
-func (r *AkpInstanceResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	tflog.Debug(ctx, "Deleting an instance")
-	var state types.Instance
-
-	diags := req.State.Get(ctx, &state)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
-	_, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.DeleteInstanceResponse, error) {
-		return r.akpCli.Cli.DeleteInstance(ctx, &argocdv1.DeleteInstanceRequest{
-			Id:             state.ID.ValueString(),
-			OrganizationId: r.akpCli.OrgId,
-		})
-	}, "DeleteInstance")
-	if err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete Argo CD instance, got error: %s", err))
-		return
-	}
-	// Give it some time to remove the instance. This is useful when the terraform provider is performing a replace operation, to give it enough time to destroy the previous instance.
-	time.Sleep(2 * time.Second)
-}
-
-func (r *AkpInstanceResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resource.ImportStatePassthroughID(ctx, path.Root("name"), req, resp)
-}
-
-func (r *AkpInstanceResource) validateAKIntelligenceFeatures(ctx context.Context, plan *types.Instance) error {
+func validateInstanceAIFeatures(ctx context.Context, plan *types.Instance) error {
 	if plan.ArgoCD == nil || plan.ArgoCD.Spec.InstanceSpec.AkuityIntelligenceExtension == nil {
 		return nil
 	}
@@ -193,75 +133,86 @@ func (r *AkpInstanceResource) validateAKIntelligenceFeatures(ctx context.Context
 	return nil
 }
 
-func (r *AkpInstanceResource) upsert(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.Instance) (applied bool, err error) {
-	// Mark sensitive secret data
-	tflog.MaskLogStrings(ctx, plan.GetSensitiveStrings(ctx, diagnostics)...)
+func instanceUpsert(ctx context.Context, cli *AkpCli, diagnostics *diag.Diagnostics, plan *types.Instance) (applied bool, err error) {
+	lc := &ResourceLifecycle[types.Instance, *argocdv1.GetInstanceResponse, healthv1.StatusCode]{
+		Apply: func(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.Instance) error {
+			tflog.MaskLogStrings(ctx, plan.GetSensitiveStrings(ctx, diagnostics)...)
 
-	ctx = httpctx.SetAuthorizationHeader(ctx, r.akpCli.Cred.Scheme(), r.akpCli.Cred.Credential())
+			if err := validateInstanceAIFeatures(ctx, plan); err != nil {
+				return err
+			}
 
-	if err := r.validateAKIntelligenceFeatures(ctx, plan); err != nil {
-		return false, err
-	}
+			workspace, err := getWorkspace(ctx, cli.OrgCli, cli.OrgId, plan.Workspace.ValueString())
+			if err != nil {
+				diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get workspace. %s", err))
+				return errors.New("Unable to get workspace")
+			}
 
-	workspace, err := getWorkspace(ctx, r.akpCli.OrgCli, r.akpCli.OrgId, plan.Workspace.ValueString())
-	if err != nil {
-		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get workspace. %s", err))
-		return false, errors.New("Unable to get workspace")
-	}
+			apiReq := buildApplyRequest(ctx, diagnostics, plan, cli.OrgId, workspace.GetId())
+			tflog.Debug(ctx, fmt.Sprintf("Apply instance request: %s", apiReq.Argocd))
+			_, err = retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.ApplyInstanceResponse, error) {
+				return cli.Cli.ApplyInstance(ctx, apiReq)
+			}, "ApplyInstance")
+			if err != nil {
+				return errors.Wrap(err, "Unable to upsert Argo CD instance")
+			}
 
-	apiReq := buildApplyRequest(ctx, diagnostics, plan, r.akpCli.OrgId, workspace.GetId())
-	tflog.Debug(ctx, fmt.Sprintf("Apply instance request: %s", apiReq.Argocd))
-	_, err = retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.ApplyInstanceResponse, error) {
-		return r.akpCli.Cli.ApplyInstance(ctx, apiReq)
-	}, "ApplyInstance")
-	if err != nil {
-		return false, errors.Wrap(err, "Unable to upsert Argo CD instance")
-	}
-
-	if plan.Workspace.ValueString() == "" {
-		plan.Workspace = tftypes.StringValue(workspace.GetName())
-	}
-
-	instanceName := plan.Name.ValueString()
-
-	getResourceFunc := func(ctx context.Context) (*argocdv1.GetInstanceResponse, error) {
-		return retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.GetInstanceResponse, error) {
-			return r.akpCli.Cli.GetInstance(ctx, &argocdv1.GetInstanceRequest{
-				OrganizationId: r.akpCli.OrgId,
-				Id:             instanceName,
+			if plan.Workspace.ValueString() == "" {
+				plan.Workspace = tftypes.StringValue(workspace.GetName())
+			}
+			return nil
+		},
+		Get: func(ctx context.Context, plan *types.Instance) (*argocdv1.GetInstanceResponse, error) {
+			return retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.GetInstanceResponse, error) {
+				return cli.Cli.GetInstance(ctx, &argocdv1.GetInstanceRequest{
+					OrganizationId: cli.OrgId,
+					Id:             plan.Name.ValueString(),
+					IdType:         idv1.Type_NAME,
+				})
+			}, "GetInstance")
+		},
+		GetStatus: func(resp *argocdv1.GetInstanceResponse) healthv1.StatusCode {
+			if resp == nil || resp.Instance == nil {
+				return healthv1.StatusCode_STATUS_CODE_UNKNOWN
+			}
+			return resp.Instance.GetHealthStatus().GetCode()
+		},
+		GetGeneration: func(resp *argocdv1.GetInstanceResponse) uint32 {
+			if resp == nil || resp.Instance == nil {
+				return 0
+			}
+			return resp.Instance.GetGeneration()
+		},
+		GetReconciliationDone: func(resp *argocdv1.GetInstanceResponse) bool {
+			if resp == nil || resp.Instance == nil {
+				return false
+			}
+			code := resp.Instance.GetReconciliationStatus().GetCode()
+			return code == reconv1.StatusCode_STATUS_CODE_SUCCESSFUL
+		},
+		GetReconciliationFailed: func(resp *argocdv1.GetInstanceResponse) bool {
+			if resp == nil || resp.Instance == nil {
+				return false
+			}
+			return resp.Instance.GetReconciliationStatus().GetCode() == reconv1.StatusCode_STATUS_CODE_FAILED
+		},
+		TargetStatuses: []healthv1.StatusCode{healthv1.StatusCode_STATUS_CODE_HEALTHY},
+		Refresh: func(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.Instance) error {
+			return refreshState(ctx, diagnostics, cli, plan, &argocdv1.GetInstanceRequest{
+				OrganizationId: cli.OrgId,
 				IdType:         idv1.Type_NAME,
-			})
-		}, "GetInstance")
+				Id:             plan.Name.ValueString(),
+			}, false)
+		},
+		ResourceName: func(plan *types.Instance) string {
+			return fmt.Sprintf("Instance %s", plan.Name.ValueString())
+		},
+		StatusName:   "health",
+		PollInterval: 10 * time.Second,
+		Timeout:      5 * time.Minute,
 	}
 
-	getStatusFunc := func(resp *argocdv1.GetInstanceResponse) healthv1.StatusCode {
-		if resp == nil || resp.Instance == nil {
-			return healthv1.StatusCode_STATUS_CODE_UNKNOWN
-		}
-		return resp.Instance.GetHealthStatus().GetCode()
-	}
-
-	waitErr := waitForStatus(
-		ctx,
-		getResourceFunc,
-		getStatusFunc,
-		[]healthv1.StatusCode{healthv1.StatusCode_STATUS_CODE_HEALTHY},
-		10*time.Second,
-		5*time.Minute,
-		fmt.Sprintf("Instance %s", instanceName),
-		"health",
-	)
-
-	if waitErr != nil {
-		diagnostics.AddError("Instance Wait Error", fmt.Sprintf("Instance '%s' did not become healthy: %s", instanceName, waitErr.Error()))
-		return true, waitErr
-	}
-
-	return true, refreshState(ctx, diagnostics, r.akpCli.Cli, plan, &argocdv1.GetInstanceRequest{
-		OrganizationId: r.akpCli.OrgId,
-		IdType:         idv1.Type_NAME,
-		Id:             plan.Name.ValueString(),
-	}, false)
+	return lc.Upsert(ctx, diagnostics, plan)
 }
 
 func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, instance *types.Instance, orgID, workspaceID string) *argocdv1.ApplyInstanceRequest {
@@ -310,30 +261,14 @@ func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, insta
 	return applyReq
 }
 
-func buildArgoCD(ctx context.Context, diag *diag.Diagnostics, instance *types.Instance) *structpb.Struct {
-	apiArgoCD := instance.ArgoCD.ToArgoCDAPIModel(ctx, diag, instance.Name.ValueString())
-	jsonBytes, err := json.Marshal(apiArgoCD)
-	if err != nil {
-		diag.AddError("Client Error", fmt.Sprintf("Unable to marshal Argo CD instance. %s", err))
+func buildArgoCD(_ context.Context, diag *diag.Diagnostics, instance *types.Instance) *structpb.Struct {
+	rawMap := types.TFToMapWithOverrides(instance.ArgoCD, types.OverridesMap, nil)
+	if rawMap == nil {
+		diag.AddError("Client Error", "Unable to convert Argo CD instance to map")
 		return nil
 	}
-
-	var rawMap map[string]any
-	if err = json.Unmarshal(jsonBytes, &rawMap); err != nil {
-		diag.AddError("Client Error", fmt.Sprintf("Unable to unmarshal Argo CD instance. %s", err))
-		return nil
-	}
-	if spec, ok := rawMap["spec"].(map[string]any); ok {
-		if instanceSpec, ok := spec["instanceSpec"].(map[string]any); ok {
-			if _, exists := instanceSpec["extensions"]; !exists && apiArgoCD.Spec.InstanceSpec.Extensions != nil {
-				instanceSpec["extensions"] = []any{}
-			}
-			// Explicitly include empty ipAllowList when it was set (even if empty)
-			// This allows the IP allow list resource to clear the list
-			if _, exists := instanceSpec["ipAllowList"]; !exists && apiArgoCD.Spec.InstanceSpec.IpAllowList != nil {
-				instanceSpec["ipAllowList"] = []any{}
-			}
-		}
+	rawMap["metadata"] = map[string]any{
+		"name": instance.Name.ValueString(),
 	}
 
 	s, err := structpb.NewStruct(rawMap)
@@ -383,13 +318,13 @@ func buildSecret(ctx context.Context, diagnostics *diag.Diagnostics, secret tfty
 	return s
 }
 
-func buildCMPs(ctx context.Context, diagnostics *diag.Diagnostics, cmps map[string]*types.ConfigManagementPlugin) []*structpb.Struct {
+func buildCMPs(_ context.Context, diagnostics *diag.Diagnostics, cmps map[string]*types.ConfigManagementPlugin) []*structpb.Struct {
 	var res []*structpb.Struct
 	for name, cmp := range cmps {
-		apiModel := cmp.ToConfigManagementPluginAPIModel(ctx, diagnostics, name)
-		s, err := marshal.ApiModelToPBStruct(apiModel)
+		rawMap := types.BuildCMPMap(cmp, name)
+		s, err := structpb.NewStruct(rawMap)
 		if err != nil {
-			diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create ConfigManagementPlugin. %s", err))
+			diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create ConfigManagementPlugin struct. %s", err))
 			return nil
 		}
 		res = append(res, s)
@@ -397,16 +332,22 @@ func buildCMPs(ctx context.Context, diagnostics *diag.Diagnostics, cmps map[stri
 	return res
 }
 
-func refreshState(ctx context.Context, diagnostics *diag.Diagnostics, client argocdv1.ArgoCDServiceGatewayClient, instance *types.Instance, getInstanceReq *argocdv1.GetInstanceRequest, isDataSource bool) error {
+func refreshState(ctx context.Context, diagnostics *diag.Diagnostics, cli *AkpCli, instance *types.Instance, getInstanceReq *argocdv1.GetInstanceRequest, isDataSource bool) error {
 	tflog.Debug(ctx, fmt.Sprintf("Get instance request: %s", getInstanceReq))
 	getInstanceResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.GetInstanceResponse, error) {
-		return client.GetInstance(ctx, getInstanceReq)
+		return cli.Cli.GetInstance(ctx, getInstanceReq)
 	}, "GetInstance")
 	if err != nil {
 		return errors.Wrap(err, "Unable to read Argo CD instance")
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Get instance response: %s", getInstanceResp))
 	instance.ID = tftypes.StringValue(getInstanceResp.Instance.Id)
+	if instance.Workspace.IsNull() || instance.Workspace.ValueString() == "" {
+		workspace, wErr := getWorkspaceByID(ctx, cli.OrgCli, cli.OrgId, getInstanceResp.Instance.WorkspaceId)
+		if wErr == nil && workspace != nil {
+			instance.Workspace = tftypes.StringValue(workspace.GetName())
+		}
+	}
 	exportReq := &argocdv1.ExportInstanceRequest{
 		OrganizationId: getInstanceReq.OrganizationId,
 		IdType:         idv1.Type_ID,
@@ -415,13 +356,13 @@ func refreshState(ctx context.Context, diagnostics *diag.Diagnostics, client arg
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Export instance request: %s", exportReq))
 	exportResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.ExportInstanceResponse, error) {
-		return client.ExportInstance(ctx, exportReq)
+		return cli.Cli.ExportInstance(ctx, exportReq)
 	}, "ExportInstance")
 	if err != nil {
 		return errors.Wrap(err, "Unable to export Argo CD instance")
 	}
-	tflog.Debug(ctx, fmt.Sprintf("Export instance response: %s", exportResp))
-	return instance.Update(ctx, diagnostics, exportResp, isDataSource)
+	err = instance.Update(ctx, diagnostics, exportResp, isDataSource)
+	return err
 }
 
 func isArgoResourceValid(un *unstructured.Unstructured) error {

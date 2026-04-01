@@ -27,23 +27,17 @@ data "akp_instance" "example" {
 
 ### Read-Only
 
-- `application_set_secret` (Map of String) stores secret key-value that will be used by `ApplicationSet`. For an example of how to use this in your ApplicationSet's pull request generator, see [here](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/applicationset/Generators-Pull-Request.md#github). In this example, `tokenRef.secretName` would be application-set-secret.
 - `argocd` (Attributes) Argo CD instance (see [below for nested schema](#nestedatt--argocd))
 - `argocd_cm` (Map of String) is aligned with the options in `argocd-cm` ConfigMap as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-cm-yaml/).
 - `argocd_image_updater_config` (Map of String) configures Argo CD image updater, and it is aligned with `argocd-image-updater-config` ConfigMap of Argo CD, for available options and examples, refer to [this documentation](https://argocd-image-updater.readthedocs.io/en/stable/).
-- `argocd_image_updater_secret` (Map of String) contains sensitive data (e.g., credentials for image updater to access registries) of Argo CD image updater, for available options and examples, refer to [this documentation](https://argocd-image-updater.readthedocs.io/en/stable/).
 - `argocd_image_updater_ssh_config` (Map of String) contains the ssh configuration for Argo CD image updater, and it is aligned with `argocd-image-updater-ssh-config` ConfigMap of Argo CD, for available options and examples, refer to [this documentation](https://argocd-image-updater.readthedocs.io/en/stable/).
 - `argocd_notifications_cm` (Map of String) configures Argo CD notifications, and it is aligned with `argocd-notifications-cm` ConfigMap of Argo CD, for more details and examples, refer to [this documentation](https://argo-cd.readthedocs.io/en/latest/operator-manual/notifications/).
-- `argocd_notifications_secret` (Map of String) contains sensitive data of Argo CD notifications, and it is aligned with `argocd-notifications-secret` Secret of Argo CD, for more details and examples, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/notifications/templates/#defining-and-using-secrets-within-notification-templates).
 - `argocd_rbac_cm` (Map of String) is aligned with the options in `argocd-rbac-cm` ConfigMap as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-rbac-cm-yaml/).
 - `argocd_resources` (Map of String) Map of ArgoCD custom resources to be managed alongside the ArgoCD instance. Currently supported resources are: `ApplicationSet`, `Application`, `AppProject`. Should all be in the apiVersion `argoproj.io/v1alpha1`.
-- `argocd_secret` (Map of String) is aligned with the options in `argocd-secret` Secret as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-secret-yaml/).
 - `argocd_ssh_known_hosts_cm` (Map of String) is aligned with the options in `argocd-ssh-known-hosts-cm` ConfigMap as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-ssh-known-hosts-cm-yaml/).
 - `argocd_tls_certs_cm` (Map of String) is aligned with the options in `argocd-tls-certs-cm` ConfigMap as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-tls-certs-cm-yaml/).
 - `config_management_plugins` (Attributes Map) is a map of [Config Management Plugins](https://argo-cd.readthedocs.io/en/stable/operator-manual/config-management-plugins/#config-management-plugins), the key of map entry is the `name` of the plugin, and the value is the definition of the Config Management Plugin(v2). (see [below for nested schema](#nestedatt--config_management_plugins))
 - `id` (String) Instance ID
-- `repo_credential_secrets` (Map of Map of String) is a map of repo credential secrets, the key of map entry is the `name` of the secret, and the value is the aligned with options in `argocd-repositories.yaml.data` as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-repositories-yaml/).
-- `repo_template_credential_secrets` (Map of Map of String) is a map of repository credential templates secrets, the key of map entry is the `name` of the secret, and the value is the aligned with options in `argocd-repo-creds.yaml.data` as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-repo-creds.yaml/).
 - `workspace` (String) Workspace name for the ArgoCD instance
 
 <a id="nestedatt--argocd"></a>
@@ -64,11 +58,6 @@ Read-Only:
 
 <a id="nestedatt--argocd--spec--instance_spec"></a>
 ### Nested Schema for `argocd.spec.instance_spec`
-
-Optional:
-
-- `metrics_ingress_password_hash` (String, Sensitive) Password hash for metrics ingress authentication
-- `metrics_ingress_username` (String) Username for metrics ingress authentication
 
 Read-Only:
 
@@ -91,8 +80,9 @@ Read-Only:
 - `host_aliases` (Attributes List) Host Aliases that override the DNS entries for control plane Argo CD components such as API Server and Dex. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--host_aliases))
 - `image_updater_delegate` (Attributes) Select cluster in which you want to Install Image Updater (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--image_updater_delegate))
 - `image_updater_enabled` (Boolean) Enable Image Updater
-- `ip_allow_list` (Attributes List) IP allow list (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--ip_allow_list))
 - `kube_vision_config` (Attributes) Advanced Akuity Intelligence configuration like CVE scanning and incident resolution (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config))
+- `manifest_generation` (Attributes) Manifest generation configuration for config management tool versions (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--manifest_generation))
+- `metrics_ingress_username` (String) Username for metrics ingress authentication
 - `multi_cluster_k8s_dashboard_enabled` (Boolean) Enable the KubeVision feature
 - `privileged_notification_cluster` (String) Cluster name where notifications controller will be installed with elevated privileges to see controlplane and intg. cluster apps
 - `repo_server_delegate` (Attributes) In case some clusters don't have network access to your private Git provider you can delegate these operations to one specific cluster. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--repo_server_delegate))
@@ -250,15 +240,6 @@ Read-Only:
 
 
 
-<a id="nestedatt--argocd--spec--instance_spec--ip_allow_list"></a>
-### Nested Schema for `argocd.spec.instance_spec.ip_allow_list`
-
-Read-Only:
-
-- `description` (String) IP description
-- `ip` (String) IP address
-
-
 <a id="nestedatt--argocd--spec--instance_spec--kube_vision_config"></a>
 ### Nested Schema for `argocd.spec.instance_spec.kube_vision_config`
 
@@ -325,7 +306,7 @@ Read-Only:
 Read-Only:
 
 - `argocd_application_name_path` (String) JSON path for ArgoCD application name field
-- `argocd_application_namespace_path` (String) JSON path for ArgoCD application name field
+- `argocd_application_namespace_path` (String) JSON path for ArgoCD application namespace field
 - `cluster_path` (String) JSON path for cluster field
 - `description_path` (String) JSON path for description field
 - `k8s_namespace_path` (String) JSON path for Kubernetes namespace field
@@ -363,6 +344,23 @@ Read-Only:
 
 - `rescan_interval` (String) CVE rescan interval
 - `scan_enabled` (Boolean) Enable CVE scanning
+
+
+
+<a id="nestedatt--argocd--spec--instance_spec--manifest_generation"></a>
+### Nested Schema for `argocd.spec.instance_spec.manifest_generation`
+
+Read-Only:
+
+- `kustomize` (Attributes) Kustomize version configuration (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--manifest_generation--kustomize))
+
+<a id="nestedatt--argocd--spec--instance_spec--manifest_generation--kustomize"></a>
+### Nested Schema for `argocd.spec.instance_spec.manifest_generation.kustomize`
+
+Read-Only:
+
+- `additional_versions` (List of String) Additional versions of the config management tool
+- `default_version` (String) Default version of the config management tool
 
 
 

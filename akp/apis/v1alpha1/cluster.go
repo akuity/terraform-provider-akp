@@ -86,4 +86,5 @@ type ClusterData struct {
 	ArgocdNotificationsSettings     *ClusterArgoCDNotificationsSettings `json:"argocdNotificationsSettings,omitempty"`
 	ServerSideDiffEnabled           *bool                               `json:"serverSideDiffEnabled,omitempty"`
 	MaintenanceModeExpiry           *metav1.Time                        `json:"maintenanceModeExpiry,omitempty"`
+	PodInheritMetadata              *bool                               `json:"podInheritMetadata,omitempty"`
 }

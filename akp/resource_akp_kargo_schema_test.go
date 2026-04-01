@@ -18,4 +18,5 @@ func TestNoNewKargoFields(t *testing.T) {
 	assert.Equal(t, reflect.TypeOf(types.KargoSpec{}).NumField(), len(getKargoSpecAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.KargoIPAllowListEntry{}).NumField(), len(getKargoIPAllowListEntryAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.KargoAgentCustomization{}).NumField(), len(getKargoAgentCustomizationAttributes()))
+	assert.Equal(t, reflect.TypeOf(types.KargoArgoCDUIConfig{}).NumField(), len(getKargoArgoCDUIConfigAttributes()))
 }

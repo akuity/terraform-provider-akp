@@ -57,7 +57,7 @@ patches:
       name: argocd-repo-server
 `
 
-	out, err := generateExpectedKustomization(custom, user)
+	out, err := GenerateExpectedKustomization(custom, user)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -121,7 +121,7 @@ patches:
       name: argocd-repo-server
 `
 
-	_, err := generateExpectedKustomization(custom, user)
+	_, err := GenerateExpectedKustomization(custom, user)
 	if err == nil {
 		t.Fatalf("expected conflict error, got nil")
 	}
@@ -157,7 +157,7 @@ patches:
       name: argocd-application-controller
 `
 
-	_, err := generateExpectedKustomization(custom, user)
+	_, err := GenerateExpectedKustomization(custom, user)
 	if err == nil {
 		t.Fatalf("expected conflict error, got nil")
 	}
@@ -168,7 +168,7 @@ func TestGenerateExpectedKustomization_CustomNil_ReturnsUser(t *testing.T) {
 kind: Kustomization
 patches: []
 `
-	out, err := generateExpectedKustomization(nil, user)
+	out, err := GenerateExpectedKustomization(nil, user)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -185,7 +185,7 @@ func TestGenerateExpectedKustomization_EmptyUser_GeneratesDefaults(t *testing.T)
 			Replicas: tftypes.Int64Value(2),
 		},
 	}
-	out, err := generateExpectedKustomization(custom, "")
+	out, err := GenerateExpectedKustomization(custom, "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -294,7 +294,7 @@ patches:
       name: not-argocd
 `
 
-	out, err := generateExpectedKustomization(custom, user)
+	out, err := GenerateExpectedKustomization(custom, user)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

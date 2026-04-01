@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -30,4 +32,21 @@ func ApiModelToPBStruct(obj interface{}) (*structpb.Struct, error) {
 		return nil, fmt.Errorf("new struct: %w", err)
 	}
 	return s, nil
+}
+
+// ProtoToMap converts a protobuf message to a map[string]any using protojson serialization.
+// This produces camelCase keys matching protobuf JSON conventions, which BuildStateFromAPI
+// then converts to snake_case to match tfsdk struct tags.
+func ProtoToMap(msg proto.Message) (map[string]any, error) {
+	data, err := protojson.MarshalOptions{
+		EmitUnpopulated: false,
+	}.Marshal(msg)
+	if err != nil {
+		return nil, fmt.Errorf("protojson marshal: %w", err)
+	}
+	var m map[string]any
+	if err := json.Unmarshal(data, &m); err != nil {
+		return nil, fmt.Errorf("json unmarshal: %w", err)
+	}
+	return m, nil
 }

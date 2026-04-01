@@ -2,19 +2,18 @@ package akp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand/v2"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/pkg/errors"
-	"golang.org/x/exp/slices"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-// waitForStatus polls a resource until its status reaches one of the target statuses or a timeout occurs.
 func waitForStatus[ResourceType any, StatusCodeType comparable](
 	ctx context.Context,
 	getResourceFunc func(ctx context.Context) (ResourceType, error),
@@ -43,9 +42,9 @@ func waitForStatus[ResourceType any, StatusCodeType comparable](
 		case <-waitCtx.Done():
 			elapsed := time.Since(startTime)
 			if errors.Is(waitCtx.Err(), context.DeadlineExceeded) {
-				return errors.Errorf("timed out after %v waiting for %s %s status (expected: %v, last seen: %v)", timeout, resourceName, statusName, targetStatuses, lastStatus)
+				return fmt.Errorf("timed out after %v waiting for %s %s status (expected: %v, last seen: %v)", timeout, resourceName, statusName, targetStatuses, lastStatus)
 			}
-			return errors.Wrapf(waitCtx.Err(), "context cancelled/done while waiting for %s %s status after %v", resourceName, statusName, elapsed)
+			return fmt.Errorf("context cancelled/done while waiting for %s %s status after %v: %w", resourceName, statusName, elapsed, waitCtx.Err())
 		default:
 		}
 
@@ -57,13 +56,12 @@ func waitForStatus[ResourceType any, StatusCodeType comparable](
 			} else {
 				elapsed := time.Since(startTime)
 				tflog.Error(ctx, fmt.Sprintf("Failed to get %s during status wait after %v: %v", resourceName, elapsed, err))
-				return errors.Wrapf(err, "failed to get %s during status wait", resourceName)
+				return fmt.Errorf("failed to get %s during status wait: %w", resourceName, err)
 			}
 		} else {
 			currentStatus := getStatusFunc(resource)
 			lastStatus = currentStatus
 
-			// Log every 30 seconds to show progress
 			if time.Since(lastStatusLog) >= 30*time.Second {
 				elapsed := time.Since(startTime)
 				tflog.Info(ctx, fmt.Sprintf("%s %s status: %v (elapsed: %v, target: %v)", resourceName, statusName, currentStatus, elapsed, targetStatuses))
@@ -79,9 +77,11 @@ func waitForStatus[ResourceType any, StatusCodeType comparable](
 			}
 		}
 
+		timer := time.NewTimer(pollInterval)
 		select {
-		case <-time.After(pollInterval):
+		case <-timer.C:
 		case <-waitCtx.Done():
+			timer.Stop()
 		}
 	}
 }
@@ -193,4 +193,46 @@ func isRetryableError(err error) bool {
 	}
 
 	return false
+}
+
+func isConnectedKargoAgentsDeleteError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	type grpcStatus interface {
+		GRPCStatus() *status.Status
+	}
+
+	var statusErr grpcStatus
+	if !errors.As(err, &statusErr) {
+		return false
+	}
+
+	st := statusErr.GRPCStatus()
+	msg := st.Message()
+	if !strings.Contains(msg, "instance has some connected kargo agents") &&
+		!strings.Contains(msg, "delete them before deleting instance") {
+		return false
+	}
+
+	return st.Code() == codes.InvalidArgument
+}
+
+func deleteWithCooldown[Resp any](
+	ctx context.Context,
+	deleteFunc func(ctx context.Context) (Resp, error),
+	operationName string,
+	cooldown time.Duration,
+) error {
+	_, err := retryWithBackoff(ctx, deleteFunc, operationName)
+	if err != nil {
+		return err
+	}
+	select {
+	case <-time.After(cooldown):
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	return nil
 }

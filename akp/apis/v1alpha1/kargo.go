@@ -35,18 +35,18 @@ type KargoPredefinedAccountData struct {
 }
 
 type KargoOidcConfig struct {
-	Enabled               *bool                      `json:"enabled"`
-	DexEnabled            *bool                      `json:"dexEnabled"`
-	DexConfig             string                     `json:"dexConfig"`
-	DexConfigSecret       map[string]Value           `json:"dexConfigSecret"`
-	IssuerURL             string                     `json:"issuerUrl"`
-	ClientID              string                     `json:"clientId"`
-	CliClientID           string                     `json:"cliClientId"`
-	AdminAccount          KargoPredefinedAccountData `json:"adminAccount"`
-	ViewerAccount         KargoPredefinedAccountData `json:"viewerAccount"`
-	AdditionalScopes      []string                   `json:"additionalScopes"`
-	UserAccount           KargoPredefinedAccountData `json:"userAccount"`
-	ProjectCreatorAccount KargoPredefinedAccountData `json:"projectCreatorAccount"`
+	Enabled               *bool                       `json:"enabled"`
+	DexEnabled            *bool                       `json:"dexEnabled"`
+	DexConfig             string                      `json:"dexConfig"`
+	DexConfigSecret       map[string]Value            `json:"dexConfigSecret"`
+	IssuerURL             string                      `json:"issuerUrl"`
+	ClientID              string                      `json:"clientId"`
+	CliClientID           string                      `json:"cliClientId"`
+	AdminAccount          *KargoPredefinedAccountData `json:"adminAccount"`
+	ViewerAccount         *KargoPredefinedAccountData `json:"viewerAccount"`
+	AdditionalScopes      []string                    `json:"additionalScopes"`
+	UserAccount           *KargoPredefinedAccountData `json:"userAccount"`
+	ProjectCreatorAccount *KargoPredefinedAccountData `json:"projectCreatorAccount"`
 }
 
 type Value struct {
@@ -67,12 +67,18 @@ type KargoInstanceSpec struct {
 	BackendIpAllowListEnabled  *bool                    `json:"backendIpAllowListEnabled,omitempty"`
 	IpAllowList                []*KargoIPAllowListEntry `json:"ipAllowList,omitempty"`
 	AgentCustomizationDefaults *KargoAgentCustomization `json:"agentCustomizationDefaults,omitempty"`
-	DefaultShardAgent          string                   `json:"defaultShardAgent,omitempty"`
-	GlobalCredentialsNs        []string                 `json:"globalCredentialsNs,omitempty"`
-	GlobalServiceAccountNs     []string                 `json:"globalServiceAccountNs,omitempty"`
-	AkuityIntelligence         *AkuityIntelligence      `json:"akuityIntelligence,omitempty"`
-	GcConfig                   *GarbageCollectorConfig  `json:"gcConfig,omitempty"`
-	PromoControllerEnabled     *bool                    `json:"promoControllerEnabled,omitempty"`
+
+	GlobalCredentialsNs    []string                `json:"globalCredentialsNs,omitempty"`
+	GlobalServiceAccountNs []string                `json:"globalServiceAccountNs,omitempty"`
+	AkuityIntelligence     *AkuityIntelligence     `json:"akuityIntelligence,omitempty"`
+	GcConfig               *GarbageCollectorConfig `json:"gcConfig,omitempty"`
+	PromoControllerEnabled *bool                   `json:"promoControllerEnabled,omitempty"`
+
+	ArgocdUi *KargoArgoCDUIConfig `json:"argocdUi,omitempty"`
+}
+
+type KargoArgoCDUIConfig struct {
+	IdpGroupsMapping *bool `json:"idpGroupsMapping,omitempty"`
 }
 
 type AkuityIntelligence struct {

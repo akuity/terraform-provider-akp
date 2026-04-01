@@ -22,19 +22,31 @@ type KargoSpec struct {
 	OidcConfig        *KargoOidcConfig  `tfsdk:"oidc_config"`
 }
 
+type KargoPredefinedAccountClaimValue struct {
+	Values []types.String `tfsdk:"values"`
+}
+
+type KargoPredefinedAccountData struct {
+	Claims types.Map `tfsdk:"claims"`
+}
+
 type KargoOidcConfig struct {
-	Enabled               types.Bool     `tfsdk:"enabled"`
-	DexEnabled            types.Bool     `tfsdk:"dex_enabled"`
-	DexConfig             types.String   `tfsdk:"dex_config"`
-	DexConfigSecret       types.Map      `tfsdk:"dex_config_secret"`
-	IssuerURL             types.String   `tfsdk:"issuer_url"`
-	ClientID              types.String   `tfsdk:"client_id"`
-	CliClientID           types.String   `tfsdk:"cli_client_id"`
-	AdminAccount          types.Object   `tfsdk:"admin_account"`
-	ViewerAccount         types.Object   `tfsdk:"viewer_account"`
-	AdditionalScopes      []types.String `tfsdk:"additional_scopes"`
-	UserAccount           types.Object   `tfsdk:"user_account"`
-	ProjectCreatorAccount types.Object   `tfsdk:"project_creator_account"`
+	Enabled               types.Bool                  `tfsdk:"enabled"`
+	DexEnabled            types.Bool                  `tfsdk:"dex_enabled"`
+	DexConfig             types.String                `tfsdk:"dex_config"`
+	DexConfigSecret       types.Map                   `tfsdk:"dex_config_secret"`
+	IssuerURL             types.String                `tfsdk:"issuer_url"`
+	ClientID              types.String                `tfsdk:"client_id"`
+	CliClientID           types.String                `tfsdk:"cli_client_id"`
+	AdminAccount          *KargoPredefinedAccountData `tfsdk:"admin_account"`
+	ViewerAccount         *KargoPredefinedAccountData `tfsdk:"viewer_account"`
+	AdditionalScopes      []types.String              `tfsdk:"additional_scopes"`
+	UserAccount           *KargoPredefinedAccountData `tfsdk:"user_account"`
+	ProjectCreatorAccount *KargoPredefinedAccountData `tfsdk:"project_creator_account"`
+}
+
+type Value struct {
+	Value types.String `tfsdk:"value"`
 }
 
 type KargoIPAllowListEntry struct {
@@ -51,12 +63,16 @@ type KargoInstanceSpec struct {
 	BackendIpAllowListEnabled  types.Bool               `tfsdk:"backend_ip_allow_list_enabled"`
 	IpAllowList                []*KargoIPAllowListEntry `tfsdk:"ip_allow_list"`
 	AgentCustomizationDefaults *KargoAgentCustomization `tfsdk:"agent_customization_defaults"`
-	DefaultShardAgent          types.String             `tfsdk:"default_shard_agent"`
 	GlobalCredentialsNs        []types.String           `tfsdk:"global_credentials_ns"`
 	GlobalServiceAccountNs     []types.String           `tfsdk:"global_service_account_ns"`
 	AkuityIntelligence         *AkuityIntelligence      `tfsdk:"akuity_intelligence"`
 	GcConfig                   *GarbageCollectorConfig  `tfsdk:"gc_config"`
 	PromoControllerEnabled     types.Bool               `tfsdk:"promo_controller_enabled"`
+	ArgocdUi                   *KargoArgoCDUIConfig     `tfsdk:"argocd_ui"`
+}
+
+type KargoArgoCDUIConfig struct {
+	IdpGroupsMapping types.Bool `tfsdk:"idp_groups_mapping"`
 }
 
 type AkuityIntelligence struct {
