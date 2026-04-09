@@ -75,3 +75,4 @@ See more examples in [here](https://github.com/akuity/terraform-provider-akp/tre
 - [Upgrading to v0.7](./docs/guides/v0.7-upgrading.md)
 - [Upgrading to v0.8](./docs/guides/v0.8-upgrading.md)
 - [Upgrading to v0.9](./docs/guides/v0.9-upgrading.md)
+- [Upgrading to v0.10](./docs/guides/v0.10-upgrading.md)
