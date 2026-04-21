@@ -24,6 +24,20 @@ type KargoAgentSpec struct {
 	Data        KargoAgentData `json:"data,omitempty"`
 }
 
+type KargoResources struct {
+	Mem string `json:"mem,omitempty"`
+	Cpu string `json:"cpu,omitempty"`
+}
+
+type KargoControllerAutoScalingConfig struct {
+	ResourceMinimum *KargoResources `json:"resourceMinimum,omitempty"`
+	ResourceMaximum *KargoResources `json:"resourceMaximum,omitempty"`
+}
+
+type KargoAutoscalerConfig struct {
+	KargoController *KargoControllerAutoScalingConfig `json:"kargoController,omitempty"`
+}
+
 type KargoAgentData struct {
 	Size                KargoAgentSize       `json:"size,omitempty"`
 	AutoUpgradeDisabled *bool                `json:"autoUpgradeDisabled,omitempty"`
@@ -33,8 +47,9 @@ type KargoAgentData struct {
 	AkuityManaged       bool                 `json:"akuityManaged,omitempty"`
 	ArgocdNamespace     string               `json:"argocdNamespace,omitempty"`
 
-	AllowedJobSa          []string     `json:"allowedJobSa,omitempty"`
-	MaintenanceMode       *bool        `json:"maintenanceMode,omitempty"`
-	MaintenanceModeExpiry *metav1.Time `json:"maintenanceModeExpiry,omitempty"`
-	PodInheritMetadata    *bool        `json:"podInheritMetadata,omitempty"`
+	AllowedJobSa          []string               `json:"allowedJobSa,omitempty"`
+	MaintenanceMode       *bool                  `json:"maintenanceMode,omitempty"`
+	MaintenanceModeExpiry *metav1.Time           `json:"maintenanceModeExpiry,omitempty"`
+	PodInheritMetadata    *bool                  `json:"podInheritMetadata,omitempty"`
+	AutoscalerConfig      *KargoAutoscalerConfig `json:"autoscalerConfig,omitempty"`
 }

@@ -292,6 +292,16 @@ EOF
             # AI Runbooks - Automated troubleshooting guides that can be triggered by incidents
             # Each runbook should contain step-by-step instructions for resolving common issues
             # The AI can automatically execute or suggest these runbooks when incidents occur
+            # Git-managed runbooks - Sync runbooks from a Git repository automatically
+            # The controller will periodically fetch markdown runbooks from the specified repositories
+            runbook_repos = [
+              {
+                repo_url = "https://github.com/akuity/akuity-intelligence-examples"
+                revision = "main"
+                path     = "runbooks"
+              }
+            ]
+
             runbooks = [
               {
                 name    = "oom"
@@ -352,8 +362,22 @@ EOF
                   cluster_path                 = "{.query.clusterName}"
                   k8s_namespace_path           = "{.body.alerts[0].labels.namespace}"
                   argocd_application_name_path = ""
+                  title_path                   = "{.body.alerts[0].annotations.summary}"
                 }
               ]
+
+              # Investigation approval configuration
+              # Require approval before AI automatically closes incidents that match these scopes
+              investigation_approval = {
+                scopes = [
+                  {
+                    argocd_applications       = ["guestbook-prod"]
+                    k8s_namespaces            = ["production"]
+                    clusters                  = ["prod-cluster"]
+                    consecutive_auto_closures = 3
+                  }
+                ]
+              }
             }
           }
         }
@@ -959,6 +983,7 @@ Optional:
 - `argocd_slack_channels` (List of String) List of ArgoCD Slack channels
 - `argocd_slack_service` (String) ArgoCD Slack service configuration
 - `incidents` (Attributes) Incident configuration (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents))
+- `runbook_repos` (Attributes List) Git repositories from which runbooks are periodically synced (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--runbook_repos))
 - `runbooks` (Attributes List) List of AI runbooks to use for incident resolution (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--runbooks))
 
 <a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents"></a>
@@ -967,6 +992,7 @@ Optional:
 Optional:
 
 - `grouping` (Attributes) Incident grouping configuration (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents--grouping))
+- `investigation_approval` (Attributes) Incident investigation approval configuration (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents--investigation_approval))
 - `triggers` (Attributes List) List of incident triggers (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents--triggers))
 - `webhooks` (Attributes List) List of incident webhooks (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents--webhooks))
 
@@ -977,6 +1003,25 @@ Optional:
 
 - `argocd_application_names` (List of String) List of ArgoCD application names for incident grouping
 - `k8s_namespaces` (List of String) List of Kubernetes namespaces for incident grouping
+
+
+<a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents--investigation_approval"></a>
+### Nested Schema for `argocd.spec.instance_spec.kube_vision_config.ai_config.incidents.investigation_approval`
+
+Optional:
+
+- `scopes` (Attributes List) List of incident investigation approval scopes (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents--investigation_approval--scopes))
+
+<a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents--investigation_approval--scopes"></a>
+### Nested Schema for `argocd.spec.instance_spec.kube_vision_config.ai_config.incidents.investigation_approval.scopes`
+
+Optional:
+
+- `argocd_applications` (List of String) List of ArgoCD applications in scope for investigation approval
+- `clusters` (List of String) List of clusters in scope for investigation approval
+- `consecutive_auto_closures` (Number) Number of consecutive auto-closures before investigation approval is required
+- `k8s_namespaces` (List of String) List of Kubernetes namespaces in scope for investigation approval
+
 
 
 <a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--incidents--triggers"></a>
@@ -1004,6 +1049,32 @@ Optional:
 - `cluster_path` (String) JSON path for cluster field
 - `description_path` (String) JSON path for description field
 - `k8s_namespace_path` (String) JSON path for Kubernetes namespace field
+- `title_path` (String) JSON path for incident title field
+
+
+
+<a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--runbook_repos"></a>
+### Nested Schema for `argocd.spec.instance_spec.kube_vision_config.ai_config.runbook_repos`
+
+Required:
+
+- `repo_url` (String) Git repository URL
+
+Optional:
+
+- `applied_for` (Attributes Map) Per-runbook applied_to overrides keyed by runbook name. Overrides any applied_to set in the runbook's front matter. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--runbook_repos--applied_for))
+- `path` (String) Path within the repository to scan for runbooks
+- `revision` (String) Git revision (branch, tag, or commit SHA)
+
+<a id="nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--runbook_repos--applied_for"></a>
+### Nested Schema for `argocd.spec.instance_spec.kube_vision_config.ai_config.runbook_repos.applied_for`
+
+Optional:
+
+- `argocd_applications` (List of String) List of ArgoCD applications to trigger an incident.
+- `clusters` (List of String) List of clusters to trigger an incident.
+- `degraded_for` (String) Trigger an incident after this duration of degradation. Can be a duration string like '1h' '10m' or '10s'.
+- `k8s_namespaces` (List of String) List of Kubernetes namespaces to trigger an incident.
 
 
 

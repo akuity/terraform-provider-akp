@@ -85,6 +85,7 @@ type IncidentWebhookConfig struct {
 	K8SNamespacePath               types.String `tfsdk:"k8s_namespace_path"`
 	ArgocdApplicationNamePath      types.String `tfsdk:"argocd_application_name_path"`
 	ArgocdApplicationNamespacePath types.String `tfsdk:"argocd_application_namespace_path"`
+	TitlePath                      types.String `tfsdk:"title_path"`
 }
 
 type IncidentsGroupingConfig struct {
@@ -92,10 +93,29 @@ type IncidentsGroupingConfig struct {
 	ArgocdApplicationNames []types.String `tfsdk:"argocd_application_names"`
 }
 
+type IncidentInvestigationApprovalScope struct {
+	ArgocdApplications      []types.String `tfsdk:"argocd_applications"`
+	K8SNamespaces           []types.String `tfsdk:"k8s_namespaces"`
+	Clusters                []types.String `tfsdk:"clusters"`
+	ConsecutiveAutoClosures types.Int64    `tfsdk:"consecutive_auto_closures"`
+}
+
+type IncidentInvestigationApprovalConfig struct {
+	Scopes []*IncidentInvestigationApprovalScope `tfsdk:"scopes"`
+}
+
 type IncidentsConfig struct {
-	Triggers []*TargetSelector        `tfsdk:"triggers"`
-	Webhooks []*IncidentWebhookConfig `tfsdk:"webhooks"`
-	Grouping *IncidentsGroupingConfig `tfsdk:"grouping"`
+	Triggers              []*TargetSelector                    `tfsdk:"triggers"`
+	Webhooks              []*IncidentWebhookConfig             `tfsdk:"webhooks"`
+	Grouping              *IncidentsGroupingConfig             `tfsdk:"grouping"`
+	InvestigationApproval *IncidentInvestigationApprovalConfig `tfsdk:"investigation_approval"`
+}
+
+type RunbookRepo struct {
+	RepoUrl    types.String `tfsdk:"repo_url"`
+	Revision   types.String `tfsdk:"revision"`
+	Path       types.String `tfsdk:"path"`
+	AppliedFor types.Map    `tfsdk:"applied_for"`
 }
 
 type AIConfig struct {
@@ -103,6 +123,7 @@ type AIConfig struct {
 	Incidents           *IncidentsConfig `tfsdk:"incidents"`
 	ArgocdSlackService  types.String     `tfsdk:"argocd_slack_service"`
 	ArgocdSlackChannels []types.String   `tfsdk:"argocd_slack_channels"`
+	RunbookRepos        []*RunbookRepo   `tfsdk:"runbook_repos"`
 }
 
 type AdditionalAttributeRule struct {

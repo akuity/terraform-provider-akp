@@ -172,6 +172,16 @@ EOF
             # AI Runbooks - Automated troubleshooting guides that can be triggered by incidents
             # Each runbook should contain step-by-step instructions for resolving common issues
             # The AI can automatically execute or suggest these runbooks when incidents occur
+            # Git-managed runbooks - Sync runbooks from a Git repository automatically
+            # The controller will periodically fetch markdown runbooks from the specified repositories
+            runbook_repos = [
+              {
+                repo_url = "https://github.com/akuity/akuity-intelligence-examples"
+                revision = "main"
+                path     = "runbooks"
+              }
+            ]
+
             runbooks = [
               {
                 name    = "oom"
@@ -232,8 +242,22 @@ EOF
                   cluster_path                 = "{.query.clusterName}"
                   k8s_namespace_path           = "{.body.alerts[0].labels.namespace}"
                   argocd_application_name_path = ""
+                  title_path                   = "{.body.alerts[0].annotations.summary}"
                 }
               ]
+
+              # Investigation approval configuration
+              # Require approval before AI automatically closes incidents that match these scopes
+              investigation_approval = {
+                scopes = [
+                  {
+                    argocd_applications       = ["guestbook-prod"]
+                    k8s_namespaces            = ["production"]
+                    clusters                  = ["prod-cluster"]
+                    consecutive_auto_closures = 3
+                  }
+                ]
+              }
             }
           }
         }

@@ -78,3 +78,73 @@ func TestValidateKargoAgentConfigAllowsValidCombinations(t *testing.T) {
 
 	require.False(t, diags.HasError())
 }
+
+// The control plane rejects `size` for Akuity-managed agents (see
+// internal/portalapi/kargo/create_kargo_instance_agent_v1.go). Catch this at
+// plan time so users see a clear error instead of a late API failure.
+func TestValidateKargoAgentConfigRejectsSizeWithAkuityManaged(t *testing.T) {
+	testCases := map[string]struct {
+		size          tftypes.String
+		akuityManaged tftypes.Bool
+		expectError   bool
+	}{
+		"size set with akuity_managed=true is rejected": {
+			size:          tftypes.StringValue("small"),
+			akuityManaged: tftypes.BoolValue(true),
+			expectError:   true,
+		},
+		"size omitted with akuity_managed=true is allowed": {
+			size:          tftypes.StringNull(),
+			akuityManaged: tftypes.BoolValue(true),
+			expectError:   false,
+		},
+		"empty size with akuity_managed=true is allowed": {
+			size:          tftypes.StringValue(""),
+			akuityManaged: tftypes.BoolValue(true),
+			expectError:   false,
+		},
+		"size set with akuity_managed=false is allowed": {
+			size:          tftypes.StringValue("small"),
+			akuityManaged: tftypes.BoolValue(false),
+			expectError:   false,
+		},
+		"size omitted with akuity_managed=false is allowed": {
+			size:          tftypes.StringNull(),
+			akuityManaged: tftypes.BoolValue(false),
+			expectError:   false,
+		},
+		"unknown size with akuity_managed=true is allowed": {
+			size:          tftypes.StringUnknown(),
+			akuityManaged: tftypes.BoolValue(true),
+			expectError:   false,
+		},
+		"size set with unknown akuity_managed is allowed": {
+			size:          tftypes.StringValue("small"),
+			akuityManaged: tftypes.BoolUnknown(),
+			expectError:   false,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			plan := &tfakptypes.KargoAgent{
+				Spec: &tfakptypes.KargoAgentSpec{
+					Data: tfakptypes.KargoAgentData{
+						Size:          tc.size,
+						AkuityManaged: tc.akuityManaged,
+					},
+				},
+			}
+
+			var diags diag.Diagnostics
+			validateKargoAgentConfig(&diags, plan)
+
+			if tc.expectError {
+				require.True(t, diags.HasError())
+				require.Contains(t, diags[0].Summary(), "Invalid size")
+				return
+			}
+			require.False(t, diags.HasError(), "unexpected diagnostics: %v", diags)
+		})
+	}
+}

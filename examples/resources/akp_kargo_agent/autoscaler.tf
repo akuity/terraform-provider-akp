@@ -1,19 +1,11 @@
-resource "akp_kargo_agent" "example-agent" {
-  instance_id = akp_kargo_instance.example.id
-  name        = "test-agent"
-  spec = {
-    data = {
-      size = "small"
-    }
-  }
-}
-
 resource "akp_kargo_agent" "example-agent-autosize" {
   instance_id = akp_kargo_instance.example.id
   name        = "test-agent-autosize"
+  namespace   = "test-namespace"
   spec = {
     data = {
-      size = "auto"
+      size          = "auto"
+      remote_argocd = ""
       autoscaler_config = {
         kargo_controller = {
           resource_minimum = {

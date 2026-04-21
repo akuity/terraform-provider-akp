@@ -67,3 +67,57 @@ func TestBuildKargoAgentsPreservesConfiguredFields(t *testing.T) {
 	require.Equal(t, "custom-argocd", data["argocdNamespace"])
 	require.Equal(t, "2030-12-31T23:59:59Z", data["maintenanceModeExpiry"])
 }
+
+// The control plane rejects `size` for Akuity-managed Kargo agents. The
+// provider may still hold a server-computed size in state (because the schema
+// marks it Computed), so make sure apply payloads never leak it back.
+func TestBuildKargoAgentsOmitsSizeForAkuityManagedAgents(t *testing.T) {
+	agent := &tfakptypes.KargoAgent{
+		Name:        tftypes.StringValue("agent-name"),
+		Namespace:   tftypes.StringValue("agent-ns"),
+		Labels:      tftypes.MapNull(tftypes.StringType),
+		Annotations: tftypes.MapNull(tftypes.StringType),
+		Spec: &tfakptypes.KargoAgentSpec{
+			Description: tftypes.StringValue("test"),
+			Data: tfakptypes.KargoAgentData{
+				Size:            tftypes.StringValue("small"),
+				AkuityManaged:   tftypes.BoolValue(true),
+				MaintenanceMode: tftypes.BoolValue(false),
+			},
+		},
+	}
+
+	var diags diag.Diagnostics
+	agents := buildKargoAgents(context.Background(), &diags, agent)
+	require.False(t, diags.HasError())
+	require.Len(t, agents, 1)
+
+	data := agents[0].AsMap()["spec"].(map[string]any)["data"].(map[string]any)
+	require.NotContains(t, data, "size")
+	require.Equal(t, true, data["akuityManaged"])
+}
+
+func TestBuildKargoAgentsKeepsSizeForSelfManagedAgents(t *testing.T) {
+	agent := &tfakptypes.KargoAgent{
+		Name:        tftypes.StringValue("agent-name"),
+		Namespace:   tftypes.StringValue("agent-ns"),
+		Labels:      tftypes.MapNull(tftypes.StringType),
+		Annotations: tftypes.MapNull(tftypes.StringType),
+		Spec: &tfakptypes.KargoAgentSpec{
+			Description: tftypes.StringValue("test"),
+			Data: tfakptypes.KargoAgentData{
+				Size:            tftypes.StringValue("medium"),
+				AkuityManaged:   tftypes.BoolValue(false),
+				MaintenanceMode: tftypes.BoolValue(false),
+			},
+		},
+	}
+
+	var diags diag.Diagnostics
+	agents := buildKargoAgents(context.Background(), &diags, agent)
+	require.False(t, diags.HasError())
+	require.Len(t, agents, 1)
+
+	data := agents[0].AsMap()["spec"].(map[string]any)["data"].(map[string]any)
+	require.Equal(t, "medium", data["size"])
+}

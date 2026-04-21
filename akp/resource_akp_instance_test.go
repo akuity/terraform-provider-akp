@@ -37,6 +37,8 @@ func runInstanceConfigTests(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.akuity_intelligence_extension.enabled", "true"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.argocd_slack_channels.#", "2"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.runbooks.#", "2"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.runbook_repos.#", "1"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.runbook_repos.0.repo_url", "https://github.com/akuity/akuity-intelligence-examples"),
 				),
 			},
 			// Step 3: AI Config Updated
@@ -72,6 +74,10 @@ func runInstanceConfigTests(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.incidents.triggers.#", "1"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.incidents.webhooks.#", "1"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.incidents.webhooks.0.title_path", "$.title"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.incidents.investigation_approval.scopes.#", "1"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.incidents.investigation_approval.scopes.0.argocd_applications.0", "guestbook-prod"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.incidents.investigation_approval.scopes.0.consecutive_auto_closures", "3"),
 				),
 			},
 			// Step 7: Metrics Ingress Password Hash
@@ -452,6 +458,13 @@ resource "akp_instance" "test" {
                 slack_channel_names = ["memory-alerts"]
               }
             ]
+            runbook_repos = [
+              {
+                repo_url = "https://github.com/akuity/akuity-intelligence-examples"
+                revision = "main"
+                path     = "runbooks"
+              }
+            ]
           }
         }
       }
@@ -600,8 +613,19 @@ resource "akp_instance" "test" {
                   k8s_namespace_path                  = "$.namespace"
                   argocd_application_name_path        = "$.app"
                   argocd_application_namespace_path   = "$.appNamespace"
+                  title_path                          = "$.title"
                 }
               ]
+              investigation_approval = {
+                scopes = [
+                  {
+                    argocd_applications       = ["guestbook-prod"]
+                    k8s_namespaces            = ["production"]
+                    clusters                  = ["prod-cluster"]
+                    consecutive_auto_closures = 3
+                  }
+                ]
+              }
             }
           }
         }

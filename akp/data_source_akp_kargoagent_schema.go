@@ -129,5 +129,48 @@ func getAKPKargoAgentDataDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Whether pod metadata inheritance is enabled for the agent.",
 			Computed:            true,
 		},
+		"autoscaler_config": schema.SingleNestedAttribute{
+			MarkdownDescription: "Autoscaler configuration for the Kargo agent.",
+			Computed:            true,
+			Attributes:          getKargoAutoscalerConfigDataSourceAttributes(),
+		},
+	}
+}
+
+func getKargoAutoscalerConfigDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"kargo_controller": schema.SingleNestedAttribute{
+			Description: "Kargo Controller auto scaling config",
+			Computed:    true,
+			Attributes:  getKargoControllerAutoScalingConfigDataSourceAttributes(),
+		},
+	}
+}
+
+func getKargoControllerAutoScalingConfigDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"resource_minimum": schema.SingleNestedAttribute{
+			Description: "Resource minimum",
+			Computed:    true,
+			Attributes:  getKargoResourcesDataSourceAttributes(),
+		},
+		"resource_maximum": schema.SingleNestedAttribute{
+			Description: "Resource maximum",
+			Computed:    true,
+			Attributes:  getKargoResourcesDataSourceAttributes(),
+		},
+	}
+}
+
+func getKargoResourcesDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"mem": schema.StringAttribute{
+			Description: "Memory",
+			Computed:    true,
+		},
+		"cpu": schema.StringAttribute{
+			Description: "CPU",
+			Computed:    true,
+		},
 	}
 }

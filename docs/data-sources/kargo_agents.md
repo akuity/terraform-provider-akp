@@ -92,6 +92,7 @@ Read-Only:
 - `allowed_job_sa` (List of String) The list of allowed job service accounts for the Kargo agent
 - `argocd_namespace` (String) The namespace of the Argo CD instance
 - `auto_upgrade_disabled` (Boolean) Whether auto upgrade is disabled
+- `autoscaler_config` (Attributes) Autoscaler configuration for the Kargo agent. (see [below for nested schema](#nestedatt--agents--spec--data--autoscaler_config))
 - `kustomization` (String) Kustomize configuration that will be applied to generated Kargo agent installation manifests
 - `maintenance_mode` (Boolean) Whether maintenance mode is enabled for the agent.
 - `maintenance_mode_expiry` (String) Expiry time for maintenance mode in RFC3339 format.
@@ -99,3 +100,35 @@ Read-Only:
 - `remote_argocd` (String) The ID of the remote Argo CD instance
 - `size` (String) The size of the Kargo agent
 - `target_version` (String) The target version of the Kargo agent
+
+<a id="nestedatt--agents--spec--data--autoscaler_config"></a>
+### Nested Schema for `agents.spec.data.autoscaler_config`
+
+Read-Only:
+
+- `kargo_controller` (Attributes) Kargo Controller auto scaling config (see [below for nested schema](#nestedatt--agents--spec--data--autoscaler_config--kargo_controller))
+
+<a id="nestedatt--agents--spec--data--autoscaler_config--kargo_controller"></a>
+### Nested Schema for `agents.spec.data.autoscaler_config.kargo_controller`
+
+Read-Only:
+
+- `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--agents--spec--data--autoscaler_config--kargo_controller--resource_maximum))
+- `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--agents--spec--data--autoscaler_config--kargo_controller--resource_minimum))
+
+<a id="nestedatt--agents--spec--data--autoscaler_config--kargo_controller--resource_maximum"></a>
+### Nested Schema for `agents.spec.data.autoscaler_config.kargo_controller.resource_maximum`
+
+Read-Only:
+
+- `cpu` (String) CPU
+- `mem` (String) Memory
+
+
+<a id="nestedatt--agents--spec--data--autoscaler_config--kargo_controller--resource_minimum"></a>
+### Nested Schema for `agents.spec.data.autoscaler_config.kargo_controller.resource_minimum`
+
+Read-Only:
+
+- `cpu` (String) CPU
+- `mem` (String) Memory
