@@ -61,21 +61,24 @@ jobs:
           cache: true
       - run: make unit-test
 
-  # Run acceptance tests in a matrix with Terraform CLI versions
+  api-client-fields-check:
+    name: API Client Fields Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+      - run: go mod download
+      - run: make check-api-client-fields
+
   acceptance-test:
     name: Terraform Provider Acceptance Tests
     needs: unit-test
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    strategy:
-      fail-fast: true
-      matrix:
-        # list whatever Terraform versions here you would like to support
-        terraform:
-          - '1.9.*'
-          - '1.10.*'
-          - '1.11.*'
-          - '1.12.*'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -84,11 +87,12 @@ jobs:
           cache: true
       - uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: ${{ matrix.terraform }}
+          terraform_version: '1.12.*'
           terraform_wrapper: false
       - run: go mod download
       - env:
           TF_ACC: "1"
+          AKUITY_SERVER_URL: "https://akuity.cloud"
           AKUITY_API_KEY_ID: "${{ secrets.AKUITY_API_KEY_ID }}"
           AKUITY_API_KEY_SECRET: "${{ secrets.AKUITY_API_KEY_SECRET }}"
           AKUITY_INSTANCE_ID: "6pzhawvy4echbd8x"

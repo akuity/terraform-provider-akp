@@ -1,0 +1,30 @@
+# Allowlist for check-api-client-fields.
+#
+# This check guards against silent drift between akp/apis/v1alpha1/*.go
+# (auto-translated Terraform types) and github.com/akuity/api-client-go.
+# If a field exists in v1alpha1 but not in api-client-go, Terraform users
+# can set it but it will never reach the API.
+#
+# Add an entry here ONLY for a struct or field that is legitimately
+# terraform-only (e.g. a Kubernetes-style CRD wrapper with no API-payload
+# equivalent). Every entry must include a one-line reason. Stale entries
+# fail CI so this file stays honest; remove an entry as soon as
+# api-client-go catches up.
+#
+# Format:
+#   fields:
+#     <StructName>.<FieldName>: "reason"
+#   structs:
+#     <StructName>: "reason"
+fields:
+  Cluster.Spec: "terraform-side CRD wrapper field; api-client-go Cluster has a different shape"
+  KargoAgent.Spec: "terraform-side CRD wrapper field; api-client-go KargoAgent has a different shape"
+
+structs:
+  ArgoCD: "Kubernetes CRD-style wrapper around ArgoCDSpec; not an API payload itself"
+  ArgoCDSpec: "terraform-side CRD spec wrapper; api-client-go exposes ArgoCD config under a different shape"
+  Kargo: "Kubernetes CRD-style wrapper around KargoSpec; not an API payload itself"
+  KargoSpec: "terraform-side CRD spec wrapper; api-client-go exposes Kargo config under a different shape"
+  ClusterSpec: "terraform-side CRD spec wrapper; api-client-go Cluster exposes fields directly"
+  KargoAgentSpec: "terraform-side CRD spec wrapper; api-client-go KargoAgent exposes fields directly"
+  Value: "flattened wrapper for KargoOidcConfig_Value (nested inside KargoOidcConfig in api-client-go)"

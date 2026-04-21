@@ -9,6 +9,10 @@ acc-test:
 unit-test:
 	go test ./... --tags=unit -v $(TESTARGS) -timeout 120m
 
+.PHONY: check-api-client-fields
+check-api-client-fields:
+	go run ./hack/check-api-client-fields
+
 # Generate Documentation
 .PHONY: generate
 generate:
