@@ -73,7 +73,7 @@ func kargoAgentDelete(ctx context.Context, cli *AkpCli, _ *diag.Diagnostics, pla
 		return fmt.Errorf("unable to get kubeconfig: %s", err)
 	}
 
-	workspaceID, _ := resolveKargoInstanceWorkspace(ctx, cli, plan.InstanceID.ValueString())
+	workspaceID, _ := resolveKargoAgentWorkspace(ctx, cli, plan)
 
 	// Delete the manifests
 	if kubeconfig != nil && plan.RemoveAgentResourcesOnDestroy.ValueBool() {
@@ -240,7 +240,11 @@ func kargoAgentUpsertKubeConfig(ctx context.Context, cli *AkpCli, plan *types.Ka
 }
 
 func refreshKargoAgentState(ctx context.Context, diagnostics *diag.Diagnostics, cli *AkpCli, kargoAgent, plan *types.KargoAgent) error {
-	workspaceID, workspaceName := resolveKargoInstanceWorkspace(ctx, cli, kargoAgent.InstanceID.ValueString())
+	source := kargoAgent
+	if preferredKargoAgentWorkspaceName(source) == "" && plan != nil {
+		source = plan
+	}
+	workspaceID, workspaceName := resolveKargoAgentWorkspace(ctx, cli, source)
 	agentID := kargoAgent.ID.ValueString()
 
 	if agentID == "" {
@@ -288,6 +292,42 @@ func refreshKargoAgentState(ctx context.Context, diagnostics *diag.Diagnostics, 
 		kargoAgent.Workspace = tftypes.StringValue(workspaceName)
 	}
 	return nil
+}
+
+// resolveKargoAgentWorkspace picks the workspace to use for Kargo agent calls.
+// It prefers the workspace name already stored on the agent (from state or
+// plan) and resolves it by name, falling back to resolveKargoInstanceWorkspace
+// only when the name is absent — typically during `terraform import`, which
+// seeds the resource with instance_id/name only. The scan-by-instance fallback
+// is unreliable for API-key actors because the server's ListKargoInstances
+// ignores the WorkspaceId filter for that actor type, so the first iterated
+// workspace wins regardless of where the instance actually lives.
+func resolveKargoAgentWorkspace(ctx context.Context, cli *AkpCli, kargoAgent *types.KargoAgent) (string, string) {
+	if cli == nil || kargoAgent == nil {
+		return "", ""
+	}
+
+	if name := preferredKargoAgentWorkspaceName(kargoAgent); name != "" && cli.OrgCli != nil {
+		ws, err := getWorkspace(ctx, cli.OrgCli, cli.OrgId, name)
+		if err == nil && ws != nil {
+			return ws.GetId(), ws.GetName()
+		}
+		tflog.Warn(ctx, fmt.Sprintf("Unable to resolve Kargo agent workspace %q by name, falling back to instance scan: %s", name, err))
+	}
+
+	return resolveKargoInstanceWorkspace(ctx, cli, kargoAgent.InstanceID.ValueString())
+}
+
+// preferredKargoAgentWorkspaceName returns the workspace name recorded on the
+// agent, treating Null/Unknown/empty as absent.
+func preferredKargoAgentWorkspaceName(kargoAgent *types.KargoAgent) string {
+	if kargoAgent == nil {
+		return ""
+	}
+	if kargoAgent.Workspace.IsNull() || kargoAgent.Workspace.IsUnknown() {
+		return ""
+	}
+	return kargoAgent.Workspace.ValueString()
 }
 
 func resolveKargoInstanceWorkspace(ctx context.Context, cli *AkpCli, instanceID string) (string, string) {
@@ -463,6 +503,13 @@ func pruneNormalizedEmptyKargoAgentFields(rawMap map[string]any) {
 			delete(dataMap, key)
 		}
 	}
+
+	// The control plane rejects `size` for Akuity-managed agents because the
+	// size is owned by AIMS. Drop it so reads from state (which may carry a
+	// server-computed size) do not leak back into apply payloads.
+	if akuityManaged, _ := dataMap["akuityManaged"].(bool); akuityManaged {
+		delete(dataMap, "size")
+	}
 }
 
 type kargoAgentConfigValidator struct{}
@@ -514,6 +561,12 @@ func (v kargoAgentConfigValidator) ValidateResource(ctx context.Context, req res
 		return
 	}
 
+	var size tftypes.String
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, dataPath.AtName("size"), &size)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	validateKargoAgentConfigValues(
 		&resp.Diagnostics,
 		dataPath,
@@ -522,6 +575,7 @@ func (v kargoAgentConfigValidator) ValidateResource(ctx context.Context, req res
 		akuityManaged,
 		maintenanceMode,
 		maintenanceModeExpiry,
+		size,
 	)
 }
 
@@ -538,6 +592,7 @@ func validateKargoAgentConfig(diagnostics *diag.Diagnostics, plan *types.KargoAg
 		plan.Spec.Data.AkuityManaged,
 		plan.Spec.Data.MaintenanceMode,
 		plan.Spec.Data.MaintenanceModeExpiry,
+		plan.Spec.Data.Size,
 	)
 }
 
@@ -549,6 +604,7 @@ func validateKargoAgentConfigValues(
 	akuityManaged tftypes.Bool,
 	maintenanceMode tftypes.Bool,
 	maintenanceModeExpiry tftypes.String,
+	size tftypes.String,
 ) {
 	if diagnostics == nil {
 		return
@@ -559,6 +615,7 @@ func validateKargoAgentConfigValues(
 	akuityManagedEnabled := isKnownTrueBool(akuityManaged)
 	maintenanceModeMissingOrDisabled := maintenanceMode.IsNull() || (!maintenanceMode.IsUnknown() && !maintenanceMode.ValueBool())
 	maintenanceModeExpiryConfigured := isKnownNonEmptyString(maintenanceModeExpiry)
+	sizeConfigured := isKnownNonEmptyString(size)
 
 	if argocdNamespaceConfigured && (remoteArgocdConfigured || akuityManagedEnabled) {
 		diagnostics.AddAttributeError(
@@ -573,6 +630,14 @@ func validateKargoAgentConfigValues(
 			dataPath.AtName("maintenance_mode_expiry"),
 			"Invalid maintenance_mode_expiry",
 			"maintenance_mode_expiry requires maintenance_mode = true. The control plane clears the expiry when maintenance mode is disabled.",
+		)
+	}
+
+	if sizeConfigured && akuityManagedEnabled {
+		diagnostics.AddAttributeError(
+			dataPath.AtName("size"),
+			"Invalid size",
+			"size must be omitted when akuity_managed = true. The size of an Akuity-managed Kargo agent is managed by Akuity; change it through the Akuity UI or the AIMS API instead.",
 		)
 	}
 }

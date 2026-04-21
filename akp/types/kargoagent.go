@@ -34,16 +34,31 @@ type KargoAgentSpec struct {
 	Data        KargoAgentData `tfsdk:"data"`
 }
 
+type KargoResources struct {
+	Mem types.String `tfsdk:"mem"`
+	Cpu types.String `tfsdk:"cpu"`
+}
+
+type KargoControllerAutoScalingConfig struct {
+	ResourceMinimum *KargoResources `tfsdk:"resource_minimum"`
+	ResourceMaximum *KargoResources `tfsdk:"resource_maximum"`
+}
+
+type KargoAutoscalerConfig struct {
+	KargoController *KargoControllerAutoScalingConfig `tfsdk:"kargo_controller"`
+}
+
 type KargoAgentData struct {
-	Size                  types.String   `tfsdk:"size"`
-	AutoUpgradeDisabled   types.Bool     `tfsdk:"auto_upgrade_disabled"`
-	TargetVersion         types.String   `tfsdk:"target_version"`
-	Kustomization         types.String   `tfsdk:"kustomization"`
-	RemoteArgocd          types.String   `tfsdk:"remote_argocd"`
-	AkuityManaged         types.Bool     `tfsdk:"akuity_managed"`
-	ArgocdNamespace       types.String   `tfsdk:"argocd_namespace"`
-	AllowedJobSa          []types.String `tfsdk:"allowed_job_sa"`
-	MaintenanceMode       types.Bool     `tfsdk:"maintenance_mode"`
-	MaintenanceModeExpiry types.String   `tfsdk:"maintenance_mode_expiry"`
-	PodInheritMetadata    types.Bool     `tfsdk:"pod_inherit_metadata"`
+	Size                  types.String           `tfsdk:"size"`
+	AutoUpgradeDisabled   types.Bool             `tfsdk:"auto_upgrade_disabled"`
+	TargetVersion         types.String           `tfsdk:"target_version"`
+	Kustomization         types.String           `tfsdk:"kustomization"`
+	RemoteArgocd          types.String           `tfsdk:"remote_argocd"`
+	AkuityManaged         types.Bool             `tfsdk:"akuity_managed"`
+	ArgocdNamespace       types.String           `tfsdk:"argocd_namespace"`
+	AllowedJobSa          []types.String         `tfsdk:"allowed_job_sa"`
+	MaintenanceMode       types.Bool             `tfsdk:"maintenance_mode"`
+	MaintenanceModeExpiry types.String           `tfsdk:"maintenance_mode_expiry"`
+	PodInheritMetadata    types.Bool             `tfsdk:"pod_inherit_metadata"`
+	AutoscalerConfig      *KargoAutoscalerConfig `tfsdk:"autoscaler_config"`
 }

@@ -1129,3 +1129,65 @@ resource "akp_kargo_agent" "test" {
 }
 `, kargoInstanceId, name, getInstanceId())
 }
+
+func runKargoAgentResourceAutosize(t *testing.T) {
+	t.Parallel()
+	name := fmt.Sprintf("kargoagent-autosize-%s", acctest.RandString(10))
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig + testAccKargoAgentResourceConfigAutosize(name, getKargoInstanceId()),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("akp_kargo_agent.test", "id"),
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.size", "auto"),
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.autoscaler_config.kargo_controller.resource_minimum.mem", "1Gi"),
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.autoscaler_config.kargo_controller.resource_minimum.cpu", "500m"),
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.autoscaler_config.kargo_controller.resource_maximum.mem", "4Gi"),
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.autoscaler_config.kargo_controller.resource_maximum.cpu", "2000m"),
+				),
+			},
+			{
+				Config: providerConfig + testAccKargoAgentResourceConfigAutosize(name, getKargoInstanceId()),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectEmptyPlan(),
+					},
+				},
+			},
+			testAccKargoAgentImportStateStep(getKargoInstanceId(), name, testAccKargoAgentAutosizeImportStateVerifyIgnore...),
+		},
+	})
+}
+
+func testAccKargoAgentResourceConfigAutosize(name, kargoInstanceId string) string {
+	return fmt.Sprintf(`
+resource "akp_kargo_agent" "test" {
+  instance_id = %q
+  name        = %q
+  namespace   = "test"
+  spec = {
+    description = "Autosize test kargo agent"
+    data = {
+      size          = "auto"
+      remote_argocd = %q
+      akuity_managed = false
+      autoscaler_config = {
+        kargo_controller = {
+          resource_minimum = {
+            mem = "1Gi"
+            cpu = "500m"
+          }
+          resource_maximum = {
+            mem = "4Gi"
+            cpu = "2000m"
+          }
+        }
+      }
+    }
+  }
+  remove_agent_resources_on_destroy = true
+}
+`, kargoInstanceId, name, getInstanceId())
+}

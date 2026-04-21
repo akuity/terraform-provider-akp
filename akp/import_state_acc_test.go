@@ -70,6 +70,7 @@ var (
 		"spec.data.auto_upgrade_disabled", // SuppressProtobufDefault (bool)
 		"spec.data.allowed_job_sa",        // Optional-only (no Computed)
 		"spec.data.pod_inherit_metadata",  // SuppressProtobufDefault (bool)
+		"spec.data.autoscaler_config",     // Optional-only (no Computed)
 	}
 	testAccKargoAgentKustomizationImportStateVerifyIgnore = appendImportStateVerifyIgnore(
 		testAccKargoAgentCommonImportStateVerifyIgnore,
@@ -107,8 +108,11 @@ var (
 		"argocd.spec.instance_spec.appset_plugins", // Optional-only
 		"argocd.spec.instance_spec.host_aliases",   // Optional-only
 		"argocd.spec.instance_spec.kube_vision_config.ai_config.incidents.webhooks.0.argocd_application_name_path", // Optional-only
+		"argocd.spec.instance_spec.kube_vision_config.ai_config.incidents.webhooks.0.title_path",                   // Optional-only
+		"argocd.spec.instance_spec.kube_vision_config.ai_config.incidents.investigation_approval",                  // Optional-only
 		"argocd.spec.instance_spec.kube_vision_config.ai_config.runbooks.0.applied_to.degraded_for",                // Optional-only
 		"argocd.spec.instance_spec.kube_vision_config.ai_config.runbooks.1.applied_to.degraded_for",                // Optional-only
+		"argocd.spec.instance_spec.kube_vision_config.ai_config.runbook_repos",                                     // Optional-only
 		"argocd_resources", // Optional-only
 		// Custom modifiers
 		"argocd_cm",                 // SuppressNonConfigKeys
@@ -194,6 +198,12 @@ var (
 	testAccKargoAgentPartialDataImportStateVerifyIgnore = appendImportStateVerifyIgnore(
 		testAccKargoAgentCommonImportStateVerifyIgnore,
 	)
+	testAccKargoAgentAutosizeImportStateVerifyIgnore = []string{
+		"spec.data.auto_upgrade_disabled", // SuppressProtobufDefault (bool)
+		"spec.data.allowed_job_sa",        // Optional-only (no Computed)
+		"spec.data.pod_inherit_metadata",  // SuppressProtobufDefault (bool)
+		"spec.data.autoscaler_config",     // Optional-only top-level (pointer type)
+	}
 
 	// --- Instance ---
 

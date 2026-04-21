@@ -67,6 +67,7 @@ func TestAccAll(t *testing.T) {
 		t.Run("KargoAgent_MinimalNestedImport", runKargoAgent_MinimalNestedImport)
 		t.Run("KargoAgent_PartialDataImport", runKargoAgent_PartialDataImport)
 		t.Run("KargoAgent_PodInheritMetadata", runKargoAgentResourcePodInheritMetadata)
+		t.Run("KargoAgent_Autosize", runKargoAgentResourceAutosize)
 
 		t.Run("KargoDefaultShardAgent", runKargoDefaultShardAgentResource)
 	})

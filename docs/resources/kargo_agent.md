@@ -21,6 +21,28 @@ resource "akp_kargo_agent" "example-agent" {
     }
   }
 }
+
+resource "akp_kargo_agent" "example-agent-autosize" {
+  instance_id = akp_kargo_instance.example.id
+  name        = "test-agent-autosize"
+  spec = {
+    data = {
+      size = "auto"
+      autoscaler_config = {
+        kargo_controller = {
+          resource_minimum = {
+            mem = "1Gi"
+            cpu = "500m"
+          }
+          resource_maximum = {
+            mem = "4Gi"
+            cpu = "2000m"
+          }
+        }
+      }
+    }
+  }
+}
 ```
 
 ## Example Usage (Akuity-managed agent)
@@ -128,22 +150,55 @@ Optional:
 <a id="nestedatt--spec--data"></a>
 ### Nested Schema for `spec.data`
 
-Required:
-
-- `size` (String) Cluster Size. One of `small`, `medium`, `large`
-
 Optional:
 
 - `akuity_managed` (Boolean) This means the agent is managed by Akuity
 - `allowed_job_sa` (List of String) List of allowed service accounts for analysis jobs created by the agent
 - `argocd_namespace` (String) Provide the namespace your Argo CD is installed in. This is only available if you self-host your Kargo agent.
 - `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
+- `autoscaler_config` (Attributes) Autoscaler configuration for the Kargo agent. (see [below for nested schema](#nestedatt--spec--data--autoscaler_config))
 - `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
 - `maintenance_mode` (Boolean) Enable maintenance mode for the agent. When enabled, alerts for degraded agents are muted.
 - `maintenance_mode_expiry` (String) Expiry time for maintenance mode in RFC3339 format. Maintenance mode will be automatically disabled after this time.
 - `pod_inherit_metadata` (Boolean) Enable pod metadata inheritance. When enabled, pods inherit labels and annotations from the agent.
 - `remote_argocd` (String) Remote Argo CD instance to connect to
+- `size` (String) Cluster Size. One of `small`, `medium`, `large`. Must be omitted when `akuity_managed` is `true` because the size is managed by Akuity; use the Akuity UI or the AIMS API to change the size of an Akuity-managed agent.
 - `target_version` (String) Target version of the agent to install on your cluster
+
+<a id="nestedatt--spec--data--autoscaler_config"></a>
+### Nested Schema for `spec.data.autoscaler_config`
+
+Optional:
+
+- `kargo_controller` (Attributes) Kargo Controller auto scaling config (see [below for nested schema](#nestedatt--spec--data--autoscaler_config--kargo_controller))
+
+<a id="nestedatt--spec--data--autoscaler_config--kargo_controller"></a>
+### Nested Schema for `spec.data.autoscaler_config.kargo_controller`
+
+Optional:
+
+- `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--spec--data--autoscaler_config--kargo_controller--resource_maximum))
+- `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--spec--data--autoscaler_config--kargo_controller--resource_minimum))
+
+<a id="nestedatt--spec--data--autoscaler_config--kargo_controller--resource_maximum"></a>
+### Nested Schema for `spec.data.autoscaler_config.kargo_controller.resource_maximum`
+
+Optional:
+
+- `cpu` (String) CPU
+- `mem` (String) Memory
+
+
+<a id="nestedatt--spec--data--autoscaler_config--kargo_controller--resource_minimum"></a>
+### Nested Schema for `spec.data.autoscaler_config.kargo_controller.resource_minimum`
+
+Optional:
+
+- `cpu` (String) CPU
+- `mem` (String) Memory
+
+
+
 
 
 

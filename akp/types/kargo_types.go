@@ -15,6 +15,7 @@ var (
 		"KARGO_AGENT_SIZE_SMALL":       "small",
 		"KARGO_AGENT_SIZE_MEDIUM":      "medium",
 		"KARGO_AGENT_SIZE_LARGE":       "large",
+		"KARGO_AGENT_SIZE_AUTO":        "auto",
 		"KARGO_AGENT_SIZE_UNSPECIFIED": "unspecified",
 	}
 	KargoOverridesMap = overrideMap{
@@ -101,12 +102,45 @@ func (ka *KargoAgent) Update(ctx context.Context, diagnostics *diag.Diagnostics,
 		ka.Spec.Data.ArgocdNamespace = planSpec.Data.ArgocdNamespace
 	}
 
+	preserveKargoAutoscalerConfigPlanValues(ka.Spec.Data.AutoscalerConfig, planSpec)
+
 	defaultNullOrUnknownString(&ka.Spec.Data.ArgocdNamespace)
 	defaultNullOrUnknownString(&ka.Spec.Data.Kustomization)
 	defaultNullOrUnknownString(&ka.Spec.Data.MaintenanceModeExpiry)
 	defaultNullOrUnknownBool(&ka.Spec.Data.AkuityManaged)
 	defaultNullOrUnknownBool(&ka.Spec.Data.MaintenanceMode)
 	NormalizeKargoAgentReadStateForRefresh(ka)
+}
+
+// preserveKargoAutoscalerConfigPlanValues keeps the user's original resource
+// quantity strings (e.g. "1Gi", "500m") when the API returns a normalized
+// equivalent (e.g. "1.00Gi", "500m"), preventing perpetual plan diffs.
+func preserveKargoAutoscalerConfigPlanValues(state *KargoAutoscalerConfig, plan *KargoAgentSpec) {
+	if state == nil || state.KargoController == nil {
+		return
+	}
+	if plan == nil || plan.Data.AutoscalerConfig == nil || plan.Data.AutoscalerConfig.KargoController == nil {
+		return
+	}
+	ctrl := state.KargoController
+	planCtrl := plan.Data.AutoscalerConfig.KargoController
+
+	if ctrl.ResourceMinimum != nil && planCtrl.ResourceMinimum != nil {
+		if areResourcesEquivalent(planCtrl.ResourceMinimum.Mem.ValueString(), ctrl.ResourceMinimum.Mem.ValueString()) {
+			ctrl.ResourceMinimum.Mem = planCtrl.ResourceMinimum.Mem
+		}
+		if areResourcesEquivalent(planCtrl.ResourceMinimum.Cpu.ValueString(), ctrl.ResourceMinimum.Cpu.ValueString()) {
+			ctrl.ResourceMinimum.Cpu = planCtrl.ResourceMinimum.Cpu
+		}
+	}
+	if ctrl.ResourceMaximum != nil && planCtrl.ResourceMaximum != nil {
+		if areResourcesEquivalent(planCtrl.ResourceMaximum.Mem.ValueString(), ctrl.ResourceMaximum.Mem.ValueString()) {
+			ctrl.ResourceMaximum.Mem = planCtrl.ResourceMaximum.Mem
+		}
+		if areResourcesEquivalent(planCtrl.ResourceMaximum.Cpu.ValueString(), ctrl.ResourceMaximum.Cpu.ValueString()) {
+			ctrl.ResourceMaximum.Cpu = planCtrl.ResourceMaximum.Cpu
+		}
+	}
 }
 
 func defaultNullOrUnknownString(field *types.String) {

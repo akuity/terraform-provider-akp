@@ -59,9 +59,12 @@ func TestNoNewAIConfigFields(t *testing.T) {
 	assert.Equal(t, reflect.TypeOf(types.CveScanConfig{}).NumField(), len(getCveScanConfigAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.AIConfig{}).NumField(), len(getAIConfigAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.Runbook{}).NumField(), len(getRunbookAttributes()))
+	assert.Equal(t, reflect.TypeOf(types.RunbookRepo{}).NumField(), len(getRunbookRepoAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.TargetSelector{}).NumField(), len(getTargetSelectorAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.IncidentsConfig{}).NumField(), len(getIncidentsConfigAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.IncidentWebhookConfig{}).NumField(), len(getIncidentWebhookConfigAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.IncidentsGroupingConfig{}).NumField(), len(getIncidentsGroupingConfigAttributes()))
+	assert.Equal(t, reflect.TypeOf(types.IncidentInvestigationApprovalConfig{}).NumField(), len(getIncidentInvestigationApprovalConfigAttributes()))
+	assert.Equal(t, reflect.TypeOf(types.IncidentInvestigationApprovalScope{}).NumField(), len(getIncidentInvestigationApprovalScopeAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.AdditionalAttributeRule{}).NumField(), len(getAdditionalAttributeRuleAttributes()))
 }

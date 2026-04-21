@@ -17,4 +17,8 @@ func TestNoNewKargoAgentFields(t *testing.T) {
 	assert.Equal(t, reflect.TypeOf(types.KargoAgent{}).NumField(), len(getAKPKargoAgentResourceAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.KargoAgentSpec{}).NumField(), len(getAKPKargoAgentSpecAttributes()))
 	assert.Equal(t, reflect.TypeOf(types.KargoAgentCustomization{}).NumField(), len(getKargoAgentCustomizationAttributes()))
+	assert.Equal(t, reflect.TypeOf(types.KargoAgentData{}).NumField(), len(getAKPKargoAgentDataAttributes()))
+	assert.Equal(t, reflect.TypeOf(types.KargoAutoscalerConfig{}).NumField(), len(getKargoAutoscalerConfigAttributes()))
+	assert.Equal(t, reflect.TypeOf(types.KargoControllerAutoScalingConfig{}).NumField(), len(getKargoControllerAutoScalingConfigAttributes()))
+	assert.Equal(t, reflect.TypeOf(types.KargoResources{}).NumField(), len(getKargoResourcesAttributes()))
 }

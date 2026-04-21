@@ -1042,6 +1042,37 @@ func getAIConfigAttributes() map[string]schema.Attribute {
 			Optional:            true,
 			ElementType:         types.StringType,
 		},
+		"runbook_repos": schema.ListNestedAttribute{
+			MarkdownDescription: "Git repositories from which runbooks are periodically synced",
+			Optional:            true,
+			NestedObject: schema.NestedAttributeObject{
+				Attributes: getRunbookRepoAttributes(),
+			},
+		},
+	}
+}
+
+func getRunbookRepoAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"repo_url": schema.StringAttribute{
+			MarkdownDescription: "Git repository URL",
+			Required:            true,
+		},
+		"revision": schema.StringAttribute{
+			MarkdownDescription: "Git revision (branch, tag, or commit SHA)",
+			Optional:            true,
+		},
+		"path": schema.StringAttribute{
+			MarkdownDescription: "Path within the repository to scan for runbooks",
+			Optional:            true,
+		},
+		"applied_for": schema.MapNestedAttribute{
+			MarkdownDescription: "Per-runbook applied_to overrides keyed by runbook name. Overrides any applied_to set in the runbook's front matter.",
+			Optional:            true,
+			NestedObject: schema.NestedAttributeObject{
+				Attributes: getTargetSelectorAttributes(),
+			},
+		},
 	}
 }
 
@@ -1096,6 +1127,47 @@ func getIncidentsConfigAttributes() map[string]schema.Attribute {
 			PlanModifiers: []planmodifier.Object{
 				objectplanmodifier2.UseStateForNullUnknown(),
 			},
+		},
+		"investigation_approval": schema.SingleNestedAttribute{
+			MarkdownDescription: "Incident investigation approval configuration",
+			Optional:            true,
+			Attributes:          getIncidentInvestigationApprovalConfigAttributes(),
+		},
+	}
+}
+
+func getIncidentInvestigationApprovalConfigAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"scopes": schema.ListNestedAttribute{
+			MarkdownDescription: "List of incident investigation approval scopes",
+			Optional:            true,
+			NestedObject: schema.NestedAttributeObject{
+				Attributes: getIncidentInvestigationApprovalScopeAttributes(),
+			},
+		},
+	}
+}
+
+func getIncidentInvestigationApprovalScopeAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"argocd_applications": schema.ListAttribute{
+			MarkdownDescription: "List of ArgoCD applications in scope for investigation approval",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
+		"k8s_namespaces": schema.ListAttribute{
+			MarkdownDescription: "List of Kubernetes namespaces in scope for investigation approval",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
+		"clusters": schema.ListAttribute{
+			MarkdownDescription: "List of clusters in scope for investigation approval",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
+		"consecutive_auto_closures": schema.Int64Attribute{
+			MarkdownDescription: "Number of consecutive auto-closures before investigation approval is required",
+			Optional:            true,
 		},
 	}
 }
@@ -1163,6 +1235,10 @@ func getIncidentWebhookConfigAttributes() map[string]schema.Attribute {
 		},
 		"argocd_application_namespace_path": schema.StringAttribute{
 			MarkdownDescription: "JSON path for ArgoCD application namespace field",
+			Optional:            true,
+		},
+		"title_path": schema.StringAttribute{
+			MarkdownDescription: "JSON path for incident title field",
 			Optional:            true,
 		},
 	}

@@ -132,8 +132,9 @@ func getAKPKargoAgentSpecAttributes() map[string]schema.Attribute {
 func getAKPKargoAgentDataAttributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
 		"size": schema.StringAttribute{
-			MarkdownDescription: "Cluster Size. One of `small`, `medium`, `large`",
-			Required:            true,
+			MarkdownDescription: "Cluster Size. One of `small`, `medium`, `large`. Must be omitted when `akuity_managed` is `true` because the size is managed by Akuity; use the Akuity UI or the AIMS API to change the size of an Akuity-managed agent.",
+			Optional:            true,
+			Computed:            true,
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
 			},
@@ -219,6 +220,49 @@ func getAKPKargoAgentDataAttributes() map[string]schema.Attribute {
 				boolplanmodifier.UseStateForUnknown(),
 				boolplanmodifier2.SuppressProtobufDefault(),
 			},
+		},
+		"autoscaler_config": schema.SingleNestedAttribute{
+			MarkdownDescription: "Autoscaler configuration for the Kargo agent.",
+			Optional:            true,
+			Attributes:          getKargoAutoscalerConfigAttributes(),
+		},
+	}
+}
+
+func getKargoAutoscalerConfigAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"kargo_controller": schema.SingleNestedAttribute{
+			Description: "Kargo Controller auto scaling config",
+			Optional:    true,
+			Attributes:  getKargoControllerAutoScalingConfigAttributes(),
+		},
+	}
+}
+
+func getKargoControllerAutoScalingConfigAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"resource_minimum": schema.SingleNestedAttribute{
+			Description: "Resource minimum",
+			Optional:    true,
+			Attributes:  getKargoResourcesAttributes(),
+		},
+		"resource_maximum": schema.SingleNestedAttribute{
+			Description: "Resource maximum",
+			Optional:    true,
+			Attributes:  getKargoResourcesAttributes(),
+		},
+	}
+}
+
+func getKargoResourcesAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"mem": schema.StringAttribute{
+			Description: "Memory",
+			Optional:    true,
+		},
+		"cpu": schema.StringAttribute{
+			Description: "CPU",
+			Optional:    true,
 		},
 	}
 }
