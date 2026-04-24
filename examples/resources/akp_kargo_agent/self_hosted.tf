@@ -20,6 +20,8 @@ resource "akp_kargo_agent" "example-agent" {
       remote_argocd = ""
       # this can be configured in self-hosted mode, if the remote argocd is not provided, and if this is provided, the remote argocd will be ignored.
       argocd_namespace = "argocd"
+      # URL of the self-managed Argo CD instance the agent connects to.
+      self_managed_argocd_url = "https://argocd.example.com"
       # configure this based on the situation of self-hosted or not.
       auto_upgrade_disabled = true
       kustomization         = <<-EOT

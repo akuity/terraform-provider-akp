@@ -112,6 +112,10 @@ func getAKPKargoAgentDataDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "The namespace of the Argo CD instance",
 			Computed:            true,
 		},
+		"self_managed_argocd_url": schema.StringAttribute{
+			MarkdownDescription: "URL of the self-managed Argo CD instance the agent connects to",
+			Computed:            true,
+		},
 		"allowed_job_sa": schema.ListAttribute{
 			ElementType:         types.StringType,
 			MarkdownDescription: "The list of allowed job service accounts for the Kargo agent",

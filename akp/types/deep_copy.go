@@ -119,8 +119,7 @@ func deepCopyValue(dst, src reflect.Value) {
 // Struct that itself needs deep copy). Returns false for leaf value types
 // like basetypes.StringValue which only have unexported fields.
 func structNeedsDeepCopy(t reflect.Type) bool {
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
+	for field := range t.Fields() {
 		if !field.IsExported() {
 			continue
 		}

@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -360,11 +361,11 @@ func testAccCheckInstanceIPAllowListExists(resourceName, expectedIP string) reso
 // Config helper functions
 
 func testAccInstanceIPAllowListResourceConfig(instanceID string, entries []map[string]string) string {
-	entriesStr := ""
+	var entriesStr strings.Builder
 	for _, entry := range entries {
 		ip := entry["ip"]
 		desc := entry["description"]
-		entriesStr += fmt.Sprintf(`
+		fmt.Fprintf(&entriesStr, `
     {
       ip          = %q
       description = %q
@@ -377,7 +378,7 @@ resource "akp_instance_ip_allow_list" "test" {
   entries = [%s
   ]
 }
-`, instanceID, entriesStr)
+`, instanceID, entriesStr.String())
 }
 
 func testAccInstanceIPAllowListResourceConfigNoDescription(instanceID, ip string) string {
@@ -575,7 +576,7 @@ func runInstanceIPAllowListResource_LargeScale(t *testing.T) {
 	instanceID := getInstanceId()
 
 	var entries []map[string]string
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		entries = append(entries, map[string]string{
 			"ip":          fmt.Sprintf("10.%d.0.0/16", i),
 			"description": fmt.Sprintf("Network segment %d", i),
@@ -583,7 +584,7 @@ func runInstanceIPAllowListResource_LargeScale(t *testing.T) {
 	}
 
 	var updatedEntries []map[string]string
-	for i := 0; i < 15; i++ {
+	for i := range 15 {
 		updatedEntries = append(updatedEntries, map[string]string{
 			"ip":          fmt.Sprintf("10.%d.0.0/16", i),
 			"description": fmt.Sprintf("Updated segment %d", i),
@@ -591,7 +592,7 @@ func runInstanceIPAllowListResource_LargeScale(t *testing.T) {
 	}
 
 	var reducedEntries []map[string]string
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		reducedEntries = append(reducedEntries, map[string]string{
 			"ip":          fmt.Sprintf("10.%d.0.0/16", i),
 			"description": fmt.Sprintf("Remaining segment %d", i),

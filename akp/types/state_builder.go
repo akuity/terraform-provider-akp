@@ -763,13 +763,13 @@ func sameElements(a, b reflect.Value) bool {
 // convertGoValueToTFType converts a Go value to the corresponding TF type.
 func convertGoValueToTFType(val any, targetType reflect.Type) any {
 	switch targetType {
-	case reflect.TypeOf(types.String{}):
+	case reflect.TypeFor[types.String]():
 		return toTFString(val)
-	case reflect.TypeOf(types.Bool{}):
+	case reflect.TypeFor[types.Bool]():
 		return toTFBool(val)
-	case reflect.TypeOf(types.Int64{}):
+	case reflect.TypeFor[types.Int64]():
 		return toTFInt64(val)
-	case reflect.TypeOf(types.Float64{}):
+	case reflect.TypeFor[types.Float64]():
 		return toTFFloat64(val)
 	}
 	return val
@@ -777,14 +777,14 @@ func convertGoValueToTFType(val any, targetType reflect.Type) any {
 
 func isTFFrameworkTypeByType(t reflect.Type) bool {
 	switch t {
-	case reflect.TypeOf(types.String{}),
-		reflect.TypeOf(types.Bool{}),
-		reflect.TypeOf(types.Int64{}),
-		reflect.TypeOf(types.Float64{}),
-		reflect.TypeOf(types.Object{}),
-		reflect.TypeOf(types.List{}),
-		reflect.TypeOf(types.Set{}),
-		reflect.TypeOf(types.Map{}):
+	case reflect.TypeFor[types.String](),
+		reflect.TypeFor[types.Bool](),
+		reflect.TypeFor[types.Int64](),
+		reflect.TypeFor[types.Float64](),
+		reflect.TypeFor[types.Object](),
+		reflect.TypeFor[types.List](),
+		reflect.TypeFor[types.Set](),
+		reflect.TypeFor[types.Map]():
 		return true
 	}
 	return false

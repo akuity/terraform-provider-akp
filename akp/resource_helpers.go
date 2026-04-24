@@ -140,10 +140,7 @@ func retryWithBackoff[T any](
 		tflog.Debug(ctx, fmt.Sprintf("%s failed with retryable error (attempt %d/%d): %v", operationName, attempt+1, maxRetries+1, lastErr))
 
 		// Exponential backoff with cap
-		delay = time.Duration(float64(delay) * backoffFactor)
-		if delay > maxDelay {
-			delay = maxDelay
-		}
+		delay = min(time.Duration(float64(delay)*backoffFactor), maxDelay)
 	}
 
 	tflog.Error(ctx, fmt.Sprintf("%s failed after %d retries, last error: %v", operationName, maxRetries+1, lastErr))

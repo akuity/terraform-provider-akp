@@ -14,14 +14,14 @@ import (
 // If this test fails, a field has been added/removed to the AKP Instance type.
 // Update the schema attribute accordingly.
 func TestNoNewKargoDataSourceFields(t *testing.T) {
-	assert.Equal(t, reflect.TypeOf(types.KargoInstanceDataSource{}).NumField(), len(getAKPKargoDataSourceAttributes()))
-	assert.Equal(t, reflect.TypeOf(types.KargoDataSource{}).NumField(), len(getKargoDataSourceAttributes()))
-	assert.Equal(t, reflect.TypeOf(types.KargoSpecDataSource{}).NumField(), len(getKargoSpecDataSourceAttributes()))
-	assert.Equal(t, reflect.TypeOf(types.KargoIPAllowListEntry{}).NumField(), len(getKargoIPAllowListEntryDataSourceAttributes()))
-	assert.Equal(t, reflect.TypeOf(types.KargoAgentCustomization{}).NumField(), len(getKargoAgentCustomizationDataSourceAttributes()))
-	assert.Equal(t, reflect.TypeOf(types.KargoInstanceSpec{}).NumField(), len(getKargoInstanceSpecDataSourceAttributes()))
-	assert.Equal(t, reflect.TypeOf(types.KargoOidcConfigDataSource{}).NumField(), len(getOIDCConfigDataSourceAttributes()))
-	assert.Equal(t, reflect.TypeOf(types.GarbageCollectorConfig{}).NumField(), len(getGarbageCollectorConfigDataSourceAttributes()))
-	assert.Equal(t, reflect.TypeOf(types.AkuityIntelligence{}).NumField(), len(getKargoAkuityIntelligenceDataSourceAttributes()))
-	assert.Equal(t, reflect.TypeOf(types.KargoArgoCDUIConfig{}).NumField(), len(getKargoArgoCDUIConfigDataSourceAttributes()))
+	assert.Equal(t, reflect.TypeFor[types.KargoInstanceDataSource]().NumField(), len(getAKPKargoDataSourceAttributes()))
+	assert.Equal(t, reflect.TypeFor[types.KargoDataSource]().NumField(), len(getKargoDataSourceAttributes()))
+	assert.Equal(t, reflect.TypeFor[types.KargoSpecDataSource]().NumField(), len(getKargoSpecDataSourceAttributes()))
+	assert.Equal(t, reflect.TypeFor[types.KargoIPAllowListEntry]().NumField(), len(getKargoIPAllowListEntryDataSourceAttributes()))
+	assert.Equal(t, reflect.TypeFor[types.KargoAgentCustomization]().NumField(), len(getKargoAgentCustomizationDataSourceAttributes()))
+	assert.Equal(t, reflect.TypeFor[types.KargoInstanceSpec]().NumField(), len(getKargoInstanceSpecDataSourceAttributes()))
+	assert.Equal(t, reflect.TypeFor[types.KargoOidcConfigDataSource]().NumField(), len(getOIDCConfigDataSourceAttributes()))
+	assert.Equal(t, reflect.TypeFor[types.GarbageCollectorConfig]().NumField(), len(getGarbageCollectorConfigDataSourceAttributes()))
+	assert.Equal(t, reflect.TypeFor[types.AkuityIntelligence]().NumField(), len(getKargoAkuityIntelligenceDataSourceAttributes()))
+	assert.Equal(t, reflect.TypeFor[types.KargoArgoCDUIConfig]().NumField(), len(getKargoArgoCDUIConfigDataSourceAttributes()))
 }

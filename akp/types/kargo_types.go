@@ -107,6 +107,7 @@ func (ka *KargoAgent) Update(ctx context.Context, diagnostics *diag.Diagnostics,
 	defaultNullOrUnknownString(&ka.Spec.Data.ArgocdNamespace)
 	defaultNullOrUnknownString(&ka.Spec.Data.Kustomization)
 	defaultNullOrUnknownString(&ka.Spec.Data.MaintenanceModeExpiry)
+	defaultNullOrUnknownString(&ka.Spec.Data.SelfManagedArgocdUrl)
 	defaultNullOrUnknownBool(&ka.Spec.Data.AkuityManaged)
 	defaultNullOrUnknownBool(&ka.Spec.Data.MaintenanceMode)
 	NormalizeKargoAgentReadStateForRefresh(ka)

@@ -14,9 +14,9 @@ import (
 // If this test fails, a field has been added/removed to the AKP Kargo Instance type.
 // Update the schema attribute accordingly.
 func TestNoNewKargoFields(t *testing.T) {
-	assert.Equal(t, reflect.TypeOf(types.Kargo{}).NumField(), len(getKargoAttributes()))
-	assert.Equal(t, reflect.TypeOf(types.KargoSpec{}).NumField(), len(getKargoSpecAttributes()))
-	assert.Equal(t, reflect.TypeOf(types.KargoIPAllowListEntry{}).NumField(), len(getKargoIPAllowListEntryAttributes()))
-	assert.Equal(t, reflect.TypeOf(types.KargoAgentCustomization{}).NumField(), len(getKargoAgentCustomizationAttributes()))
-	assert.Equal(t, reflect.TypeOf(types.KargoArgoCDUIConfig{}).NumField(), len(getKargoArgoCDUIConfigAttributes()))
+	assert.Equal(t, reflect.TypeFor[types.Kargo]().NumField(), len(getKargoAttributes()))
+	assert.Equal(t, reflect.TypeFor[types.KargoSpec]().NumField(), len(getKargoSpecAttributes()))
+	assert.Equal(t, reflect.TypeFor[types.KargoIPAllowListEntry]().NumField(), len(getKargoIPAllowListEntryAttributes()))
+	assert.Equal(t, reflect.TypeFor[types.KargoAgentCustomization]().NumField(), len(getKargoAgentCustomizationAttributes()))
+	assert.Equal(t, reflect.TypeFor[types.KargoArgoCDUIConfig]().NumField(), len(getKargoArgoCDUIConfigAttributes()))
 }

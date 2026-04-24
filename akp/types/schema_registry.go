@@ -1,6 +1,8 @@
 package types
 
 import (
+	"maps"
+
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 )
 
@@ -30,16 +32,8 @@ func RegisterSchemaMetadata(
 	computedFields map[string]bool,
 	planModifiers map[string]PlanModifierKind,
 ) {
-	for k, v := range objectAttrTypes {
-		RegisteredObjectAttrTypes[k] = v
-	}
-	for k, v := range sensitiveFields {
-		RegisteredSensitiveFields[k] = v
-	}
-	for k, v := range computedFields {
-		RegisteredComputedFields[k] = v
-	}
-	for k, v := range planModifiers {
-		RegisteredPlanModifiers[k] = v
-	}
+	maps.Copy(RegisteredObjectAttrTypes, objectAttrTypes)
+	maps.Copy(RegisteredSensitiveFields, sensitiveFields)
+	maps.Copy(RegisteredComputedFields, computedFields)
+	maps.Copy(RegisteredPlanModifiers, planModifiers)
 }

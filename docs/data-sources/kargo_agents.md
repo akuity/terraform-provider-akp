@@ -98,6 +98,7 @@ Read-Only:
 - `maintenance_mode_expiry` (String) Expiry time for maintenance mode in RFC3339 format.
 - `pod_inherit_metadata` (Boolean) Whether pod metadata inheritance is enabled for the agent.
 - `remote_argocd` (String) The ID of the remote Argo CD instance
+- `self_managed_argocd_url` (String) URL of the self-managed Argo CD instance the agent connects to
 - `size` (String) The size of the Kargo agent
 - `target_version` (String) The target version of the Kargo agent
 

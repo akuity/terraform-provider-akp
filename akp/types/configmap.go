@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"google.golang.org/protobuf/types/known/structpb"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
@@ -44,7 +44,7 @@ func ToFilteredConfigMapTFModel(ctx context.Context, diagnostics *diag.Diagnosti
 		}
 	}
 
-	oldMap := make(map[string]interface{}, len(oldCM.Elements()))
+	oldMap := make(map[string]any, len(oldCM.Elements()))
 	for k, v := range oldCM.Elements() {
 		oldMap[k] = v
 	}
