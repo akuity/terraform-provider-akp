@@ -2,6 +2,7 @@ package types
 
 import (
 	"context"
+	"maps"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -22,9 +23,7 @@ func buildCMPStruct(t *testing.T, name string, apiMap map[string]any) *structpb.
 			},
 		},
 	}
-	for k, v := range apiMap {
-		fullMap[k] = v
-	}
+	maps.Copy(fullMap, apiMap)
 	s, err := structpb.NewStruct(fullMap)
 	require.NoError(t, err)
 	return s

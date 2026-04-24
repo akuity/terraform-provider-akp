@@ -409,12 +409,14 @@ func runKargoAgentResource(t *testing.T) {
 `),
 					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.remote_argocd", getInstanceId()),
 					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.akuity_managed", "false"),
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.self_managed_argocd_url", "https://argocd.example.com"),
 					resource.TestCheckResourceAttr("akp_kargo_agent.test", "remove_agent_resources_on_destroy", "true"),
 					// --- Data Sources ---
 					resource.TestCheckResourceAttr("data.akp_kargo_agent.test", "name", name),
 					resource.TestCheckResourceAttrSet("data.akp_kargo_agent.test", "id"),
 					resource.TestCheckResourceAttr("data.akp_kargo_agent.test", "spec.data.size", "small"),
 					resource.TestCheckResourceAttr("data.akp_kargo_agent.test", "spec.data.auto_upgrade_disabled", "true"),
+					resource.TestCheckResourceAttr("data.akp_kargo_agent.test", "spec.data.self_managed_argocd_url", "https://argocd.example.com"),
 					resource.TestCheckResourceAttr("data.akp_kargo_agent.test", "remove_agent_resources_on_destroy", "true"),
 					resource.TestCheckResourceAttr("data.akp_kargo_agent.test", "reapply_manifests_on_update", "false"),
 					// kargo agents list data source
@@ -568,8 +570,9 @@ resource "akp_kargo_agent" "test" {
         kind: Deployment
         name: kargo-agent
 EOF
-      remote_argocd         = %q
-      akuity_managed        = false
+      remote_argocd           = %q
+      akuity_managed          = false
+      self_managed_argocd_url = "https://argocd.example.com"
     }
   }
   remove_agent_resources_on_destroy = true
@@ -688,7 +691,7 @@ func testCheckKargoAgentCleanedUp(agentName, kargoInstanceId string) error {
 	ctx := context.Background()
 	ctx = httpctx.SetAuthorizationHeader(ctx, akpCli.Cred.Scheme(), akpCli.Cred.Credential())
 
-	for attempt := 0; attempt < 5; attempt++ {
+	for attempt := range 5 {
 		if attempt > 0 {
 			time.Sleep(2 * time.Second)
 		}

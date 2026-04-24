@@ -103,4 +103,5 @@ func TestKargoAgentUpdate_DefaultsOmittedComputedFieldsForImportParity(t *testin
 	require.Equal(t, "", agent.Spec.Data.ArgocdNamespace.ValueString())
 	require.Equal(t, "", agent.Spec.Data.Kustomization.ValueString())
 	require.Equal(t, "", agent.Spec.Data.MaintenanceModeExpiry.ValueString())
+	require.Equal(t, "", agent.Spec.Data.SelfManagedArgocdUrl.ValueString())
 }

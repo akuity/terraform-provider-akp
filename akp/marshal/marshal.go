@@ -10,7 +10,7 @@ import (
 )
 
 // RemarshalTo convert an object to a target object by marshalling and unmarshalling it.
-func RemarshalTo(obj, target interface{}) error {
+func RemarshalTo(obj, target any) error {
 	data, err := json.Marshal(obj)
 	if err != nil {
 		return fmt.Errorf("marshal: %w", err)
@@ -22,8 +22,8 @@ func RemarshalTo(obj, target interface{}) error {
 }
 
 // ApiModelToPBStruct convert an object to a protobuf struct by marshalling and unmarshalling it.
-func ApiModelToPBStruct(obj interface{}) (*structpb.Struct, error) {
-	m := map[string]interface{}{}
+func ApiModelToPBStruct(obj any) (*structpb.Struct, error) {
+	m := map[string]any{}
 	if err := RemarshalTo(obj, &m); err != nil {
 		return nil, err
 	}

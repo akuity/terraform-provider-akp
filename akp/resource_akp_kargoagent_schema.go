@@ -191,6 +191,14 @@ func getAKPKargoAgentDataAttributes() map[string]schema.Attribute {
 				stringplanmodifier.UseStateForUnknown(),
 			},
 		},
+		"self_managed_argocd_url": schema.StringAttribute{
+			MarkdownDescription: "URL of the self-managed Argo CD instance the agent connects to. This is only available if you self-host your Kargo agent.",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
 		"allowed_job_sa": schema.ListAttribute{
 			ElementType:         types.StringType,
 			MarkdownDescription: "List of allowed service accounts for analysis jobs created by the agent",

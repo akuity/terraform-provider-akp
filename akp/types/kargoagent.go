@@ -56,6 +56,7 @@ type KargoAgentData struct {
 	RemoteArgocd          types.String           `tfsdk:"remote_argocd"`
 	AkuityManaged         types.Bool             `tfsdk:"akuity_managed"`
 	ArgocdNamespace       types.String           `tfsdk:"argocd_namespace"`
+	SelfManagedArgocdUrl  types.String           `tfsdk:"self_managed_argocd_url"`
 	AllowedJobSa          []types.String         `tfsdk:"allowed_job_sa"`
 	MaintenanceMode       types.Bool             `tfsdk:"maintenance_mode"`
 	MaintenanceModeExpiry types.String           `tfsdk:"maintenance_mode_expiry"`

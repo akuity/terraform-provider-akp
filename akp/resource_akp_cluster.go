@@ -885,10 +885,7 @@ func waitForClusterDeletion(ctx context.Context, cli *AkpCli, instanceID, cluste
 		time.Sleep(delay)
 
 		// Exponential backoff with cap
-		delay = time.Duration(float64(delay) * backoffFactor)
-		if delay > maxDelay {
-			delay = maxDelay
-		}
+		delay = min(time.Duration(float64(delay)*backoffFactor), maxDelay)
 	}
 }
 

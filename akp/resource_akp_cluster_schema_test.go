@@ -14,7 +14,7 @@ import (
 // If this test fails, a field has been added/removed to the Cluster related type.
 // Update the schema attribute accordingly.
 func TestNoNewClusterFields(t *testing.T) {
-	assert.Equal(t, reflect.TypeOf(types.Cluster{}).NumField(), len(getAKPClusterAttributes()))
-	assert.Equal(t, reflect.TypeOf(types.ClusterSpec{}).NumField(), len(getClusterSpecAttributes()))
-	assert.Equal(t, reflect.TypeOf(types.ClusterData{}).NumField(), len(getClusterDataAttributes()))
+	assert.Equal(t, reflect.TypeFor[types.Cluster]().NumField(), len(getAKPClusterAttributes()))
+	assert.Equal(t, reflect.TypeFor[types.ClusterSpec]().NumField(), len(getClusterSpecAttributes()))
+	assert.Equal(t, reflect.TypeFor[types.ClusterData]().NumField(), len(getClusterDataAttributes()))
 }

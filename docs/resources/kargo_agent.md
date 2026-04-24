@@ -95,6 +95,8 @@ resource "akp_kargo_agent" "example-agent" {
       remote_argocd = ""
       # this can be configured in self-hosted mode, if the remote argocd is not provided, and if this is provided, the remote argocd will be ignored.
       argocd_namespace = "argocd"
+      # URL of the self-managed Argo CD instance the agent connects to.
+      self_managed_argocd_url = "https://argocd.example.com"
       # configure this based on the situation of self-hosted or not.
       auto_upgrade_disabled = true
       kustomization         = <<-EOT
@@ -162,6 +164,7 @@ Optional:
 - `maintenance_mode_expiry` (String) Expiry time for maintenance mode in RFC3339 format. Maintenance mode will be automatically disabled after this time.
 - `pod_inherit_metadata` (Boolean) Enable pod metadata inheritance. When enabled, pods inherit labels and annotations from the agent.
 - `remote_argocd` (String) Remote Argo CD instance to connect to
+- `self_managed_argocd_url` (String) URL of the self-managed Argo CD instance the agent connects to. This is only available if you self-host your Kargo agent.
 - `size` (String) Cluster Size. One of `small`, `medium`, `large`. Must be omitted when `akuity_managed` is `true` because the size is managed by Akuity; use the Akuity UI or the AIMS API to change the size of an Akuity-managed agent.
 - `target_version` (String) Target version of the agent to install on your cluster
 

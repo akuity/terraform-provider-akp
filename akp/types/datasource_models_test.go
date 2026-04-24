@@ -14,11 +14,11 @@ import (
 )
 
 var (
-	tfStringType = reflect.TypeOf(frameworktypes.String{})
-	tfBoolType   = reflect.TypeOf(frameworktypes.Bool{})
-	tfInt64Type  = reflect.TypeOf(frameworktypes.Int64{})
-	tfMapType    = reflect.TypeOf(frameworktypes.Map{})
-	tfObjectType = reflect.TypeOf(frameworktypes.Object{})
+	tfStringType = reflect.TypeFor[frameworktypes.String]()
+	tfBoolType   = reflect.TypeFor[frameworktypes.Bool]()
+	tfInt64Type  = reflect.TypeFor[frameworktypes.Int64]()
+	tfMapType    = reflect.TypeFor[frameworktypes.Map]()
+	tfObjectType = reflect.TypeFor[frameworktypes.Object]()
 )
 
 var instanceDataSourceExcludedTags = map[string]struct{}{
