@@ -139,10 +139,12 @@ func (p *AkpProvider) Configure(ctx context.Context, req provider.ConfigureReque
 	ctx = httpctx.SetAuthorizationHeader(ctx, cred.Scheme(), cred.Credential())
 	gwc := gwoption.NewClient(ServerUrl, skipTLSVerify)
 	orgc := orgcv1.NewOrganizationServiceGatewayClient(gwc)
-	res, err := orgc.GetOrganization(ctx, &orgcv1.GetOrganizationRequest{
-		Id:     orgName,
-		IdType: idv1.Type_NAME,
-	})
+	res, err := retryWithBackoff(ctx, func(ctx context.Context) (*orgcv1.GetOrganizationResponse, error) {
+		return orgc.GetOrganization(ctx, &orgcv1.GetOrganizationRequest{
+			Id:     orgName,
+			IdType: idv1.Type_NAME,
+		})
+	}, "GetOrganization")
 	tflog.Debug(ctx, fmt.Sprintf("Res: %s", res))
 	if err != nil {
 		resp.Diagnostics.AddError(
