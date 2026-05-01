@@ -161,8 +161,8 @@ func isRetryableError(err error) bool {
 			codes.DeadlineExceeded,
 			codes.Aborted,
 			codes.ResourceExhausted,
-			codes.Canceled,
-			codes.Internal:
+			codes.Internal,
+			codes.Unknown: // infrastructure-layer failure (empty desc, no JSON body from load balancer)
 			return true
 		case codes.InvalidArgument:
 			// Retry InvalidArgument only if it's due to provisioning delays
