@@ -13,25 +13,60 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 )
 
+// labeledStep pairs a human-readable label with a TestStep. numberedSteps uses
+// the label to auto-inject a "STEP N/total" banner into the step's PreConfig,
+// so step numbering stays correct as steps are added, removed, or reordered.
+// Entries with an empty label are passed through unchanged — use them for
+// helper steps (e.g. testAccInstanceImportStateStep) that should not appear
+// in the banner numbering.
+type labeledStep struct {
+	label string
+	step  resource.TestStep
+}
+
+func numberedSteps(entries []labeledStep) []resource.TestStep {
+	total := 0
+	for _, e := range entries {
+		if e.label != "" {
+			total++
+		}
+	}
+	out := make([]resource.TestStep, 0, len(entries))
+	idx := 0
+	for _, e := range entries {
+		if e.label == "" {
+			out = append(out, e.step)
+			continue
+		}
+		idx++
+		label, n, t := e.label, idx, total
+		original := e.step.PreConfig
+		e.step.PreConfig = func() {
+			fmt.Fprintf(os.Stderr, "\n==== STEP %d/%d: %s ====\n", n, t, label)
+			if original != nil {
+				original()
+			}
+		}
+		out = append(out, e.step)
+	}
+	return out
+}
+
 func runInstanceConfigTests(t *testing.T) {
 	name := getInstanceName()
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		Steps: []resource.TestStep{
-			// Step 1: Import the shared instance
-			{
-				PreConfig:         func() { fmt.Fprintln(os.Stderr, "\n==== STEP 1/16: Import the shared instance ====") },
+		Steps: numberedSteps([]labeledStep{
+			{label: "Import the shared instance", step: resource.TestStep{
 				Config:            providerConfig + testAccInstanceImportConfig(name),
 				ImportState:       true,
 				ImportStateId:     name,
 				ResourceName:      "akp_instance.test",
 				ImportStateVerify: false,
-			},
-			// Step 2: AI Config Full
-			{
-				PreConfig: func() { fmt.Fprintln(os.Stderr, "\n==== STEP 2/16: AI Config Full ====") },
-				Config:    providerConfig + testAccInstanceResourceAIConfigFull(name),
+			}},
+			{label: "AI Config Full", step: resource.TestStep{
+				Config: providerConfig + testAccInstanceResourceAIConfigFull(name),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_instance.test", "name", name),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.akuity_intelligence_extension.enabled", "true"),
@@ -40,37 +75,29 @@ func runInstanceConfigTests(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.runbook_repos.#", "1"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.runbook_repos.0.repo_url", "https://github.com/akuity/akuity-intelligence-examples"),
 				),
-			},
-			// Step 3: AI Config Updated
-			{
-				PreConfig: func() { fmt.Fprintln(os.Stderr, "\n==== STEP 3/16: AI Config Updated ====") },
-				Config:    providerConfig + testAccInstanceResourceAIConfigUpdated(name),
+			}},
+			{label: "AI Config Updated", step: resource.TestStep{
+				Config: providerConfig + testAccInstanceResourceAIConfigUpdated(name),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.runbooks.0.slack_channel_names.#", "3"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.argocd_slack_channels.#", "3"),
 				),
-			},
-			// Step 4: AI Config Minimal
-			{
-				PreConfig: func() { fmt.Fprintln(os.Stderr, "\n==== STEP 4/16: AI Config Minimal ====") },
-				Config:    providerConfig + testAccInstanceResourceAIConfigMinimal(name),
+			}},
+			{label: "AI Config Minimal", step: resource.TestStep{
+				Config: providerConfig + testAccInstanceResourceAIConfigMinimal(name),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.runbooks.#", "1"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.runbooks.0.name", "basic-runbook"),
 				),
-			},
-			// Step 5: AI Config Minimal With Slack
-			{
-				PreConfig: func() { fmt.Fprintln(os.Stderr, "\n==== STEP 5/16: AI Config Minimal With Slack ====") },
-				Config:    providerConfig + testAccInstanceResourceAIConfigMinimalWithSlack(name),
+			}},
+			{label: "AI Config Minimal With Slack", step: resource.TestStep{
+				Config: providerConfig + testAccInstanceResourceAIConfigMinimalWithSlack(name),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.runbooks.0.slack_channel_names.#", "1"),
 				),
-			},
-			// Step 6: Incidents Config
-			{
-				PreConfig: func() { fmt.Fprintln(os.Stderr, "\n==== STEP 6/16: Incidents Config ====") },
-				Config:    providerConfig + testAccInstanceResourceIncidentsConfig(name),
+			}},
+			{label: "Incidents Config", step: resource.TestStep{
+				Config: providerConfig + testAccInstanceResourceIncidentsConfig(name),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.incidents.triggers.#", "1"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.incidents.webhooks.#", "1"),
@@ -79,60 +106,46 @@ func runInstanceConfigTests(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.incidents.investigation_approval.scopes.0.argocd_applications.0", "guestbook-prod"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.incidents.investigation_approval.scopes.0.consecutive_auto_closures", "3"),
 				),
-			},
-			// Step 7: Metrics Ingress Password Hash
-			{
-				PreConfig: func() { fmt.Fprintln(os.Stderr, "\n==== STEP 7/16: Metrics Ingress Password Hash ====") },
-				Config:    providerConfig + testAccInstanceResourceMetricsIngressPasswordHash(name, "test-bcrypt-hash-1"),
+			}},
+			{label: "Metrics Ingress Password Hash", step: resource.TestStep{
+				Config: providerConfig + testAccInstanceResourceMetricsIngressPasswordHash(name, "test-bcrypt-hash-1"),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.metrics_ingress_username", "metrics-user"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.metrics_ingress_password_hash", "test-bcrypt-hash-1"),
 				),
-			},
-			// Step 8: Metrics Ingress Password Hash Updated Description
-			{
-				PreConfig: func() {
-					fmt.Fprintln(os.Stderr, "\n==== STEP 8/16: Metrics Ingress Password Hash Updated Description ====")
-				},
+			}},
+			{label: "Metrics Ingress Password Hash Updated Description", step: resource.TestStep{
 				Config: providerConfig + testAccInstanceResourceMetricsIngressPasswordHashUpdatedDescription(name, "test-bcrypt-hash-1"),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.description", "Updated description"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.metrics_ingress_password_hash", "test-bcrypt-hash-1"),
 				),
-			},
-			// Step 9: Update password hash
-			{
-				PreConfig: func() { fmt.Fprintln(os.Stderr, "\n==== STEP 9/16: Update password hash ====") },
-				Config:    providerConfig + testAccInstanceResourceMetricsIngressPasswordHashUpdatedDescription(name, "test-bcrypt-hash-2"),
+			}},
+			{label: "Update password hash", step: resource.TestStep{
+				Config: providerConfig + testAccInstanceResourceMetricsIngressPasswordHashUpdatedDescription(name, "test-bcrypt-hash-2"),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.metrics_ingress_password_hash", "test-bcrypt-hash-2"),
 				),
-			},
-			// Step 10: AI Config with Incidents and Runbooks
-			{
-				PreConfig: func() { fmt.Fprintln(os.Stderr, "\n==== STEP 10/16: AI Config with Incidents and Runbooks ====") },
-				Config:    providerConfig + testAccInstanceResourceAIConfigWithIncidentsAndRunbooks(name),
+			}},
+			{label: "AI Config with Incidents and Runbooks", step: resource.TestStep{
+				Config: providerConfig + testAccInstanceResourceAIConfigWithIncidentsAndRunbooks(name),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.argocd_slack_service", "argo-notifications"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.incidents.triggers.#", "2"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.incidents.webhooks.#", "1"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.metrics_ingress_password_hash", "bcrypt-hashed-password"),
 				),
-			},
-			testAccInstanceImportStateStep(name, testAccInstanceMetricsImportStateVerifyIgnore...),
-			// Step 11: Re-apply same config (verify no state inconsistency)
-			{
-				PreConfig: func() { fmt.Fprintln(os.Stderr, "\n==== STEP 11/16: Re-apply same config ====") },
-				Config:    providerConfig + testAccInstanceResourceAIConfigWithIncidentsAndRunbooks(name),
+			}},
+			{step: testAccInstanceImportStateStep(name, testAccInstanceMetricsImportStateVerifyIgnore...)},
+			{label: "Re-apply same config", step: resource.TestStep{
+				Config: providerConfig + testAccInstanceResourceAIConfigWithIncidentsAndRunbooks(name),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.incidents.webhooks.#", "1"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.metrics_ingress_password_hash", "bcrypt-hashed-password"),
 				),
-			},
-			// Step 12: Core Fields
-			{
-				PreConfig: func() { fmt.Fprintln(os.Stderr, "\n==== STEP 12/16: Core Fields ====") },
-				Config:    providerConfig + testAccInstanceResourceConfigCoreFields(name),
+			}},
+			{label: "Core Fields", step: resource.TestStep{
+				Config: providerConfig + testAccInstanceResourceConfigCoreFields(name),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_instance.test", "name", name),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.declarative_management_enabled", "true"),
@@ -201,15 +214,11 @@ func runInstanceConfigTests(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd_ssh_known_hosts_cm.%", "1"),
 					resource.TestCheckResourceAttrSet("akp_instance.test", "argocd_ssh_known_hosts_cm.ssh_known_hosts"),
 				),
-			},
-			testAccInstanceImportStateStep(name, testAccInstanceCoreFieldsImportStateVerifyIgnore...),
-			// Step 13: Spec Features
-			{
-				PreConfig: func() {
-					fmt.Fprintln(os.Stderr, "\n==== STEP 13/16: Spec Features ====")
-					time.Sleep(30 * time.Second)
-				},
-				Config: providerConfig + testAccInstanceResourceConfigSpecFeatures(name),
+			}},
+			{step: testAccInstanceImportStateStep(name, testAccInstanceCoreFieldsImportStateVerifyIgnore...)},
+			{label: "Spec Features", step: resource.TestStep{
+				PreConfig: func() { time.Sleep(30 * time.Second) },
+				Config:    providerConfig + testAccInstanceResourceConfigSpecFeatures(name),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_instance.test", "name", name),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.extensions.#", "1"),
@@ -218,45 +227,74 @@ func runInstanceConfigTests(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.manifest_generation.kustomize.default_version", "v5.4.3"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.manifest_generation.kustomize.additional_versions.#", "2"),
 				),
-			},
-			// Step 14: Misc Features
-			{
-				PreConfig: func() { fmt.Fprintln(os.Stderr, "\n==== STEP 14/16: Misc Features ====") },
-				Config:    providerConfig + testAccInstanceResourceConfigMiscFeatures(name),
+			}},
+			{label: "Misc Features", step: resource.TestStep{
+				Config: providerConfig + testAccInstanceResourceConfigMiscFeatures(name),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_instance.test", "name", name),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.host_aliases.#", "1"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.crossplane_extension.resources.#", "1"),
 					resource.TestCheckResourceAttr("akp_instance.test", "config_management_plugins.test-plugin.enabled", "true"),
 				),
-			},
-			// Step 15: CMP Create
-			{
-				PreConfig: func() {
-					fmt.Fprintln(os.Stderr, "\n==== STEP 15/16: CMP Create ====")
-					time.Sleep(30 * time.Second)
+			}},
+			{label: "Secrets Sync", step: resource.TestStep{
+				Config: providerConfig + testAccInstanceResourceConfigSecretsSync(name),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					// Sources: two entries, mixed selector shapes
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.secrets.sources.#", "2"),
+					// sources[0].clusters: match_labels + match_expressions on the same selector
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.secrets.sources.0.clusters.match_labels.role", "secret-source"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.secrets.sources.0.clusters.match_labels.region", "us-east-1"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.secrets.sources.0.clusters.match_expressions.#", "1"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.secrets.sources.0.clusters.match_expressions.0.key", "tier"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.secrets.sources.0.clusters.match_expressions.0.operator", "In"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.secrets.sources.0.clusters.match_expressions.0.values.#", "2"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.secrets.sources.0.clusters.match_expressions.0.values.0", "primary"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.secrets.sources.0.clusters.match_expressions.0.values.1", "secondary"),
+					// sources[0].secrets: multiple expressions with different operators
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.secrets.sources.0.secrets.match_labels.app", "shared"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.secrets.sources.0.secrets.match_expressions.#", "2"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.secrets.sources.0.secrets.match_expressions.0.key", "akuity.io/secret-sync"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.secrets.sources.0.secrets.match_expressions.0.operator", "In"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.secrets.sources.0.secrets.match_expressions.0.values.0", "true"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.secrets.sources.0.secrets.match_expressions.1.key", "env"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.secrets.sources.0.secrets.match_expressions.1.operator", "NotIn"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.secrets.sources.0.secrets.match_expressions.1.values.0", "dev"),
+					// sources[1]: simpler shape, exercises the second list element
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.secrets.sources.1.clusters.match_labels.role", "backup-source"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.secrets.sources.1.secrets.match_expressions.0.key", "akuity.io/backup"),
+					// Data source: verify sources and match_expressions paths round-trip on read
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.secrets.sources.#", "2"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.secrets.sources.0.clusters.match_labels.role", "secret-source"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.secrets.sources.0.secrets.match_expressions.1.operator", "NotIn"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.secrets.sources.0.secrets.match_expressions.0.values.0", "true"),
+				),
+			}},
+			{label: "Secrets Sync re-apply (no drift)", step: resource.TestStep{
+				Config: providerConfig + testAccInstanceResourceConfigSecretsSync(name),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectEmptyPlan(),
+					},
 				},
-				Config: providerConfig + testAccInstanceResourceConfigCMP(name),
+			}},
+			{label: "CMP Create", step: resource.TestStep{
+				PreConfig: func() { time.Sleep(30 * time.Second) },
+				Config:    providerConfig + testAccInstanceResourceConfigCMP(name),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_instance.test", "config_management_plugins.my-plugin.enabled", "true"),
 					resource.TestCheckResourceAttr("akp_instance.test", "config_management_plugins.my-plugin.image", "busybox:latest"),
 					resource.TestCheckResourceAttr("akp_instance.test", "config_management_plugins.my-plugin.spec.version", "v1.0"),
 				),
-			},
-			// Step 16: CMP Update
-			{
-				PreConfig: func() { fmt.Fprintln(os.Stderr, "\n==== STEP 16/19: CMP Update ====") },
-				Config:    providerConfig + testAccInstanceResourceConfigCMPUpdate(name),
+			}},
+			{label: "CMP Update", step: resource.TestStep{
+				Config: providerConfig + testAccInstanceResourceConfigCMPUpdate(name),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_instance.test", "config_management_plugins.my-plugin.image", "alpine:latest"),
 					resource.TestCheckResourceAttr("akp_instance.test", "config_management_plugins.my-plugin.spec.version", "v2.0"),
 				),
-			},
-			// Step 17: IgnoreResourceUpdates
-			{
-				PreConfig: func() {
-					fmt.Fprintln(os.Stderr, "\n==== STEP 17/19: IgnoreResourceUpdates config ====")
-				},
+			}},
+			{label: "IgnoreResourceUpdates config", step: resource.TestStep{
 				Config: providerConfig + testAccInstanceResourceIgnoreResourceUpdates(name),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_instance.test", "name", name),
@@ -265,30 +303,37 @@ func runInstanceConfigTests(t *testing.T) {
 					resource.TestCheckResourceAttrSet("akp_instance.test", "argocd_cm.resource.customizations.ignoreResourceUpdates.argoproj.io_Application"),
 					resource.TestCheckResourceAttrSet("akp_instance.test", "argocd_cm.resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration"),
 				),
-			},
-			// Step 18: Re-apply same config (verify no drift)
-			{
-				PreConfig: func() {
-					fmt.Fprintln(os.Stderr, "\n==== STEP 18/19: Re-apply ignoreResourceUpdates (no drift) ====")
-				},
+			}},
+			{label: "Re-apply ignoreResourceUpdates (no drift)", step: resource.TestStep{
 				Config: providerConfig + testAccInstanceResourceIgnoreResourceUpdates(name),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
 					PreApply: []plancheck.PlanCheck{
 						plancheck.ExpectEmptyPlan(),
 					},
 				},
-			},
-			// Step 19: Remove customizations
-			{
-				PreConfig: func() {
-					fmt.Fprintln(os.Stderr, "\n==== STEP 19/19: Remove customizations ====")
+			}},
+			{label: "Combined resource.customizations with quoted YAML keys", step: resource.TestStep{
+				Config: providerConfig + testAccInstanceResourceCombinedResourceCustomizations(name),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("akp_instance.test", "name", name),
+					resource.TestCheckResourceAttrSet("akp_instance.test", "argocd_cm.resource.customizations"),
+				),
+			}},
+			{label: "Re-apply combined resource.customizations (no drift)", step: resource.TestStep{
+				Config: providerConfig + testAccInstanceResourceCombinedResourceCustomizations(name),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectEmptyPlan(),
+					},
 				},
+			}},
+			{label: "Remove customizations", step: resource.TestStep{
 				Config: providerConfig + testAccInstanceResourceNoCustomizations(name),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_instance.test", "name", name),
 				),
-			},
-		},
+			}},
+		}),
 	})
 }
 
@@ -371,6 +416,52 @@ resource "akp_instance" "test" {
     "resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration" = <<-EOF
       jsonPointers:
         - /webhooks/0/clientConfig/caBundle
+    EOF
+  }
+}
+`, name, getInstanceVersion())
+}
+
+// testAccInstanceResourceCombinedResourceCustomizations returns a config that uses the
+// combined `resource.customizations` argocd_cm key with single-quoted YAML keys.
+// Regression test for https://github.com/akuityio/akuity-platform/issues/11183: the
+// portal API parses the YAML into typed structs and re-serializes it on export, which
+// drops optional quoting around keys like `'argoproj.io/Application'`. Without the fix
+// in ToConfigMapTFModel, this triggers "Provider produced inconsistent result after
+// apply" because the planned (quoted) value differs from the API-returned (unquoted) one.
+func testAccInstanceResourceCombinedResourceCustomizations(name string) string {
+	return fmt.Sprintf(`
+resource "akp_instance" "test" {
+  name = %q
+  argocd = {
+    spec = {
+      version = %q
+      instance_spec = {
+        declarative_management_enabled = true
+        manifest_generation = {
+          kustomize = {
+            default_version = "v5.4.3"
+          }
+        }
+      }
+    }
+  }
+  argocd_cm = {
+    "exec.enabled" = "true"
+    "helm.enabled" = "true"
+    "resource.customizations" = <<-EOF
+      'argoproj.io/Application':
+        health.lua: |
+          hs = {}
+          hs.status = "Healthy"
+          hs.message = "Healthy"
+          return hs
+      '*.crossplane.io/*':
+        health.lua: |
+          hs = {}
+          hs.status = "Healthy"
+          hs.message = "Resource is up-to-date."
+          return hs
     EOF
   }
 }
@@ -1148,6 +1239,77 @@ resource "akp_instance" "test" {
       }
     }
   }
+}`, name, getInstanceVersion())
+}
+
+func testAccInstanceResourceConfigSecretsSync(name string) string {
+	return fmt.Sprintf(`
+resource "akp_instance" "test" {
+  name = %q
+  argocd = {
+    spec = {
+      version     = %q
+      description = "Consolidated test: secrets sync"
+      instance_spec = {
+        declarative_management_enabled = true
+        secrets = {
+          sources = [
+            {
+              clusters = {
+                match_labels = {
+                  role   = "secret-source"
+                  region = "us-east-1"
+                }
+                match_expressions = [
+                  {
+                    key      = "tier"
+                    operator = "In"
+                    values   = ["primary", "secondary"]
+                  }
+                ]
+              }
+              secrets = {
+                match_labels = {
+                  app = "shared"
+                }
+                match_expressions = [
+                  {
+                    key      = "akuity.io/secret-sync"
+                    operator = "In"
+                    values   = ["true"]
+                  },
+                  {
+                    key      = "env"
+                    operator = "NotIn"
+                    values   = ["dev"]
+                  }
+                ]
+              }
+            },
+            {
+              clusters = {
+                match_labels = {
+                  role = "backup-source"
+                }
+              }
+              secrets = {
+                match_expressions = [
+                  {
+                    key      = "akuity.io/backup"
+                    operator = "In"
+                    values   = ["enabled"]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
+data "akp_instance" "test" {
+  name = akp_instance.test.name
 }`, name, getInstanceVersion())
 }
 

@@ -66,6 +66,7 @@ Read-Only:
 - `global_service_account_ns` (List of String) List of global service account namespaces
 - `ip_allow_list` (Attributes List) List of allowed IPs (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--ip_allow_list))
 - `promo_controller_enabled` (Boolean) Whether Kargo Promotion Controller is enabled for this instance
+- `secrets` (Attributes) Cross-cluster secret synchronization configuration. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--secrets))
 
 <a id="nestedatt--kargo--spec--kargo_instance_spec--agent_customization_defaults"></a>
 ### Nested Schema for `kargo.spec.kargo_instance_spec.agent_customization_defaults`
@@ -114,6 +115,61 @@ Read-Only:
 
 - `description` (String) Description for the IP address
 - `ip` (String) IP address
+
+
+<a id="nestedatt--kargo--spec--kargo_instance_spec--secrets"></a>
+### Nested Schema for `kargo.spec.kargo_instance_spec.secrets`
+
+Read-Only:
+
+- `sources` (Attributes List) Cluster/secret selectors picking the synchronization sources. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--secrets--sources))
+
+<a id="nestedatt--kargo--spec--kargo_instance_spec--secrets--sources"></a>
+### Nested Schema for `kargo.spec.kargo_instance_spec.secrets.sources`
+
+Read-Only:
+
+- `clusters` (Attributes) Cluster selector. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--secrets--sources--clusters))
+- `secrets` (Attributes) Secret selector. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--secrets--sources--secrets))
+
+<a id="nestedatt--kargo--spec--kargo_instance_spec--secrets--sources--clusters"></a>
+### Nested Schema for `kargo.spec.kargo_instance_spec.secrets.sources.clusters`
+
+Read-Only:
+
+- `match_expressions` (Attributes List) List of label selector requirements. Requirements are ANDed. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--secrets--sources--clusters--match_expressions))
+- `match_labels` (Map of String) Map of label key/value pairs. Requirements are ANDed.
+
+<a id="nestedatt--kargo--spec--kargo_instance_spec--secrets--sources--clusters--match_expressions"></a>
+### Nested Schema for `kargo.spec.kargo_instance_spec.secrets.sources.clusters.match_expressions`
+
+Read-Only:
+
+- `key` (String) The label key.
+- `operator` (String) The relationship between the key and the values. One of `In`, `NotIn`, `Exists`, `DoesNotExist`.
+- `values` (List of String) Array of string values.
+
+
+
+<a id="nestedatt--kargo--spec--kargo_instance_spec--secrets--sources--secrets"></a>
+### Nested Schema for `kargo.spec.kargo_instance_spec.secrets.sources.secrets`
+
+Read-Only:
+
+- `match_expressions` (Attributes List) List of label selector requirements. Requirements are ANDed. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--secrets--sources--secrets--match_expressions))
+- `match_labels` (Map of String) Map of label key/value pairs. Requirements are ANDed.
+
+<a id="nestedatt--kargo--spec--kargo_instance_spec--secrets--sources--secrets--match_expressions"></a>
+### Nested Schema for `kargo.spec.kargo_instance_spec.secrets.sources.secrets.match_expressions`
+
+Read-Only:
+
+- `key` (String) The label key.
+- `operator` (String) The relationship between the key and the values. One of `In`, `NotIn`, `Exists`, `DoesNotExist`.
+- `values` (List of String) Array of string values.
+
+
+
 
 
 

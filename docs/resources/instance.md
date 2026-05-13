@@ -134,6 +134,28 @@ resource "akp_instance" "example" {
             ip          = "1.2.3.4"
           },
         ]
+        # Sync Secrets carrying the `akuity.io/secret-sync=true` label from clusters
+        # labelled `role=secret-source` to all other clusters managed by this instance.
+        secrets = {
+          sources = [
+            {
+              clusters = {
+                match_labels = {
+                  role = "secret-source"
+                }
+              }
+              secrets = {
+                match_expressions = [
+                  {
+                    key      = "akuity.io/secret-sync"
+                    operator = "In"
+                    values   = ["true"]
+                  }
+                ]
+              }
+            }
+          ]
+        }
         cluster_customization_defaults = {
           # app_replication can be set at the instance level as a default for all clusters
           # Individual clusters can override this by setting app_replication in their spec.data
@@ -791,6 +813,7 @@ Optional:
 - `multi_cluster_k8s_dashboard_enabled` (Boolean) Enable the KubeVision feature
 - `privileged_notification_cluster` (String) Cluster name where notifications controller will be installed with elevated privileges to see controlplane and intg. cluster apps
 - `repo_server_delegate` (Attributes) In case some clusters don't have network access to your private Git provider you can delegate these operations to one specific cluster. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--repo_server_delegate))
+- `secrets` (Attributes) Cross-cluster secret synchronization configuration. Selects which Kubernetes Secrets are synchronized from source clusters to destination clusters. Secrets opt in by carrying the `akuity.io/secret-sync: "true"` label (sensitive control-plane Secrets like `argocd-secret` are protected and cannot be synced). (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--secrets))
 - `subdomain` (String) Instance subdomain. By default equals to instance id
 - `sync_history_extension_enabled` (Boolean) Enable Sync History Extension. Sync count and duration graphs as well as event details table on Argo CD application details page.
 
@@ -1148,6 +1171,61 @@ Optional:
 Required:
 
 - `cluster_name` (String) Cluster name
+
+
+
+<a id="nestedatt--argocd--spec--instance_spec--secrets"></a>
+### Nested Schema for `argocd.spec.instance_spec.secrets`
+
+Optional:
+
+- `sources` (Attributes List) Selectors picking the clusters and Secrets to use as synchronization sources. A source matches when both the cluster and secret selectors are satisfied; if a selector is omitted, all clusters or all secrets are selected. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--secrets--sources))
+
+<a id="nestedatt--argocd--spec--instance_spec--secrets--sources"></a>
+### Nested Schema for `argocd.spec.instance_spec.secrets.sources`
+
+Optional:
+
+- `clusters` (Attributes) Cluster selector. If omitted, all clusters are selected. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--secrets--sources--clusters))
+- `secrets` (Attributes) Secret selector. If omitted, all secrets are selected. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--secrets--sources--secrets))
+
+<a id="nestedatt--argocd--spec--instance_spec--secrets--sources--clusters"></a>
+### Nested Schema for `argocd.spec.instance_spec.secrets.sources.clusters`
+
+Optional:
+
+- `match_expressions` (Attributes List) A list of label selector requirements. Requirements are ANDed. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--secrets--sources--clusters--match_expressions))
+- `match_labels` (Map of String) A map of {key,value} pairs. A single entry is equivalent to a `match_expressions` entry with operator `In` and a single value. Requirements are ANDed.
+
+<a id="nestedatt--argocd--spec--instance_spec--secrets--sources--clusters--match_expressions"></a>
+### Nested Schema for `argocd.spec.instance_spec.secrets.sources.clusters.match_expressions`
+
+Optional:
+
+- `key` (String) The label key that the selector applies to.
+- `operator` (String) Operator representing the key's relationship to the values. Valid operators are `In`, `NotIn`, `Exists`, and `DoesNotExist`.
+- `values` (List of String) Array of string values. Must be non-empty for `In`/`NotIn` and must be empty for `Exists`/`DoesNotExist`.
+
+
+
+<a id="nestedatt--argocd--spec--instance_spec--secrets--sources--secrets"></a>
+### Nested Schema for `argocd.spec.instance_spec.secrets.sources.secrets`
+
+Optional:
+
+- `match_expressions` (Attributes List) A list of label selector requirements. Requirements are ANDed. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--secrets--sources--secrets--match_expressions))
+- `match_labels` (Map of String) A map of {key,value} pairs. A single entry is equivalent to a `match_expressions` entry with operator `In` and a single value. Requirements are ANDed.
+
+<a id="nestedatt--argocd--spec--instance_spec--secrets--sources--secrets--match_expressions"></a>
+### Nested Schema for `argocd.spec.instance_spec.secrets.sources.secrets.match_expressions`
+
+Optional:
+
+- `key` (String) The label key that the selector applies to.
+- `operator` (String) Operator representing the key's relationship to the values. Valid operators are `In`, `NotIn`, `Exists`, and `DoesNotExist`.
+- `values` (List of String) Array of string values. Must be non-empty for `In`/`NotIn` and must be empty for `Exists`/`DoesNotExist`.
+
+
 
 
 

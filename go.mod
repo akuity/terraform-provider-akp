@@ -3,8 +3,8 @@ module github.com/akuity/terraform-provider-akp
 go 1.26.1
 
 require (
-	github.com/akuity/api-client-go v0.29.1-0.20260422143359-2c48a11b5794
-	github.com/akuity/grpc-gateway-client v0.0.0-20240912082144-55a48e8b4b89
+	github.com/akuity/api-client-go v0.29.1-0.20260428200556-5955e1dd2095
+	github.com/akuity/grpc-gateway-client v0.0.0-20260504155016-69b3dd1fa227
 	github.com/hashicorp/terraform-plugin-docs v0.21.0
 	github.com/hashicorp/terraform-plugin-framework v1.19.0
 	github.com/hashicorp/terraform-plugin-framework-validators v0.19.0
@@ -14,13 +14,13 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.11.1
-	google.golang.org/genproto/googleapis/api v0.0.0-20260420184626-e10c466a9529
+	google.golang.org/genproto/googleapis/api v0.0.0-20260511170946-3700d4141b60
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.36.0
-	k8s.io/apimachinery v0.36.0
-	k8s.io/cli-runtime v0.36.0
-	k8s.io/client-go v0.36.0
-	k8s.io/kubectl v0.36.0
+	k8s.io/api v0.36.1
+	k8s.io/apimachinery v0.36.1
+	k8s.io/cli-runtime v0.36.1
+	k8s.io/client-go v0.36.1
+	k8s.io/kubectl v0.36.1
 	sigs.k8s.io/kustomize/kyaml v0.21.1
 	sigs.k8s.io/yaml v1.6.0
 )
@@ -29,7 +29,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
-	golang.org/x/mod v0.34.0 // indirect
+	golang.org/x/mod v0.35.0 // indirect
 )
 
 require (
@@ -47,7 +47,7 @@ require (
 	github.com/emicklei/go-restful/v3 v3.13.0 // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20210407135951-1de76d718b3f // indirect
 	github.com/fatih/camelcase v1.0.0 // indirect
-	github.com/fxamacker/cbor/v2 v2.9.1 // indirect
+	github.com/fxamacker/cbor/v2 v2.9.2 // indirect
 	github.com/go-errors/errors v1.5.1 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-openapi/jsonpointer v0.23.1 // indirect
@@ -100,19 +100,19 @@ require (
 	golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/term v0.42.0 // indirect
+	golang.org/x/term v0.43.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
-	golang.org/x/tools v0.43.0 // indirect
+	golang.org/x/tools v0.44.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260420184626-e10c466a9529 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260511170946-3700d4141b60 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/component-base v0.36.0 // indirect
-	k8s.io/component-helpers v0.36.0 // indirect
+	k8s.io/component-base v0.36.1 // indirect
+	k8s.io/component-helpers v0.36.1 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
-	k8s.io/kube-openapi v0.0.0-20260414162039-ec9c827d403f // indirect
-	k8s.io/utils v0.0.0-20260319190234-28399d86e0b5 // indirect
+	k8s.io/kube-openapi v0.0.0-20260512234627-ef417d054102 // indirect
+	k8s.io/utils v0.0.0-20260507154919-ff6756f316d2 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/kustomize/api v0.21.1 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
@@ -137,7 +137,7 @@ require (
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-hclog v1.6.3 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
-	github.com/hashicorp/go-plugin v1.7.0 // indirect
+	github.com/hashicorp/go-plugin v1.8.0 // indirect
 	github.com/hashicorp/go-uuid v1.0.3 // indirect
 	github.com/hashicorp/go-version v1.8.0 // indirect
 	github.com/hashicorp/hc-install v0.9.3 // indirect
@@ -149,7 +149,7 @@ require (
 	github.com/huandu/xstrings v1.4.0 // indirect
 	github.com/imdario/mergo v0.3.15 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
-	github.com/mattn/go-isatty v0.0.21 // indirect
+	github.com/mattn/go-isatty v0.0.22 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
@@ -158,11 +158,11 @@ require (
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/zclconf/go-cty v1.17.0 // indirect
-	golang.org/x/crypto v0.50.0 // indirect
-	golang.org/x/net v0.53.0 // indirect
-	golang.org/x/sys v0.43.0 // indirect
-	golang.org/x/text v0.36.0 // indirect
-	google.golang.org/genproto v0.0.0-20260420184626-e10c466a9529 // indirect
-	google.golang.org/grpc v1.80.0
+	golang.org/x/crypto v0.51.0 // indirect
+	golang.org/x/net v0.54.0 // indirect
+	golang.org/x/sys v0.44.0 // indirect
+	golang.org/x/text v0.37.0 // indirect
+	google.golang.org/genproto v0.0.0-20260511170946-3700d4141b60 // indirect
+	google.golang.org/grpc v1.81.0
 	google.golang.org/protobuf v1.36.12-0.20260120151049-f2248ac996af
 )

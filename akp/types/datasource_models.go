@@ -54,6 +54,7 @@ type InstanceSpecDataSource struct {
 	AkuityIntelligenceExtension     *AkuityIntelligenceExtension   `tfsdk:"akuity_intelligence_extension"`
 	KubeVisionConfig                *KubeVisionConfig              `tfsdk:"kube_vision_config"`
 	AppInAnyNamespaceConfig         *AppInAnyNamespaceConfig       `tfsdk:"app_in_any_namespace_config"`
+	Secrets                         *SecretsManagementConfig       `tfsdk:"secrets"`
 	AppsetPlugins                   []*AppsetPlugins               `tfsdk:"appset_plugins"`
 	ApplicationSetExtension         *ApplicationSetExtension       `tfsdk:"application_set_extension"`
 	MetricsIngressUsername          types.String                   `tfsdk:"metrics_ingress_username"`
@@ -104,6 +105,7 @@ func NewInstanceDataSourceModel(instance *Instance) InstanceDataSource {
 					AkuityIntelligenceExtension:     instance.ArgoCD.Spec.InstanceSpec.AkuityIntelligenceExtension,
 					KubeVisionConfig:                instance.ArgoCD.Spec.InstanceSpec.KubeVisionConfig,
 					AppInAnyNamespaceConfig:         instance.ArgoCD.Spec.InstanceSpec.AppInAnyNamespaceConfig,
+					Secrets:                         instance.ArgoCD.Spec.InstanceSpec.Secrets,
 					AppsetPlugins:                   instance.ArgoCD.Spec.InstanceSpec.AppsetPlugins,
 					ApplicationSetExtension:         instance.ArgoCD.Spec.InstanceSpec.ApplicationSetExtension,
 					MetricsIngressUsername:          instance.ArgoCD.Spec.InstanceSpec.MetricsIngressUsername,

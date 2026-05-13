@@ -16,11 +16,14 @@ import (
 )
 
 func runKargoDefaultShardAgentResource(t *testing.T) {
-	t.Parallel()
+	// Intentionally not parallel: the resource under test mutates the
+	// instance's singleton defaultShardAgent and the framework's destroy
+	// briefly clears it. Running solo prevents sibling tests' agent creates
+	// from racing autoSetDefaultShardAgent into that window.
 	agentName := fmt.Sprintf("kargoagent-default-%s", acctest.RandString(8))
 
 	t.Cleanup(func() {
-		_ = clearDefaultShardAgent(getKargoInstanceId())
+		_ = restoreKargoSentinelAsDefault()
 	})
 
 	resource.Test(t, resource.TestCase{

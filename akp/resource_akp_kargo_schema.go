@@ -207,6 +207,11 @@ func getKargoSpecInstanceAttributes() map[string]schema.Attribute {
 			Optional:            true,
 			Attributes:          getKargoArgoCDUIConfigAttributes(),
 		},
+		"secrets": schema.SingleNestedAttribute{
+			MarkdownDescription: "Cross-cluster secret synchronization configuration. Selects which Kubernetes Secrets are synchronized from source clusters to destination clusters. Secrets opt in by carrying the `akuity.io/secret-sync: \"true\"` label.",
+			Optional:            true,
+			Attributes:          getSecretsManagementConfigAttributes(),
+		},
 	}
 }
 

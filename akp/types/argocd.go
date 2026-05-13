@@ -149,6 +149,26 @@ type CveScanConfig struct {
 	RescanInterval types.String `tfsdk:"rescan_interval"`
 }
 
+type ObjectSelector struct {
+	MatchLabels      types.Map                   `tfsdk:"match_labels"`
+	MatchExpressions []*LabelSelectorRequirement `tfsdk:"match_expressions"`
+}
+
+type LabelSelectorRequirement struct {
+	Key      types.String   `tfsdk:"key"`
+	Operator types.String   `tfsdk:"operator"`
+	Values   []types.String `tfsdk:"values"`
+}
+
+type ClusterSecretMapping struct {
+	Clusters *ObjectSelector `tfsdk:"clusters"`
+	Secrets  *ObjectSelector `tfsdk:"secrets"`
+}
+
+type SecretsManagementConfig struct {
+	Sources []*ClusterSecretMapping `tfsdk:"sources"`
+}
+
 type ApplicationSetExtension struct {
 	Enabled types.Bool `tfsdk:"enabled"`
 }
@@ -184,6 +204,7 @@ type InstanceSpec struct {
 	AkuityIntelligenceExtension     *AkuityIntelligenceExtension   `tfsdk:"akuity_intelligence_extension"`
 	KubeVisionConfig                *KubeVisionConfig              `tfsdk:"kube_vision_config"`
 	AppInAnyNamespaceConfig         *AppInAnyNamespaceConfig       `tfsdk:"app_in_any_namespace_config"`
+	Secrets                         *SecretsManagementConfig       `tfsdk:"secrets"`
 	AppsetPlugins                   []*AppsetPlugins               `tfsdk:"appset_plugins"`
 	ApplicationSetExtension         *ApplicationSetExtension       `tfsdk:"application_set_extension"`
 	MetricsIngressUsername          types.String                   `tfsdk:"metrics_ingress_username"`

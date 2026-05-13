@@ -39,6 +39,16 @@ func TestNoNewManifestGenerationDataSourceFields(t *testing.T) {
 	assert.Equal(t, reflect.TypeFor[types.ConfigManagementToolVersions]().NumField(), len(getConfigManagementToolVersionsDataSourceAttributes()))
 }
 
+// If this test fails, a field has been added/removed to the secret-sync related types.
+// Update the data source schema attribute accordingly. The helpers asserted here are
+// shared between the ArgoCD and Kargo data source schemas.
+func TestNoNewSecretsManagementDataSourceFields(t *testing.T) {
+	assert.Equal(t, reflect.TypeFor[types.SecretsManagementConfig]().NumField(), len(getSecretsManagementConfigDataSourceAttributes()))
+	assert.Equal(t, reflect.TypeFor[types.ClusterSecretMapping]().NumField(), len(getClusterSecretMappingDataSourceAttributes()))
+	assert.Equal(t, reflect.TypeFor[types.ObjectSelector]().NumField(), len(getObjectSelectorDataSourceAttributes()))
+	assert.Equal(t, reflect.TypeFor[types.LabelSelectorRequirement]().NumField(), len(getLabelSelectorRequirementDataSourceAttributes()))
+}
+
 // If this test fails, a field has been added/removed to the ConfigManagementPlugin related type.
 // Update the schema attribute accordingly.
 func TestNoNewConfigManagementPluginDataSourceFields(t *testing.T) {

@@ -382,6 +382,11 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 				objectplanmodifier2.UseStateForNullUnknown(),
 			},
 		},
+		"secrets": schema.SingleNestedAttribute{
+			MarkdownDescription: "Cross-cluster secret synchronization configuration. Selects which Kubernetes Secrets are synchronized from source clusters to destination clusters. Secrets opt in by carrying the `akuity.io/secret-sync: \"true\"` label (sensitive control-plane Secrets like `argocd-secret` are protected and cannot be synced).",
+			Optional:            true,
+			Attributes:          getSecretsManagementConfigAttributes(),
+		},
 		"appset_plugins": schema.ListNestedAttribute{
 			MarkdownDescription: "Application Set plugins",
 			Optional:            true,
@@ -1240,6 +1245,71 @@ func getIncidentWebhookConfigAttributes() map[string]schema.Attribute {
 		"title_path": schema.StringAttribute{
 			MarkdownDescription: "JSON path for incident title field",
 			Optional:            true,
+		},
+	}
+}
+
+func getSecretsManagementConfigAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"sources": schema.ListNestedAttribute{
+			MarkdownDescription: "Selectors picking the clusters and Secrets to use as synchronization sources. A source matches when both the cluster and secret selectors are satisfied; if a selector is omitted, all clusters or all secrets are selected.",
+			Optional:            true,
+			NestedObject: schema.NestedAttributeObject{
+				Attributes: getClusterSecretMappingAttributes(),
+			},
+		},
+	}
+}
+
+func getClusterSecretMappingAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"clusters": schema.SingleNestedAttribute{
+			MarkdownDescription: "Cluster selector. If omitted, all clusters are selected.",
+			Optional:            true,
+			Attributes:          getObjectSelectorAttributes(),
+		},
+		"secrets": schema.SingleNestedAttribute{
+			MarkdownDescription: "Secret selector. If omitted, all secrets are selected.",
+			Optional:            true,
+			Attributes:          getObjectSelectorAttributes(),
+		},
+	}
+}
+
+func getObjectSelectorAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"match_labels": schema.MapAttribute{
+			MarkdownDescription: "A map of {key,value} pairs. A single entry is equivalent to a `match_expressions` entry with operator `In` and a single value. Requirements are ANDed.",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
+		"match_expressions": schema.ListNestedAttribute{
+			MarkdownDescription: "A list of label selector requirements. Requirements are ANDed.",
+			Optional:            true,
+			NestedObject: schema.NestedAttributeObject{
+				Attributes: getLabelSelectorRequirementAttributes(),
+			},
+		},
+	}
+}
+
+func getLabelSelectorRequirementAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"key": schema.StringAttribute{
+			MarkdownDescription: "The label key that the selector applies to.",
+			Optional:            true,
+		},
+		"operator": schema.StringAttribute{
+			MarkdownDescription: "Operator representing the key's relationship to the values. Valid operators are `In`, `NotIn`, `Exists`, and `DoesNotExist`.",
+			Optional:            true,
+			Validators: []validator.String{
+				stringvalidator.OneOf("In", "NotIn", "Exists", "DoesNotExist"),
+			},
+		},
+		"values": schema.ListAttribute{
+			MarkdownDescription: "Array of string values. Must be non-empty for `In`/`NotIn` and must be empty for `Exists`/`DoesNotExist`.",
+			Optional:            true,
+			ElementType:         types.StringType,
 		},
 	}
 }
