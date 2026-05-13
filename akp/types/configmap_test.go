@@ -9,6 +9,7 @@ import (
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func stringMapValue(m map[string]string) tftypes.Map {
@@ -76,4 +77,56 @@ func TestFilterMapToPlannedKeys(t *testing.T) {
 			assert.Equal(t, tc.expected, result)
 		})
 	}
+}
+
+func TestToConfigMapTFModel_PreservesResourceCustomizationsYAMLQuoting(t *testing.T) {
+	// Issue #11183: the portal API parses `resource.customizations` YAML and re-serializes
+	// it on export, which can drop optional YAML quoting around keys like `firstam.net/*`.
+	// When the round-tripped value is semantically equivalent to the planned value,
+	// ToConfigMapTFModel must preserve the planned value verbatim — otherwise Terraform
+	// fails apply with "Provider produced inconsistent result after apply".
+	plannedYAML := "'firstam.net/*':\n  health.lua: |\n    return {}\n"
+	apiReturnedYAML := "firstam.net/*:\n  health.lua: |\n    return {}\n"
+
+	apiData, err := structpb.NewStruct(map[string]any{
+		"resource.customizations": apiReturnedYAML,
+	})
+	require.NoError(t, err)
+
+	oldCM := stringMapValue(map[string]string{
+		"resource.customizations": plannedYAML,
+	})
+
+	var diags diag.Diagnostics
+	result := ToConfigMapTFModel(context.Background(), &diags, apiData, oldCM)
+	require.False(t, diags.HasError(), "unexpected diagnostics: %s", diags.Errors())
+
+	got, ok := result.Elements()["resource.customizations"].(tftypes.String)
+	require.True(t, ok, "expected resource.customizations to be a string")
+	assert.Equal(t, plannedYAML, got.ValueString(), "planned YAML quoting should be preserved when API roundtrip is semantically equivalent")
+}
+
+func TestToConfigMapTFModel_UsesAPIValueWhenResourceCustomizationsDiffer(t *testing.T) {
+	// When the API-returned `resource.customizations` contains keys/values that are
+	// not present in the planned value, the API value should win so state reflects
+	// reality (yamlIsSubset(api, planned) is false).
+	plannedYAML := "'firstam.net/Aurora':\n  health.lua: |\n    return {}\n"
+	apiReturnedYAML := "firstam.net/Aurora:\n  health.lua: |\n    return {}\nfirstam.net/Extra:\n  health.lua: |\n    return {}\n"
+
+	apiData, err := structpb.NewStruct(map[string]any{
+		"resource.customizations": apiReturnedYAML,
+	})
+	require.NoError(t, err)
+
+	oldCM := stringMapValue(map[string]string{
+		"resource.customizations": plannedYAML,
+	})
+
+	var diags diag.Diagnostics
+	result := ToConfigMapTFModel(context.Background(), &diags, apiData, oldCM)
+	require.False(t, diags.HasError(), "unexpected diagnostics: %s", diags.Errors())
+
+	got, ok := result.Elements()["resource.customizations"].(tftypes.String)
+	require.True(t, ok, "expected resource.customizations to be a string")
+	assert.Equal(t, apiReturnedYAML, got.ValueString(), "API value should win when it has keys not in the planned value")
 }

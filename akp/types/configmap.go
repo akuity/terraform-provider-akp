@@ -254,10 +254,27 @@ func ToConfigMapTFModel(ctx context.Context, diagnostics *diag.Diagnostics, data
 			return oldCM
 		}
 	}
+	var oldElems map[string]attr.Value
+	if !oldCM.IsNull() && !oldCM.IsUnknown() {
+		oldElems = oldCM.Elements()
+	}
 	m := data.AsMap()
 	for k, v := range m {
 		switch t := v.(type) {
 		case string:
+			// The portal API parses `resource.customizations` YAML into typed structs and
+			// re-serializes on export, which can drop optional quoting (e.g. `'firstam.net/*'`
+			// becomes `firstam.net/*`). When the round-tripped YAML is semantically equivalent
+			// to the planned value, preserve the planned value verbatim so Terraform doesn't
+			// flag an inconsistent-result on apply.
+			if k == "resource.customizations" {
+				if oldVal, ok := oldElems[k]; ok {
+					if oldStr, ok := configMapStringValue(oldVal); ok && yamlIsSubset(t, oldStr) {
+						m[k] = oldStr
+						continue
+					}
+				}
+			}
 			sortedValue, err := sortJSONString(t)
 			if err != nil {
 				diagnostics.AddError("Client Error", fmt.Sprintf("Unable to sort JSON keys for key %s. %s", k, err))

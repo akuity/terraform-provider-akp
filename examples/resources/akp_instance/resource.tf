@@ -14,6 +14,28 @@ resource "akp_instance" "example" {
             ip          = "1.2.3.4"
           },
         ]
+        # Sync Secrets carrying the `akuity.io/secret-sync=true` label from clusters
+        # labelled `role=secret-source` to all other clusters managed by this instance.
+        secrets = {
+          sources = [
+            {
+              clusters = {
+                match_labels = {
+                  role = "secret-source"
+                }
+              }
+              secrets = {
+                match_expressions = [
+                  {
+                    key      = "akuity.io/secret-sync"
+                    operator = "In"
+                    values   = ["true"]
+                  }
+                ]
+              }
+            }
+          ]
+        }
         cluster_customization_defaults = {
           # app_replication can be set at the instance level as a default for all clusters
           # Individual clusters can override this by setting app_replication in their spec.data

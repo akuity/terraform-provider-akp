@@ -154,6 +154,26 @@ type CveScanConfig struct {
 	RescanInterval string `json:"rescanInterval,omitempty"`
 }
 
+type ObjectSelector struct {
+	MatchLabels      map[string]string           `json:"matchLabels,omitempty"`
+	MatchExpressions []*LabelSelectorRequirement `json:"matchExpressions,omitempty"`
+}
+
+type LabelSelectorRequirement struct {
+	Key      *string  `json:"key,omitempty"`
+	Operator *string  `json:"operator,omitempty"`
+	Values   []string `json:"values,omitempty"`
+}
+
+type ClusterSecretMapping struct {
+	Clusters *ObjectSelector `json:"clusters,omitempty"`
+	Secrets  *ObjectSelector `json:"secrets,omitempty"`
+}
+
+type SecretsManagementConfig struct {
+	Sources []*ClusterSecretMapping `json:"sources,omitempty"`
+}
+
 type ApplicationSetExtension struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
@@ -191,6 +211,7 @@ type InstanceSpec struct {
 	KubeVisionConfig        *KubeVisionConfig        `json:"kubeVisionConfig,omitempty"`
 	AppInAnyNamespaceConfig *AppInAnyNamespaceConfig `json:"appInAnyNamespaceConfig,omitempty"`
 
+	Secrets                 *SecretsManagementConfig `json:"secrets,omitempty"`
 	AppsetPlugins           []*AppsetPlugins         `json:"appsetPlugins,omitempty"`
 	ApplicationSetExtension *ApplicationSetExtension `json:"applicationSetExtension,omitempty"`
 

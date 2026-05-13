@@ -68,13 +68,13 @@ type KargoInstanceSpec struct {
 	IpAllowList                []*KargoIPAllowListEntry `json:"ipAllowList,omitempty"`
 	AgentCustomizationDefaults *KargoAgentCustomization `json:"agentCustomizationDefaults,omitempty"`
 
-	GlobalCredentialsNs    []string                `json:"globalCredentialsNs,omitempty"`
-	GlobalServiceAccountNs []string                `json:"globalServiceAccountNs,omitempty"`
-	AkuityIntelligence     *AkuityIntelligence     `json:"akuityIntelligence,omitempty"`
-	GcConfig               *GarbageCollectorConfig `json:"gcConfig,omitempty"`
-	PromoControllerEnabled *bool                   `json:"promoControllerEnabled,omitempty"`
-
-	ArgocdUi *KargoArgoCDUIConfig `json:"argocdUi,omitempty"`
+	GlobalCredentialsNs    []string                 `json:"globalCredentialsNs,omitempty"`
+	GlobalServiceAccountNs []string                 `json:"globalServiceAccountNs,omitempty"`
+	AkuityIntelligence     *AkuityIntelligence      `json:"akuityIntelligence,omitempty"`
+	GcConfig               *GarbageCollectorConfig  `json:"gcConfig,omitempty"`
+	PromoControllerEnabled *bool                    `json:"promoControllerEnabled,omitempty"`
+	Secrets                *SecretsManagementConfig `json:"secrets,omitempty"`
+	ArgocdUi               *KargoArgoCDUIConfig     `json:"argocdUi,omitempty"`
 }
 
 type KargoArgoCDUIConfig struct {

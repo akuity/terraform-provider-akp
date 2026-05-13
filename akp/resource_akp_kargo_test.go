@@ -77,6 +77,49 @@ func runKargoConfigTests(t *testing.T) {
 				),
 			},
 			testAccKargoImportStateStep(name, testAccKargoSecretImportStateVerifyIgnore...),
+			// Step 6: Secrets Sync
+			{
+				Config: providerConfig + testAccKargoInstanceResourceConfigSecretsSync(name),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					// Sources: two entries, mixed selector shapes
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.secrets.sources.#", "2"),
+					// sources[0].clusters: match_labels + match_expressions on the same selector
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.secrets.sources.0.clusters.match_labels.role", "secret-source"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.secrets.sources.0.clusters.match_labels.region", "us-east-1"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.secrets.sources.0.clusters.match_expressions.#", "1"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.secrets.sources.0.clusters.match_expressions.0.key", "tier"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.secrets.sources.0.clusters.match_expressions.0.operator", "In"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.secrets.sources.0.clusters.match_expressions.0.values.#", "2"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.secrets.sources.0.clusters.match_expressions.0.values.0", "primary"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.secrets.sources.0.clusters.match_expressions.0.values.1", "secondary"),
+					// sources[0].secrets: multiple expressions with different operators
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.secrets.sources.0.secrets.match_labels.app", "shared"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.secrets.sources.0.secrets.match_expressions.#", "2"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.secrets.sources.0.secrets.match_expressions.0.key", "akuity.io/secret-sync"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.secrets.sources.0.secrets.match_expressions.0.operator", "In"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.secrets.sources.0.secrets.match_expressions.0.values.0", "true"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.secrets.sources.0.secrets.match_expressions.1.key", "env"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.secrets.sources.0.secrets.match_expressions.1.operator", "NotIn"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.secrets.sources.0.secrets.match_expressions.1.values.0", "dev"),
+					// sources[1]: simpler shape, exercises the second list element
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.secrets.sources.1.clusters.match_labels.role", "backup-source"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.secrets.sources.1.secrets.match_expressions.0.key", "akuity.io/backup"),
+					// Data source: verify sources and match_expressions paths round-trip on read
+					resource.TestCheckResourceAttr("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.secrets.sources.#", "2"),
+					resource.TestCheckResourceAttr("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.secrets.sources.0.clusters.match_labels.role", "secret-source"),
+					resource.TestCheckResourceAttr("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.secrets.sources.0.secrets.match_expressions.1.operator", "NotIn"),
+					resource.TestCheckResourceAttr("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.secrets.sources.0.secrets.match_expressions.0.values.0", "true"),
+				),
+			},
+			// Re-apply to verify no drift
+			{
+				Config: providerConfig + testAccKargoInstanceResourceConfigSecretsSync(name),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectEmptyPlan(),
+					},
+				},
+			},
 		},
 	})
 }
@@ -483,6 +526,78 @@ resource "akp_kargo_instance" "test" {
   kargo_secret = {
     adminAccountPasswordHash = "$2a$10$wThs/VVwx5Tbygkk5Rzbv.V8hR8JYYmRdBiGjue9pd0YcEXl7.Kn."
   }
+}`, name, getKargoVersion())
+}
+
+func testAccKargoInstanceResourceConfigSecretsSync(name string) string {
+	return fmt.Sprintf(`
+resource "akp_kargo_instance" "test" {
+  name = %q
+  kargo = {
+    spec = {
+      version     = %q
+      description = "Consolidated test: kargo secrets sync"
+      kargo_instance_spec = {
+        promo_controller_enabled = true
+        secrets = {
+          sources = [
+            {
+              clusters = {
+                match_labels = {
+                  role   = "secret-source"
+                  region = "us-east-1"
+                }
+                match_expressions = [
+                  {
+                    key      = "tier"
+                    operator = "In"
+                    values   = ["primary", "secondary"]
+                  }
+                ]
+              }
+              secrets = {
+                match_labels = {
+                  app = "shared"
+                }
+                match_expressions = [
+                  {
+                    key      = "akuity.io/secret-sync"
+                    operator = "In"
+                    values   = ["true"]
+                  },
+                  {
+                    key      = "env"
+                    operator = "NotIn"
+                    values   = ["dev"]
+                  }
+                ]
+              }
+            },
+            {
+              clusters = {
+                match_labels = {
+                  role = "backup-source"
+                }
+              }
+              secrets = {
+                match_expressions = [
+                  {
+                    key      = "akuity.io/backup"
+                    operator = "In"
+                    values   = ["enabled"]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
+
+data "akp_kargo_instance" "test" {
+  name = akp_kargo_instance.test.name
 }`, name, getKargoVersion())
 }
 

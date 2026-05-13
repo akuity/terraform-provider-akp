@@ -68,6 +68,7 @@ type KargoInstanceSpec struct {
 	AkuityIntelligence         *AkuityIntelligence      `tfsdk:"akuity_intelligence"`
 	GcConfig                   *GarbageCollectorConfig  `tfsdk:"gc_config"`
 	PromoControllerEnabled     types.Bool               `tfsdk:"promo_controller_enabled"`
+	Secrets                    *SecretsManagementConfig `tfsdk:"secrets"`
 	ArgocdUi                   *KargoArgoCDUIConfig     `tfsdk:"argocd_ui"`
 }
 

@@ -86,6 +86,7 @@ Read-Only:
 - `multi_cluster_k8s_dashboard_enabled` (Boolean) Enable the KubeVision feature
 - `privileged_notification_cluster` (String) Cluster name where notifications controller will be installed with elevated privileges to see controlplane and intg. cluster apps
 - `repo_server_delegate` (Attributes) In case some clusters don't have network access to your private Git provider you can delegate these operations to one specific cluster. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--repo_server_delegate))
+- `secrets` (Attributes) Cross-cluster secret synchronization configuration. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--secrets))
 - `subdomain` (String) Instance subdomain. By default equals to instance id
 - `sync_history_extension_enabled` (Boolean) Enable Sync History Extension. Sync count and duration graphs as well as event details table on Argo CD application details page.
 
@@ -422,6 +423,61 @@ Read-Only:
 Read-Only:
 
 - `cluster_name` (String) Cluster name
+
+
+
+<a id="nestedatt--argocd--spec--instance_spec--secrets"></a>
+### Nested Schema for `argocd.spec.instance_spec.secrets`
+
+Read-Only:
+
+- `sources` (Attributes List) Cluster/secret selectors picking the synchronization sources. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--secrets--sources))
+
+<a id="nestedatt--argocd--spec--instance_spec--secrets--sources"></a>
+### Nested Schema for `argocd.spec.instance_spec.secrets.sources`
+
+Read-Only:
+
+- `clusters` (Attributes) Cluster selector. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--secrets--sources--clusters))
+- `secrets` (Attributes) Secret selector. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--secrets--sources--secrets))
+
+<a id="nestedatt--argocd--spec--instance_spec--secrets--sources--clusters"></a>
+### Nested Schema for `argocd.spec.instance_spec.secrets.sources.clusters`
+
+Read-Only:
+
+- `match_expressions` (Attributes List) List of label selector requirements. Requirements are ANDed. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--secrets--sources--clusters--match_expressions))
+- `match_labels` (Map of String) Map of label key/value pairs. Requirements are ANDed.
+
+<a id="nestedatt--argocd--spec--instance_spec--secrets--sources--clusters--match_expressions"></a>
+### Nested Schema for `argocd.spec.instance_spec.secrets.sources.clusters.match_expressions`
+
+Read-Only:
+
+- `key` (String) The label key.
+- `operator` (String) The relationship between the key and the values. One of `In`, `NotIn`, `Exists`, `DoesNotExist`.
+- `values` (List of String) Array of string values.
+
+
+
+<a id="nestedatt--argocd--spec--instance_spec--secrets--sources--secrets"></a>
+### Nested Schema for `argocd.spec.instance_spec.secrets.sources.secrets`
+
+Read-Only:
+
+- `match_expressions` (Attributes List) List of label selector requirements. Requirements are ANDed. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--secrets--sources--secrets--match_expressions))
+- `match_labels` (Map of String) Map of label key/value pairs. Requirements are ANDed.
+
+<a id="nestedatt--argocd--spec--instance_spec--secrets--sources--secrets--match_expressions"></a>
+### Nested Schema for `argocd.spec.instance_spec.secrets.sources.secrets.match_expressions`
+
+Read-Only:
+
+- `key` (String) The label key.
+- `operator` (String) The relationship between the key and the values. One of `In`, `NotIn`, `Exists`, `DoesNotExist`.
+- `values` (List of String) Array of string values.
+
+
 
 
 

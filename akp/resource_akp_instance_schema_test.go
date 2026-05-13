@@ -39,6 +39,15 @@ func TestNoNewManifestGenerationFields(t *testing.T) {
 	assert.Equal(t, reflect.TypeFor[types.ConfigManagementToolVersions]().NumField(), len(getConfigManagementToolVersionsAttributes()))
 }
 
+// If this test fails, a field has been added/removed to the secret-sync related types.
+// Update the schema attribute accordingly.
+func TestNoNewSecretsManagementFields(t *testing.T) {
+	assert.Equal(t, reflect.TypeFor[types.SecretsManagementConfig]().NumField(), len(getSecretsManagementConfigAttributes()))
+	assert.Equal(t, reflect.TypeFor[types.ClusterSecretMapping]().NumField(), len(getClusterSecretMappingAttributes()))
+	assert.Equal(t, reflect.TypeFor[types.ObjectSelector]().NumField(), len(getObjectSelectorAttributes()))
+	assert.Equal(t, reflect.TypeFor[types.LabelSelectorRequirement]().NumField(), len(getLabelSelectorRequirementAttributes()))
+}
+
 // If this test fails, a field has been added/removed to the ConfigManagementPlugin related type.
 // Update the schema attribute accordingly.
 func TestNoNewConfigManagementPluginFields(t *testing.T) {

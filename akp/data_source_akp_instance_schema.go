@@ -212,6 +212,11 @@ func getInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			Attributes:          getAppInAnyNamespaceConfigDataSourceAttributes(),
 		},
+		"secrets": schema.SingleNestedAttribute{
+			MarkdownDescription: "Cross-cluster secret synchronization configuration.",
+			Computed:            true,
+			Attributes:          getSecretsManagementConfigDataSourceAttributes(),
+		},
 		"appset_plugins": schema.ListNestedAttribute{
 			MarkdownDescription: "Application Set plugins",
 			Computed:            true,
@@ -256,6 +261,68 @@ func getManifestGenerationDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Kustomize version configuration",
 			Computed:            true,
 			Attributes:          getConfigManagementToolVersionsDataSourceAttributes(),
+		},
+	}
+}
+
+func getSecretsManagementConfigDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"sources": schema.ListNestedAttribute{
+			MarkdownDescription: "Cluster/secret selectors picking the synchronization sources.",
+			Computed:            true,
+			NestedObject: schema.NestedAttributeObject{
+				Attributes: getClusterSecretMappingDataSourceAttributes(),
+			},
+		},
+	}
+}
+
+func getClusterSecretMappingDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"clusters": schema.SingleNestedAttribute{
+			MarkdownDescription: "Cluster selector.",
+			Computed:            true,
+			Attributes:          getObjectSelectorDataSourceAttributes(),
+		},
+		"secrets": schema.SingleNestedAttribute{
+			MarkdownDescription: "Secret selector.",
+			Computed:            true,
+			Attributes:          getObjectSelectorDataSourceAttributes(),
+		},
+	}
+}
+
+func getObjectSelectorDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"match_labels": schema.MapAttribute{
+			MarkdownDescription: "Map of label key/value pairs. Requirements are ANDed.",
+			Computed:            true,
+			ElementType:         types.StringType,
+		},
+		"match_expressions": schema.ListNestedAttribute{
+			MarkdownDescription: "List of label selector requirements. Requirements are ANDed.",
+			Computed:            true,
+			NestedObject: schema.NestedAttributeObject{
+				Attributes: getLabelSelectorRequirementDataSourceAttributes(),
+			},
+		},
+	}
+}
+
+func getLabelSelectorRequirementDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"key": schema.StringAttribute{
+			MarkdownDescription: "The label key.",
+			Computed:            true,
+		},
+		"operator": schema.StringAttribute{
+			MarkdownDescription: "The relationship between the key and the values. One of `In`, `NotIn`, `Exists`, `DoesNotExist`.",
+			Computed:            true,
+		},
+		"values": schema.ListAttribute{
+			MarkdownDescription: "Array of string values.",
+			Computed:            true,
+			ElementType:         types.StringType,
 		},
 	}
 }

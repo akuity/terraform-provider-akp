@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/plancheck"
+	"github.com/hashicorp/terraform-plugin-testing/terraform"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -26,13 +27,22 @@ import (
 )
 
 var (
-	kargoInstanceId    string
-	kargoInstanceName  string
-	kargoVersion       string
-	kargoInstanceOwned bool
-	kargoInstanceOnce  sync.Once
-	kargoInstanceMu    sync.RWMutex
+	kargoInstanceId        string
+	kargoInstanceName      string
+	kargoVersion           string
+	kargoInstanceOwned     bool
+	kargoInstanceOnce      sync.Once
+	kargoInstanceMu        sync.RWMutex
+	kargoSentinelAgentId   string
+	kargoSentinelAgentName = "sentinel-default-agent"
+	kargoSentinelAgentMu   sync.RWMutex
 )
+
+func getKargoSentinelAgentId() string {
+	kargoSentinelAgentMu.RLock()
+	defer kargoSentinelAgentMu.RUnlock()
+	return kargoSentinelAgentId
+}
 
 func getKargoInstanceId() string {
 	kargoInstanceMu.RLock()
@@ -235,9 +245,130 @@ func createTestKargoInstance() string {
 		if err != nil {
 			panic(fmt.Sprintf("Failed to add Warehouse to Kargo instance: %v", err))
 		}
+
+		ensureKargoSentinelAgent(ctx, akpCli, workspace.Id)
 	})
 
 	return kargoInstanceId
+}
+
+func findExistingSentinelAgent(ctx context.Context, akpCli *AkpCli, workspaceID string) string {
+	agentsResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ListKargoInstanceAgentsResponse, error) {
+		return akpCli.KargoCli.ListKargoInstanceAgents(ctx, &kargov1.ListKargoInstanceAgentsRequest{
+			OrganizationId: akpCli.OrgId,
+			InstanceId:     kargoInstanceId,
+			WorkspaceId:    workspaceID,
+		})
+	}, "list kargo agents for sentinel")
+	if err != nil {
+		panic(fmt.Sprintf("Failed to list kargo agents while resolving sentinel: %v", err))
+	}
+	for _, a := range agentsResp.GetAgents() {
+		if a.GetName() == kargoSentinelAgentName {
+			return a.GetId()
+		}
+	}
+	return ""
+}
+
+func ensureKargoSentinelAgent(ctx context.Context, akpCli *AkpCli, workspaceID string) {
+	sentinelID := findExistingSentinelAgent(ctx, akpCli, workspaceID)
+	if sentinelID == "" {
+		agentStruct, err := structpb.NewStruct(map[string]any{
+			"apiVersion": "kargo.akuity.io/v1alpha1",
+			"kind":       "KargoAgent",
+			"metadata": map[string]any{
+				"name":      kargoSentinelAgentName,
+				"namespace": "akuity",
+			},
+			"spec": map[string]any{
+				"data": map[string]any{
+					"akuityManaged": true,
+				},
+			},
+		})
+		if err != nil {
+			panic(fmt.Sprintf("Failed to build sentinel agent struct: %v", err))
+		}
+
+		applyReq := &kargov1.ApplyKargoInstanceRequest{
+			OrganizationId: akpCli.OrgId,
+			Id:             kargoInstanceId,
+			IdType:         idv1.Type_ID,
+			WorkspaceId:    workspaceID,
+			Agents:         []*structpb.Struct{agentStruct},
+		}
+		_, err = retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ApplyKargoInstanceResponse, error) {
+			return akpCli.KargoCli.ApplyKargoInstance(ctx, applyReq)
+		}, "create sentinel kargo agent")
+		if err != nil {
+			panic(fmt.Sprintf("Failed to create sentinel kargo agent: %v", err))
+		}
+
+		sentinelID = findExistingSentinelAgent(ctx, akpCli, workspaceID)
+		if sentinelID == "" {
+			panic(fmt.Sprintf("Sentinel agent %q not found after apply", kargoSentinelAgentName))
+		}
+	}
+
+	patchStruct, err := structpb.NewStruct(map[string]any{
+		"spec": map[string]any{
+			"defaultShardAgent": sentinelID,
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("Failed to build sentinel default-shard patch: %v", err))
+	}
+	_, err = retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.PatchKargoInstanceResponse, error) {
+		return akpCli.KargoCli.PatchKargoInstance(ctx, &kargov1.PatchKargoInstanceRequest{
+			OrganizationId: akpCli.OrgId,
+			Id:             kargoInstanceId,
+			Patch:          patchStruct,
+		})
+	}, "pin sentinel as default shard agent")
+	if err != nil {
+		panic(fmt.Sprintf("Failed to pin sentinel as default shard agent: %v", err))
+	}
+
+	kargoSentinelAgentMu.Lock()
+	kargoSentinelAgentId = sentinelID
+	kargoSentinelAgentMu.Unlock()
+}
+
+// restoreKargoSentinelAsDefault re-points the shared Kargo instance's
+// defaultShardAgent back at the sentinel agent. Tests that intentionally
+// move the default to one of their own agents must call this in t.Cleanup
+// so subsequent parallel tests do not autoSet their own agent as default.
+func restoreKargoSentinelAsDefault() error {
+	sentinelID := getKargoSentinelAgentId()
+	if sentinelID == "" {
+		return nil
+	}
+
+	akpCli := getTestAkpCli()
+	if akpCli == nil {
+		return nil
+	}
+	ctx := context.Background()
+	ctx = httpctx.SetAuthorizationHeader(ctx, akpCli.Cred.Scheme(), akpCli.Cred.Credential())
+
+	patchStruct, err := structpb.NewStruct(map[string]any{
+		"spec": map[string]any{
+			"defaultShardAgent": sentinelID,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("build sentinel restore patch: %w", err)
+	}
+	_, err = akpCli.KargoCli.PatchKargoInstance(ctx, &kargov1.PatchKargoInstanceRequest{
+		OrganizationId: akpCli.OrgId,
+		Id:             getKargoInstanceId(),
+		Patch:          patchStruct,
+	})
+	if err != nil {
+		return fmt.Errorf("restore sentinel as default shard: %w", err)
+	}
+	return nil
 }
 
 func fetchKargoInstanceDetails(instanceId string) {
@@ -260,6 +391,7 @@ func fetchKargoInstanceDetails(instanceId string) {
 		if instance.GetId() == instanceId {
 			kargoInstanceName = instance.GetName()
 			kargoVersion = instance.GetVersion()
+			ensureKargoSentinelAgent(ctx, akpCli, instance.GetWorkspaceId())
 			return
 		}
 	}
@@ -291,80 +423,14 @@ func cleanupTestKargoInstance() {
 	})
 }
 
-func clearDefaultShardAgent(instanceId string) error {
-	if instanceId == "" {
-		return nil
-	}
-
-	akpCli := getTestAkpCli()
-	ctx := context.Background()
-	ctx = httpctx.SetAuthorizationHeader(ctx, akpCli.Cred.Scheme(), akpCli.Cred.Credential())
-
-	// Get the Kargo instance by name
-	instanceResp, err := akpCli.KargoCli.GetKargoInstance(ctx, &kargov1.GetKargoInstanceRequest{
-		OrganizationId: akpCli.OrgId,
-		Name:           kargoInstanceName,
-	})
-	if err != nil {
-		if status.Code(err) == codes.NotFound {
-			return nil // Instance doesn't exist, nothing to clear
-		}
-		return fmt.Errorf("failed to get Kargo instance: %v", err)
-	}
-
-	// Export the Kargo instance to get the full spec
-	exportResp, err := akpCli.KargoCli.ExportKargoInstance(ctx, &kargov1.ExportKargoInstanceRequest{
-		OrganizationId: akpCli.OrgId,
-		Id:             instanceResp.Instance.Id,
-		WorkspaceId:    instanceResp.Instance.WorkspaceId,
-	})
-	if err != nil {
-		if status.Code(err) == codes.NotFound {
-			return nil
-		}
-		return fmt.Errorf("failed to export Kargo instance: %v", err)
-	}
-
-	// Check if there's a default shard agent set
-	if exportResp.Kargo == nil {
-		return nil
-	}
-
-	specMap := exportResp.Kargo.AsMap()
-	if spec, ok := specMap["spec"].(map[string]any); ok {
-		if kargoInstanceSpec, ok := spec["kargoInstanceSpec"].(map[string]any); ok {
-			if defaultShardAgent, ok := kargoInstanceSpec["defaultShardAgent"].(string); ok && defaultShardAgent != "" {
-				// Clear the default shard agent
-				kargoInstanceSpec["defaultShardAgent"] = ""
-				updatedKargo, err := structpb.NewStruct(specMap)
-				if err != nil {
-					return fmt.Errorf("failed to create updated Kargo struct: %v", err)
-				}
-
-				updateReq := &kargov1.ApplyKargoInstanceRequest{
-					OrganizationId: akpCli.OrgId,
-					Id:             kargoInstanceName,
-					IdType:         idv1.Type_NAME,
-					Kargo:          updatedKargo,
-				}
-				_, err = akpCli.KargoCli.ApplyKargoInstance(ctx, updateReq)
-				if err != nil {
-					return fmt.Errorf("failed to clear default shard agent: %v", err)
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
 func runKargoAgentResource(t *testing.T) {
 	t.Parallel()
 	name := fmt.Sprintf("kargoagent-%s", acctest.RandString(10))
 
-	// Ensure we clear the default shard agent before tests clean up
+	// Restore the sentinel as the default shard agent so subsequent parallel
+	// tests do not re-trigger autoSetDefaultShardAgent on the shared instance.
 	t.Cleanup(func() {
-		_ = clearDefaultShardAgent(getKargoInstanceId())
+		_ = restoreKargoSentinelAsDefault()
 	})
 
 	resource.Test(t, resource.TestCase{
@@ -1193,4 +1259,130 @@ resource "akp_kargo_agent" "test" {
   remove_agent_resources_on_destroy = true
 }
 `, kargoInstanceId, name, getInstanceId())
+}
+
+func runKargoAgent_DefaultShardDeleteRejected(t *testing.T) {
+	name := fmt.Sprintf("kargoagent-defrej-%s", acctest.RandString(8))
+	instanceID := getKargoInstanceId()
+
+	var agentID string
+	t.Cleanup(func() {
+		_ = restoreKargoSentinelAsDefault()
+		if agentID == "" {
+			return
+		}
+		akpCli := getTestAkpCli()
+		if akpCli == nil {
+			return
+		}
+		ctx := context.Background()
+		ctx = httpctx.SetAuthorizationHeader(ctx, akpCli.Cred.Scheme(), akpCli.Cred.Credential())
+		_, _ = akpCli.KargoCli.DeleteInstanceAgent(ctx, &kargov1.DeleteInstanceAgentRequest{
+			OrganizationId: akpCli.OrgId,
+			InstanceId:     instanceID,
+			Id:             agentID,
+		})
+	})
+
+	pinAgentAsDefault := func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources["akp_kargo_agent.test"]
+		if !ok {
+			return fmt.Errorf("resource akp_kargo_agent.test not found in state")
+		}
+		agentID = rs.Primary.Attributes["id"]
+		if agentID == "" {
+			return fmt.Errorf("resource akp_kargo_agent.test has empty id")
+		}
+		akpCli := getTestAkpCli()
+		ctx := context.Background()
+		ctx = httpctx.SetAuthorizationHeader(ctx, akpCli.Cred.Scheme(), akpCli.Cred.Credential())
+		patchStruct, err := structpb.NewStruct(map[string]any{
+			"spec": map[string]any{
+				"defaultShardAgent": agentID,
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("build pin patch: %w", err)
+		}
+		_, err = akpCli.KargoCli.PatchKargoInstance(ctx, &kargov1.PatchKargoInstanceRequest{
+			OrganizationId: akpCli.OrgId,
+			Id:             instanceID,
+			Patch:          patchStruct,
+		})
+		if err != nil {
+			return fmt.Errorf("pin agent as default: %w", err)
+		}
+		return nil
+	}
+
+	verifyAgentStillPresent := func(s *terraform.State) error {
+		akpCli := getTestAkpCli()
+		ctx := context.Background()
+		ctx = httpctx.SetAuthorizationHeader(ctx, akpCli.Cred.Scheme(), akpCli.Cred.Credential())
+		resp, err := akpCli.KargoCli.GetKargoInstanceAgent(ctx, &kargov1.GetKargoInstanceAgentRequest{
+			OrganizationId: akpCli.OrgId,
+			InstanceId:     instanceID,
+			Id:             agentID,
+		})
+		if err != nil {
+			return fmt.Errorf("expected agent %s to still exist after blocked destroy: %w", agentID, err)
+		}
+		if resp.GetAgent().GetId() != agentID {
+			return fmt.Errorf("expected agent id %s, got %s", agentID, resp.GetAgent().GetId())
+		}
+		instancesResp, err := akpCli.KargoCli.ListKargoInstances(ctx, &kargov1.ListKargoInstancesRequest{
+			OrganizationId: akpCli.OrgId,
+		})
+		if err != nil {
+			return fmt.Errorf("list kargo instances: %w", err)
+		}
+		for _, instance := range instancesResp.GetInstances() {
+			if instance.GetId() != instanceID {
+				continue
+			}
+			if got := instance.GetSpec().GetDefaultShardAgent(); got != agentID {
+				return fmt.Errorf("expected defaultShardAgent %s, got %q", agentID, got)
+			}
+			return nil
+		}
+		return fmt.Errorf("kargo instance %s not found", instanceID)
+	}
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Step 1: create the agent. autoSetDefaultShardAgent is suppressed
+			// by the sentinel, so we explicitly PATCH the instance's default
+			// to this agent in the Check.
+			{
+				Config: providerConfig + testAccKargoAgentResourceConfig("small", name, "default-shard delete rejection", instanceID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("akp_kargo_agent.test", "id"),
+					pinAgentAsDefault,
+				),
+			},
+			// Step 2: destroy via empty config. The preflight check in
+			// kargoAgentDelete (and the API guard behind it) must reject the
+			// delete with the exact error wording, leaving the agent and the
+			// instance's defaultShardAgent reference intact.
+			{
+				Config:      providerConfig,
+				Destroy:     true,
+				ExpectError: regexp.MustCompile(`cannot delete default shard agent`),
+				Check:       verifyAgentStillPresent,
+			},
+			{
+				PreConfig: func() {
+					if err := restoreKargoSentinelAsDefault(); err != nil {
+						t.Fatalf("restore sentinel default for post-test destroy: %v", err)
+					}
+				},
+				Config: providerConfig + testAccKargoAgentResourceConfig("small", name, "default-shard delete rejection", instanceID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("akp_kargo_agent.test", "id"),
+				),
+			},
+		},
+	})
 }

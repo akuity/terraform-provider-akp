@@ -68,6 +68,28 @@ resource "akp_kargo_instance" "example" {
       }
       kargo_instance_spec = {
         backend_ip_allow_list_enabled = true
+        # Sync Secrets carrying the `akuity.io/secret-sync=true` label from clusters
+        # labelled `role=secret-source` to all other clusters managed by this instance.
+        secrets = {
+          sources = [
+            {
+              clusters = {
+                match_labels = {
+                  role = "secret-source"
+                }
+              }
+              secrets = {
+                match_expressions = [
+                  {
+                    key      = "akuity.io/secret-sync"
+                    operator = "In"
+                    values   = ["true"]
+                  }
+                ]
+              }
+            }
+          ]
+        }
         ip_allow_list = [
           {
             ip          = "88.88.88.88"

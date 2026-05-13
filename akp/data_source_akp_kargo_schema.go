@@ -135,6 +135,11 @@ func getKargoInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			Attributes:          getKargoArgoCDUIConfigDataSourceAttributes(),
 		},
+		"secrets": schema.SingleNestedAttribute{
+			MarkdownDescription: "Cross-cluster secret synchronization configuration.",
+			Computed:            true,
+			Attributes:          getSecretsManagementConfigDataSourceAttributes(),
+		},
 	}
 }
 
