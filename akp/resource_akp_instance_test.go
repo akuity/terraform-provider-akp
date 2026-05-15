@@ -327,6 +327,22 @@ func runInstanceConfigTests(t *testing.T) {
 					},
 				},
 			}},
+			{label: "Modify unrelated field with combined customizations in state", step: resource.TestStep{
+				// Regression test for https://github.com/akuityio/akuity-platform/issues/11210:
+				// The portal API splits non-wildcard entries of a combined `resource.customizations`
+				// YAML back into individual `resource.customizations.<resource>.<group>_<kind>` keys
+				// on export. Without filtering in ToConfigMapTFModel, those individual keys leak
+				// into state alongside the planned combined value. SuppressNonConfigKeys then
+				// preserves both forms in any plan that modifies an unrelated field, and apply
+				// fails with: `rpc error: code = InvalidArgument desc = duplicate resources not
+				// allowed. group: argoproj.io, kind: Application` because the portal parses the
+				// same group/kind out of each form.
+				Config: providerConfig + testAccInstanceResourceCombinedResourceCustomizationsWithDescription(name, "Updated description for duplicate resources regression"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.description", "Updated description for duplicate resources regression"),
+					resource.TestCheckResourceAttrSet("akp_instance.test", "argocd_cm.resource.customizations"),
+				),
+			}},
 			{label: "Remove customizations", step: resource.TestStep{
 				Config: providerConfig + testAccInstanceResourceNoCustomizations(name),
 				Check: resource.ComposeAggregateTestCheckFunc(
@@ -466,6 +482,53 @@ resource "akp_instance" "test" {
   }
 }
 `, name, getInstanceVersion())
+}
+
+// testAccInstanceResourceCombinedResourceCustomizationsWithDescription returns the same
+// combined `resource.customizations` config as testAccInstanceResourceCombinedResourceCustomizations
+// but with a configurable description so we can force a plan diff outside `argocd_cm`.
+// The plan modifier SuppressNonConfigKeys preserves the (post-refresh) state value of
+// argocd_cm verbatim when config is a subset of state; pairing that with a forced diff
+// elsewhere is what makes Update fire and surfaces the "duplicate resources not allowed"
+// API error when state has leaked both combined and individual forms.
+func testAccInstanceResourceCombinedResourceCustomizationsWithDescription(name, description string) string {
+	return fmt.Sprintf(`
+resource "akp_instance" "test" {
+  name = %q
+  argocd = {
+    spec = {
+      description = %q
+      version     = %q
+      instance_spec = {
+        declarative_management_enabled = true
+        manifest_generation = {
+          kustomize = {
+            default_version = "v5.4.3"
+          }
+        }
+      }
+    }
+  }
+  argocd_cm = {
+    "exec.enabled" = "true"
+    "helm.enabled" = "true"
+    "resource.customizations" = <<-EOF
+      'argoproj.io/Application':
+        health.lua: |
+          hs = {}
+          hs.status = "Healthy"
+          hs.message = "Healthy"
+          return hs
+      '*.crossplane.io/*':
+        health.lua: |
+          hs = {}
+          hs.status = "Healthy"
+          hs.message = "Resource is up-to-date."
+          return hs
+    EOF
+  }
+}
+`, name, description, getInstanceVersion())
 }
 
 func testAccInstanceResourceNoCustomizations(name string) string {
