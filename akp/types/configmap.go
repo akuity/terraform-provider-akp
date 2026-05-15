@@ -258,15 +258,42 @@ func ToConfigMapTFModel(ctx context.Context, diagnostics *diag.Diagnostics, data
 	if !oldCM.IsNull() && !oldCM.IsUnknown() {
 		oldElems = oldCM.Elements()
 	}
+
+	// When the combined `resource.customizations` from the API is preserved as the
+	// planned YAML below, the server also returned each non-wildcard entry as a separate
+	// `resource.customizations.<field>.<group_kind>` key. Those become duplicates of the
+	// preserved combined form, so collect their group/kinds here and strip the matching
+	// individual keys from the API map — otherwise ToConfigMapAPIModel sends both forms
+	// and the portal rejects with "duplicate resources not allowed". We only strip when
+	// preservation actually fires (yamlIsSubset); if the API combined wins, the individual
+	// keys are the only place those group/kinds live and must be kept.
+	var coveredGroupKinds map[string]bool
+	if oldCombined, ok := oldElems["resource.customizations"]; ok {
+		if apiCombined, ok := data.AsMap()["resource.customizations"].(string); ok {
+			if oldStr, ok := configMapStringValue(oldCombined); ok && yamlIsSubset(apiCombined, oldStr) {
+				coveredGroupKinds = groupKindsFromCombinedCustomizations(oldCombined)
+			}
+		}
+	}
+
 	m := data.AsMap()
 	for k, v := range m {
+		if len(coveredGroupKinds) > 0 && k != "resource.customizations" {
+			if _, inOld := oldElems[k]; !inOld {
+				if gk, ok := groupKindSuffix(k); ok && coveredGroupKinds[gk] {
+					delete(m, k)
+					continue
+				}
+			}
+		}
 		switch t := v.(type) {
 		case string:
 			// The portal API parses `resource.customizations` YAML into typed structs and
-			// re-serializes on export, which can drop optional quoting (e.g. `'firstam.net/*'`
-			// becomes `firstam.net/*`). When the round-tripped YAML is semantically equivalent
+			// re-serializes on export, which can drop optional quoting (e.g. `'somecompany.net/*'`
+			// becomes `somecompany.net/*`). When the round-tripped YAML is semantically equivalent
 			// to the planned value, preserve the planned value verbatim so Terraform doesn't
-			// flag an inconsistent-result on apply.
+			// flag an inconsistent-result on apply. The pre-loop block above relies on this
+			// branch firing to keep the strip and preservation in sync.
 			if k == "resource.customizations" {
 				if oldVal, ok := oldElems[k]; ok {
 					if oldStr, ok := configMapStringValue(oldVal); ok && yamlIsSubset(t, oldStr) {
@@ -289,6 +316,41 @@ func ToConfigMapTFModel(ctx context.Context, diagnostics *diag.Diagnostics, data
 	newData, diag := tftypes.MapValueFrom(ctx, tftypes.StringType, &m)
 	diagnostics.Append(diag...)
 	return newData
+}
+
+// groupKindsFromCombinedCustomizations parses a combined `resource.customizations` YAML
+// value and returns the set of `<group>_<kind>` identifiers it contains (the same suffix
+// used by individual `resource.customizations.<field>.<group>_<kind>` keys).
+func groupKindsFromCombinedCustomizations(combined attr.Value) map[string]bool {
+	s, ok := configMapStringValue(combined)
+	if !ok || s == "" {
+		return nil
+	}
+	var customizations map[string]any
+	if err := yaml.Unmarshal([]byte(s), &customizations); err != nil {
+		return nil
+	}
+	result := make(map[string]bool, len(customizations))
+	for gk := range customizations {
+		result[strings.ReplaceAll(gk, "/", "_")] = true
+	}
+	return result
+}
+
+// groupKindSuffix extracts the `<group>_<kind>` suffix from individual customization keys
+// like `resource.customizations.health.somecompany.net_Aurora`. Returns false for the combined
+// key or any non-matching key.
+func groupKindSuffix(key string) (string, bool) {
+	const prefix = "resource.customizations."
+	rest, ok := strings.CutPrefix(key, prefix)
+	if !ok {
+		return "", false
+	}
+	idx := strings.Index(rest, ".")
+	if idx < 0 {
+		return "", false
+	}
+	return rest[idx+1:], true
 }
 
 func ToConfigMapAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, name string, m tftypes.Map) *v1.ConfigMap {
