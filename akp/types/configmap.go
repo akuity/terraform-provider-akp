@@ -267,6 +267,12 @@ func ToConfigMapTFModel(ctx context.Context, diagnostics *diag.Diagnostics, data
 	// and the portal rejects with "duplicate resources not allowed". We only strip when
 	// preservation actually fires (yamlIsSubset); if the API combined wins, the individual
 	// keys are the only place those group/kinds live and must be kept.
+	//
+	// The strip is unconditional with respect to oldCM: states populated by earlier
+	// provider versions can already contain the individual keys alongside the combined
+	// form, and leaving them in (because they happen to be in oldElems) carries the
+	// duplicate forward via SuppressNonConfigKeys and breaks the next apply. There is
+	// no realistic case where a user wants both forms in state — the portal rejects it.
 	var coveredGroupKinds map[string]bool
 	if oldCombined, ok := oldElems["resource.customizations"]; ok {
 		if apiCombined, ok := data.AsMap()["resource.customizations"].(string); ok {
@@ -279,11 +285,9 @@ func ToConfigMapTFModel(ctx context.Context, diagnostics *diag.Diagnostics, data
 	m := data.AsMap()
 	for k, v := range m {
 		if len(coveredGroupKinds) > 0 && k != "resource.customizations" {
-			if _, inOld := oldElems[k]; !inOld {
-				if gk, ok := groupKindSuffix(k); ok && coveredGroupKinds[gk] {
-					delete(m, k)
-					continue
-				}
+			if gk, ok := groupKindSuffix(k); ok && coveredGroupKinds[gk] {
+				delete(m, k)
+				continue
 			}
 		}
 		switch t := v.(type) {
