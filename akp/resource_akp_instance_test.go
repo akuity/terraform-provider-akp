@@ -394,6 +394,172 @@ func runInstance_NestedOptionalObjectStability(t *testing.T) {
 	})
 }
 
+// runInstance_RBACChangeWithCombinedCustomizations reproduces the customer-reported
+// failure mode for the strip-on-refresh logic in `ToConfigMapTFModel`: an apply
+// rejected by the portal with
+// `rpc error: code = InvalidArgument desc = duplicate resources not allowed.
+//
+//	group: <group>, kind: <kind>`
+//
+// when state has leaked both the combined `resource.customizations` YAML and the
+// individual `resource.customizations.<field>.<group>_<kind>` keys derived from
+// it by the portal on export.
+//
+// Putting state into that "leaked both forms" shape against the live portal
+// requires a provider whose Read path does not filter the derived keys back out.
+// v0.11.0 fits: its `instanceCreateOrUpdate` runs `FilterMapToPlannedKeys` after
+// Upsert (so a fresh Apply ends with clean state), but its `instanceRead` does
+// not — any Refresh writes the derived keys back into the state file. The test
+// drives that explicitly:
+//
+//  1. Apply against v0.11.0 — state ends clean (filtered post-Apply).
+//  2. `RefreshState: true` against v0.11.0 — Refresh runs without the
+//     post-Upsert filter, so the state on disk now contains both
+//     `argocd_cm.resource.customizations` AND
+//     `argocd_cm.resource.customizations.health.argoproj.io_Application`.
+//  3. Switch to the in-tree provider and mutate `argocd_rbac_cm.policy.csv`.
+//     With the prior `inOld`-guarded #11220 strip, `oldElems` already contains
+//     the derived key, the strip is skipped, `SuppressNonConfigKeys` carries the
+//     duplicate forward, and Apply sends both forms — portal rejects with
+//     `duplicate resources not allowed`. With the unconditional strip, Refresh
+//     self-heals and the Apply succeeds.
+//  4. Re-apply to assert no perpetual drift.
+func runInstance_RBACChangeWithCombinedCustomizations(t *testing.T) {
+	name := acctest.RandomWithPrefix("instance-rbac-combined")
+	policyV1 := "p, role:org-admin, applications, *, */*, allow\n" +
+		"g, your-github-org:your-team, role:org-admin\n"
+	policyV2 := policyV1 +
+		"p, role:org-admin, clusters, get, *, allow\n"
+
+	// v0.11.0 is intentionally pinned (not `~>`): it has #11193's planned-YAML
+	// preservation so step 1's Create completes without an "inconsistent result"
+	// error, but no strip logic at all, so state reliably ends with both the
+	// combined `resource.customizations` and the derived
+	// `resource.customizations.health.argoproj.io_Application` individual key.
+	// v0.11.1 already adds the buggy `inOld`-guarded #11220 strip; on a fresh
+	// Create its `oldElems` is empty for the individual key, the strip fires,
+	// state ends clean, and the regression we want to exercise never sets up.
+	leakingProvider := map[string]resource.ExternalProvider{
+		"akp": {
+			Source:            "akuity/akp",
+			VersionConstraint: "= 0.11.0",
+		},
+	}
+
+	resource.Test(t, resource.TestCase{
+		PreCheck: func() { testAccPreCheck(t) },
+		// Providers are declared per-step: step 1 pins to a published v0.10.x
+		// release via `ExternalProviders`, steps 2+ use the in-tree factory.
+		// `terraform-plugin-testing` rejects mixing case-level and step-level
+		// provider declarations, so the case-level factory is intentionally
+		// omitted here.
+		Steps: numberedSteps([]labeledStep{
+			// Create against the published v0.11.0 provider. Upsert runs
+			// FilterMapToPlannedKeys after the API call, so state at this
+			// point is filtered (combined only).
+			{label: "Create with v0.11.0 provider", step: resource.TestStep{
+				ExternalProviders: leakingProvider,
+				Config:            providerConfig + testAccInstanceResourceCombinedCustomizationsWithRBAC(name, policyV1),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("akp_instance.test", "name", name),
+					resource.TestCheckResourceAttrSet("akp_instance.test", "argocd_cm.resource.customizations"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd_rbac_cm.policy.csv", policyV1),
+				),
+			}},
+			// Re-apply the same config against v0.11.0. `terraform apply`
+			// implicitly refreshes the state first; v0.11.0's instanceRead
+			// has no FilterMapToPlannedKeys, so the refresh writes every key
+			// the portal returns (including the derived individual ones) into
+			// the state. The plan compares that refreshed state to config:
+			// SuppressNonConfigKeys preserves state values for keys absent
+			// from config, so the plan is empty and no Upsert (and therefore
+			// no post-Upsert filter) runs — leaving the state on disk in the
+			// "stale, both forms leaked" shape we want. RefreshState: true
+			// isn't usable here because the framework rejects pairing it with
+			// a Config block (which we still need to materialize the
+			// provider configuration for the akp provider).
+			{label: "Re-apply with v0.11.0 to leak derived keys into state", step: resource.TestStep{
+				ExternalProviders: leakingProvider,
+				Config:            providerConfig + testAccInstanceResourceCombinedCustomizationsWithRBAC(name, policyV1),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					// Confirm the leak landed; if this stops being true the
+					// downstream assertions are no longer meaningful.
+					resource.TestCheckResourceAttrSet("akp_instance.test", "argocd_cm.resource.customizations.health.argoproj.io_Application"),
+				),
+			}},
+			// Switch to the in-tree provider and mutate only
+			// `argocd_rbac_cm.policy.csv`. With the `inOld`-guarded strip
+			// (i.e. the regression), the in-tree refresh sees the leaked
+			// individual key in oldElems, the strip is skipped, the duplicate
+			// is carried into the plan by SuppressNonConfigKeys, and the
+			// Update sends both forms → portal rejects with
+			// `duplicate resources not allowed`. With the unconditional strip,
+			// refresh self-heals and the apply succeeds.
+			{label: "Mutate RBAC csv with in-tree provider (the customer-reported failing apply)", step: resource.TestStep{
+				ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+				Config:                   providerConfig + testAccInstanceResourceCombinedCustomizationsWithRBAC(name, policyV2),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd_rbac_cm.policy.csv", policyV2),
+					resource.TestCheckResourceAttrSet("akp_instance.test", "argocd_cm.resource.customizations"),
+					resource.TestCheckNoResourceAttr("akp_instance.test", "argocd_cm.resource.customizations.health.argoproj.io_Application"),
+				),
+			}},
+			{label: "Re-apply after RBAC change (no drift)", step: resource.TestStep{
+				ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+				Config:                   providerConfig + testAccInstanceResourceCombinedCustomizationsWithRBAC(name, policyV2),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectEmptyPlan(),
+					},
+				},
+			}},
+		}),
+	})
+}
+
+func testAccInstanceResourceCombinedCustomizationsWithRBAC(name, policyCSV string) string {
+	return fmt.Sprintf(`
+resource "akp_instance" "test" {
+  name = %q
+  argocd = {
+    spec = {
+      version = %q
+      instance_spec = {
+        declarative_management_enabled = true
+        manifest_generation = {
+          kustomize = {
+            default_version = "v5.4.3"
+          }
+        }
+      }
+    }
+  }
+  argocd_cm = {
+    "exec.enabled" = "true"
+    "helm.enabled" = "true"
+    "resource.customizations" = <<-EOF
+      'argoproj.io/Application':
+        health.lua: |
+          hs = {}
+          hs.status = "Healthy"
+          hs.message = "Healthy"
+          return hs
+      '*.crossplane.io/*':
+        health.lua: |
+          hs = {}
+          hs.status = "Healthy"
+          hs.message = "Resource is up-to-date."
+          return hs
+    EOF
+  }
+  argocd_rbac_cm = {
+    "policy.default" = "role:readonly"
+    "policy.csv"     = %q
+  }
+}
+`, name, getInstanceVersion(), policyCSV)
+}
+
 func testAccInstanceResourceIgnoreResourceUpdates(name string) string {
 	return fmt.Sprintf(`
 resource "akp_instance" "test" {

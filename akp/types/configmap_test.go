@@ -142,11 +142,15 @@ func TestToConfigMapTFModel_StripsIndividualKeysCoveredByCombined(t *testing.T) 
 	assert.False(t, hasIndividual, "individual key covered by combined YAML must be stripped to avoid duplicate-resource errors on apply")
 }
 
-func TestToConfigMapTFModel_PreservesIndividualKeysAlsoInOldCM(t *testing.T) {
-	// If the user explicitly tracks an individual `resource.customizations.X.group_kind`
-	// key in their config — even when a combined `resource.customizations` also covers
-	// the same group/kind — we must keep both: the user opted into the duplicate and
-	// stripping silently would drop a key they own.
+func TestToConfigMapTFModel_StripsIndividualKeysFromStaleState(t *testing.T) {
+	// Regression test for the case where TF state already contains both the combined
+	// `resource.customizations` and the individual `resource.customizations.<field>.<group_kind>`
+	// keys — typically because the state was populated before #11220's strip logic existed,
+	// or by an earlier provider version that propagated both forms. On the next refresh
+	// after upgrading, ToConfigMapTFModel must self-heal: even though the individual key
+	// is present in oldCM, it must be stripped, because keeping it carries the duplicate
+	// through `SuppressNonConfigKeys` into the next plan and the subsequent apply is
+	// rejected by the portal with "duplicate resources not allowed".
 	plannedYAML := "'somecompany.net/Aurora':\n  health.lua: |\n    return {}\n"
 	individualVal := "hs = {}\nreturn hs\n"
 
@@ -166,8 +170,9 @@ func TestToConfigMapTFModel_PreservesIndividualKeysAlsoInOldCM(t *testing.T) {
 	require.False(t, diags.HasError(), "unexpected diagnostics: %s", diags.Errors())
 
 	elems := result.Elements()
-	assert.Contains(t, elems, "resource.customizations")
-	assert.Contains(t, elems, "resource.customizations.health.somecompany.net_Aurora")
+	assert.Contains(t, elems, "resource.customizations", "combined value must be preserved")
+	_, hasIndividual := elems["resource.customizations.health.somecompany.net_Aurora"]
+	assert.False(t, hasIndividual, "stale individual key in oldCM must be stripped so the next apply does not resend a duplicate group/kind")
 }
 
 func TestToConfigMapTFModel_UsesAPIValueWhenResourceCustomizationsDiffer(t *testing.T) {
