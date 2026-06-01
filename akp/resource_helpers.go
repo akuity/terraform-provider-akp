@@ -86,6 +86,24 @@ func waitForStatus[ResourceType any, StatusCodeType comparable](
 	}
 }
 
+// isGoneErr reports whether err indicates the resource is no longer accessible
+// to the caller — either because it was deleted (NotFound) or because the
+// server revokes ACL access for deleted records and surfaces it as
+// PermissionDenied. Tests and Delete handlers treat both as "successfully
+// gone" since a caller already authorized to write the resource has no other
+// reason to see PermissionDenied immediately after a delete.
+func isGoneErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	switch status.Code(err) {
+	case codes.NotFound, codes.PermissionDenied:
+		return true
+	default:
+		return false
+	}
+}
+
 // retryWithBackoff executes a function with exponential backoff retry logic
 func retryWithBackoff[T any](
 	ctx context.Context,

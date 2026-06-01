@@ -26,6 +26,7 @@ import (
 	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
 	"github.com/akuity/api-client-go/pkg/api/gateway/accesscontrol"
 	gwoption "github.com/akuity/api-client-go/pkg/api/gateway/option"
+	apikeyv1 "github.com/akuity/api-client-go/pkg/api/gen/apikey/v1"
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
 	orgcv1 "github.com/akuity/api-client-go/pkg/api/gen/organization/v1"
@@ -133,13 +134,15 @@ func getTestAkpCli() *AkpCli {
 	// Create service clients
 	argoc := argocdv1.NewArgoCDServiceGatewayClient(gwc)
 	kargoc := kargov1.NewKargoServiceGatewayClient(gwc)
+	apikeyc := apikeyv1.NewAPIKeyServiceGatewayClient(gwc)
 
 	testAkpCli = &AkpCli{
-		Cli:      argoc,
-		KargoCli: kargoc,
-		Cred:     cred,
-		OrgId:    orgID,
-		OrgCli:   orgc,
+		Cli:       argoc,
+		KargoCli:  kargoc,
+		Cred:      cred,
+		OrgId:     orgID,
+		OrgCli:    orgc,
+		ApiKeyCli: apikeyc,
 	}
 	return testAkpCli
 }
