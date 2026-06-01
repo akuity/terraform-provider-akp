@@ -11,6 +11,8 @@ import (
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/pkg/errors"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -468,7 +470,9 @@ func getWorkspace(ctx context.Context, orgc orgcv1.OrganizationServiceGatewayCli
 		}
 	}
 
-	return nil, fmt.Errorf("workspace %s not found", name)
+	// Surface this as a gRPC NotFound so callers can isGoneErr/status.Code
+	// against it the same as they would a server-side 404.
+	return nil, status.Errorf(codes.NotFound, "workspace %s not found", name)
 }
 
 func getWorkspaceByID(ctx context.Context, orgc orgcv1.OrganizationServiceGatewayClient, orgid, id string) (*orgcv1.Workspace, error) {
@@ -485,5 +489,5 @@ func getWorkspaceByID(ctx context.Context, orgc orgcv1.OrganizationServiceGatewa
 			return w, nil
 		}
 	}
-	return nil, fmt.Errorf("workspace with id %s not found", id)
+	return nil, status.Errorf(codes.NotFound, "workspace with id %s not found", id)
 }

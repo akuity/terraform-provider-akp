@@ -6,7 +6,7 @@ resource "akp_kargo_instance" "example" {
     adminAccountTokenTtl = "24h"
   }
   kargo_secret = {
-    adminAccountPasswordHash = "$2a$10$wThs/VVwx5Tbygkk5Rzbv.V8hR8JYYmRdBiGjue9pd0YcEXl7.Kn."
+    adminAccountPasswordHash = "$2a$10$replace-with-your-bcrypt-hash-here"
   }
   kargo = {
     spec = {

@@ -71,6 +71,18 @@ func TestAccAll(t *testing.T) {
 		t.Run("KargoAgent_DefaultShardDeleteRejected", func(t *testing.T) { runKargoAgent_DefaultShardDeleteRejected(t) })
 
 		t.Run("KargoDefaultShardAgent", func(t *testing.T) { runKargoDefaultShardAgentResource(t) })
+
+		t.Run("Workspace_Basic", func(t *testing.T) { runWorkspaceResource(t) })
+
+		t.Run("ApiKey_Basic", func(t *testing.T) { runApiKeyResource(t) })
+		t.Run("ApiKey_Expiring", func(t *testing.T) { runApiKeyResourceExpiring(t) })
+		t.Run("ApiKey_MissingRoles", func(t *testing.T) { runApiKeyResourceMissingRoles(t) })
+		t.Run("ApiKey_Workspace", func(t *testing.T) { runApiKeyResourceWorkspace(t) })
+
+		t.Run("CustomRole_Basic", func(t *testing.T) { runCustomRoleResource(t) })
+		t.Run("CustomRole_Workspace", func(t *testing.T) { runCustomRoleResourceWorkspace(t) })
+
+		t.Run("ApiKey_CustomRoleClusterManifests", func(t *testing.T) { runApiKeyResourceCustomRoleClusterManifests(t) })
 	})
 
 	t.Run("InstanceConfigs", func(t *testing.T) {

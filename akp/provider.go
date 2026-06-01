@@ -16,6 +16,7 @@ import (
 	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
 	"github.com/akuity/api-client-go/pkg/api/gateway/accesscontrol"
 	gwoption "github.com/akuity/api-client-go/pkg/api/gateway/option"
+	apikeyv1 "github.com/akuity/api-client-go/pkg/api/gen/apikey/v1"
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
 	orgcv1 "github.com/akuity/api-client-go/pkg/api/gen/organization/v1"
@@ -37,11 +38,12 @@ type AkpProviderModel struct {
 }
 
 type AkpCli struct {
-	Cli      argocdv1.ArgoCDServiceGatewayClient
-	KargoCli kargov1.KargoServiceGatewayClient
-	Cred     accesscontrol.ClientCredential
-	OrgCli   orgcv1.OrganizationServiceGatewayClient
-	OrgId    string
+	Cli       argocdv1.ArgoCDServiceGatewayClient
+	KargoCli  kargov1.KargoServiceGatewayClient
+	Cred      accesscontrol.ClientCredential
+	OrgCli    orgcv1.OrganizationServiceGatewayClient
+	ApiKeyCli apikeyv1.APIKeyServiceGatewayClient
+	OrgId     string
 }
 
 func (p *AkpProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -160,13 +162,15 @@ func (p *AkpProvider) Configure(ctx context.Context, req provider.ConfigureReque
 	argoc := argocdv1.NewArgoCDServiceGatewayClient(gwc)
 	kargoc := kargov1.NewKargoServiceGatewayClient(gwc)
 	orgc = orgcv1.NewOrganizationServiceGatewayClient(gwc)
+	apikeyc := apikeyv1.NewAPIKeyServiceGatewayClient(gwc)
 
 	akpCli := &AkpCli{
-		Cli:      argoc,
-		KargoCli: kargoc,
-		Cred:     cred,
-		OrgId:    orgID,
-		OrgCli:   orgc,
+		Cli:       argoc,
+		KargoCli:  kargoc,
+		Cred:      cred,
+		OrgId:     orgID,
+		OrgCli:    orgc,
+		ApiKeyCli: apikeyc,
 	}
 	resp.DataSourceData = akpCli
 	resp.ResourceData = akpCli
@@ -180,6 +184,9 @@ func (p *AkpProvider) Resources(ctx context.Context) []func() resource.Resource 
 		NewAkpKargoInstanceResource,
 		NewAkpKargoAgentResource,
 		NewAkpKargoDefaultShardAgentResource,
+		NewAkpApiKeyResource,
+		NewAkpCustomRoleResource,
+		NewAkpWorkspaceResource,
 	}
 }
 
