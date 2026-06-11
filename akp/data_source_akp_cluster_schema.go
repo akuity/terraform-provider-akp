@@ -174,6 +174,10 @@ func getClusterDataDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Whether pod metadata inheritance is enabled for the cluster.",
 			Computed:            true,
 		},
+		"use_local_repo_creds": schema.BoolAttribute{
+			MarkdownDescription: "Whether local repository credentials injection is enabled for the cluster.",
+			Computed:            true,
+		},
 	}
 }
 

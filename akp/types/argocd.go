@@ -212,6 +212,7 @@ type InstanceSpec struct {
 	PrivilegedNotificationCluster   types.String                   `tfsdk:"privileged_notification_cluster"`
 	ClusterAddonsExtension          *ClusterAddonsExtension        `tfsdk:"cluster_addons_extension"`
 	ManifestGeneration              *ManifestGeneration            `tfsdk:"manifest_generation"`
+	PreferControlPlaneRepoServer    types.Bool                     `tfsdk:"prefer_control_plane_repo_server"`
 }
 
 type AppsetPlugins struct {

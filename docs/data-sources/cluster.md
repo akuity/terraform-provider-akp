@@ -98,6 +98,7 @@ Read-Only:
 - `server_side_diff_enabled` (Boolean) Enables the ability to set server-side diff on the application-controller.
 - `size` (String) Cluster Size. One of `small`, `medium`, `large`, `custom` or `auto`
 - `target_version` (String) The version of the agent to install on your cluster
+- `use_local_repo_creds` (Boolean) Whether local repository credentials injection is enabled for the cluster.
 
 <a id="nestedatt--spec--data--argocd_notifications_settings"></a>
 ### Nested Schema for `spec.data.argocd_notifications_settings`
