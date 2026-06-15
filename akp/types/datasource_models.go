@@ -40,6 +40,7 @@ type InstanceSpecDataSource struct {
 	ImageUpdaterEnabled             types.Bool                     `tfsdk:"image_updater_enabled"`
 	BackendIpAllowListEnabled       types.Bool                     `tfsdk:"backend_ip_allow_list_enabled"`
 	RepoServerDelegate              *RepoServerDelegate            `tfsdk:"repo_server_delegate"`
+	PreferControlPlaneRepoServer    types.Bool                     `tfsdk:"prefer_control_plane_repo_server"`
 	AuditExtensionEnabled           types.Bool                     `tfsdk:"audit_extension_enabled"`
 	SyncHistoryExtensionEnabled     types.Bool                     `tfsdk:"sync_history_extension_enabled"`
 	CrossplaneExtension             *CrossplaneExtension           `tfsdk:"crossplane_extension"`
@@ -91,6 +92,7 @@ func NewInstanceDataSourceModel(instance *Instance) InstanceDataSource {
 					ImageUpdaterEnabled:             instance.ArgoCD.Spec.InstanceSpec.ImageUpdaterEnabled,
 					BackendIpAllowListEnabled:       instance.ArgoCD.Spec.InstanceSpec.BackendIpAllowListEnabled,
 					RepoServerDelegate:              instance.ArgoCD.Spec.InstanceSpec.RepoServerDelegate,
+					PreferControlPlaneRepoServer:    instance.ArgoCD.Spec.InstanceSpec.PreferControlPlaneRepoServer,
 					AuditExtensionEnabled:           instance.ArgoCD.Spec.InstanceSpec.AuditExtensionEnabled,
 					SyncHistoryExtensionEnabled:     instance.ArgoCD.Spec.InstanceSpec.SyncHistoryExtensionEnabled,
 					CrossplaneExtension:             instance.ArgoCD.Spec.InstanceSpec.CrossplaneExtension,

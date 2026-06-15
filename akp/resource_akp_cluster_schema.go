@@ -314,6 +314,15 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 				boolplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
+		"use_local_repo_creds": schema.BoolAttribute{
+			MarkdownDescription: "Enable local repository credentials injection. When enabled, the agent injects repository credentials from the local cluster into requests to Argo CD.",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Bool{
+				boolplanmodifier.UseStateForUnknown(),
+				boolplanmodifier2.SuppressProtobufDefault(),
+			},
+		},
 	}
 }
 

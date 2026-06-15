@@ -16,6 +16,7 @@ check-api-client-fields:
 # Generate Documentation
 .PHONY: generate
 generate:
+	go run ./hack/generate-upgrade-guide-index
 	cp -r ./docs/guides .
 	go generate ./...
 	mv guides ./docs

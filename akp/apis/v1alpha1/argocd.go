@@ -220,6 +220,7 @@ type InstanceSpec struct {
 	PrivilegedNotificationCluster *string                 `json:"privilegedNotificationCluster,omitempty"`
 	ClusterAddonsExtension        *ClusterAddonsExtension `json:"clusterAddonsExtension,omitempty"`
 	ManifestGeneration            *ManifestGeneration     `json:"manifestGeneration,omitempty"`
+	PreferControlPlaneRepoServer  *bool                   `json:"preferControlPlaneRepoServer,omitempty"`
 }
 
 type AppsetPlugins struct {
