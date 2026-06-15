@@ -55,7 +55,7 @@ func (p *AkpProvider) Schema(ctx context.Context, req provider.SchemaRequest, re
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"server_url": schema.StringAttribute{
-				MarkdownDescription: "Akuity Platform API URL, default: `https://akuity.cloud`. You can use environment variable `AKUITY_SERVER_URL` instead",
+				MarkdownDescription: "Akuity Platform API URL. Defaults to `https://akuity.cloud`. Use `https://eu.akuity.cloud` for the EU region. You can also set this with the `AKUITY_SERVER_URL` environment variable.",
 				Optional:            true,
 			},
 			"skip_tls_verify": schema.BoolAttribute{

@@ -87,4 +87,5 @@ type ClusterData struct {
 	ServerSideDiffEnabled           *bool                               `json:"serverSideDiffEnabled,omitempty"`
 	MaintenanceModeExpiry           *metav1.Time                        `json:"maintenanceModeExpiry,omitempty"`
 	PodInheritMetadata              *bool                               `json:"podInheritMetadata,omitempty"`
+	UseLocalRepoCreds               *bool                               `json:"useLocalRepoCreds,omitempty"`
 }

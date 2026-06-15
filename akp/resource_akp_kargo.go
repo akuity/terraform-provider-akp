@@ -285,6 +285,11 @@ var kargoResourceGroups = map[string]struct {
 			req.EventRouters = append(req.EventRouters, item)
 		},
 	},
+	"CustomPromotionStep": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.CustomPromotionSteps = append(req.CustomPromotionSteps, item)
+		},
+	},
 }
 
 var kargoSupportedGroupKinds = map[schema.GroupKind]func(*unstructured.Unstructured) error{
@@ -297,6 +302,7 @@ var kargoSupportedGroupKinds = map[schema.GroupKind]func(*unstructured.Unstructu
 	{Group: "ee.kargo.akuity.io", Kind: "MessageChannel"}:        nil,
 	{Group: "ee.kargo.akuity.io", Kind: "ClusterMessageChannel"}: nil,
 	{Group: "ee.kargo.akuity.io", Kind: "EventRouter"}:           nil,
+	{Group: "ee.kargo.akuity.io", Kind: "CustomPromotionStep"}:   nil,
 	{Group: "argoproj.io", Kind: "AnalysisTemplate"}:             nil,
 	{Group: "rbac.authorization.k8s.io", Kind: "Role"}:           nil,
 	{Group: "rbac.authorization.k8s.io", Kind: "RoleBinding"}:    nil,

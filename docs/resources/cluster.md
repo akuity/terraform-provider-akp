@@ -314,6 +314,7 @@ Optional:
 - `redis_tunneling` (Boolean) Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy
 - `server_side_diff_enabled` (Boolean) Enables the ability to set server-side diff on the application-controller.
 - `target_version` (String) The version of the agent to install on your cluster
+- `use_local_repo_creds` (Boolean) Enable local repository credentials injection. When enabled, the agent injects repository credentials from the local cluster into requests to Argo CD.
 
 <a id="nestedatt--spec--data--argocd_notifications_settings"></a>
 ### Nested Schema for `spec.data.argocd_notifications_settings`

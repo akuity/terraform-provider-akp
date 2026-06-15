@@ -302,6 +302,9 @@ EOF
         #     cluster_name = "delegate-cluster"
         #   }
         # }
+        # Serve repos used by in-cluster apps from the Akuity-hosted repo server
+        # instead of a managed cluster. Mutually exclusive with repo_server_delegate.
+        prefer_control_plane_repo_server = false
         # Delegate Image Updater to a specific cluster
         # image_updater_delegate = {
         #   control_plane = false

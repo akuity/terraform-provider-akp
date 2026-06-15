@@ -112,4 +112,5 @@ type ClusterData struct {
 	ServerSideDiffEnabled           types.Bool                          `tfsdk:"server_side_diff_enabled"`
 	MaintenanceModeExpiry           types.String                        `tfsdk:"maintenance_mode_expiry"`
 	PodInheritMetadata              types.Bool                          `tfsdk:"pod_inherit_metadata"`
+	UseLocalRepoCreds               types.Bool                          `tfsdk:"use_local_repo_creds"`
 }

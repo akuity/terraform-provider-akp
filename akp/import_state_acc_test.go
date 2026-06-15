@@ -21,6 +21,7 @@ var (
 		"spec.data.project",                             // Optional-only (no Computed)
 		"spec.data.redis_tunneling",                     // SuppressProtobufDefault (bool)
 		"spec.data.server_side_diff_enabled",            // SuppressProtobufDefault (bool)
+		"spec.data.use_local_repo_creds",                // SuppressProtobufDefault (bool)
 		"spec.namespace_scoped",                         // Optional-only (no Computed)
 	}
 	testAccClusterKustomizationImportStateVerifyIgnore = appendImportStateVerifyIgnore(
@@ -102,6 +103,7 @@ var (
 		"argocd.spec.instance_spec.image_updater_enabled",               // SuppressProtobufDefault (bool)
 		"argocd.spec.instance_spec.metrics_ingress_username",            // SuppressProtobufDefault (string)
 		"argocd.spec.instance_spec.multi_cluster_k8s_dashboard_enabled", // SuppressProtobufDefault (bool)
+		"argocd.spec.instance_spec.prefer_control_plane_repo_server",    // SuppressProtobufDefault (bool)
 		"argocd.spec.instance_spec.privileged_notification_cluster",     // SuppressProtobufDefault (string)
 		"argocd.spec.instance_spec.sync_history_extension_enabled",      // SuppressProtobufDefault (bool)
 		// Optional-only fields
