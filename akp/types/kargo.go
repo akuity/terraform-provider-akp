@@ -60,16 +60,18 @@ type KargoAgentCustomization struct {
 }
 
 type KargoInstanceSpec struct {
-	BackendIpAllowListEnabled  types.Bool               `tfsdk:"backend_ip_allow_list_enabled"`
-	IpAllowList                []*KargoIPAllowListEntry `tfsdk:"ip_allow_list"`
-	AgentCustomizationDefaults *KargoAgentCustomization `tfsdk:"agent_customization_defaults"`
-	GlobalCredentialsNs        []types.String           `tfsdk:"global_credentials_ns"`
-	GlobalServiceAccountNs     []types.String           `tfsdk:"global_service_account_ns"`
-	AkuityIntelligence         *AkuityIntelligence      `tfsdk:"akuity_intelligence"`
-	GcConfig                   *GarbageCollectorConfig  `tfsdk:"gc_config"`
-	PromoControllerEnabled     types.Bool               `tfsdk:"promo_controller_enabled"`
-	Secrets                    *SecretsManagementConfig `tfsdk:"secrets"`
-	ArgocdUi                   *KargoArgoCDUIConfig     `tfsdk:"argocd_ui"`
+	BackendIpAllowListEnabled    types.Bool               `tfsdk:"backend_ip_allow_list_enabled"`
+	IpAllowList                  []*KargoIPAllowListEntry `tfsdk:"ip_allow_list"`
+	AgentCustomizationDefaults   *KargoAgentCustomization `tfsdk:"agent_customization_defaults"`
+	GlobalCredentialsNs          []types.String           `tfsdk:"global_credentials_ns"`
+	GlobalServiceAccountNs       []types.String           `tfsdk:"global_service_account_ns"`
+	AkuityIntelligence           *AkuityIntelligence      `tfsdk:"akuity_intelligence"`
+	GcConfig                     *GarbageCollectorConfig  `tfsdk:"gc_config"`
+	PromoControllerEnabled       types.Bool               `tfsdk:"promo_controller_enabled"`
+	Secrets                      *SecretsManagementConfig `tfsdk:"secrets"`
+	ArgocdUi                     *KargoArgoCDUIConfig     `tfsdk:"argocd_ui"`
+	TerminationProtectionEnabled types.Bool               `tfsdk:"termination_protection_enabled"`
+	TerminationProtectionNotes   types.String             `tfsdk:"termination_protection_notes"`
 }
 
 type KargoArgoCDUIConfig struct {

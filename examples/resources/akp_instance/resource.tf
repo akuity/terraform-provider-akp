@@ -305,6 +305,9 @@ EOF
         # Serve repos used by in-cluster apps from the Akuity-hosted repo server
         # instead of a managed cluster. Mutually exclusive with repo_server_delegate.
         prefer_control_plane_repo_server = false
+        # Prevent accidental deletion of this instance
+        termination_protection_enabled = true
+        termination_protection_notes   = "Critical production instance - do not delete"
         # Delegate Image Updater to a specific cluster
         # image_updater_delegate = {
         #   control_plane = false

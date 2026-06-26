@@ -73,6 +73,8 @@ func TestAccAll(t *testing.T) {
 		t.Run("KargoDefaultShardAgent", func(t *testing.T) { runKargoDefaultShardAgentResource(t) })
 
 		t.Run("Workspace_Basic", func(t *testing.T) { runWorkspaceResource(t) })
+		t.Run("Team_Basic", func(t *testing.T) { runTeamResource(t) })
+		t.Run("WorkspaceMember_Team", func(t *testing.T) { runWorkspaceMemberResource(t) })
 
 		t.Run("ApiKey_Basic", func(t *testing.T) { runApiKeyResource(t) })
 		t.Run("ApiKey_Expiring", func(t *testing.T) { runApiKeyResourceExpiring(t) })

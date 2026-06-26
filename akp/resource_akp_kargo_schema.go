@@ -212,6 +212,24 @@ func getKargoSpecInstanceAttributes() map[string]schema.Attribute {
 			Optional:            true,
 			Attributes:          getSecretsManagementConfigAttributes(),
 		},
+		"termination_protection_enabled": schema.BoolAttribute{
+			MarkdownDescription: "When enabled, prevents accidental deletion of this Kargo instance.",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Bool{
+				boolplanmodifier.UseStateForUnknown(),
+				boolplanmodifier2.SuppressProtobufDefault(),
+			},
+		},
+		"termination_protection_notes": schema.StringAttribute{
+			MarkdownDescription: "Notes describing why termination protection is enabled for this Kargo instance.",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+				stringplanmodifier2.SuppressProtobufDefault(),
+			},
+		},
 	}
 }
 

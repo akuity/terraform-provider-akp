@@ -57,6 +57,9 @@ func runKargoConfigTests(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.akuity_intelligence.enabled", "true"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.gc_config.max_retained_freight", "10"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.argocd_ui.idp_groups_mapping", "true"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.termination_protection_enabled", "true"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.termination_protection_notes", "Critical production instance - do not delete"),
+					resource.TestCheckResourceAttr("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.termination_protection_enabled", "true"),
 					resource.TestCheckResourceAttr("data.akp_kargo_instance.test", "name", name),
 					resource.TestCheckResourceAttrSet("data.akp_kargo_instance.test", "id"),
 					resource.TestCheckResourceAttr("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.backend_ip_allow_list_enabled", "true"),
@@ -458,6 +461,8 @@ resource "akp_kargo_instance" "test" {
         argocd_ui = {
           idp_groups_mapping = true
         }
+        termination_protection_enabled = true
+        termination_protection_notes   = "Critical production instance - do not delete"
       }
     }
   }
@@ -486,7 +491,8 @@ resource "akp_kargo_instance" "test" {
       version     = %q
       description = "Consolidated test: OIDC and extras"
       kargo_instance_spec = {
-        backend_ip_allow_list_enabled = false
+        backend_ip_allow_list_enabled  = false
+        termination_protection_enabled = false
       }
       oidc_config = {
         enabled       = true

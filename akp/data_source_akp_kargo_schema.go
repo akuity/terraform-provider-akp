@@ -140,6 +140,14 @@ func getKargoInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			Attributes:          getSecretsManagementConfigDataSourceAttributes(),
 		},
+		"termination_protection_enabled": schema.BoolAttribute{
+			MarkdownDescription: "When enabled, prevents accidental deletion of this Kargo instance.",
+			Computed:            true,
+		},
+		"termination_protection_notes": schema.StringAttribute{
+			MarkdownDescription: "Notes describing why termination protection is enabled for this Kargo instance.",
+			Computed:            true,
+		},
 	}
 }
 

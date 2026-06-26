@@ -106,6 +106,8 @@ var (
 		"argocd.spec.instance_spec.prefer_control_plane_repo_server",    // SuppressProtobufDefault (bool)
 		"argocd.spec.instance_spec.privileged_notification_cluster",     // SuppressProtobufDefault (string)
 		"argocd.spec.instance_spec.sync_history_extension_enabled",      // SuppressProtobufDefault (bool)
+		"argocd.spec.instance_spec.termination_protection_enabled",      // SuppressProtobufDefault (bool)
+		"argocd.spec.instance_spec.termination_protection_notes",        // SuppressProtobufDefault (string)
 		// Optional-only fields
 		"argocd.spec.instance_spec.appset_plugins", // Optional-only
 		"argocd.spec.instance_spec.host_aliases",   // Optional-only
@@ -141,12 +143,14 @@ var (
 		"kargo.spec.kargo_instance_spec.akuity_intelligence", // UseStateForNullUnknown
 		// SuppressProtobufDefault fields (ImportStateVerify bypasses plan modifiers)
 		"kargo.spec.fqdn", // SuppressProtobufDefault (string)
-		"kargo.spec.kargo_instance_spec.promo_controller_enabled", // SuppressProtobufDefault (bool)
-		"kargo.spec.oidc_config.cli_client_id",                    // SuppressProtobufDefault (string)
-		"kargo.spec.oidc_config.client_id",                        // SuppressProtobufDefault (string)
-		"kargo.spec.oidc_config.dex_config",                       // SuppressProtobufDefault (string)
-		"kargo.spec.oidc_config.issuer_url",                       // SuppressProtobufDefault (string)
-		"workspace",                                               // SuppressProtobufDefault (string)
+		"kargo.spec.kargo_instance_spec.promo_controller_enabled",       // SuppressProtobufDefault (bool)
+		"kargo.spec.kargo_instance_spec.termination_protection_enabled", // SuppressProtobufDefault (bool)
+		"kargo.spec.kargo_instance_spec.termination_protection_notes",   // SuppressProtobufDefault (string)
+		"kargo.spec.oidc_config.cli_client_id",                          // SuppressProtobufDefault (string)
+		"kargo.spec.oidc_config.client_id",                              // SuppressProtobufDefault (string)
+		"kargo.spec.oidc_config.dex_config",                             // SuppressProtobufDefault (string)
+		"kargo.spec.oidc_config.issuer_url",                             // SuppressProtobufDefault (string)
+		"workspace",                                                     // SuppressProtobufDefault (string)
 		// Optional-only fields
 		"kargo.spec.kargo_instance_spec.argocd_ui",                 // Optional-only
 		"kargo.spec.kargo_instance_spec.global_credentials_ns",     // Optional-only

@@ -171,6 +171,9 @@ EOT
         argocd_ui = {
           idp_groups_mapping = true
         }
+        # Prevent accidental deletion of this instance
+        termination_protection_enabled = true
+        termination_protection_notes   = "Critical production instance - do not delete"
       }
     }
   }
@@ -302,6 +305,8 @@ Optional:
 - `ip_allow_list` (Attributes List) List of allowed IPs (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--ip_allow_list))
 - `promo_controller_enabled` (Boolean) Whether Kargo Promotion Controller is enabled for this instance
 - `secrets` (Attributes) Cross-cluster secret synchronization configuration. Selects which Kubernetes Secrets are synchronized from source clusters to destination clusters. Secrets opt in by carrying the `akuity.io/secret-sync: "true"` label. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--secrets))
+- `termination_protection_enabled` (Boolean) When enabled, prevents accidental deletion of this Kargo instance.
+- `termination_protection_notes` (String) Notes describing why termination protection is enabled for this Kargo instance.
 
 <a id="nestedatt--kargo--spec--kargo_instance_spec--agent_customization_defaults"></a>
 ### Nested Schema for `kargo.spec.kargo_instance_spec.agent_customization_defaults`

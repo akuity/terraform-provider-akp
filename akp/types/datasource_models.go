@@ -62,6 +62,8 @@ type InstanceSpecDataSource struct {
 	PrivilegedNotificationCluster   types.String                   `tfsdk:"privileged_notification_cluster"`
 	ClusterAddonsExtension          *ClusterAddonsExtension        `tfsdk:"cluster_addons_extension"`
 	ManifestGeneration              *ManifestGeneration            `tfsdk:"manifest_generation"`
+	TerminationProtectionEnabled    types.Bool                     `tfsdk:"termination_protection_enabled"`
+	TerminationProtectionNotes      types.String                   `tfsdk:"termination_protection_notes"`
 }
 
 func NewInstanceDataSourceModel(instance *Instance) InstanceDataSource {
@@ -114,6 +116,8 @@ func NewInstanceDataSourceModel(instance *Instance) InstanceDataSource {
 					PrivilegedNotificationCluster:   instance.ArgoCD.Spec.InstanceSpec.PrivilegedNotificationCluster,
 					ClusterAddonsExtension:          instance.ArgoCD.Spec.InstanceSpec.ClusterAddonsExtension,
 					ManifestGeneration:              instance.ArgoCD.Spec.InstanceSpec.ManifestGeneration,
+					TerminationProtectionEnabled:    instance.ArgoCD.Spec.InstanceSpec.TerminationProtectionEnabled,
+					TerminationProtectionNotes:      instance.ArgoCD.Spec.InstanceSpec.TerminationProtectionNotes,
 				},
 			},
 		}

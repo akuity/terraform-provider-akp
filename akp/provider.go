@@ -187,6 +187,8 @@ func (p *AkpProvider) Resources(ctx context.Context) []func() resource.Resource 
 		NewAkpApiKeyResource,
 		NewAkpCustomRoleResource,
 		NewAkpWorkspaceResource,
+		NewAkpWorkspaceMemberResource,
+		NewAkpTeamResource,
 	}
 }
 

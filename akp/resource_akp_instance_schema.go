@@ -462,6 +462,24 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 				objectplanmodifier2.UseStateForNullUnknown(),
 			},
 		},
+		"termination_protection_enabled": schema.BoolAttribute{
+			MarkdownDescription: "When enabled, prevents accidental deletion of this Argo CD instance.",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Bool{
+				boolplanmodifier.UseStateForUnknown(),
+				boolplanmodifier2.SuppressProtobufDefault(),
+			},
+		},
+		"termination_protection_notes": schema.StringAttribute{
+			MarkdownDescription: "Notes describing why termination protection is enabled for this Argo CD instance.",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+				stringplanmodifier2.SuppressProtobufDefault(),
+			},
+		},
 	}
 }
 

@@ -243,17 +243,6 @@ func stringSliceFromTF(in []tftypes.String) []string {
 	return out
 }
 
-func stringSliceToTF(in []string) []tftypes.String {
-	if len(in) == 0 {
-		return nil
-	}
-	out := make([]tftypes.String, 0, len(in))
-	for _, v := range in {
-		out = append(out, tftypes.StringValue(v))
-	}
-	return out
-}
-
 func applyApiKeyResponse(data *types.ApiKey, key *apikeyv1.APIKey) {
 	if key == nil {
 		return
@@ -284,10 +273,15 @@ func applyApiKeyResponse(data *types.ApiKey, key *apikeyv1.APIKey) {
 		if !data.Workspace.IsNull() && data.Workspace.ValueString() != "" {
 			wantNamespace = "workspace"
 		}
+		// Preserve each list's prior encoding (see applyStringList).
+		var prior types.ApiKeyPermissions
+		if data.Permissions != nil {
+			prior = *data.Permissions
+		}
 		data.Permissions = &types.ApiKeyPermissions{
-			Actions:     stringSliceToTF(key.GetPermissions().GetActions()),
-			Roles:       stringSliceToTF(stripRoleNamespace(filterRolesByNamespace(key.GetPermissions().GetRoles(), wantNamespace))),
-			CustomRoles: stringSliceToTF(key.GetPermissions().GetCustomRoles()),
+			Actions:     applyStringList(prior.Actions, key.GetPermissions().GetActions()),
+			Roles:       applyStringList(prior.Roles, stripRoleNamespace(filterRolesByNamespace(key.GetPermissions().GetRoles(), wantNamespace))),
+			CustomRoles: applyStringList(prior.CustomRoles, key.GetPermissions().GetCustomRoles()),
 		}
 	}
 }

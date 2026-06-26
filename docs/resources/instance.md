@@ -425,6 +425,9 @@ EOF
         # Serve repos used by in-cluster apps from the Akuity-hosted repo server
         # instead of a managed cluster. Mutually exclusive with repo_server_delegate.
         prefer_control_plane_repo_server = false
+        # Prevent accidental deletion of this instance
+        termination_protection_enabled = true
+        termination_protection_notes   = "Critical production instance - do not delete"
         # Delegate Image Updater to a specific cluster
         # image_updater_delegate = {
         #   control_plane = false
@@ -820,6 +823,8 @@ Optional:
 - `secrets` (Attributes) Cross-cluster secret synchronization configuration. Selects which Kubernetes Secrets are synchronized from source clusters to destination clusters. Secrets opt in by carrying the `akuity.io/secret-sync: "true"` label (sensitive control-plane Secrets like `argocd-secret` are protected and cannot be synced). (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--secrets))
 - `subdomain` (String) Instance subdomain. By default equals to instance id
 - `sync_history_extension_enabled` (Boolean) Enable Sync History Extension. Sync count and duration graphs as well as event details table on Argo CD application details page.
+- `termination_protection_enabled` (Boolean) When enabled, prevents accidental deletion of this Argo CD instance.
+- `termination_protection_notes` (String) Notes describing why termination protection is enabled for this Argo CD instance.
 
 <a id="nestedatt--argocd--spec--instance_spec--agent_permissions_rules"></a>
 ### Nested Schema for `argocd.spec.instance_spec.agent_permissions_rules`

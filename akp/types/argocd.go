@@ -213,6 +213,8 @@ type InstanceSpec struct {
 	ClusterAddonsExtension          *ClusterAddonsExtension        `tfsdk:"cluster_addons_extension"`
 	ManifestGeneration              *ManifestGeneration            `tfsdk:"manifest_generation"`
 	PreferControlPlaneRepoServer    types.Bool                     `tfsdk:"prefer_control_plane_repo_server"`
+	TerminationProtectionEnabled    types.Bool                     `tfsdk:"termination_protection_enabled"`
+	TerminationProtectionNotes      types.String                   `tfsdk:"termination_protection_notes"`
 }
 
 type AppsetPlugins struct {
