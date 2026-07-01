@@ -67,6 +67,8 @@ Read-Only:
 - `ip_allow_list` (Attributes List) List of allowed IPs (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--ip_allow_list))
 - `promo_controller_enabled` (Boolean) Whether Kargo Promotion Controller is enabled for this instance
 - `secrets` (Attributes) Cross-cluster secret synchronization configuration. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--secrets))
+- `termination_protection_enabled` (Boolean) When enabled, prevents accidental deletion of this Kargo instance.
+- `termination_protection_notes` (String) Notes describing why termination protection is enabled for this Kargo instance.
 
 <a id="nestedatt--kargo--spec--kargo_instance_spec--agent_customization_defaults"></a>
 ### Nested Schema for `kargo.spec.kargo_instance_spec.agent_customization_defaults`

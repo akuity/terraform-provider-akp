@@ -221,6 +221,8 @@ type InstanceSpec struct {
 	ClusterAddonsExtension        *ClusterAddonsExtension `json:"clusterAddonsExtension,omitempty"`
 	ManifestGeneration            *ManifestGeneration     `json:"manifestGeneration,omitempty"`
 	PreferControlPlaneRepoServer  *bool                   `json:"preferControlPlaneRepoServer,omitempty"`
+	TerminationProtectionEnabled  *bool                   `json:"terminationProtectionEnabled,omitempty"`
+	TerminationProtectionNotes    *string                 `json:"terminationProtectionNotes,omitempty"`
 }
 
 type AppsetPlugins struct {

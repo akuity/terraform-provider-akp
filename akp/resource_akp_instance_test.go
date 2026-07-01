@@ -226,6 +226,8 @@ func runInstanceConfigTests(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.appset_policy.policy", "create-update"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.manifest_generation.kustomize.default_version", "v5.4.3"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.manifest_generation.kustomize.additional_versions.#", "2"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.termination_protection_enabled", "true"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.termination_protection_notes", "Critical production instance - do not delete"),
 				),
 			}},
 			{label: "Misc Features", step: resource.TestStep{
@@ -1413,6 +1415,8 @@ resource "akp_instance" "test" {
             additional_versions = ["v5.6.0", "v5.7.0"]
           }
         }
+        termination_protection_enabled = true
+        termination_protection_notes   = "Critical production instance - do not delete"
       }
     }
   }
@@ -1428,7 +1432,8 @@ resource "akp_instance" "test" {
       version     = %q
       description = "Consolidated test: misc features"
       instance_spec = {
-        declarative_management_enabled = true
+        declarative_management_enabled  = true
+        termination_protection_enabled  = false
         host_aliases = [
           {
             ip        = "192.168.1.100"

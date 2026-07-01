@@ -210,6 +210,35 @@ func isRetryableError(err error) bool {
 	return false
 }
 
+// isLastWorkspaceMemberErr reports whether err is the backend's refusal to
+// remove the final member of a workspace (RemoveWorkspaceMember rejects when
+// memberCount == 1). DeleteWorkspace cascade-removes its members and the backend
+// forbids a memberless workspace, so removing the last member is only meaningful
+// as part of deleting the workspace — which Terraform does immediately after
+// (the member resource depends on the workspace, so it is destroyed first).
+// Delete treats this as success so `terraform destroy` completes; the workspace
+// delete that follows cleans up the member. The trade-off is that removing the
+// last member while keeping the workspace reports success without removing it —
+// an operation the backend disallows as a standalone end-state anyway.
+func isLastWorkspaceMemberErr(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	type grpcStatus interface {
+		GRPCStatus() *status.Status
+	}
+
+	var statusErr grpcStatus
+	if !errors.As(err, &statusErr) {
+		return false
+	}
+
+	st := statusErr.GRPCStatus()
+	return st.Code() == codes.InvalidArgument &&
+		strings.Contains(st.Message(), "last member of the workspace")
+}
+
 func isConnectedKargoAgentsDeleteError(err error) bool {
 	if err == nil {
 		return false

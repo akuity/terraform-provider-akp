@@ -144,6 +144,9 @@ EOT
         argocd_ui = {
           idp_groups_mapping = true
         }
+        # Prevent accidental deletion of this instance
+        termination_protection_enabled = true
+        termination_protection_notes   = "Critical production instance - do not delete"
       }
     }
   }

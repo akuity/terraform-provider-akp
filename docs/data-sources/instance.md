@@ -90,6 +90,8 @@ Read-Only:
 - `secrets` (Attributes) Cross-cluster secret synchronization configuration. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--secrets))
 - `subdomain` (String) Instance subdomain. By default equals to instance id
 - `sync_history_extension_enabled` (Boolean) Enable Sync History Extension. Sync count and duration graphs as well as event details table on Argo CD application details page.
+- `termination_protection_enabled` (Boolean) When enabled, prevents accidental deletion of this Argo CD instance.
+- `termination_protection_notes` (String) Notes describing why termination protection is enabled for this Argo CD instance.
 
 <a id="nestedatt--argocd--spec--instance_spec--agent_permissions_rules"></a>
 ### Nested Schema for `argocd.spec.instance_spec.agent_permissions_rules`
