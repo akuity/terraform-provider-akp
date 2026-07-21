@@ -4,6 +4,11 @@ resource "akp_kargo_agent" "example-agent" {
   spec = {
     data = {
       size = "small"
+      # How the agent is reached: "public" (internet) or "private" (AWS PrivateLink).
+      connectivity = "public"
+      # PEM bundle of CA certificates the agent workloads must trust in addition to
+      # the system roots (e.g. a TLS-intercepting proxy CA).
+      custom_ca_bundle = "-----BEGIN CERTIFICATE-----\nMIIB...\n-----END CERTIFICATE-----\n"
     }
   }
 }

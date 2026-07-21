@@ -3,6 +3,7 @@ package types
 import (
 	"context"
 	"encoding/json"
+	"reflect"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -122,4 +123,115 @@ func TestClusterUpdate_DataSourceHydratesAutoAgentSizeConfig(t *testing.T) {
 	require.NotNil(t, cluster.Spec.Data.AutoscalerConfig)
 	require.Equal(t, "3", cluster.Spec.Data.AutoscalerConfig.ApplicationController.ResourceMaximum.Cpu.ValueString())
 	require.Equal(t, int64(3), cluster.Spec.Data.AutoscalerConfig.RepoServer.ReplicasMaximum.ValueInt64())
+}
+
+// TestClusterUpdate_ConnectivityNormalizesEnum guards the connectivity round-trip.
+// protojson serializes the API enum to its proto name ("CONNECTIVITY_PUBLIC"); the TF
+// schema stores the lowercase "public"/"private" form, and an unset value must resolve
+// to the documented "public" default so that create, refresh, and import all agree.
+func TestClusterUpdate_ConnectivityNormalizesEnum(t *testing.T) {
+	newCluster := func() *Cluster {
+		return &Cluster{
+			InstanceID: tftypes.StringValue("instance-id"),
+			Name:       tftypes.StringValue("cluster-conn"),
+		}
+	}
+	newAPICluster := func(c argocdv1.Connectivity) *argocdv1.Cluster {
+		return &argocdv1.Cluster{
+			Id:   "cluster-id",
+			Name: "cluster-conn",
+			Data: &argocdv1.ClusterData{
+				Namespace:    "argocd",
+				Size:         argocdv1.ClusterSize_CLUSTER_SIZE_SMALL,
+				Connectivity: c,
+			},
+		}
+	}
+
+	testCases := map[string]struct {
+		apiValue   argocdv1.Connectivity
+		readImport bool
+		expected   string
+	}{
+		"public enum maps to public":               {apiValue: argocdv1.Connectivity_CONNECTIVITY_PUBLIC, expected: "public"},
+		"private enum maps to private":             {apiValue: argocdv1.Connectivity_CONNECTIVITY_PRIVATE, expected: "private"},
+		"unspecified defaults to public on apply":  {apiValue: argocdv1.Connectivity_CONNECTIVITY_UNSPECIFIED, expected: "public"},
+		"unspecified defaults to public on import": {apiValue: argocdv1.Connectivity_CONNECTIVITY_UNSPECIFIED, readImport: true, expected: "public"},
+		"private enum maps to private on import":   {apiValue: argocdv1.Connectivity_CONNECTIVITY_PRIVATE, readImport: true, expected: "private"},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			ctx := context.Background()
+			if tc.readImport {
+				ctx = WithReadContext(ctx)
+			}
+			cluster := newCluster()
+			var diags diag.Diagnostics
+			cluster.Update(ctx, &diags, newAPICluster(tc.apiValue), nil)
+			require.False(t, diags.HasError())
+			require.Equal(t, tc.expected, cluster.Spec.Data.Connectivity.ValueString())
+		})
+	}
+}
+
+// TestConnectivityReverseOverride_HandlesBothRepresentations guards the override against
+// both API forms: the protojson enum name (cluster/kargo-agent read path) and the
+// lowercase v1alpha1 export string (instance/kargo-instance read path), plus the
+// omitted/unset case that must default to "public".
+func TestConnectivityReverseOverride_HandlesBothRepresentations(t *testing.T) {
+	override := ConnectivityReverseOverride()
+	testCases := map[string]struct {
+		mapValue any
+		expected string
+	}{
+		"proto public":     {mapValue: "CONNECTIVITY_PUBLIC", expected: "public"},
+		"proto private":    {mapValue: "CONNECTIVITY_PRIVATE", expected: "private"},
+		"export public":    {mapValue: "public", expected: "public"},
+		"export private":   {mapValue: "private", expected: "private"},
+		"missing":          {mapValue: nil, expected: "public"},
+		"empty string":     {mapValue: "", expected: "public"},
+		"unspecified enum": {mapValue: "CONNECTIVITY_UNSPECIFIED", expected: "public"},
+	}
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			val, handled := override(tc.mapValue, reflect.Value{})
+			require.True(t, handled)
+			str, ok := val.(tftypes.String)
+			require.True(t, ok)
+			require.Equal(t, tc.expected, str.ValueString())
+		})
+	}
+}
+
+// TestConnectivityProtoToTF_CustomizationDefaultsOverride guards the override used for the
+// optional customization-defaults objects: it must normalize both the enum name and the
+// lowercase form, but decline (so the object is not materialized) when the value is absent
+// or unset. This is the path that otherwise leaks "CONNECTIVITY_PUBLIC" into a sensitive
+// block on export.
+func TestConnectivityProtoToTF_CustomizationDefaultsOverride(t *testing.T) {
+	override := ProtoEnumToLowerString(connectivityProtoToTF)
+
+	mapped := map[string]string{
+		"CONNECTIVITY_PUBLIC":  "public",
+		"CONNECTIVITY_PRIVATE": "private",
+		"public":               "public",
+		"private":              "private",
+	}
+	for in, want := range mapped {
+		t.Run("maps "+in, func(t *testing.T) {
+			val, handled := override(in, reflect.Value{})
+			require.True(t, handled)
+			str, ok := val.(tftypes.String)
+			require.True(t, ok)
+			require.Equal(t, want, str.ValueString())
+		})
+	}
+
+	for name, in := range map[string]any{"missing": nil, "empty": "", "unspecified": "CONNECTIVITY_UNSPECIFIED"} {
+		t.Run("declines "+name, func(t *testing.T) {
+			_, handled := override(in, reflect.Value{})
+			require.False(t, handled)
+		})
+	}
 }

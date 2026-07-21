@@ -35,6 +35,8 @@ type ClusterCustomization struct {
 	AppReplication        *bool                `json:"appReplication,omitempty"`
 	RedisTunneling        *bool                `json:"redisTunneling,omitempty"`
 	ServerSideDiffEnabled *bool                `json:"serverSideDiffEnabled,omitempty"`
+	Connectivity          Connectivity         `json:"connectivity,omitempty"`
+	CustomCaBundle        string               `json:"customCaBundle,omitempty"`
 }
 
 type AppsetPolicy struct {
@@ -223,6 +225,7 @@ type InstanceSpec struct {
 	PreferControlPlaneRepoServer  *bool                   `json:"preferControlPlaneRepoServer,omitempty"`
 	TerminationProtectionEnabled  *bool                   `json:"terminationProtectionEnabled,omitempty"`
 	TerminationProtectionNotes    *string                 `json:"terminationProtectionNotes,omitempty"`
+	Connectivity                  Connectivity            `json:"connectivity,omitempty"`
 }
 
 type AppsetPlugins struct {

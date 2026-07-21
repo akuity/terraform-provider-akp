@@ -69,6 +69,12 @@ var (
 		// Enum fields: protojson outputs proto names (e.g., "CLUSTER_SIZE_SMALL"), TF expects lowercase
 		"data.size":                             ProtoEnumToLowerString(clusterSizeProtoToTF),
 		"data.direct_cluster_spec.cluster_type": ProtoEnumToLowerString(directClusterTypeProtoToTF),
+		// Connectivity enum: normalize proto name to public/private, defaulting to public when unset
+		"data.connectivity":               ConnectivityReverseOverride(),
+		"spec.instance_spec.connectivity": ConnectivityReverseOverride(),
+		// Customization defaults connectivity is an optional nested object: normalize the
+		// enum name but decline when absent so the object is not materialized.
+		"spec.instance_spec.cluster_customization_defaults.connectivity": ProtoEnumToLowerString(connectivityProtoToTF),
 	}
 
 	// ReverseRenamesMap maps tfsdk tags to API camelCase keys for the reverse direction.

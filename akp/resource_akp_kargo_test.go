@@ -59,12 +59,19 @@ func runKargoConfigTests(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.argocd_ui.idp_groups_mapping", "true"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.termination_protection_enabled", "true"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.termination_protection_notes", "Critical production instance - do not delete"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.connectivity", "public"),
 					resource.TestCheckResourceAttr("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.termination_protection_enabled", "true"),
+					resource.TestCheckResourceAttr("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.connectivity", "public"),
 					resource.TestCheckResourceAttr("data.akp_kargo_instance.test", "name", name),
 					resource.TestCheckResourceAttrSet("data.akp_kargo_instance.test", "id"),
 					resource.TestCheckResourceAttr("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.backend_ip_allow_list_enabled", "true"),
-					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo_resources.%", "1"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo_resources.%", "2"),
 					resource.TestCheckResourceAttrSet("akp_kargo_instance.test", "kargo_resources.kargo.akuity.io/v1alpha1/Project//test-project"),
+					// ClusterConfig round-trips through apply + export on the resource...
+					resource.TestCheckResourceAttrSet("akp_kargo_instance.test", "kargo_resources.kargo.akuity.io/v1alpha1/ClusterConfig//cluster"),
+					// ...and is returned by the instance via the data source (export path),
+					// proving the Kargo instance received and persisted it.
+					resource.TestCheckResourceAttrSet("data.akp_kargo_instance.test", "kargo_resources.kargo.akuity.io/v1alpha1/ClusterConfig//cluster"),
 				),
 			},
 			// Step 5: OIDC and Extras
@@ -138,6 +145,10 @@ func runKargo_NestedOptionalObjectStability(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "name", name),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.agent_customization_defaults.auto_upgrade_disabled", "true"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.agent_customization_defaults.connectivity", "public"),
+					resource.TestCheckResourceAttrSet("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.agent_customization_defaults.connectivity"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.agent_customization_defaults.custom_ca_bundle", testCABundle),
+					resource.TestCheckResourceAttrSet("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.agent_customization_defaults.custom_ca_bundle"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.akuity_intelligence.enabled", "true"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.gc_config.max_retained_freight", "10"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.oidc_config.enabled", "true"),
@@ -157,6 +168,10 @@ func runKargo_NestedOptionalObjectStability(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "name", name),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.agent_customization_defaults.auto_upgrade_disabled", "true"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.agent_customization_defaults.connectivity", "public"),
+					resource.TestCheckResourceAttrSet("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.agent_customization_defaults.connectivity"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.agent_customization_defaults.custom_ca_bundle", testCABundle),
+					resource.TestCheckResourceAttrSet("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.agent_customization_defaults.custom_ca_bundle"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.akuity_intelligence.enabled", "true"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.gc_config.max_retained_freight", "10"),
 					resource.TestCheckTypeSetElemAttr("akp_kargo_instance.test", "kargo.spec.oidc_config.viewer_account.claims.groups.values.*", "viewer@example.com"),
@@ -445,6 +460,7 @@ resource "akp_kargo_instance" "test" {
         agent_customization_defaults = {
           auto_upgrade_disabled = true
           kustomization         = "apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\n"
+          connectivity          = "public"
         }
         akuity_intelligence = {
           enabled                     = true
@@ -463,6 +479,7 @@ resource "akp_kargo_instance" "test" {
         }
         termination_protection_enabled = true
         termination_protection_notes   = "Critical production instance - do not delete"
+        connectivity                   = "public"
       }
     }
   }
@@ -472,6 +489,26 @@ resource "akp_kargo_instance" "test" {
       kind       = "Project"
       metadata = {
         name = "test-project"
+      }
+    })
+    # ClusterConfig is a cluster-scoped singleton (no namespace, name "cluster")
+    # holding config shared across all projects. freightLinks is self-contained
+    # (unlike webhook receivers, which reference a Secret), so it exercises the
+    # full apply -> export round-trip deterministically and proves the instance
+    # actually stores and returns the ClusterConfig.
+    "kargo.akuity.io/v1alpha1/ClusterConfig//cluster" = jsonencode({
+      apiVersion = "kargo.akuity.io/v1alpha1"
+      kind       = "ClusterConfig"
+      metadata = {
+        name = "cluster"
+      }
+      spec = {
+        freightLinks = [
+          {
+            title = "Changelog"
+            url   = "https://example.com/changelog"
+          },
+        ]
       }
     })
   }
@@ -620,6 +657,8 @@ resource "akp_kargo_instance" "test" {
         agent_customization_defaults = {
           auto_upgrade_disabled = true
           kustomization         = "apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\n"
+          connectivity          = "public"
+          custom_ca_bundle      = %q
         }
         akuity_intelligence = {
           enabled          = true
@@ -646,5 +685,9 @@ resource "akp_kargo_instance" "test" {
       }
     }
   }
-}`, name, getKargoVersion())
+}
+
+data "akp_kargo_instance" "test" {
+  name = akp_kargo_instance.test.name
+}`, name, getKargoVersion(), testCABundle)
 }

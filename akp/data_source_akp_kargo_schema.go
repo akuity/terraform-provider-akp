@@ -40,7 +40,7 @@ func getAKPKargoDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 		},
 		"kargo_resources": schema.MapAttribute{
-			MarkdownDescription: "Map of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`,`ClusterPromotionTask`, `Stage`, `Warehouse`, `AnalysisTemplate`, `PromotionTask`(with Groups: `kargo.akuity.io`); `Secret`(only with `kargo.akuity.io/cred-type` label); `ConfigMap`; `Role`, `RoleBinding`, `ServiceAccount`(`rbac.kargo.akuity.io/managed=\"true\"` annotation required)",
+			MarkdownDescription: "Map of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`, `ProjectConfig`, `ClusterConfig`, `Warehouse`, `Stage`, `PromotionTask`, `ClusterPromotionTask` (Group `kargo.akuity.io`); `MessageChannel`, `ClusterMessageChannel`, `EventRouter`, `CustomPromotionStep` (Group `ee.kargo.akuity.io`); `AnalysisTemplate` (Group `argoproj.io`); `Secret` (only with `kargo.akuity.io/cred-type` label); `ConfigMap`; `Role`, `RoleBinding`, `ServiceAccount` (`rbac.kargo.akuity.io/managed=\"true\"` annotation required)",
 			Computed:            true,
 			ElementType:         types.StringType,
 		},
@@ -148,6 +148,10 @@ func getKargoInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Notes describing why termination protection is enabled for this Kargo instance.",
 			Computed:            true,
 		},
+		"connectivity": schema.StringAttribute{
+			MarkdownDescription: "How the Kargo instance is reached. One of `public` (internet) or `private` (AWS PrivateLink).",
+			Computed:            true,
+		},
 	}
 }
 
@@ -181,6 +185,14 @@ func getKargoAgentCustomizationDataSourceAttributes() map[string]schema.Attribut
 		},
 		"kustomization": schema.StringAttribute{
 			MarkdownDescription: "Kustomization configuration",
+			Computed:            true,
+		},
+		"connectivity": schema.StringAttribute{
+			MarkdownDescription: "Default agent connectivity applied to new agents. One of `public` (internet) or `private` (AWS PrivateLink).",
+			Computed:            true,
+		},
+		"custom_ca_bundle": schema.StringAttribute{
+			MarkdownDescription: "Default PEM bundle of one or more CA certificates applied to new agents that do not specify their own.",
 			Computed:            true,
 		},
 	}

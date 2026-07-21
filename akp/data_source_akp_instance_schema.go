@@ -264,6 +264,10 @@ func getInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Notes describing why termination protection is enabled for this Argo CD instance.",
 			Computed:            true,
 		},
+		"connectivity": schema.StringAttribute{
+			MarkdownDescription: "How the Argo CD instance is reached. One of `public` (internet) or `private` (AWS PrivateLink).",
+			Computed:            true,
+		},
 	}
 }
 
@@ -434,6 +438,14 @@ func getClusterCustomizationDataSourceAttributes() map[string]schema.Attribute {
 		},
 		"server_side_diff_enabled": schema.BoolAttribute{
 			MarkdownDescription: "Enables the ability to set server-side diff on the application-controller.",
+			Computed:            true,
+		},
+		"connectivity": schema.StringAttribute{
+			MarkdownDescription: "Default agent connectivity applied to new agents. One of `public` (internet) or `private` (AWS PrivateLink).",
+			Computed:            true,
+		},
+		"custom_ca_bundle": schema.StringAttribute{
+			MarkdownDescription: "Default PEM bundle of one or more CA certificates applied to new clusters that do not specify their own.",
 			Computed:            true,
 		},
 	}

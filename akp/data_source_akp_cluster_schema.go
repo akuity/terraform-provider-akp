@@ -178,6 +178,14 @@ func getClusterDataDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Whether local repository credentials injection is enabled for the cluster.",
 			Computed:            true,
 		},
+		"connectivity": schema.StringAttribute{
+			MarkdownDescription: "How the cluster is reached. One of `public` (internet) or `private` (AWS PrivateLink).",
+			Computed:            true,
+		},
+		"custom_ca_bundle": schema.StringAttribute{
+			MarkdownDescription: "PEM bundle of one or more CA certificates the agent workloads trust in addition to the system roots (e.g. a TLS-intercepting proxy CA).",
+			Computed:            true,
+		},
 	}
 }
 

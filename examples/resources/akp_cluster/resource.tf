@@ -32,6 +32,11 @@ resource "akp_cluster" "example" {
       }
       eks_addon_enabled           = true
       datadog_annotations_enabled = true
+      # How the cluster is reached: "public" (internet) or "private" (AWS PrivateLink).
+      connectivity = "public"
+      # PEM bundle of CA certificates the agent workloads must trust in addition to
+      # the system roots (e.g. a TLS-intercepting proxy CA).
+      custom_ca_bundle = "-----BEGIN CERTIFICATE-----\nMIIB...\n-----END CERTIFICATE-----\n"
       compatibility = {
         # enable IPv6 Compatible
         ipv6_only = true

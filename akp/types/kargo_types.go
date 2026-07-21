@@ -40,6 +40,12 @@ var (
 		"reapply_manifests_on_update":       TFOnlyField(types.BoolValue(false)),
 		// Enum fields: protojson outputs proto names, TF expects lowercase
 		"data.size": ProtoEnumToLowerString(kargoAgentSizeProtoToTF),
+		// Connectivity enum: normalize proto name to public/private, defaulting to public when unset
+		"data.connectivity":                     ConnectivityReverseOverride(),
+		"spec.kargo_instance_spec.connectivity": ConnectivityReverseOverride(),
+		// Customization defaults connectivity is an optional nested object: normalize the
+		// enum name but decline when absent so the object is not materialized.
+		"spec.kargo_instance_spec.agent_customization_defaults.connectivity": ProtoEnumToLowerString(connectivityProtoToTF),
 	}
 
 	// KargoReverseRenamesMap maps tfsdk tags to API camelCase keys for the reverse direction.

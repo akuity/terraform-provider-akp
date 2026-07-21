@@ -621,6 +621,8 @@ func runClusterResourceFeatures(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.datadog_annotations_enabled", "true"),
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.redis_tunneling", "true"),
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.app_replication", "true"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.connectivity", "public"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.custom_ca_bundle", testCABundle),
 				),
 			},
 			testAccClusterImportStateStep(getInstanceId(), name, testAccClusterFeaturesImportStateVerifyIgnore...),
@@ -957,6 +959,11 @@ resource "akp_cluster" "test" {
 `, instanceId, name)
 }
 
+// testCABundle is a self-signed CA certificate valid until 2124, used to
+// exercise the custom_ca_bundle field. It must stay unexpired so the API's
+// certificate validation accepts it.
+const testCABundle = "-----BEGIN CERTIFICATE-----\nMIIBeTCCAR+gAwIBAgIBATAKBggqhkjOPQQDAjAjMSEwHwYDVQQDExhha3VpdHkt\ndGVycmFmb3JtLXRlc3QtY2EwIBcNMjAwMTAxMDAwMDAwWhgPMjEyNDAxMDEwMDAw\nMDBaMCMxITAfBgNVBAMTGGFrdWl0eS10ZXJyYWZvcm0tdGVzdC1jYTBZMBMGByqG\nSM49AgEGCCqGSM49AwEHA0IABPePjBDkeKh1c5ht4R6DDwAiFdDSr8qVabTDRT4H\n6GOsfypUJ1KEEUkvmbDbLal2xtwbgATaEkv9vnNBMB9npTujQjBAMA4GA1UdDwEB\n/wQEAwIBBjAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBQpNPENoihyQtyEoLe2\n5gA/dus+wTAKBggqhkjOPQQDAgNIADBFAiEAwxZlhfnDyRVW0RPgVyAwobLcgB78\nG9UyFGmg6eNKQk0CIGEJnP6hUK5+adYgdEIPi4rb21xYNNCyZaTj9XjfYznr\n-----END CERTIFICATE-----\n"
+
 func testAccClusterResourceConfigFeatures(name, instanceId string) string {
 	return fmt.Sprintf(`
 resource "akp_cluster" "test" {
@@ -973,10 +980,12 @@ resource "akp_cluster" "test" {
       datadog_annotations_enabled        = true
       redis_tunneling                    = true
       app_replication                    = true
+      connectivity                       = "public"
+      custom_ca_bundle                   = %q
     }
   }
 }
-`, instanceId, name)
+`, instanceId, name, testCABundle)
 }
 
 func testAccClusterResourceConfigReapplyManifests(name, description, instanceId string) string {

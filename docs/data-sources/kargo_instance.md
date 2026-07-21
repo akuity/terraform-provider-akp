@@ -30,7 +30,7 @@ data "akp_kargo_instance" "example" {
 - `id` (String) Kargo instance ID
 - `kargo` (Attributes) Specification of the Kargo instance (see [below for nested schema](#nestedatt--kargo))
 - `kargo_cm` (Map of String) ConfigMap to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf
-- `kargo_resources` (Map of String) Map of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`,`ClusterPromotionTask`, `Stage`, `Warehouse`, `AnalysisTemplate`, `PromotionTask`(with Groups: `kargo.akuity.io`); `Secret`(only with `kargo.akuity.io/cred-type` label); `ConfigMap`; `Role`, `RoleBinding`, `ServiceAccount`(`rbac.kargo.akuity.io/managed="true"` annotation required)
+- `kargo_resources` (Map of String) Map of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`, `ProjectConfig`, `ClusterConfig`, `Warehouse`, `Stage`, `PromotionTask`, `ClusterPromotionTask` (Group `kargo.akuity.io`); `MessageChannel`, `ClusterMessageChannel`, `EventRouter`, `CustomPromotionStep` (Group `ee.kargo.akuity.io`); `AnalysisTemplate` (Group `argoproj.io`); `Secret` (only with `kargo.akuity.io/cred-type` label); `ConfigMap`; `Role`, `RoleBinding`, `ServiceAccount` (`rbac.kargo.akuity.io/managed="true"` annotation required)
 - `workspace` (String) Workspace name for the Kargo instance
 
 <a id="nestedatt--kargo"></a>
@@ -61,6 +61,7 @@ Read-Only:
 - `akuity_intelligence` (Attributes) Akuity Intelligence configuration for AI-powered features (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--akuity_intelligence))
 - `argocd_ui` (Attributes) Controls behavior of Argo CD user interface in the Kargo instance (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--argocd_ui))
 - `backend_ip_allow_list_enabled` (Boolean) Whether IP allow list is enabled for the backend
+- `connectivity` (String) How the Kargo instance is reached. One of `public` (internet) or `private` (AWS PrivateLink).
 - `gc_config` (Attributes) Garbage collector configuration (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--gc_config))
 - `global_credentials_ns` (List of String) List of global credentials namespaces
 - `global_service_account_ns` (List of String) List of global service account namespaces
@@ -76,6 +77,8 @@ Read-Only:
 Read-Only:
 
 - `auto_upgrade_disabled` (Boolean) Whether auto upgrade is disabled
+- `connectivity` (String) Default agent connectivity applied to new agents. One of `public` (internet) or `private` (AWS PrivateLink).
+- `custom_ca_bundle` (String) Default PEM bundle of one or more CA certificates applied to new agents that do not specify their own.
 - `kustomization` (String) Kustomization configuration
 
 

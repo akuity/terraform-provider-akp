@@ -113,4 +113,6 @@ type ClusterData struct {
 	MaintenanceModeExpiry           types.String                        `tfsdk:"maintenance_mode_expiry"`
 	PodInheritMetadata              types.Bool                          `tfsdk:"pod_inherit_metadata"`
 	UseLocalRepoCreds               types.Bool                          `tfsdk:"use_local_repo_creds"`
+	Connectivity                    types.String                        `tfsdk:"connectivity"`
+	CustomCaBundle                  types.String                        `tfsdk:"custom_ca_bundle"`
 }

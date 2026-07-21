@@ -71,7 +71,7 @@ func getAKPKargoInstanceAttributes() map[string]schema.Attribute {
 			},
 		},
 		"kargo_resources": schema.MapAttribute{
-			MarkdownDescription: "Map of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`, `ClusterPromotionTask`, `Stage`, `Warehouse`, `AnalysisTemplate`, `PromotionTask`(with Groups: `kargo.akuity.io`); `Secret`(only with `kargo.akuity.io/cred-type` label); `ConfigMap`; `Role`, `RoleBinding`, `ServiceAccount`(`rbac.kargo.akuity.io/managed=\"true\"` annotation required)",
+			MarkdownDescription: "Map of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`, `ProjectConfig`, `ClusterConfig`, `Warehouse`, `Stage`, `PromotionTask`, `ClusterPromotionTask` (Group `kargo.akuity.io`); `MessageChannel`, `ClusterMessageChannel`, `EventRouter`, `CustomPromotionStep` (Group `ee.kargo.akuity.io`); `AnalysisTemplate` (Group `argoproj.io`); `Secret` (only with `kargo.akuity.io/cred-type` label); `ConfigMap`; `Role`, `RoleBinding`, `ServiceAccount` (`rbac.kargo.akuity.io/managed=\"true\"` annotation required)",
 			Optional:            true,
 			ElementType:         types.StringType,
 			PlanModifiers: []planmodifier.Map{
@@ -230,6 +230,17 @@ func getKargoSpecInstanceAttributes() map[string]schema.Attribute {
 				stringplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
+		"connectivity": schema.StringAttribute{
+			MarkdownDescription: "How the Kargo instance is reached. One of `public` (internet) or `private` (AWS PrivateLink). Defaults to `public`.",
+			Optional:            true,
+			Computed:            true,
+			Validators: []validator.String{
+				stringvalidator.OneOf("public", "private"),
+			},
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
 	}
 }
 
@@ -266,6 +277,26 @@ func getKargoAgentCustomizationAttributes() map[string]schema.Attribute {
 		"kustomization": schema.StringAttribute{
 			MarkdownDescription: "Kustomization that will be applied to the Kargo agent to generate agent installation manifests",
 			Optional:            true,
+		},
+		"connectivity": schema.StringAttribute{
+			MarkdownDescription: "Default agent connectivity applied to new agents. One of `public` (internet) or `private` (AWS PrivateLink).",
+			Optional:            true,
+			Computed:            true,
+			Validators: []validator.String{
+				stringvalidator.OneOf("public", "private"),
+			},
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"custom_ca_bundle": schema.StringAttribute{
+			MarkdownDescription: "Default PEM bundle of one or more CA certificates applied to new agents that do not specify their own. Certificates must be unexpired.",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+				stringplanmodifier2.SuppressProtobufDefault(),
+			},
 		},
 	}
 }

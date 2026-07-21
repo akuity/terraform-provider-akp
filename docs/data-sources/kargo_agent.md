@@ -77,6 +77,8 @@ Read-Only:
 - `argocd_namespace` (String) The namespace of the Argo CD instance
 - `auto_upgrade_disabled` (Boolean) Whether auto upgrade is disabled
 - `autoscaler_config` (Attributes) Autoscaler configuration for the Kargo agent. (see [below for nested schema](#nestedatt--spec--data--autoscaler_config))
+- `connectivity` (String) How the Kargo agent is reached. One of `public` (internet) or `private` (AWS PrivateLink).
+- `custom_ca_bundle` (String) PEM bundle of one or more CA certificates the agent workloads trust in addition to the system roots (e.g. a TLS-intercepting proxy CA).
 - `kustomization` (String) Kustomize configuration that will be applied to generated Kargo agent installation manifests
 - `maintenance_mode` (Boolean) Whether maintenance mode is enabled for the agent.
 - `maintenance_mode_expiry` (String) Expiry time for maintenance mode in RFC3339 format.

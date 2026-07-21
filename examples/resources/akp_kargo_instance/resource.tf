@@ -98,7 +98,12 @@ resource "akp_kargo_instance" "example" {
         ]
         agent_customization_defaults = {
           auto_upgrade_disabled = true
-          kustomization         = <<-EOT
+          # connectivity is the default agent connectivity (public/private) applied to new agents
+          connectivity = "public"
+          # custom_ca_bundle is the default PEM CA bundle applied to new agents that
+          # do not set their own (e.g. a TLS-intercepting proxy CA).
+          custom_ca_bundle = "-----BEGIN CERTIFICATE-----\nMIIB...\n-----END CERTIFICATE-----\n"
+          kustomization    = <<-EOT
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
@@ -147,6 +152,8 @@ EOT
         # Prevent accidental deletion of this instance
         termination_protection_enabled = true
         termination_protection_notes   = "Critical production instance - do not delete"
+        # How the Kargo instance is reached: "public" (internet) or "private" (AWS PrivateLink).
+        connectivity = "public"
       }
     }
   }
@@ -203,6 +210,18 @@ EOT
 #   namespace: kargo-demo
 # spec:
 #   # Event router configuration
+# ---
+# apiVersion: kargo.akuity.io/v1alpha1
+# kind: ClusterConfig
+# metadata:
+#   name: cluster
+# spec:
+#   # Cluster-scoped config shared across all projects, e.g. webhook receivers
+#   webhookReceivers:
+#   - name: github-wh
+#     github:
+#       secretRef:
+#         name: gh-webhook-secret
 # ---
 # ...
 # ---------------------------------------------
