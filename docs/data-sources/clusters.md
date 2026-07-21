@@ -94,7 +94,9 @@ Read-Only:
 - `auto_agent_size_config` (Attributes) Autoscaler config for auto agent size (see [below for nested schema](#nestedatt--clusters--spec--data--auto_agent_size_config))
 - `auto_upgrade_disabled` (Boolean) Disables agents auto upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
 - `compatibility` (Attributes) Cluster compatibility settings (see [below for nested schema](#nestedatt--clusters--spec--data--compatibility))
+- `connectivity` (String) How the cluster is reached. One of `public` (internet) or `private` (AWS PrivateLink).
 - `custom_agent_size_config` (Attributes) Custom agent size config (see [below for nested schema](#nestedatt--clusters--spec--data--custom_agent_size_config))
+- `custom_ca_bundle` (String) PEM bundle of one or more CA certificates the agent workloads trust in addition to the system roots (e.g. a TLS-intercepting proxy CA).
 - `datadog_annotations_enabled` (Boolean) Enable Datadog metrics collection of Application Controller and Repo Server. Make sure that you install Datadog agent in cluster.
 - `direct_cluster_spec` (Attributes) Direct cluster integration spec. Currently supports `kargo` (see [below for nested schema](#nestedatt--clusters--spec--data--direct_cluster_spec))
 - `eks_addon_enabled` (Boolean) Enable this if you are installing this cluster on EKS.

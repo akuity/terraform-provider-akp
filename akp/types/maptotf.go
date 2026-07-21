@@ -468,3 +468,41 @@ func ProtoEnumToLowerString(mapping map[string]string) ReverseFieldOverride {
 		return nil, false
 	}
 }
+
+// connectivityProtoToTF maps both connectivity representations that reach the reverse
+// converters — the protojson/JSONPb enum name and the already-lowercase v1alpha1 string —
+// to the lowercase form the TF schema stores. Used with ProtoEnumToLowerString for the
+// optional customization-defaults objects, where a missing value must be declined (so an
+// absent object is not materialized) rather than defaulted.
+var connectivityProtoToTF = map[string]string{
+	"CONNECTIVITY_PUBLIC":  "public",
+	"CONNECTIVITY_PRIVATE": "private",
+	"public":               "public",
+	"private":              "private",
+}
+
+// ConnectivityReverseOverride normalizes the connectivity value coming back from the
+// API into the lowercase "public"/"private" form the TF schema expects. Two API
+// representations reach this override depending on the read path: resources read via
+// marshal.ProtoToMap (cluster, kargo agent) get the protojson enum name
+// ("CONNECTIVITY_PUBLIC"), while resources read via the server export
+// (instance, kargo instance) get the already-lowercase v1alpha1 string ("public").
+// When the API omits connectivity (the unspecified zero value, dropped by both paths),
+// the field resolves to its documented default of "public" so that create, refresh, and
+// import all round-trip to the same value. It always handles the field (never falls
+// through) so the enum name can never leak into state and null/"" never diverges
+// between apply and import.
+func ConnectivityReverseOverride() ReverseFieldOverride {
+	return func(mapValue any, _ reflect.Value) (attr.Value, bool) {
+		if str, ok := mapValue.(string); ok {
+			switch str {
+			case "CONNECTIVITY_PRIVATE", "private":
+				return types.StringValue("private"), true
+			case "CONNECTIVITY_PUBLIC", "public":
+				return types.StringValue("public"), true
+			}
+		}
+		// Missing / nil / unspecified / unknown → documented default.
+		return types.StringValue("public"), true
+	}
+}

@@ -290,11 +290,17 @@ var kargoResourceGroups = map[string]struct {
 			req.CustomPromotionSteps = append(req.CustomPromotionSteps, item)
 		},
 	},
+	"ClusterConfig": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.ClusterConfigs = append(req.ClusterConfigs, item)
+		},
+	},
 }
 
 var kargoSupportedGroupKinds = map[schema.GroupKind]func(*unstructured.Unstructured) error{
 	{Group: "kargo.akuity.io", Kind: "Project"}:                  nil,
 	{Group: "kargo.akuity.io", Kind: "ProjectConfig"}:            nil,
+	{Group: "kargo.akuity.io", Kind: "ClusterConfig"}:            nil,
 	{Group: "kargo.akuity.io", Kind: "Warehouse"}:                nil,
 	{Group: "kargo.akuity.io", Kind: "Stage"}:                    nil,
 	{Group: "kargo.akuity.io", Kind: "PromotionTask"}:            nil,

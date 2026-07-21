@@ -62,4 +62,6 @@ type KargoAgentData struct {
 	MaintenanceModeExpiry types.String           `tfsdk:"maintenance_mode_expiry"`
 	PodInheritMetadata    types.Bool             `tfsdk:"pod_inherit_metadata"`
 	AutoscalerConfig      *KargoAutoscalerConfig `tfsdk:"autoscaler_config"`
+	Connectivity          types.String           `tfsdk:"connectivity"`
+	CustomCaBundle        types.String           `tfsdk:"custom_ca_bundle"`
 }

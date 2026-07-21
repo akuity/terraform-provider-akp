@@ -21,6 +21,8 @@ type ClusterSize string
 
 type DirectClusterType string
 
+type Connectivity string
+
 type ClusterSpec struct {
 	Description     string      `json:"description,omitempty"`
 	NamespaceScoped bool        `json:"namespaceScoped,omitempty"`
@@ -88,4 +90,6 @@ type ClusterData struct {
 	MaintenanceModeExpiry           *metav1.Time                        `json:"maintenanceModeExpiry,omitempty"`
 	PodInheritMetadata              *bool                               `json:"podInheritMetadata,omitempty"`
 	UseLocalRepoCreds               *bool                               `json:"useLocalRepoCreds,omitempty"`
+	Connectivity                    Connectivity                        `json:"connectivity,omitempty"`
+	CustomCaBundle                  string                              `json:"customCaBundle,omitempty"`
 }

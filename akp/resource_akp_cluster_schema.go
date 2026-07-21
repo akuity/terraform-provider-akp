@@ -323,6 +323,26 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 				boolplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
+		"connectivity": schema.StringAttribute{
+			MarkdownDescription: "How the cluster is reached. One of `public` (internet) or `private` (AWS PrivateLink). Defaults to `public`.",
+			Optional:            true,
+			Computed:            true,
+			Validators: []validator.String{
+				stringvalidator.OneOf("public", "private"),
+			},
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"custom_ca_bundle": schema.StringAttribute{
+			MarkdownDescription: "PEM bundle of one or more CA certificates the agent workloads trust in addition to the system roots (e.g. a TLS-intercepting proxy CA). Certificates must be unexpired.",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+				stringplanmodifier2.SuppressProtobufDefault(),
+			},
+		},
 	}
 }
 

@@ -18,6 +18,11 @@ resource "akp_kargo_agent" "example-agent" {
   spec = {
     data = {
       size = "small"
+      # How the agent is reached: "public" (internet) or "private" (AWS PrivateLink).
+      connectivity = "public"
+      # PEM bundle of CA certificates the agent workloads must trust in addition to
+      # the system roots (e.g. a TLS-intercepting proxy CA).
+      custom_ca_bundle = "-----BEGIN CERTIFICATE-----\nMIIB...\n-----END CERTIFICATE-----\n"
     }
   }
 }
@@ -159,6 +164,8 @@ Optional:
 - `argocd_namespace` (String) Provide the namespace your Argo CD is installed in. This is only available if you self-host your Kargo agent.
 - `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
 - `autoscaler_config` (Attributes) Autoscaler configuration for the Kargo agent. (see [below for nested schema](#nestedatt--spec--data--autoscaler_config))
+- `connectivity` (String) How the Kargo agent is reached. One of `public` (internet) or `private` (AWS PrivateLink). Defaults to `public`.
+- `custom_ca_bundle` (String) PEM bundle of one or more CA certificates the agent workloads trust in addition to the system roots (e.g. a TLS-intercepting proxy CA). Certificates must be unexpired.
 - `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
 - `maintenance_mode` (Boolean) Enable maintenance mode for the agent. When enabled, alerts for degraded agents are muted.
 - `maintenance_mode_expiry` (String) Expiry time for maintenance mode in RFC3339 format. Maintenance mode will be automatically disabled after this time.

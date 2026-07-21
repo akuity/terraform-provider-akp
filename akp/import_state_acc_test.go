@@ -14,6 +14,7 @@ var (
 	testAccClusterCommonImportStateVerifyIgnore = []string{
 		"spec.data.app_replication",                     // SuppressProtobufDefault (bool)
 		"spec.data.auto_upgrade_disabled",               // SuppressProtobufDefault (bool)
+		"spec.data.custom_ca_bundle",                    // SuppressProtobufDefault (string)
 		"spec.data.kustomization",                       // UnknownWhenCustomSize custom modifier
 		"spec.data.maintenance_mode",                    // SuppressProtobufDefault (bool); prefix also covers maintenance_mode_expiry
 		"spec.data.multi_cluster_k8s_dashboard_enabled", // SuppressProtobufDefault (bool)
@@ -70,6 +71,7 @@ var (
 	testAccKargoAgentCommonImportStateVerifyIgnore = []string{
 		"spec.data.auto_upgrade_disabled", // SuppressProtobufDefault (bool)
 		"spec.data.allowed_job_sa",        // Optional-only (no Computed)
+		"spec.data.custom_ca_bundle",      // SuppressProtobufDefault (string)
 		"spec.data.pod_inherit_metadata",  // SuppressProtobufDefault (bool)
 		"spec.data.autoscaler_config",     // Optional-only (no Computed)
 	}
@@ -143,14 +145,15 @@ var (
 		"kargo.spec.kargo_instance_spec.akuity_intelligence", // UseStateForNullUnknown
 		// SuppressProtobufDefault fields (ImportStateVerify bypasses plan modifiers)
 		"kargo.spec.fqdn", // SuppressProtobufDefault (string)
-		"kargo.spec.kargo_instance_spec.promo_controller_enabled",       // SuppressProtobufDefault (bool)
-		"kargo.spec.kargo_instance_spec.termination_protection_enabled", // SuppressProtobufDefault (bool)
-		"kargo.spec.kargo_instance_spec.termination_protection_notes",   // SuppressProtobufDefault (string)
-		"kargo.spec.oidc_config.cli_client_id",                          // SuppressProtobufDefault (string)
-		"kargo.spec.oidc_config.client_id",                              // SuppressProtobufDefault (string)
-		"kargo.spec.oidc_config.dex_config",                             // SuppressProtobufDefault (string)
-		"kargo.spec.oidc_config.issuer_url",                             // SuppressProtobufDefault (string)
-		"workspace",                                                     // SuppressProtobufDefault (string)
+		"kargo.spec.kargo_instance_spec.agent_customization_defaults.custom_ca_bundle", // SuppressProtobufDefault (string)
+		"kargo.spec.kargo_instance_spec.promo_controller_enabled",                      // SuppressProtobufDefault (bool)
+		"kargo.spec.kargo_instance_spec.termination_protection_enabled",                // SuppressProtobufDefault (bool)
+		"kargo.spec.kargo_instance_spec.termination_protection_notes",                  // SuppressProtobufDefault (string)
+		"kargo.spec.oidc_config.cli_client_id",                                         // SuppressProtobufDefault (string)
+		"kargo.spec.oidc_config.client_id",                                             // SuppressProtobufDefault (string)
+		"kargo.spec.oidc_config.dex_config",                                            // SuppressProtobufDefault (string)
+		"kargo.spec.oidc_config.issuer_url",                                            // SuppressProtobufDefault (string)
+		"workspace",                                                                    // SuppressProtobufDefault (string)
 		// Optional-only fields
 		"kargo.spec.kargo_instance_spec.argocd_ui",                 // Optional-only
 		"kargo.spec.kargo_instance_spec.global_credentials_ns",     // Optional-only
@@ -207,6 +210,7 @@ var (
 	testAccKargoAgentAutosizeImportStateVerifyIgnore = []string{
 		"spec.data.auto_upgrade_disabled", // SuppressProtobufDefault (bool)
 		"spec.data.allowed_job_sa",        // Optional-only (no Computed)
+		"spec.data.custom_ca_bundle",      // SuppressProtobufDefault (string)
 		"spec.data.pod_inherit_metadata",  // SuppressProtobufDefault (bool)
 		"spec.data.autoscaler_config",     // Optional-only top-level (pointer type)
 	}

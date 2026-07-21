@@ -57,6 +57,8 @@ type KargoIPAllowListEntry struct {
 type KargoAgentCustomization struct {
 	AutoUpgradeDisabled types.Bool   `tfsdk:"auto_upgrade_disabled"`
 	Kustomization       types.String `tfsdk:"kustomization"`
+	Connectivity        types.String `tfsdk:"connectivity"`
+	CustomCaBundle      types.String `tfsdk:"custom_ca_bundle"`
 }
 
 type KargoInstanceSpec struct {
@@ -72,6 +74,7 @@ type KargoInstanceSpec struct {
 	ArgocdUi                     *KargoArgoCDUIConfig     `tfsdk:"argocd_ui"`
 	TerminationProtectionEnabled types.Bool               `tfsdk:"termination_protection_enabled"`
 	TerminationProtectionNotes   types.String             `tfsdk:"termination_protection_notes"`
+	Connectivity                 types.String             `tfsdk:"connectivity"`
 }
 
 type KargoArgoCDUIConfig struct {

@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	"github.com/akuity/api-client-go/pkg/api/argocdexport"
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
 	healthv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/health/v1"
@@ -356,7 +357,7 @@ func refreshState(ctx context.Context, diagnostics *diag.Diagnostics, cli *AkpCl
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Export instance request: %s", exportReq))
 	exportResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.ExportInstanceResponse, error) {
-		return cli.Cli.ExportInstance(ctx, exportReq)
+		return argocdexport.ExportInstance(ctx, cli.Cli, exportReq)
 	}, "ExportInstance")
 	if err != nil {
 		return errors.Wrap(err, "Unable to export Argo CD instance")

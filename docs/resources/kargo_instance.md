@@ -125,7 +125,12 @@ resource "akp_kargo_instance" "example" {
         ]
         agent_customization_defaults = {
           auto_upgrade_disabled = true
-          kustomization         = <<-EOT
+          # connectivity is the default agent connectivity (public/private) applied to new agents
+          connectivity = "public"
+          # custom_ca_bundle is the default PEM CA bundle applied to new agents that
+          # do not set their own (e.g. a TLS-intercepting proxy CA).
+          custom_ca_bundle = "-----BEGIN CERTIFICATE-----\nMIIB...\n-----END CERTIFICATE-----\n"
+          kustomization    = <<-EOT
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
@@ -174,6 +179,8 @@ EOT
         # Prevent accidental deletion of this instance
         termination_protection_enabled = true
         termination_protection_notes   = "Critical production instance - do not delete"
+        # How the Kargo instance is reached: "public" (internet) or "private" (AWS PrivateLink).
+        connectivity = "public"
       }
     }
   }
@@ -231,6 +238,18 @@ EOT
 # spec:
 #   # Event router configuration
 # ---
+# apiVersion: kargo.akuity.io/v1alpha1
+# kind: ClusterConfig
+# metadata:
+#   name: cluster
+# spec:
+#   # Cluster-scoped config shared across all projects, e.g. webhook receivers
+#   webhookReceivers:
+#   - name: github-wh
+#     github:
+#       secretRef:
+#         name: gh-webhook-secret
+# ---
 # ...
 # ---------------------------------------------
 #
@@ -260,7 +279,7 @@ locals {
 ### Optional
 
 - `kargo_cm` (Map of String) ConfigMap to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf
-- `kargo_resources` (Map of String) Map of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`, `ClusterPromotionTask`, `Stage`, `Warehouse`, `AnalysisTemplate`, `PromotionTask`(with Groups: `kargo.akuity.io`); `Secret`(only with `kargo.akuity.io/cred-type` label); `ConfigMap`; `Role`, `RoleBinding`, `ServiceAccount`(`rbac.kargo.akuity.io/managed="true"` annotation required)
+- `kargo_resources` (Map of String) Map of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`, `ProjectConfig`, `ClusterConfig`, `Warehouse`, `Stage`, `PromotionTask`, `ClusterPromotionTask` (Group `kargo.akuity.io`); `MessageChannel`, `ClusterMessageChannel`, `EventRouter`, `CustomPromotionStep` (Group `ee.kargo.akuity.io`); `AnalysisTemplate` (Group `argoproj.io`); `Secret` (only with `kargo.akuity.io/cred-type` label); `ConfigMap`; `Role`, `RoleBinding`, `ServiceAccount` (`rbac.kargo.akuity.io/managed="true"` annotation required)
 - `kargo_secret` (Map of String, Sensitive) Secret to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf
 - `workspace` (String) Workspace name for the Kargo instance
 
@@ -299,6 +318,7 @@ Optional:
 - `akuity_intelligence` (Attributes) Akuity Intelligence configuration for AI-powered features (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--akuity_intelligence))
 - `argocd_ui` (Attributes) Controls behavior of Argo CD user interface in the Kargo instance (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--argocd_ui))
 - `backend_ip_allow_list_enabled` (Boolean) Whether IP allow list is enabled for the backend
+- `connectivity` (String) How the Kargo instance is reached. One of `public` (internet) or `private` (AWS PrivateLink). Defaults to `public`.
 - `gc_config` (Attributes) Garbage collector configuration (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--gc_config))
 - `global_credentials_ns` (List of String) List of global credentials namespaces
 - `global_service_account_ns` (List of String) List of global service account namespaces
@@ -314,6 +334,8 @@ Optional:
 Optional:
 
 - `auto_upgrade_disabled` (Boolean) Whether auto upgrade is disabled
+- `connectivity` (String) Default agent connectivity applied to new agents. One of `public` (internet) or `private` (AWS PrivateLink).
+- `custom_ca_bundle` (String) Default PEM bundle of one or more CA certificates applied to new agents that do not specify their own. Certificates must be unexpired.
 - `kustomization` (String) Kustomization that will be applied to the Kargo agent to generate agent installation manifests
 
 

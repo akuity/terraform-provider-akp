@@ -43,7 +43,12 @@ resource "akp_instance" "example" {
           auto_upgrade_disabled    = false
           redis_tunneling          = false
           server_side_diff_enabled = false
-          kustomization            = <<-EOF
+          # connectivity is the default agent connectivity (public/private) applied to new agents
+          connectivity = "public"
+          # custom_ca_bundle is the default PEM CA bundle applied to new clusters that
+          # do not set their own (e.g. a TLS-intercepting proxy CA).
+          custom_ca_bundle = "-----BEGIN CERTIFICATE-----\nMIIB...\n-----END CERTIFICATE-----\n"
+          kustomization    = <<-EOF
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 patches:
@@ -308,6 +313,8 @@ EOF
         # Prevent accidental deletion of this instance
         termination_protection_enabled = true
         termination_protection_notes   = "Critical production instance - do not delete"
+        # How the instance is reached: "public" (internet) or "private" (AWS PrivateLink).
+        connectivity = "public"
         # Delegate Image Updater to a specific cluster
         # image_updater_delegate = {
         #   control_plane = false

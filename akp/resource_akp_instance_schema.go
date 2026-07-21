@@ -480,6 +480,17 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 				stringplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
+		"connectivity": schema.StringAttribute{
+			MarkdownDescription: "How the Argo CD instance is reached. One of `public` (internet) or `private` (AWS PrivateLink). Defaults to `public`.",
+			Optional:            true,
+			Computed:            true,
+			Validators: []validator.String{
+				stringvalidator.OneOf("public", "private"),
+			},
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
 	}
 }
 
@@ -633,6 +644,26 @@ func getClusterCustomizationAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			PlanModifiers: []planmodifier.Bool{
 				boolplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"connectivity": schema.StringAttribute{
+			MarkdownDescription: "Default agent connectivity applied to new agents. One of `public` (internet) or `private` (AWS PrivateLink).",
+			Optional:            true,
+			Computed:            true,
+			Validators: []validator.String{
+				stringvalidator.OneOf("public", "private"),
+			},
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"custom_ca_bundle": schema.StringAttribute{
+			MarkdownDescription: "Default PEM bundle of one or more CA certificates applied to new clusters that do not specify their own. Certificates must be unexpired.",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+				stringplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
 	}

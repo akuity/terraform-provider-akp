@@ -73,6 +73,7 @@ Read-Only:
 - `backend_ip_allow_list_enabled` (Boolean) Enable ip allow list for cluster agents
 - `cluster_addons_extension` (Attributes) Cluster Addons Extension configuration for managing cluster addons (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--cluster_addons_extension))
 - `cluster_customization_defaults` (Attributes) Default values for cluster agents (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--cluster_customization_defaults))
+- `connectivity` (String) How the Argo CD instance is reached. One of `public` (internet) or `private` (AWS PrivateLink).
 - `crossplane_extension` (Attributes) Custom Resource Definition group name that identifies the Crossplane resource in kubernetes. We will include built-in crossplane resources. Note that you can use glob pattern to match the group. ie. *.crossplane.io (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--crossplane_extension))
 - `declarative_management_enabled` (Boolean) Enable Declarative Management
 - `extensions` (Attributes List) Extensions (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--extensions))
@@ -188,6 +189,8 @@ Read-Only:
 
 - `app_replication` (Boolean) Enables Argo CD state replication to the managed cluster that allows disconnecting the cluster from Akuity Platform without losing core Argocd features
 - `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
+- `connectivity` (String) Default agent connectivity applied to new agents. One of `public` (internet) or `private` (AWS PrivateLink).
+- `custom_ca_bundle` (String) Default PEM bundle of one or more CA certificates applied to new clusters that do not specify their own.
 - `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
 - `redis_tunneling` (Boolean) Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy
 - `server_side_diff_enabled` (Boolean) Enables the ability to set server-side diff on the application-controller.

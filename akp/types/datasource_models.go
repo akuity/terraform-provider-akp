@@ -64,6 +64,7 @@ type InstanceSpecDataSource struct {
 	ManifestGeneration              *ManifestGeneration            `tfsdk:"manifest_generation"`
 	TerminationProtectionEnabled    types.Bool                     `tfsdk:"termination_protection_enabled"`
 	TerminationProtectionNotes      types.String                   `tfsdk:"termination_protection_notes"`
+	Connectivity                    types.String                   `tfsdk:"connectivity"`
 }
 
 func NewInstanceDataSourceModel(instance *Instance) InstanceDataSource {
@@ -118,6 +119,7 @@ func NewInstanceDataSourceModel(instance *Instance) InstanceDataSource {
 					ManifestGeneration:              instance.ArgoCD.Spec.InstanceSpec.ManifestGeneration,
 					TerminationProtectionEnabled:    instance.ArgoCD.Spec.InstanceSpec.TerminationProtectionEnabled,
 					TerminationProtectionNotes:      instance.ArgoCD.Spec.InstanceSpec.TerminationProtectionNotes,
+					Connectivity:                    instance.ArgoCD.Spec.InstanceSpec.Connectivity,
 				},
 			},
 		}
