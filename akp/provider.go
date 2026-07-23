@@ -141,18 +141,10 @@ func (p *AkpProvider) Configure(ctx context.Context, req provider.ConfigureReque
 	ctx = httpctx.SetAuthorizationHeader(ctx, cred.Scheme(), cred.Credential())
 	gwc := gwoption.NewClient(ServerUrl, skipTLSVerify)
 	orgc := orgcv1.NewOrganizationServiceGatewayClient(gwc)
-
-	// The Akuity Platform API sits behind a gateway that intermittently returns
-	// 502/503/504 (surfaced by the gateway client as codes.Unavailable). A single
-	// blip on this lookup fails provider configuration, and because every akp
-	// resource depends on the provider, that aborts the entire plan/apply. Retry
-	// the transient case with backoff so a momentary hiccup no longer fails a run.
-	res, err := retryWithBackoff(ctx, func(ctx context.Context) (*orgcv1.GetOrganizationResponse, error) {
-		return orgc.GetOrganization(ctx, &orgcv1.GetOrganizationRequest{
-			Id:     orgName,
-			IdType: idv1.Type_NAME,
-		})
-	}, "get organization by name")
+	res, err := orgc.GetOrganization(ctx, &orgcv1.GetOrganizationRequest{
+		Id:     orgName,
+		IdType: idv1.Type_NAME,
+	})
 	tflog.Debug(ctx, fmt.Sprintf("Res: %s", res))
 	if err != nil {
 		resp.Diagnostics.AddError(
