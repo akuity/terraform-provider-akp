@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
-	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
 	"github.com/akuity/api-client-go/pkg/api/gateway/accesscontrol"
 	gwoption "github.com/akuity/api-client-go/pkg/api/gateway/option"
 	apikeyv1 "github.com/akuity/api-client-go/pkg/api/gen/apikey/v1"
@@ -21,6 +20,7 @@ import (
 	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
 	orgcv1 "github.com/akuity/api-client-go/pkg/api/gen/organization/v1"
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
+	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
 )
 
 var _ provider.Provider = &AkpProvider{}
@@ -112,7 +112,7 @@ func (p *AkpProvider) Configure(ctx context.Context, req provider.ConfigureReque
 		resp.Diagnostics.AddAttributeError(
 			path.Root("api_key_id"),
 			"Missing Akuity Platform API Key Id",
-			"The provider cannot create the Akuity Platform API client as there is an missing API key. "+
+			"The provider cannot create the Akuity Platform API client as the API key is missing. "+
 				"Use the AKUITY_API_KEY_ID environment variable to configure it.",
 		)
 	}
@@ -120,7 +120,7 @@ func (p *AkpProvider) Configure(ctx context.Context, req provider.ConfigureReque
 		resp.Diagnostics.AddAttributeError(
 			path.Root("api_key_secret"),
 			"Missing Akuity Platform API Key Secret",
-			"The provider cannot create the Akuity Platform API client as there is an missing API key. "+
+			"The provider cannot create the Akuity Platform API client as the API key is missing. "+
 				"Use the AKUITY_API_KEY_SECRET environment variable to configure it.",
 		)
 	}

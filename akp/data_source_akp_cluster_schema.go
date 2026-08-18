@@ -245,7 +245,7 @@ func getKubeconfigDataSourceAttributes() map[string]schema.Attribute {
 		"token": schema.StringAttribute{
 			Computed:    true,
 			Sensitive:   true,
-			Description: "Token to authenticate an service account",
+			Description: "Token to authenticate a service account",
 		},
 		"proxy_url": schema.StringAttribute{
 			Computed:    true,
