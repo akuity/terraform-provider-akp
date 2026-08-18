@@ -32,7 +32,7 @@ data "akp_kargo_agents" "examples" {
 ### Read-Only
 
 - `agents` (Attributes List) List of Kargo agents (see [below for nested schema](#nestedatt--agents))
-- `id` (String) Kaego instance ID
+- `id` (String) Kargo instance ID
 
 <a id="nestedatt--agents"></a>
 ### Nested Schema for `agents`
@@ -71,7 +71,7 @@ Read-Only:
 - `insecure` (Boolean) Whether server should be accessed without verifying the TLS certificate.
 - `password` (String, Sensitive) The password to use for HTTP basic authentication when accessing the Kubernetes master endpoint.
 - `proxy_url` (String) URL to the proxy to be used for all API requests
-- `token` (String, Sensitive) Token to authenticate an service account
+- `token` (String, Sensitive) Token to authenticate a service account
 - `username` (String) The username to use for HTTP basic authentication when accessing the Kubernetes master endpoint.
 
 

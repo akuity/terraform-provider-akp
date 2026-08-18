@@ -473,7 +473,7 @@ Optional:
 - `insecure` (Boolean) Whether server should be accessed without verifying the TLS certificate.
 - `password` (String, Sensitive) The password to use for HTTP basic authentication when accessing the Kubernetes master endpoint.
 - `proxy_url` (String) URL to the proxy to be used for all API requests
-- `token` (String, Sensitive) Token to authenticate an service account
+- `token` (String, Sensitive) Token to authenticate a service account
 - `username` (String) The username to use for HTTP basic authentication when accessing the Kubernetes master endpoint.
 
 <a id="nestedatt--kube_config--exec"></a>
