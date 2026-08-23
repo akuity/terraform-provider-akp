@@ -28,14 +28,17 @@ var (
 	instanceMutexKV = NewMutexKV()
 )
 
+// Keep this below the Go test timeout and the workflow step timeout so the
+// watchdog can emit a goroutine dump before either outer timeout terminates it.
+const ciAcceptanceTestWatchdogTimeout = 55 * time.Minute
+
 func init() {
 	go func() {
 		if os.Getenv("CI") == "true" {
-			var timeout time.Duration = 42
-			time.Sleep(timeout * time.Minute)
+			time.Sleep(ciAcceptanceTestWatchdogTimeout)
 			buf := make([]byte, 10*1024*1024)
 			n := runtime.Stack(buf, true)
-			msg := fmt.Sprintf("\n\n========== GOROUTINE DUMP (CI timeout approaching after 42min) ==========\n%s\n==========================================================================\n\n", buf[:n])
+			msg := fmt.Sprintf("\n\n========== GOROUTINE DUMP (CI acceptance test watchdog reached after %s) ==========\n%s\n=====================================================================================\n\n", ciAcceptanceTestWatchdogTimeout, buf[:n])
 			_, _ = os.Stdout.WriteString(msg)
 			_, _ = os.Stderr.WriteString(msg)
 			os.Exit(1)

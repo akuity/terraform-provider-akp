@@ -20,6 +20,7 @@ type Kargo struct {
 type KargoSpec struct {
 	Description       string            `json:"description"`
 	Version           string            `json:"version"`
+	Shard             string            `json:"shard,omitempty"`
 	KargoInstanceSpec KargoInstanceSpec `json:"kargoInstanceSpec,omitempty"`
 	Fqdn              string            `json:"fqdn,omitempty"`
 	Subdomain         string            `json:"subdomain,omitempty"`

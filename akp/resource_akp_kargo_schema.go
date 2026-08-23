@@ -105,6 +105,22 @@ func getKargoSpecAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Version of the Kargo instance",
 			Required:            true,
 		},
+		"shard": schema.StringAttribute{
+			MarkdownDescription: "Workload-cluster shard (region) the instance is pinned to, by its display name (e.g. `us0`). Must be one of the shards available to the organization. Immutable: changing it forces recreation of the instance. When omitted the server places the instance on the organization's default shard.",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+				// Replacement can only be triggered by a practitioner editing an explicit
+				// `shard` in config, never by server-reported values ("unconfigured drift"
+				// in framework terms — the documented pairing for Optional+Computed).
+				// With UseStateForUnknown above, an unconfigured shard always plans equal
+				// to state, so plain RequiresReplace would behave the same today; the
+				// IfConfigured variant keeps that guarantee structural rather than
+				// dependent on the modifier ordering.
+				stringplanmodifier.RequiresReplaceIfConfigured(),
+			},
+		},
 		"kargo_instance_spec": schema.SingleNestedAttribute{
 			MarkdownDescription: "Kargo instance spec",
 			Required:            true,

@@ -12,6 +12,10 @@ resource "akp_kargo_instance" "example" {
     spec = {
       description = "test-description"
       version     = "v1.4.3"
+      # Pin the instance to a workload-cluster shard (region) by its display
+      # name — it must be one the organization is granted. Omit it (or set "")
+      # to use the default shard. Immutable: changing it recreates the instance.
+      shard = "us1"
       # only set one of fqdn and subdomain
       fqdn      = "fqdn.example.com"
       subdomain = ""

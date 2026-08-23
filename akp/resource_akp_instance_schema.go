@@ -207,6 +207,22 @@ func getArgoCDSpecAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Argo CD version. Should be equal to any Akuity [`argocd` image tag](https://quay.io/repository/akuity/argocd?tab=tags).",
 			Required:            true,
 		},
+		"shard": schema.StringAttribute{
+			MarkdownDescription: "Workload-cluster shard (region) the instance is pinned to, by its display name (e.g. `us0`). Must be one of the shards available to the organization. Immutable: changing it forces recreation of the instance. When omitted the server places the instance on the organization's default shard.",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+				// Replacement can only be triggered by a practitioner editing an explicit
+				// `shard` in config, never by server-reported values ("unconfigured drift"
+				// in framework terms — the documented pairing for Optional+Computed).
+				// With UseStateForUnknown above, an unconfigured shard always plans equal
+				// to state, so plain RequiresReplace would behave the same today; the
+				// IfConfigured variant keeps that guarantee structural rather than
+				// dependent on the modifier ordering.
+				stringplanmodifier.RequiresReplaceIfConfigured(),
+			},
+		},
 		"instance_spec": schema.SingleNestedAttribute{
 			MarkdownDescription: "Argo CD instance spec",
 			Required:            true,

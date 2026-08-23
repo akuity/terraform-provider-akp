@@ -54,6 +54,7 @@ Read-Only:
 
 - `description` (String) Instance description
 - `instance_spec` (Attributes) Argo CD instance spec (see [below for nested schema](#nestedatt--argocd--spec--instance_spec))
+- `shard` (String) Workload-cluster shard (region) the instance is pinned to, by its display name (e.g. `us0`).
 - `version` (String) Argo CD version. Should be equal to any Akuity [`argocd` image tag](https://quay.io/repository/akuity/argocd?tab=tags).
 
 <a id="nestedatt--argocd--spec--instance_spec"></a>

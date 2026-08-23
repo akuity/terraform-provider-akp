@@ -29,6 +29,7 @@ type ArgoCDDataSource struct {
 type ArgoCDSpecDataSource struct {
 	Description  types.String           `tfsdk:"description"`
 	Version      types.String           `tfsdk:"version"`
+	Shard        types.String           `tfsdk:"shard"`
 	InstanceSpec InstanceSpecDataSource `tfsdk:"instance_spec"`
 }
 
@@ -87,6 +88,7 @@ func NewInstanceDataSourceModel(instance *Instance) InstanceDataSource {
 			Spec: ArgoCDSpecDataSource{
 				Description: instance.ArgoCD.Spec.Description,
 				Version:     instance.ArgoCD.Spec.Version,
+				Shard:       instance.ArgoCD.Spec.Shard,
 				InstanceSpec: InstanceSpecDataSource{
 					Subdomain:                       instance.ArgoCD.Spec.InstanceSpec.Subdomain,
 					DeclarativeManagementEnabled:    instance.ArgoCD.Spec.InstanceSpec.DeclarativeManagementEnabled,
@@ -143,6 +145,7 @@ type KargoDataSource struct {
 type KargoSpecDataSource struct {
 	Description       types.String               `tfsdk:"description"`
 	Version           types.String               `tfsdk:"version"`
+	Shard             types.String               `tfsdk:"shard"`
 	KargoInstanceSpec KargoInstanceSpec          `tfsdk:"kargo_instance_spec"`
 	Fqdn              types.String               `tfsdk:"fqdn"`
 	Subdomain         types.String               `tfsdk:"subdomain"`
@@ -176,6 +179,7 @@ func NewKargoInstanceDataSourceModel(instance *KargoInstance) KargoInstanceDataS
 			Spec: KargoSpecDataSource{
 				Description:       instance.Kargo.Spec.Description,
 				Version:           instance.Kargo.Spec.Version,
+				Shard:             instance.Kargo.Spec.Shard,
 				KargoInstanceSpec: instance.Kargo.Spec.KargoInstanceSpec,
 				Fqdn:              instance.Kargo.Spec.Fqdn,
 				Subdomain:         instance.Kargo.Spec.Subdomain,

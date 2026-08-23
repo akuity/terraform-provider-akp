@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -567,14 +568,14 @@ func deleteManifests(ctx context.Context, manifests string, cfg *rest.Config) er
 	}
 
 	// Delete the resources in reverse order
-	for i := len(resources) - 1; i >= 0; i-- {
-		msg, err := kubectl.DeleteResource(ctx, &resources[i], kube.DeleteOpts{
+	for _, v := range slices.Backward(resources) {
+		msg, err := kubectl.DeleteResource(ctx, &v, kube.DeleteOpts{
 			IgnoreNotFound:  true,
 			WaitForDeletion: true,
 			Force:           false,
 		})
 		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("failed to delete manifest: %s", resources[i]))
+			return errors.Wrap(err, fmt.Sprintf("failed to delete manifest: %s", v))
 		}
 		tflog.Debug(ctx, msg)
 	}

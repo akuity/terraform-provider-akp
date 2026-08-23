@@ -14,6 +14,21 @@ func TestAccAll(t *testing.T) {
 		}
 	})
 
+	if !t.Run("WorkspaceMove", func(t *testing.T) {
+		if !t.Run("DirectNamedArgoCD", func(t *testing.T) { runWorkspaceMoveDirectNamedArgoCD(t) }) {
+			return
+		}
+		if !t.Run("ArgoCD", func(t *testing.T) { runWorkspaceMoveArgoCD(t) }) {
+			return
+		}
+		if !t.Run("DirectNamedKargo", func(t *testing.T) { runWorkspaceMoveDirectNamedKargo(t) }) {
+			return
+		}
+		t.Run("Kargo", func(t *testing.T) { runWorkspaceMoveKargo(t) })
+	}) {
+		return
+	}
+
 	t.Run("Resources", func(t *testing.T) {
 		t.Run("Cluster_Basic", func(t *testing.T) { runClusterResource(t) })
 		t.Run("Cluster_IPv6", func(t *testing.T) { runClusterResourceIPv6(t) })

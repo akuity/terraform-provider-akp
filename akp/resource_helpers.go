@@ -178,10 +178,15 @@ func isRetryableError(err error) bool {
 		case codes.Unavailable,
 			codes.DeadlineExceeded,
 			codes.Aborted,
-			codes.ResourceExhausted,
 			codes.Canceled,
 			codes.Internal:
 			return true
+		case codes.ResourceExhausted:
+			// A "received message larger than max" overflow is deterministic:
+			// every retry rebuilds the same oversized payload and burns the
+			// whole backoff schedule (#11935). Fail fast on it, but keep
+			// retrying genuine transient resource exhaustion (rate limits).
+			return !strings.Contains(st.Message(), "larger than max")
 		case codes.InvalidArgument:
 			// Retry InvalidArgument only if it's due to provisioning delays
 			if strings.Contains(st.Message(), "still being provisioned") {

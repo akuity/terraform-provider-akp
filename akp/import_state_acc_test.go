@@ -110,6 +110,11 @@ var (
 		"argocd.spec.instance_spec.sync_history_extension_enabled",      // SuppressProtobufDefault (bool)
 		"argocd.spec.instance_spec.termination_protection_enabled",      // SuppressProtobufDefault (bool)
 		"argocd.spec.instance_spec.termination_protection_notes",        // SuppressProtobufDefault (string)
+		// With the default shard unnamed the server reports shard as "" (and
+		// exports omit it). Import therefore hydrates "", while a state whose
+		// config never mentioned shard holds null — raw-state comparison sees a
+		// diff even though both mean "the default shard".
+		"argocd.spec.shard", // unnamed default shard: "" on import vs null in state
 		// Optional-only fields
 		"argocd.spec.instance_spec.appset_plugins", // Optional-only
 		"argocd.spec.instance_spec.host_aliases",   // Optional-only
@@ -154,6 +159,9 @@ var (
 		"kargo.spec.oidc_config.dex_config",                                            // SuppressProtobufDefault (string)
 		"kargo.spec.oidc_config.issuer_url",                                            // SuppressProtobufDefault (string)
 		"workspace",                                                                    // SuppressProtobufDefault (string)
+		// Same as argocd.spec.shard above: unnamed default shard imports as ""
+		// where a never-configured state holds null.
+		"kargo.spec.shard", // unnamed default shard: "" on import vs null in state
 		// Optional-only fields
 		"kargo.spec.kargo_instance_spec.argocd_ui",                 // Optional-only
 		"kargo.spec.kargo_instance_spec.global_credentials_ns",     // Optional-only

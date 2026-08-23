@@ -49,6 +49,7 @@ Read-Only:
 - `fqdn` (String) FQDN of the Kargo instance
 - `kargo_instance_spec` (Attributes) Kargo instance specific configuration (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec))
 - `oidc_config` (Attributes) OIDC configuration (see [below for nested schema](#nestedatt--kargo--spec--oidc_config))
+- `shard` (String) Workload-cluster shard (region) the instance is pinned to, by its display name (e.g. `us0`).
 - `subdomain` (String) Subdomain of the Kargo instance
 - `version` (String) Version of the Kargo instance
 

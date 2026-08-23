@@ -51,6 +51,15 @@ func runKargoConfigTests(t *testing.T) {
 				Config: providerConfig + testAccKargoInstanceResourceConfigSpecAndConfig(name),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "name", name),
+					// shard is deliberately absent from the config: this org is granted no
+					// shards and the default shard is unnamed, so no value would exercise
+					// placement — and configuring one makes RequiresReplaceIfConfigured plan a
+					// destroy/recreate (planned value vs the null already in state). An
+					// unconfigured shard stays null in state, which is what is asserted here.
+					// Transmission is covered by TestArgoCDShardReachesAPIRequest /
+					// TestKargoShardReachesAPIRequest in akp/types/shard_wiring_test.go; add a
+					// real placement assertion here if the acceptance org ever gains a shard.
+					resource.TestCheckNoResourceAttr("akp_kargo_instance.test", "kargo.spec.shard"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.backend_ip_allow_list_enabled", "true"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.ip_allow_list.#", "2"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.promo_controller_enabled", "true"),
@@ -60,6 +69,10 @@ func runKargoConfigTests(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.termination_protection_enabled", "true"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.termination_protection_notes", "Critical production instance - do not delete"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.connectivity", "public"),
+					// The data source is built straight from the API, which reports the
+					// unnamed default shard as "" — unlike the resource, whose unconfigured
+					// shard stays null in state.
+					resource.TestCheckResourceAttr("data.akp_kargo_instance.test", "kargo.spec.shard", ""),
 					resource.TestCheckResourceAttr("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.termination_protection_enabled", "true"),
 					resource.TestCheckResourceAttr("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.connectivity", "public"),
 					resource.TestCheckResourceAttr("data.akp_kargo_instance.test", "name", name),

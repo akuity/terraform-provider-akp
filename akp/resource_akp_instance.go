@@ -59,8 +59,8 @@ func NewAkpInstanceResource() resource.Resource {
 
 func instanceCreateOrUpdate(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, plan *types.Instance) (*types.Instance, error) {
 	plannedCM := plan.ArgoCDConfigMap
-	applied, err := instanceUpsert(ctx, cli, diags, plan)
-	if applied {
+	stateCanBeCommitted, err := instanceUpsert(ctx, cli, diags, plan)
+	if stateCanBeCommitted {
 		plan.ArgoCDConfigMap = types.FilterMapToPlannedKeys(ctx, diags, plan.ArgoCDConfigMap, plannedCM)
 		return plan, err
 	}
@@ -72,11 +72,7 @@ func instanceRead(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, dat
 		ctx = types.WithReadContext(ctx)
 	}
 	tflog.MaskLogStrings(ctx, data.GetSensitiveStrings(ctx, diags)...)
-	return refreshState(ctx, diags, cli, data, &argocdv1.GetInstanceRequest{
-		OrganizationId: cli.OrgId,
-		IdType:         idv1.Type_NAME,
-		Id:             data.Name.ValueString(),
-	}, false)
+	return refreshState(ctx, diags, cli, data, instanceGetRequest(cli.OrgId, data.ID.ValueString(), data.Name.ValueString()), false)
 }
 
 func instanceDelete(ctx context.Context, cli *AkpCli, _ *diag.Diagnostics, state *types.Instance) error {
@@ -134,42 +130,47 @@ func validateInstanceAIFeatures(ctx context.Context, plan *types.Instance) error
 	return nil
 }
 
-func instanceUpsert(ctx context.Context, cli *AkpCli, diagnostics *diag.Diagnostics, plan *types.Instance) (applied bool, err error) {
+func instanceUpsert(ctx context.Context, cli *AkpCli, diagnostics *diag.Diagnostics, plan *types.Instance) (stateCanBeCommitted bool, err error) {
 	lc := &ResourceLifecycle[types.Instance, *argocdv1.GetInstanceResponse, healthv1.StatusCode]{
-		Apply: func(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.Instance) error {
+		Apply: func(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.Instance) (bool, error) {
 			tflog.MaskLogStrings(ctx, plan.GetSensitiveStrings(ctx, diagnostics)...)
 
 			if err := validateInstanceAIFeatures(ctx, plan); err != nil {
-				return err
+				return false, err
 			}
 
 			workspace, err := getWorkspace(ctx, cli.OrgCli, cli.OrgId, plan.Workspace.ValueString())
 			if err != nil {
 				diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get workspace. %s", err))
-				return errors.New("Unable to get workspace")
+				return false, errors.New("Unable to get workspace")
 			}
 
 			apiReq := buildApplyRequest(ctx, diagnostics, plan, cli.OrgId, workspace.GetId())
+			if diagnostics.HasError() {
+				return false, errors.New("Unable to build Argo CD instance request")
+			}
 			tflog.Debug(ctx, fmt.Sprintf("Apply instance request: %s", apiReq.Argocd))
 			_, err = retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.ApplyInstanceResponse, error) {
 				return cli.Cli.ApplyInstance(ctx, apiReq)
 			}, "ApplyInstance")
 			if err != nil {
-				return errors.Wrap(err, "Unable to upsert Argo CD instance")
+				// Export cannot reconstruct write-only fields such as secrets. Do
+				// not commit the planned state unless the full apply succeeded.
+				return false, errors.Wrap(err, "Unable to upsert Argo CD instance")
 			}
 
-			if plan.Workspace.ValueString() == "" {
-				plan.Workspace = tftypes.StringValue(workspace.GetName())
+			// ApplyInstance only honors workspace_id when creating an instance;
+			// moving an existing one requires the dedicated workspace API.
+			if _, err := ensureInstanceWorkspace(ctx, cli.Cli, cli.OrgId, plan.ID.ValueString(), plan.Name.ValueString(), workspace); err != nil {
+				return true, err
 			}
-			return nil
+
+			plan.Workspace = workspaceStateValue(plan.Workspace, workspace)
+			return true, nil
 		},
 		Get: func(ctx context.Context, plan *types.Instance) (*argocdv1.GetInstanceResponse, error) {
 			return retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.GetInstanceResponse, error) {
-				return cli.Cli.GetInstance(ctx, &argocdv1.GetInstanceRequest{
-					OrganizationId: cli.OrgId,
-					Id:             plan.Name.ValueString(),
-					IdType:         idv1.Type_NAME,
-				})
+				return cli.Cli.GetInstance(ctx, instanceGetRequest(cli.OrgId, plan.ID.ValueString(), plan.Name.ValueString()))
 			}, "GetInstance")
 		},
 		GetStatus: func(resp *argocdv1.GetInstanceResponse) healthv1.StatusCode {
@@ -199,11 +200,10 @@ func instanceUpsert(ctx context.Context, cli *AkpCli, diagnostics *diag.Diagnost
 		},
 		TargetStatuses: []healthv1.StatusCode{healthv1.StatusCode_STATUS_CODE_HEALTHY},
 		Refresh: func(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.Instance) error {
-			return refreshState(ctx, diagnostics, cli, plan, &argocdv1.GetInstanceRequest{
-				OrganizationId: cli.OrgId,
-				IdType:         idv1.Type_NAME,
-				Id:             plan.Name.ValueString(),
-			}, false)
+			return refreshState(ctx, diagnostics, cli, plan, instanceGetRequest(cli.OrgId, plan.ID.ValueString(), plan.Name.ValueString()), false)
+		},
+		RefreshAfterApplyError: func(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.Instance) error {
+			return refreshStateAfterWorkspaceMoveError(ctx, diagnostics, cli, plan, instanceGetRequest(cli.OrgId, plan.ID.ValueString(), plan.Name.ValueString()))
 		},
 		ResourceName: func(plan *types.Instance) string {
 			return fmt.Sprintf("Instance %s", plan.Name.ValueString())
@@ -214,6 +214,20 @@ func instanceUpsert(ctx context.Context, cli *AkpCli, diagnostics *diag.Diagnost
 	}
 
 	return lc.Upsert(ctx, diagnostics, plan)
+}
+
+func instanceGetRequest(orgID, instanceID, instanceName string) *argocdv1.GetInstanceRequest {
+	idType := idv1.Type_NAME
+	id := instanceName
+	if instanceID != "" {
+		idType = idv1.Type_ID
+		id = instanceID
+	}
+	return &argocdv1.GetInstanceRequest{
+		OrganizationId: orgID,
+		IdType:         idType,
+		Id:             id,
+	}
 }
 
 func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, instance *types.Instance, orgID, workspaceID string) *argocdv1.ApplyInstanceRequest {
@@ -334,6 +348,14 @@ func buildCMPs(_ context.Context, diagnostics *diag.Diagnostics, cmps map[string
 }
 
 func refreshState(ctx context.Context, diagnostics *diag.Diagnostics, cli *AkpCli, instance *types.Instance, getInstanceReq *argocdv1.GetInstanceRequest, isDataSource bool) error {
+	return refreshStateWithWorkspaceMode(ctx, diagnostics, cli, instance, getInstanceReq, isDataSource, false)
+}
+
+func refreshStateAfterWorkspaceMoveError(ctx context.Context, diagnostics *diag.Diagnostics, cli *AkpCli, instance *types.Instance, getInstanceReq *argocdv1.GetInstanceRequest) error {
+	return refreshStateWithWorkspaceMode(ctx, diagnostics, cli, instance, getInstanceReq, false, true)
+}
+
+func refreshStateWithWorkspaceMode(ctx context.Context, diagnostics *diag.Diagnostics, cli *AkpCli, instance *types.Instance, getInstanceReq *argocdv1.GetInstanceRequest, isDataSource, strictWorkspace bool) error {
 	tflog.Debug(ctx, fmt.Sprintf("Get instance request: %s", getInstanceReq))
 	getInstanceResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.GetInstanceResponse, error) {
 		return cli.Cli.GetInstance(ctx, getInstanceReq)
@@ -343,12 +365,21 @@ func refreshState(ctx context.Context, diagnostics *diag.Diagnostics, cli *AkpCl
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Get instance response: %s", getInstanceResp))
 	instance.ID = tftypes.StringValue(getInstanceResp.Instance.Id)
-	if instance.Workspace.IsNull() || instance.Workspace.ValueString() == "" {
-		workspace, wErr := getWorkspaceByID(ctx, cli.OrgCli, cli.OrgId, getInstanceResp.Instance.WorkspaceId)
-		if wErr == nil && workspace != nil {
-			instance.Workspace = tftypes.StringValue(workspace.GetName())
-		}
+	instance.Name = tftypes.StringValue(getInstanceResp.Instance.Name)
+	// Always resolve the workspace from the API so out-of-band moves (e.g. via
+	// the UI) surface as drift instead of being masked by the stored state.
+	workspaceState, err := workspaceStateFromAPI(
+		ctx,
+		cli.OrgCli,
+		cli.OrgId,
+		getInstanceResp.Instance.GetWorkspaceId(),
+		instance.Workspace,
+		strictWorkspace,
+	)
+	if err != nil {
+		return err
 	}
+	instance.Workspace = workspaceState
 	exportReq := &argocdv1.ExportInstanceRequest{
 		OrganizationId: getInstanceReq.OrganizationId,
 		IdType:         idv1.Type_ID,

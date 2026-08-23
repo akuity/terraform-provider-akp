@@ -39,6 +39,10 @@ resource "akp_kargo_instance" "example" {
     spec = {
       description = "test-description"
       version     = "v1.4.3"
+      # Pin the instance to a workload-cluster shard (region) by its display
+      # name — it must be one the organization is granted. Omit it (or set "")
+      # to use the default shard. Immutable: changing it recreates the instance.
+      shard = "us1"
       # only set one of fqdn and subdomain
       fqdn      = "fqdn.example.com"
       subdomain = ""
@@ -307,6 +311,7 @@ Optional:
 - `description` (String) Description of the Kargo instance
 - `fqdn` (String) Fully qualified domain name
 - `oidc_config` (Attributes) OIDC configuration (see [below for nested schema](#nestedatt--kargo--spec--oidc_config))
+- `shard` (String) Workload-cluster shard (region) the instance is pinned to, by its display name (e.g. `us0`). Must be one of the shards available to the organization. Immutable: changing it forces recreation of the instance. When omitted the server places the instance on the organization's default shard.
 - `subdomain` (String) Subdomain of the Kargo instance
 
 <a id="nestedatt--kargo--spec--kargo_instance_spec"></a>
