@@ -22,6 +22,7 @@ import (
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
 	healthv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/health/v1"
 	reconv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/reconciliation/v1"
+	"github.com/akuity/api-client-go/pkg/api/kargoexport"
 	"github.com/akuity/terraform-provider-akp/akp/types"
 )
 
@@ -40,8 +41,8 @@ func NewAkpKargoInstanceResource() resource.Resource {
 }
 
 func kargoInstanceCreateOrUpdate(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, plan *types.KargoInstance) (*types.KargoInstance, error) {
-	applied, err := kargoInstanceUpsert(ctx, cli, diags, plan)
-	if applied {
+	stateCanBeCommitted, err := kargoInstanceUpsert(ctx, cli, diags, plan)
+	if stateCanBeCommitted {
 		return plan, err
 	}
 	return nil, err
@@ -91,44 +92,52 @@ func validateKargoInstanceAIFeatures(ctx context.Context, plan *types.KargoInsta
 	return nil
 }
 
-func kargoInstanceUpsert(ctx context.Context, cli *AkpCli, diagnostics *diag.Diagnostics, plan *types.KargoInstance) (applied bool, err error) {
+func kargoInstanceUpsert(ctx context.Context, cli *AkpCli, diagnostics *diag.Diagnostics, plan *types.KargoInstance) (stateCanBeCommitted bool, err error) {
 	lc := &ResourceLifecycle[types.KargoInstance, *kargov1.GetKargoInstanceResponse, healthv1.StatusCode]{
-		Apply: func(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.KargoInstance) error {
+		Apply: func(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.KargoInstance) (bool, error) {
 			if err := validateKargoInstanceAIFeatures(ctx, plan); err != nil {
-				return err
+				return false, err
 			}
 
 			workspace, err := getWorkspace(ctx, cli.OrgCli, cli.OrgId, plan.Workspace.ValueString())
 			if err != nil {
 				diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get workspace. %s", err))
-				return errors.New("Unable to get workspace")
+				return false, errors.New("Unable to get workspace")
 			}
 
 			apiReq := buildKargoApplyRequest(ctx, diagnostics, cli.KargoCli, plan, cli.OrgId, workspace.GetId())
 			if diagnostics.HasError() {
-				return errors.New("Unable to build Kargo instance request")
+				return false, errors.New("Unable to build Kargo instance request")
 			}
+
+			// ApplyKargoInstance only honors workspace_id when creating an
+			// instance; moving an existing one requires the dedicated workspace
+			// API, and must happen before the apply so the request's
+			// workspace_id matches the instance's actual workspace.
+			_, err = ensureKargoInstanceWorkspace(ctx, cli.KargoCli, cli.OrgId, plan.ID.ValueString(), plan.Name.ValueString(), workspace)
+			if err != nil {
+				// The instance configuration has not been applied yet. Preserve
+				// prior state so a later plan observes and repairs any move drift.
+				return false, err
+			}
+
 			tflog.Debug(ctx, fmt.Sprintf("Apply instance request: %s", apiReq))
 
 			_, err = retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ApplyKargoInstanceResponse, error) {
 				return cli.KargoCli.ApplyKargoInstance(ctx, apiReq)
 			}, "ApplyKargoInstance")
 			if err != nil {
-				return errors.Wrap(err, "Unable to upsert Kargo instance")
+				// Export cannot reconstruct write-only fields such as secrets. Do
+				// not commit the planned state unless the full apply succeeded.
+				return false, errors.Wrap(err, "Unable to upsert Kargo instance")
 			}
 
-			if plan.Workspace.ValueString() == "" {
-				plan.Workspace = tftypes.StringValue(workspace.GetName())
-			}
-			return nil
+			plan.Workspace = workspaceStateValue(plan.Workspace, workspace)
+			return true, nil
 		},
 		Get: func(ctx context.Context, plan *types.KargoInstance) (*kargov1.GetKargoInstanceResponse, error) {
 			return retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.GetKargoInstanceResponse, error) {
-				return cli.KargoCli.GetKargoInstance(ctx, &kargov1.GetKargoInstanceRequest{
-					OrganizationId: cli.OrgId,
-					Name:           plan.Name.ValueString(),
-					WorkspaceId:    plan.Workspace.ValueString(),
-				})
+				return getKargoInstanceByIdentity(ctx, cli.KargoCli, cli.OrgId, plan.ID.ValueString(), plan.Name.ValueString())
 			}, "GetKargoInstance")
 		},
 		GetStatus: func(resp *kargov1.GetKargoInstanceResponse) healthv1.StatusCode {
@@ -381,23 +390,22 @@ func buildKargo(_ context.Context, diagnostics *diag.Diagnostics, kargo *types.K
 }
 
 func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, cli *AkpCli, kargo *types.KargoInstance, orgID string, isDataSource bool) error {
-	req := &kargov1.GetKargoInstanceRequest{
-		OrganizationId: orgID,
-		Name:           kargo.Name.ValueString(),
-	}
-	tflog.Debug(ctx, fmt.Sprintf("Get Kargo instance request: %s", req))
+	tflog.Debug(ctx, fmt.Sprintf("Get Kargo instance by identity: id=%q name=%q", kargo.ID.ValueString(), kargo.Name.ValueString()))
 	resp, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.GetKargoInstanceResponse, error) {
-		return cli.KargoCli.GetKargoInstance(ctx, req)
+		return getKargoInstanceByIdentity(ctx, cli.KargoCli, orgID, kargo.ID.ValueString(), kargo.Name.ValueString())
 	}, "GetKargoInstance")
 	if err != nil {
 		return errors.Wrap(err, "Unable to read Kargo instance")
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Get Kargo instance response: %s", resp))
 	kargo.ID = tftypes.StringValue(resp.Instance.Id)
-	if kargo.Workspace.IsNull() || kargo.Workspace.ValueString() == "" {
-		workspace, wErr := getWorkspaceByID(ctx, cli.OrgCli, orgID, resp.Instance.WorkspaceId)
-		if wErr == nil && workspace != nil {
-			kargo.Workspace = tftypes.StringValue(workspace.GetName())
+	kargo.Name = tftypes.StringValue(resp.Instance.Name)
+	// Always resolve the workspace from the API so out-of-band moves (e.g. via
+	// the UI) surface as drift instead of being masked by the stored state.
+	if workspaceID := resp.Instance.GetWorkspaceId(); workspaceID != "" {
+		workspace, workspaceErr := getWorkspaceByID(ctx, cli.OrgCli, orgID, workspaceID)
+		if workspaceErr == nil && workspace != nil {
+			kargo.Workspace = workspaceStateValue(kargo.Workspace, workspace)
 		}
 	}
 
@@ -410,7 +418,7 @@ func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, cli *
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Export Kargo instance request: %s", exportReq))
 	exportResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ExportKargoInstanceResponse, error) {
-		return cli.KargoCli.ExportKargoInstance(ctx, exportReq)
+		return kargoexport.ExportKargoInstance(ctx, cli.KargoCli, exportReq)
 	}, "ExportKargoInstance")
 	if err != nil {
 		return errors.Wrap(err, "Unable to export Kargo instance")

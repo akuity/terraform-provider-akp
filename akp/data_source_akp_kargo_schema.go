@@ -67,6 +67,10 @@ func getKargoSpecDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Version of the Kargo instance",
 			Computed:            true,
 		},
+		"shard": schema.StringAttribute{
+			MarkdownDescription: "Workload-cluster shard (region) the instance is pinned to, by its display name (e.g. `us0`).",
+			Computed:            true,
+		},
 		"kargo_instance_spec": schema.SingleNestedAttribute{
 			MarkdownDescription: "Kargo instance specific configuration",
 			Computed:            true,

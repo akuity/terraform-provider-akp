@@ -4,6 +4,10 @@ resource "akp_instance" "example" {
   argocd = {
     spec = {
       description = "test-inst"
+      # Pin the instance to a workload-cluster shard (region) by its display
+      # name — it must be one the organization is granted. Omit it (or set "")
+      # to use the default shard. Immutable: changing it recreates the instance.
+      shard = "us1"
       instance_spec = {
         declarative_management_enabled = false
         backend_ip_allow_list_enabled  = true

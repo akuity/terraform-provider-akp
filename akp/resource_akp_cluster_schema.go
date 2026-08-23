@@ -459,7 +459,7 @@ func getKubeconfigAttributes() map[string]schema.Attribute {
 		"token": schema.StringAttribute{
 			Optional:    true,
 			Sensitive:   true,
-			Description: "Token to authenticate an service account",
+			Description: "Token to authenticate a service account",
 			PlanModifiers: []planmodifier.String{
 				stringplanmodifier.UseStateForUnknown(),
 			},

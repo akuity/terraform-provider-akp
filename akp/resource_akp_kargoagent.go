@@ -283,7 +283,7 @@ func refreshKargoAgentState(ctx context.Context, diagnostics *diag.Diagnostics, 
 
 	tflog.Debug(ctx, fmt.Sprintf("current kargo agent: %s", resp.GetAgent()))
 	kargoAgent.Update(ctx, diagnostics, resp.GetAgent(), plan)
-	hydrateKargoAgentFromExport(ctx, cli, kargoAgent, workspaceID)
+	hydrateKargoAgentFieldsFromGet(kargoAgent, resp.GetAgent())
 	types.NormalizeKargoAgentReadStateForRefresh(kargoAgent)
 	if (kargoAgent.Workspace.IsNull() || kargoAgent.Workspace.ValueString() == "") && workspaceName != "" {
 		kargoAgent.Workspace = tftypes.StringValue(workspaceName)
@@ -363,67 +363,25 @@ func resolveKargoInstanceWorkspace(ctx context.Context, cli *AkpCli, instanceID 
 	return "", ""
 }
 
-func hydrateKargoAgentFromExport(ctx context.Context, cli *AkpCli, kargoAgent *types.KargoAgent, workspaceID string) {
-	if cli == nil || cli.KargoCli == nil || workspaceID == "" || kargoAgent == nil || kargoAgent.Name.ValueString() == "" {
+// hydrateKargoAgentFieldsFromGet fills fields that Update leaves empty (e.g. on
+// import, where there is no plan to take them from) using the agent already
+// returned by GetKargoInstanceAgent, so the read path does not need any extra
+// API calls. Fields the user has set are never overwritten.
+func hydrateKargoAgentFieldsFromGet(kargoAgent *types.KargoAgent, agent *kargov1.KargoAgent) {
+	if kargoAgent == nil || kargoAgent.Spec == nil || agent == nil {
 		return
 	}
 
-	exportResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ExportKargoInstanceResponse, error) {
-		return cli.KargoCli.ExportKargoInstance(ctx, &kargov1.ExportKargoInstanceRequest{
-			OrganizationId: cli.OrgId,
-			Id:             kargoAgent.InstanceID.ValueString(),
-			WorkspaceId:    workspaceID,
-		})
-	}, "ExportKargoInstance")
-	if err != nil {
-		tflog.Warn(ctx, fmt.Sprintf("Unable to export Kargo instance for agent hydration: %s", err))
-		return
+	data := agent.GetData()
+	if kargoAgent.Spec.Data.ArgocdNamespace.ValueString() == "" && data.GetArgocdNamespace() != "" {
+		kargoAgent.Spec.Data.ArgocdNamespace = tftypes.StringValue(data.GetArgocdNamespace())
 	}
 
-	for _, exportedAgent := range exportResp.GetAgents() {
-		if hydrateKargoAgentFieldsFromExport(kargoAgent, exportedAgent) {
-			return
-		}
+	if kargoAgent.Spec.Data.MaintenanceModeExpiry.ValueString() == "" && data.GetMaintenanceModeExpiry() != nil {
+		// Match the RFC3339 seconds-precision format the field uses everywhere else.
+		kargoAgent.Spec.Data.MaintenanceModeExpiry = tftypes.StringValue(
+			data.GetMaintenanceModeExpiry().AsTime().Format(time.RFC3339))
 	}
-}
-
-func hydrateKargoAgentFieldsFromExport(kargoAgent *types.KargoAgent, exportedAgent *structpb.Struct) bool {
-	if kargoAgent == nil || exportedAgent == nil || kargoAgent.Spec == nil {
-		return false
-	}
-
-	agentMap := exportedAgent.AsMap()
-	metadata, _ := agentMap["metadata"].(map[string]any)
-	name, _ := metadata["name"].(string)
-	if name == "" {
-		name, _ = agentMap["name"].(string)
-	}
-	if name == "" || name != kargoAgent.Name.ValueString() {
-		return false
-	}
-
-	specMap, _ := agentMap["spec"].(map[string]any)
-	dataMap, _ := specMap["data"].(map[string]any)
-	if len(dataMap) == 0 {
-		dataMap, _ = agentMap["data"].(map[string]any)
-	}
-	if len(dataMap) == 0 {
-		return true
-	}
-
-	if kargoAgent.Spec.Data.ArgocdNamespace.ValueString() == "" {
-		if argocdNamespace, ok := dataMap["argocdNamespace"].(string); ok {
-			kargoAgent.Spec.Data.ArgocdNamespace = tftypes.StringValue(argocdNamespace)
-		}
-	}
-
-	if kargoAgent.Spec.Data.MaintenanceModeExpiry.ValueString() == "" {
-		if maintenanceModeExpiry, ok := dataMap["maintenanceModeExpiry"].(string); ok {
-			kargoAgent.Spec.Data.MaintenanceModeExpiry = tftypes.StringValue(maintenanceModeExpiry)
-		}
-	}
-
-	return true
 }
 
 func buildKargoAgentApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, kargoAgent *types.KargoAgent, orgId, workspaceId string) *kargov1.ApplyKargoInstanceRequest {

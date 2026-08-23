@@ -21,6 +21,7 @@ type ArgoCDSpec struct {
 	Description string `json:"description"`
 	Version     string `json:"version"`
 
+	Shard        string       `json:"shard,omitempty"`
 	InstanceSpec InstanceSpec `json:"instanceSpec,omitempty"`
 }
 

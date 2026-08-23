@@ -150,6 +150,15 @@ func runInstanceConfigTests(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_instance.test", "name", name),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.declarative_management_enabled", "true"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.image_updater_enabled", "true"),
+					// shard is deliberately absent from the config: this org is granted no
+					// shards and the default shard is unnamed, so no value would exercise
+					// placement — and configuring one makes RequiresReplaceIfConfigured plan a
+					// destroy/recreate (planned value vs the null already in state). An
+					// unconfigured shard stays null in state, which is what is asserted here.
+					// Transmission is covered by TestArgoCDShardReachesAPIRequest /
+					// TestKargoShardReachesAPIRequest in akp/types/shard_wiring_test.go; add a
+					// real placement assertion here if the acceptance org ever gains a shard.
+					resource.TestCheckNoResourceAttr("akp_instance.test", "argocd.spec.shard"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd_cm.exec.enabled", "true"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd_cm.exec.shells", "bash,sh,powershell,cmd"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd_cm.ga.trackingid", "UA-12345-1"),
@@ -164,6 +173,10 @@ func runInstanceConfigTests(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_instance.test", "repo_credential_secrets.%", "2"),
 					resource.TestCheckResourceAttr("data.akp_instance.test", "name", name),
 					resource.TestCheckResourceAttrSet("data.akp_instance.test", "id"),
+					// The data source is built straight from the API, which reports the
+					// unnamed default shard as "" — unlike the resource, whose unconfigured
+					// shard stays null in state.
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.shard", ""),
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.declarative_management_enabled", "true"),
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.image_updater_enabled", "true"),
 

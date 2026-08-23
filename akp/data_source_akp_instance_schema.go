@@ -104,6 +104,10 @@ func getArgoCDSpecDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Argo CD version. Should be equal to any Akuity [`argocd` image tag](https://quay.io/repository/akuity/argocd?tab=tags).",
 			Computed:            true,
 		},
+		"shard": schema.StringAttribute{
+			MarkdownDescription: "Workload-cluster shard (region) the instance is pinned to, by its display name (e.g. `us0`).",
+			Computed:            true,
+		},
 		"instance_spec": schema.SingleNestedAttribute{
 			MarkdownDescription: "Argo CD instance spec",
 			Computed:            true,

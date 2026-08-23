@@ -124,6 +124,10 @@ resource "akp_instance" "example" {
   argocd = {
     spec = {
       description = "test-inst"
+      # Pin the instance to a workload-cluster shard (region) by its display
+      # name — it must be one the organization is granted. Omit it (or set "")
+      # to use the default shard. Immutable: changing it recreates the instance.
+      shard = "us1"
       instance_spec = {
         declarative_management_enabled = false
         backend_ip_allow_list_enabled  = true
@@ -794,6 +798,7 @@ Required:
 Optional:
 
 - `description` (String) Instance description
+- `shard` (String) Workload-cluster shard (region) the instance is pinned to, by its display name (e.g. `us0`). Must be one of the shards available to the organization. Immutable: changing it forces recreation of the instance. When omitted the server places the instance on the organization's default shard.
 
 <a id="nestedatt--argocd--spec--instance_spec"></a>
 ### Nested Schema for `argocd.spec.instance_spec`

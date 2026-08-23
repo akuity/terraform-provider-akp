@@ -16,6 +16,7 @@ type Kargo struct {
 type KargoSpec struct {
 	Description       types.String      `tfsdk:"description"`
 	Version           types.String      `tfsdk:"version"`
+	Shard             types.String      `tfsdk:"shard"`
 	KargoInstanceSpec KargoInstanceSpec `tfsdk:"kargo_instance_spec"`
 	Fqdn              types.String      `tfsdk:"fqdn"`
 	Subdomain         types.String      `tfsdk:"subdomain"`

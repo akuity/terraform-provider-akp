@@ -2,6 +2,7 @@ package akp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"time"
@@ -16,8 +17,10 @@ import (
 // used by resources that follow the pattern: apply changes, wait for health status,
 // then refresh state from the API.
 type ResourceLifecycle[Plan any, APIResponse any, StatusCode comparable] struct {
-	// Apply executes the create/update API call.
-	Apply func(ctx context.Context, diagnostics *diag.Diagnostics, plan *Plan) error
+	// Apply executes the create/update flow. It returns true once the primary
+	// apply request has succeeded, even if a later operation
+	// (such as a workspace move) returns an error.
+	Apply func(ctx context.Context, diagnostics *diag.Diagnostics, plan *Plan) (applyRequestSucceeded bool, err error)
 	// Get fetches the current resource from the API (used during wait polling).
 	Get func(ctx context.Context, plan *Plan) (APIResponse, error)
 	// GetStatus extracts the status code from the API response.
@@ -34,6 +37,10 @@ type ResourceLifecycle[Plan any, APIResponse any, StatusCode comparable] struct 
 	TargetStatuses []StatusCode
 	// Refresh updates the plan with the latest state from the API after the wait completes.
 	Refresh func(ctx context.Context, diagnostics *diag.Diagnostics, plan *Plan) error
+	// RefreshAfterApplyError optionally performs stricter state hydration after
+	// Apply reports that the primary apply request succeeded but a later step
+	// failed. When unset, Refresh is used.
+	RefreshAfterApplyError func(ctx context.Context, diagnostics *diag.Diagnostics, plan *Plan) error
 	// ResourceName returns a human-readable name for logging and error messages.
 	ResourceName func(plan *Plan) string
 	// StatusName is the status type being waited on (e.g. "health", "reconciliation").
@@ -45,9 +52,9 @@ type ResourceLifecycle[Plan any, APIResponse any, StatusCode comparable] struct 
 }
 
 // Upsert executes the full Apply → Wait → Refresh pipeline.
-// Returns true if Apply succeeded (state should be committed even if Wait/Refresh fails),
-// and any error encountered.
-func (lc *ResourceLifecycle[Plan, APIResponse, StatusCode]) Upsert(ctx context.Context, diagnostics *diag.Diagnostics, plan *Plan) (applied bool, err error) {
+// Returns whether the caller should commit the current plan/state, together with
+// any error encountered.
+func (lc *ResourceLifecycle[Plan, APIResponse, StatusCode]) Upsert(ctx context.Context, diagnostics *diag.Diagnostics, plan *Plan) (stateCanBeCommitted bool, err error) {
 	var preApplyGeneration uint32
 	if lc.GetGeneration != nil {
 		resp, err := lc.Get(ctx, plan)
@@ -57,8 +64,32 @@ func (lc *ResourceLifecycle[Plan, APIResponse, StatusCode]) Upsert(ctx context.C
 		}
 	}
 
-	if err := lc.Apply(ctx, diagnostics, plan); err != nil {
-		return false, err
+	applyRequestSucceeded, applyErr := lc.Apply(ctx, diagnostics, plan)
+	if applyErr != nil {
+		if !applyRequestSucceeded {
+			return false, applyErr
+		}
+		// A post-apply operation (currently the Argo CD workspace move) may
+		// fail after the primary apply request was accepted. Refresh with
+		// isolated diagnostics so only authoritative state is committed.
+		var refreshDiagnostics diag.Diagnostics
+		refresh := lc.Refresh
+		if lc.RefreshAfterApplyError != nil {
+			refresh = lc.RefreshAfterApplyError
+		}
+		refreshErr := refresh(ctx, &refreshDiagnostics, plan)
+		refreshHasError := refreshDiagnostics.HasError()
+		diagnostics.Append(refreshDiagnostics...)
+		if refreshErr != nil || refreshHasError {
+			if refreshErr == nil {
+				refreshErr = fmt.Errorf("refresh for %s produced diagnostics errors", lc.ResourceName(plan))
+			}
+			return false, errors.Join(
+				applyErr,
+				fmt.Errorf("unable to refresh %s after an applied change: %w", lc.ResourceName(plan), refreshErr),
+			)
+		}
+		return true, applyErr
 	}
 	if diagnostics.HasError() {
 		return false, fmt.Errorf("diagnostics errors during apply for %s", lc.ResourceName(plan))

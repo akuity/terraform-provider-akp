@@ -32,7 +32,7 @@ data "akp_kargo_agents" "examples" {
 ### Read-Only
 
 - `agents` (Attributes List) List of Kargo agents (see [below for nested schema](#nestedatt--agents))
-- `id` (String) Kaego instance ID
+- `id` (String) Kargo instance ID
 
 <a id="nestedatt--agents"></a>
 ### Nested Schema for `agents`

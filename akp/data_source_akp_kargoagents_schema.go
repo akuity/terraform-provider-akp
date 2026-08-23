@@ -21,7 +21,7 @@ func getAKPKargoAgentsDataSourceAttributes() map[string]schema.Attribute {
 			Required:            true,
 		},
 		"id": schema.StringAttribute{
-			MarkdownDescription: "Kaego instance ID",
+			MarkdownDescription: "Kargo instance ID",
 			Computed:            true,
 		},
 		"agents": schema.ListNestedAttribute{

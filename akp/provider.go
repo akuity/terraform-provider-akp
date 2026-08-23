@@ -112,7 +112,7 @@ func (p *AkpProvider) Configure(ctx context.Context, req provider.ConfigureReque
 		resp.Diagnostics.AddAttributeError(
 			path.Root("api_key_id"),
 			"Missing Akuity Platform API Key Id",
-			"The provider cannot create the Akuity Platform API client as there is an missing API key. "+
+			"The provider cannot create the Akuity Platform API client as the API key is missing. "+
 				"Use the AKUITY_API_KEY_ID environment variable to configure it.",
 		)
 	}
@@ -120,7 +120,7 @@ func (p *AkpProvider) Configure(ctx context.Context, req provider.ConfigureReque
 		resp.Diagnostics.AddAttributeError(
 			path.Root("api_key_secret"),
 			"Missing Akuity Platform API Key Secret",
-			"The provider cannot create the Akuity Platform API client as there is an missing API key. "+
+			"The provider cannot create the Akuity Platform API client as the API key is missing. "+
 				"Use the AKUITY_API_KEY_SECRET environment variable to configure it.",
 		)
 	}
