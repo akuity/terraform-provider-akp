@@ -403,6 +403,37 @@ func buildClusterApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics
 	return applyReq
 }
 
+// pruneNormalizedEmptyClusterFields drops fields the control plane normalizes
+// away rather than persisting as an empty string.
+//
+// maintenanceModeExpiry is cleared by the control plane whenever maintenance
+// mode is disabled, so a cluster read back in that state carries "" in state.
+// Sending that empty string in a later apply payload fails the whole update:
+//
+//	invalid Cluster spec: parsing time "" as "2006-01-02T15:04:05Z07:00":
+//	cannot parse "" as "2006"
+//
+// Because maintenance mode is off by default, this makes any update to an
+// existing akp_cluster fail. Creates are unaffected -- the field is absent
+// rather than empty -- so the failure only appears once the resource exists.
+//
+// This mirrors pruneNormalizedEmptyKargoAgentFields, which already handles the
+// same field for akp_kargo_agent.
+func pruneNormalizedEmptyClusterFields(rawMap map[string]any) {
+	if rawMap == nil {
+		return
+	}
+
+	dataMap, _ := rawMap["data"].(map[string]any)
+	if len(dataMap) == 0 {
+		return
+	}
+
+	if value, ok := dataMap["maintenanceModeExpiry"].(string); ok && value == "" {
+		delete(dataMap, "maintenanceModeExpiry")
+	}
+}
+
 func buildClusters(ctx context.Context, diagnostics *diag.Diagnostics, cluster *types.Cluster) []*structpb.Struct {
 	var labels map[string]string
 	var annotations map[string]string
@@ -423,6 +454,7 @@ func buildClusters(ctx context.Context, diagnostics *diag.Diagnostics, cluster *
 		diagnostics.AddError("Client Error", "Unable to convert cluster spec to map")
 		return nil
 	}
+	pruneNormalizedEmptyClusterFields(rawMap)
 
 	clusterSize := cluster.Spec.Data.Size.ValueString()
 	var kustomizationStr string
