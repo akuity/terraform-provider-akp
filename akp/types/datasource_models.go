@@ -7,19 +7,27 @@ import (
 )
 
 type InstanceDataSource struct {
-	ID                     types.String                       `tfsdk:"id"`
-	Name                   types.String                       `tfsdk:"name"`
-	Workspace              types.String                       `tfsdk:"workspace"`
-	ArgoCD                 *ArgoCDDataSource                  `tfsdk:"argocd"`
-	ArgoCDConfigMap        types.Map                          `tfsdk:"argocd_cm"`
-	ArgoCDRBACConfigMap    types.Map                          `tfsdk:"argocd_rbac_cm"`
-	NotificationsConfigMap types.Map                          `tfsdk:"argocd_notifications_cm"`
-	ImageUpdaterConfigMap  types.Map                          `tfsdk:"argocd_image_updater_config"`
-	ImageUpdaterSSHConfig  types.Map                          `tfsdk:"argocd_image_updater_ssh_config"`
-	ArgoCDKnownHosts       types.Map                          `tfsdk:"argocd_ssh_known_hosts_cm"`
-	ArgoCDTLSCerts         types.Map                          `tfsdk:"argocd_tls_certs_cm"`
-	ConfigManagementPlugin map[string]*ConfigManagementPlugin `tfsdk:"config_management_plugins"`
-	ArgoCDResources        types.Map                          `tfsdk:"argocd_resources"`
+	ID                     types.String                        `tfsdk:"id"`
+	Name                   types.String                        `tfsdk:"name"`
+	Workspace              types.String                        `tfsdk:"workspace"`
+	ArgoCD                 *ArgoCDDataSource                   `tfsdk:"argocd"`
+	ArgoCDConfigMap        types.Map                           `tfsdk:"argocd_cm"`
+	ArgoCDRBACConfigMap    types.Map                           `tfsdk:"argocd_rbac_cm"`
+	NotificationsConfigMap types.Map                           `tfsdk:"argocd_notifications_cm"`
+	ImageUpdaterConfigMap  types.Map                           `tfsdk:"argocd_image_updater_config"`
+	ImageUpdaterSSHConfig  types.Map                           `tfsdk:"argocd_image_updater_ssh_config"`
+	ArgoCDKnownHosts       types.Map                           `tfsdk:"argocd_ssh_known_hosts_cm"`
+	ArgoCDTLSCerts         types.Map                           `tfsdk:"argocd_tls_certs_cm"`
+	ConfigManagementPlugin map[string]*ConfigManagementPlugin  `tfsdk:"config_management_plugins"`
+	ArgoCDResources        types.Map                           `tfsdk:"argocd_resources"`
+	ManagedSecrets         map[string]*ManagedSecretDataSource `tfsdk:"managed_secrets"`
+}
+
+type ManagedSecretDataSource struct {
+	Labels          types.Map    `tfsdk:"labels"`
+	AllowedClusters types.List   `tfsdk:"allowed_clusters"`
+	ClusterSelector types.String `tfsdk:"cluster_selector"`
+	SecretKeys      types.List   `tfsdk:"secret_keys"`
 }
 
 type ArgoCDDataSource struct {
@@ -68,7 +76,7 @@ type InstanceSpecDataSource struct {
 	Connectivity                    types.String                   `tfsdk:"connectivity"`
 }
 
-func NewInstanceDataSourceModel(instance *Instance) InstanceDataSource {
+func NewInstanceDataSourceModel(instance *Instance, managedSecrets map[string]*ManagedSecretDataSource) InstanceDataSource {
 	model := InstanceDataSource{
 		ID:                     instance.ID,
 		Name:                   instance.Name,
@@ -82,6 +90,7 @@ func NewInstanceDataSourceModel(instance *Instance) InstanceDataSource {
 		ArgoCDTLSCerts:         normalizeStringMap(instance.ArgoCDTLSCertsConfigMap),
 		ConfigManagementPlugin: instance.ConfigManagementPlugins,
 		ArgoCDResources:        normalizeStringMap(instance.ArgoCDResources),
+		ManagedSecrets:         managedSecrets,
 	}
 	if instance.ArgoCD != nil {
 		model.ArgoCD = &ArgoCDDataSource{

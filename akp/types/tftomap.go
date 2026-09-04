@@ -159,6 +159,15 @@ func alwaysIncludeString() FieldOverride {
 	}
 }
 
+func alwaysIncludeList() FieldOverride {
+	return func(fieldVal reflect.Value) (any, bool) {
+		if fieldVal.Kind() == reflect.Slice && fieldVal.Len() == 0 {
+			return []any{}, true
+		}
+		return nil, false
+	}
+}
+
 func mapStringToValueObject() FieldOverride {
 	return func(fieldVal reflect.Value) (any, bool) {
 		v, ok := fieldVal.Interface().(types.Map)

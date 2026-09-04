@@ -1,6 +1,24 @@
+variable "managed_secret_token" {
+  type      = string
+  sensitive = true
+}
+
 resource "akp_instance" "example" {
   name      = "test"
   workspace = "test-workspace"
+  managed_secrets = {
+    example-managed-secret = {
+      labels = {
+        environment = "example"
+      }
+      allowed_clusters = ["ALL"]
+      cluster_selector = "env=example"
+      data = {
+        token = var.managed_secret_token
+      }
+      data_version = "1"
+    }
+  }
   argocd = {
     spec = {
       description = "test-inst"

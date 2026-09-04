@@ -92,6 +92,8 @@ func runKargoConfigTests(t *testing.T) {
 				Config: providerConfig + testAccKargoInstanceResourceConfigOIDCAndExtras(name),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "name", name),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.ip_allow_list.#", "0"),
+					resource.TestCheckResourceAttr("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.ip_allow_list.#", "0"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.oidc_config.enabled", "true"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.oidc_config.additional_scopes.#", "2"),
 					resource.TestCheckTypeSetElemAttr("akp_kargo_instance.test", "kargo.spec.oidc_config.viewer_account.claims.groups.values.*", "viewer@example.com"),
@@ -582,6 +584,10 @@ resource "akp_kargo_instance" "test" {
   kargo_secret = {
     adminAccountPasswordHash = "$2a$10$wThs/VVwx5Tbygkk5Rzbv.V8hR8JYYmRdBiGjue9pd0YcEXl7.Kn."
   }
+}
+
+data "akp_kargo_instance" "test" {
+  name = akp_kargo_instance.test.name
 }`, name, getKargoVersion())
 }
 

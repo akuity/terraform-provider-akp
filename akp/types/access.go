@@ -10,6 +10,7 @@ type ApiKey struct {
 	Description      types.String       `tfsdk:"description"`
 	ExpireInDuration types.String       `tfsdk:"expire_in_duration"`
 	Permissions      *ApiKeyPermissions `tfsdk:"permissions"`
+	IPAllowlist      []types.String     `tfsdk:"ip_allowlist"`
 	Secret           types.String       `tfsdk:"secret"`
 	OrganizationID   types.String       `tfsdk:"organization_id"`
 	CreateTime       types.String       `tfsdk:"create_time"`

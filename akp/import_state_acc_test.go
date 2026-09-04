@@ -140,6 +140,7 @@ var (
 		"application_set_secret",
 		"argocd_notifications_secret",
 		"argocd_image_updater_secret",
+		"managed_secrets",
 		"repo_credential_secrets",
 		"repo_template_credential_secrets",
 	)

@@ -3,13 +3,41 @@
 package akp
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
+	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/akuity/terraform-provider-akp/akp/types"
 )
+
+func TestLabelSelectorValidator(t *testing.T) {
+	testCases := map[string]struct {
+		value       tftypes.String
+		errExpected bool
+	}{
+		"null is skipped":    {value: tftypes.StringNull()},
+		"unknown is skipped": {value: tftypes.StringUnknown()},
+		"empty selector":     {value: tftypes.StringValue("")},
+		"equality selector":  {value: tftypes.StringValue("env=prod")},
+		"set selector":       {value: tftypes.StringValue("env in (prod,staging),!legacy")},
+		"invalid selector":   {value: tftypes.StringValue("env=("), errExpected: true},
+	}
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			resp := &validator.StringResponse{}
+			labelSelectorValidator{}.ValidateString(context.Background(), validator.StringRequest{
+				Path:        path.Root("cluster_selector"),
+				ConfigValue: tc.value,
+			}, resp)
+			assert.Equal(t, tc.errExpected, resp.Diagnostics.HasError(), "%v", resp.Diagnostics)
+		})
+	}
+}
 
 // If this test fails, a field has been added/removed to the AKP Instance type.
 // Update the schema attribute accordingly.
@@ -46,6 +74,10 @@ func TestNoNewSecretsManagementFields(t *testing.T) {
 	assert.Equal(t, reflect.TypeFor[types.ClusterSecretMapping]().NumField(), len(getClusterSecretMappingAttributes()))
 	assert.Equal(t, reflect.TypeFor[types.ObjectSelector]().NumField(), len(getObjectSelectorAttributes()))
 	assert.Equal(t, reflect.TypeFor[types.LabelSelectorRequirement]().NumField(), len(getLabelSelectorRequirementAttributes()))
+}
+
+func TestNoNewManagedSecretFields(t *testing.T) {
+	assert.Equal(t, reflect.TypeFor[types.ManagedSecret]().NumField(), len(getManagedSecretAttributes()))
 }
 
 // If this test fails, a field has been added/removed to the ConfigManagementPlugin related type.

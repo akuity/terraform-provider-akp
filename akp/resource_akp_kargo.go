@@ -174,7 +174,7 @@ func kargoInstanceUpsert(ctx context.Context, cli *AkpCli, diagnostics *diag.Dia
 		},
 		StatusName:   "health",
 		PollInterval: 10 * time.Second,
-		Timeout:      5 * time.Minute,
+		Timeout:      10 * time.Minute,
 	}
 
 	return lc.Upsert(ctx, diagnostics, plan)

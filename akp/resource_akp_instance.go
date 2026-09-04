@@ -3,14 +3,19 @@ package akp
 import (
 	"context"
 	"fmt"
+	"maps"
+	"slices"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/pkg/errors"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -45,15 +50,35 @@ var argoResourceGroups = map[string]struct {
 
 func NewAkpInstanceResource() resource.Resource {
 	return &GenericResource[types.Instance]{
-		TypeNameSuffix: "instance",
-		SchemaFunc:     instanceSchema,
-		CreateFunc:     instanceCreateOrUpdate,
-		ReadFunc:       instanceRead,
-		UpdateFunc:     instanceCreateOrUpdate,
-		DeleteFunc:     instanceDelete,
+		TypeNameSuffix:      "instance",
+		SchemaFunc:          instanceSchema,
+		CreateFunc:          instanceCreate,
+		ReadFunc:            instanceRead,
+		UpdateWithStateFunc: instanceUpdate,
+		DeleteFunc:          instanceDelete,
+		CopyWriteOnlyFunc:   instanceCopyWriteOnly,
 		ImportStateFunc: func(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 			resource.ImportStatePassthroughID(ctx, path.Root("name"), req, resp)
 		},
+	}
+}
+
+func instanceCopyWriteOnly(ctx context.Context, config tfsdk.Config, diags *diag.Diagnostics, plan *types.Instance) {
+	if len(plan.ManagedSecrets) == 0 {
+		return
+	}
+	var configSecrets map[string]*types.ManagedSecret
+	diags.Append(config.GetAttribute(ctx, path.Root("managed_secrets"), &configSecrets)...)
+	if diags.HasError() {
+		return
+	}
+	for name, secret := range plan.ManagedSecrets {
+		if secret == nil {
+			continue
+		}
+		if configSecret, ok := configSecrets[name]; ok && configSecret != nil {
+			secret.Data = configSecret.Data
+		}
 	}
 }
 
@@ -65,6 +90,276 @@ func instanceCreateOrUpdate(ctx context.Context, cli *AkpCli, diags *diag.Diagno
 		return plan, err
 	}
 	return nil, err
+}
+
+func instanceCreate(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, plan *types.Instance) (*types.Instance, error) {
+	return applyInstanceWithManagedSecrets(ctx, cli, diags, nil, plan, nil)
+}
+
+func instanceUpdate(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, state, plan *types.Instance) (*types.Instance, error) {
+	created, err := createAddedManagedSecrets(ctx, cli, diags, state, plan)
+	if err != nil {
+		return withCreatedManagedSecrets(state, created), err
+	}
+	result, err := applyInstanceWithManagedSecrets(ctx, cli, diags, state.ManagedSecrets, plan, created)
+	if result == nil {
+		return withCreatedManagedSecrets(state, created), err
+	}
+	return result, err
+}
+
+func withCreatedManagedSecrets(state *types.Instance, created map[string]*types.ManagedSecret) *types.Instance {
+	if len(created) == 0 {
+		return nil
+	}
+	tracked := *state
+	tracked.ManagedSecrets = trackedManagedSecrets(state.ManagedSecrets, created)
+	return &tracked
+}
+
+func trackedManagedSecrets(stateSecrets, created map[string]*types.ManagedSecret) map[string]*types.ManagedSecret {
+	if len(created) == 0 {
+		return stateSecrets
+	}
+	tracked := make(map[string]*types.ManagedSecret, len(stateSecrets)+len(created))
+	maps.Copy(tracked, stateSecrets)
+	maps.Copy(tracked, created)
+	return tracked
+}
+
+func createAddedManagedSecrets(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, state, plan *types.Instance) (map[string]*types.ManagedSecret, error) {
+	added := make(map[string]*types.ManagedSecret)
+	for name, secret := range plan.ManagedSecrets {
+		if secret == nil {
+			continue
+		}
+		if tracked, ok := state.ManagedSecrets[name]; !ok || tracked == nil {
+			added[name] = secret
+		}
+	}
+	if len(added) == 0 {
+		return nil, nil
+	}
+	workspace, err := getWorkspace(ctx, cli.OrgCli, cli.OrgId, state.Workspace.ValueString())
+	if err != nil {
+		return nil, errors.Wrap(err, "Unable to get workspace for managed secret changes")
+	}
+	return syncManagedSecrets(ctx, cli, diags, state.ID.ValueString(), workspace.GetId(), nil, added)
+}
+
+func applyInstanceWithManagedSecrets(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, stateSecrets map[string]*types.ManagedSecret, plan *types.Instance, created map[string]*types.ManagedSecret) (*types.Instance, error) {
+	plannedSecrets := plan.ManagedSecrets
+	result, err := instanceCreateOrUpdate(ctx, cli, diags, plan)
+	if result == nil {
+		return nil, err
+	}
+	if err != nil {
+		result.ManagedSecrets = trackedManagedSecrets(stateSecrets, created)
+		return result, err
+	}
+	return applyManagedSecretChanges(ctx, cli, diags, result, stateSecrets, plannedSecrets, created)
+}
+
+func applyManagedSecretChanges(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, result *types.Instance, stateSecrets, plannedSecrets, created map[string]*types.ManagedSecret) (*types.Instance, error) {
+	if plannedSecrets == nil && len(stateSecrets) == 0 {
+		result.ManagedSecrets = nil
+		return result, nil
+	}
+	tracked := trackedManagedSecrets(stateSecrets, created)
+	pending := plannedSecrets
+	if len(created) > 0 {
+		pending = maps.Clone(plannedSecrets)
+		maps.DeleteFunc(pending, func(name string, _ *types.ManagedSecret) bool {
+			_, ok := created[name]
+			return ok
+		})
+	}
+	workspace, err := getWorkspace(ctx, cli.OrgCli, cli.OrgId, result.Workspace.ValueString())
+	if err != nil {
+		result.ManagedSecrets = tracked
+		return result, errors.Wrap(err, "Unable to get workspace for managed secret changes")
+	}
+	synced, syncErr := syncManagedSecrets(ctx, cli, diags, result.ID.ValueString(), workspace.GetId(), stateSecrets, pending)
+	maps.Copy(synced, created)
+	if plannedSecrets == nil && len(synced) == 0 {
+		result.ManagedSecrets = nil
+	} else {
+		result.ManagedSecrets = synced
+	}
+	return result, syncErr
+}
+
+func syncManagedSecrets(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, instanceID, workspaceID string, state, plan map[string]*types.ManagedSecret) (map[string]*types.ManagedSecret, error) {
+	current := make(map[string]*types.ManagedSecret, len(state))
+	for name, secret := range state {
+		if secret != nil {
+			current[name] = secret
+		}
+	}
+	names := slices.Sorted(maps.Keys(plan))
+	var existingKeys map[string][]string
+	for _, name := range names {
+		secret := plan[name]
+		if secret == nil {
+			continue
+		}
+		upsert := types.ToManagedSecretUpsertAPIModel(ctx, diags, name, secret)
+		if diags.HasError() || upsert == nil {
+			return current, errors.Errorf("Unable to build managed secret %q", name)
+		}
+		var err error
+		created := false
+		if stateSecret, tracked := current[name]; tracked {
+			update := upsert
+			if stateSecret.DataVersion.Equal(secret.DataVersion) {
+				metadataOnly := *upsert
+				metadataOnly.Data = nil
+				metadataOnly.ClearData = false
+				update = &metadataOnly
+			}
+			if update.ClearData {
+				if existingKeys == nil {
+					existingKeys, err = listManagedSecretKeys(ctx, cli, instanceID, workspaceID)
+					if err != nil {
+						return current, errors.Wrap(err, "Unable to list managed secrets")
+					}
+				}
+				err = patchManagedSecretClearData(ctx, cli, instanceID, workspaceID, update, existingKeys[name])
+			} else {
+				err = updateManagedSecret(ctx, cli, instanceID, workspaceID, update)
+			}
+			if status.Code(err) == codes.NotFound {
+				err = createManagedSecret(ctx, cli, instanceID, workspaceID, upsert)
+				created = err == nil
+			}
+		} else {
+			err = createManagedSecret(ctx, cli, instanceID, workspaceID, upsert)
+			if status.Code(err) == codes.AlreadyExists {
+				return current, errors.Wrapf(err, "secret %q already exists and is not tracked by this resource; existing secrets are not adopted — delete the existing secret or use a different name", name)
+			}
+			created = err == nil
+		}
+		if created && upsert.ClearData {
+			existingKeys, err = listManagedSecretKeys(ctx, cli, instanceID, workspaceID)
+			if err != nil {
+				return current, errors.Wrap(err, "Unable to list managed secrets")
+			}
+			if len(existingKeys[name]) > 0 {
+				err = patchManagedSecretClearData(ctx, cli, instanceID, workspaceID, upsert, existingKeys[name])
+			}
+		}
+		if err != nil {
+			return current, errors.Wrapf(err, "Unable to apply managed secret %q", name)
+		}
+		sanitized := *secret
+		sanitized.Data = tftypes.MapNull(tftypes.StringType)
+		current[name] = &sanitized
+	}
+	for _, name := range removedManagedSecretNames(state, plan) {
+		if err := deleteManagedSecret(ctx, cli, instanceID, workspaceID, name); err != nil {
+			return current, err
+		}
+		delete(current, name)
+	}
+	return current, nil
+}
+
+const managedSecretOwner = "terraform"
+
+func createManagedSecret(ctx context.Context, cli *AkpCli, instanceID, workspaceID string, upsert *types.ManagedSecretUpsert) error {
+	_, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.CreateManagedSecretResponse, error) {
+		return cli.Cli.CreateManagedSecret(ctx, &argocdv1.CreateManagedSecretRequest{
+			OrganizationId:    cli.OrgId,
+			WorkspaceId:       workspaceID,
+			InstanceId:        instanceID,
+			ManagedSecret:     upsert.Secret,
+			ManagedSecretData: upsert.Data,
+			Owner:             managedSecretOwner,
+		})
+	}, "CreateManagedSecret")
+	return err
+}
+
+func updateManagedSecret(ctx context.Context, cli *AkpCli, instanceID, workspaceID string, upsert *types.ManagedSecretUpsert) error {
+	_, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.UpdateManagedSecretResponse, error) {
+		return cli.Cli.UpdateManagedSecret(ctx, &argocdv1.UpdateManagedSecretRequest{
+			OrganizationId:    cli.OrgId,
+			WorkspaceId:       workspaceID,
+			InstanceId:        instanceID,
+			Name:              upsert.Secret.GetName(),
+			ManagedSecret:     upsert.Secret,
+			ManagedSecretData: upsert.Data,
+		})
+	}, "UpdateManagedSecret")
+	return err
+}
+
+func patchManagedSecretClearData(ctx context.Context, cli *AkpCli, instanceID, workspaceID string, upsert *types.ManagedSecretUpsert, keys []string) error {
+	data := make(map[string]string, len(keys))
+	for _, key := range keys {
+		data[key] = ""
+	}
+	_, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.PatchManagedSecretResponse, error) {
+		return cli.Cli.PatchManagedSecret(ctx, &argocdv1.PatchManagedSecretRequest{
+			OrganizationId:    cli.OrgId,
+			WorkspaceId:       workspaceID,
+			InstanceId:        instanceID,
+			Name:              upsert.Secret.GetName(),
+			ManagedSecret:     upsert.Secret,
+			ManagedSecretData: data,
+		})
+	}, "PatchManagedSecret")
+	return err
+}
+
+func listManagedSecretKeys(ctx context.Context, cli *AkpCli, instanceID, workspaceID string) (map[string][]string, error) {
+	resp, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.ListInstanceManagedSecretsResponse, error) {
+		return cli.Cli.ListInstanceManagedSecrets(ctx, &argocdv1.ListInstanceManagedSecretsRequest{
+			OrganizationId: cli.OrgId,
+			WorkspaceId:    workspaceID,
+			InstanceId:     instanceID,
+		})
+	}, "ListInstanceManagedSecrets")
+	if err != nil {
+		return nil, err
+	}
+	keys := make(map[string][]string, len(resp.GetManagedSecrets()))
+	for _, secret := range resp.GetManagedSecrets() {
+		if secret != nil {
+			keys[secret.GetName()] = secret.GetSecretKeys()
+		}
+	}
+	return keys, nil
+}
+
+func removedManagedSecretNames(state, plan map[string]*types.ManagedSecret) []string {
+	var names []string
+	for name, secret := range state {
+		if secret == nil {
+			continue
+		}
+		plannedSecret, ok := plan[name]
+		if !ok || plannedSecret == nil {
+			names = append(names, name)
+		}
+	}
+	slices.Sort(names)
+	return names
+}
+
+func deleteManagedSecret(ctx context.Context, cli *AkpCli, instanceID, workspaceID, name string) error {
+	_, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.DeleteManagedSecretResponse, error) {
+		return cli.Cli.DeleteManagedSecret(ctx, &argocdv1.DeleteManagedSecretRequest{
+			OrganizationId: cli.OrgId,
+			WorkspaceId:    workspaceID,
+			InstanceId:     instanceID,
+			Name:           name,
+		})
+	}, "DeleteManagedSecret")
+	if err != nil {
+		return errors.Wrapf(err, "Unable to delete managed secret %q", name)
+	}
+	return nil
 }
 
 func instanceRead(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, data *types.Instance) error {
@@ -210,7 +505,7 @@ func instanceUpsert(ctx context.Context, cli *AkpCli, diagnostics *diag.Diagnost
 		},
 		StatusName:   "health",
 		PollInterval: 10 * time.Second,
-		Timeout:      5 * time.Minute,
+		Timeout:      10 * time.Minute,
 	}
 
 	return lc.Upsert(ctx, diagnostics, plan)
@@ -393,8 +688,31 @@ func refreshStateWithWorkspaceMode(ctx context.Context, diagnostics *diag.Diagno
 	if err != nil {
 		return errors.Wrap(err, "Unable to export Argo CD instance")
 	}
-	err = instance.Update(ctx, diagnostics, exportResp, isDataSource)
-	return err
+	if err := instance.Update(ctx, diagnostics, exportResp, isDataSource); err != nil {
+		return err
+	}
+	if !isDataSource {
+		return refreshManagedSecrets(ctx, diagnostics, cli, instance, getInstanceResp.Instance.GetWorkspaceId())
+	}
+	return nil
+}
+
+func refreshManagedSecrets(ctx context.Context, diagnostics *diag.Diagnostics, cli *AkpCli, instance *types.Instance, workspaceID string) error {
+	if instance.ManagedSecrets == nil {
+		return nil
+	}
+	resp, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.ListInstanceManagedSecretsResponse, error) {
+		return cli.Cli.ListInstanceManagedSecrets(ctx, &argocdv1.ListInstanceManagedSecretsRequest{
+			OrganizationId: cli.OrgId,
+			WorkspaceId:    workspaceID,
+			InstanceId:     instance.ID.ValueString(),
+		})
+	}, "ListInstanceManagedSecrets")
+	if err != nil {
+		return errors.Wrap(err, "Unable to list managed secrets")
+	}
+	instance.ManagedSecrets = types.ToManagedSecretsTFModel(ctx, diagnostics, instance.ManagedSecrets, resp.GetManagedSecrets())
+	return nil
 }
 
 func isArgoResourceValid(un *unstructured.Unstructured) error {

@@ -6,6 +6,8 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
@@ -21,6 +23,9 @@ const apiKeyResourceName = "akp_api_key.test"
 // runApiKeyResource creates, reads, imports, and replaces an org-scoped key.
 // Replacement is exercised by changing description (RequiresReplace) — that
 // must mint a new id and a new secret.
+// runApiKeyResource covers the in-place update path: every attribute the
+// server can change on an existing key must be editable without rotating the
+// secret. See runApiKeyResourceReplacement for the two that cannot.
 func runApiKeyResource(t *testing.T) {
 	desc := fmt.Sprintf("tf-acc-%s", acctest.RandString(8))
 	descUpdated := fmt.Sprintf("tf-acc-%s-upd", acctest.RandString(8))
@@ -33,7 +38,7 @@ func runApiKeyResource(t *testing.T) {
 		CheckDestroy:             testAccCheckApiKeyDestroyed(apiKeyResourceName),
 		Steps: []resource.TestStep{
 			{
-				Config: providerConfig + testAccApiKeyConfigOrg(desc, "member", ""),
+				Config: providerConfig + testAccApiKeyConfigOrg(desc, "member", "", []string{"203.0.113.0/24"}),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrSet(apiKeyResourceName, "id"),
 					resource.TestCheckResourceAttrSet(apiKeyResourceName, "secret"),
@@ -41,6 +46,8 @@ func runApiKeyResource(t *testing.T) {
 					resource.TestCheckResourceAttr(apiKeyResourceName, "description", desc),
 					resource.TestCheckResourceAttr(apiKeyResourceName, "permissions.roles.#", "1"),
 					resource.TestCheckResourceAttr(apiKeyResourceName, "permissions.roles.0", "member"),
+					resource.TestCheckResourceAttr(apiKeyResourceName, "ip_allowlist.#", "1"),
+					resource.TestCheckResourceAttr(apiKeyResourceName, "ip_allowlist.0", "203.0.113.0/24"),
 					resource.TestCheckResourceAttr(apiKeyResourceName, "expire_time", ""),
 					testAccCheckApiKeyExists(apiKeyResourceName),
 					captureApiKeyState(apiKeyResourceName, &firstID, &firstSecret),
@@ -48,17 +55,106 @@ func runApiKeyResource(t *testing.T) {
 			},
 			testAccApiKeyImportStateStep(),
 			{
-				// RequiresReplace on description should destroy + create. Verify
-				// the id and secret both rotated so callers know a fresh key was
-				// issued on update.
-				Config: providerConfig + testAccApiKeyConfigOrg(descUpdated, "member", ""),
+				// description, permissions, and ip_allowlist are all mutable on
+				// the server, so editing them together must keep the same key:
+				// rotating the secret here would break every existing caller.
+				Config: providerConfig + testAccApiKeyConfigOrg(descUpdated, "owner", "", []string{"198.51.100.0/24", "203.0.113.5/32"}),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr(apiKeyResourceName, "description", descUpdated),
-					expectApiKeyReplaced(apiKeyResourceName, &firstID, &firstSecret),
+					resource.TestCheckResourceAttr(apiKeyResourceName, "permissions.roles.0", "owner"),
+					resource.TestCheckResourceAttr(apiKeyResourceName, "ip_allowlist.#", "2"),
+					resource.TestCheckResourceAttr(apiKeyResourceName, "ip_allowlist.0", "198.51.100.0/24"),
+					resource.TestCheckResourceAttr(apiKeyResourceName, "ip_allowlist.1", "203.0.113.5/32"),
+					expectApiKeyPreserved(apiKeyResourceName, &firstID, &firstSecret),
+					testAccCheckApiKeyExists(apiKeyResourceName),
+				),
+			},
+			{
+				// Dropping ip_allowlist lifts the restriction in place. The
+				// server flattens null and [] to the same unrestricted state,
+				// so the attribute must come back absent rather than empty.
+				Config: providerConfig + testAccApiKeyConfigOrg(descUpdated, "owner", "", nil),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckNoResourceAttr(apiKeyResourceName, "ip_allowlist.#"),
+					expectApiKeyPreserved(apiKeyResourceName, &firstID, &firstSecret),
 					testAccCheckApiKeyExists(apiKeyResourceName),
 				),
 			},
 		},
+	})
+}
+
+// runApiKeyResourceReplacement covers the two attributes the update endpoint
+// cannot touch. Expiry is only settable at creation ("regenerate the key to
+// change it") and workspace decides the key's scope, so both stay
+// RequiresReplace: editing either must destroy and recreate, rotating id and
+// secret. Each trigger gets its own case so a failure names the attribute
+// responsible.
+func runApiKeyResourceReplacement(t *testing.T) {
+	suffix := acctest.RandString(8)
+
+	t.Run("ExpireInDuration", func(t *testing.T) {
+		desc := fmt.Sprintf("tf-acc-repl-exp-%s", suffix)
+		var prevID, prevSecret string
+
+		resource.Test(t, resource.TestCase{
+			PreCheck:                 func() { testAccPreCheck(t) },
+			ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+			CheckDestroy:             testAccCheckApiKeyDestroyed(apiKeyResourceName),
+			Steps: []resource.TestStep{
+				{
+					Config: providerConfig + testAccApiKeyConfigOrg(desc, "member", "", nil),
+					Check: resource.ComposeAggregateTestCheckFunc(
+						resource.TestCheckResourceAttr(apiKeyResourceName, "expire_time", ""),
+						testAccCheckApiKeyExists(apiKeyResourceName),
+						captureApiKeyState(apiKeyResourceName, &prevID, &prevSecret),
+					),
+				},
+				{
+					Config: providerConfig + testAccApiKeyConfigOrg(desc, "member", "1h", nil),
+					Check: resource.ComposeAggregateTestCheckFunc(
+						resource.TestCheckResourceAttr(apiKeyResourceName, "expire_in_duration", "1h"),
+						resource.TestCheckResourceAttrSet(apiKeyResourceName, "expire_time"),
+						expectApiKeyReplaced(apiKeyResourceName, &prevID, &prevSecret),
+						testAccCheckApiKeyExists(apiKeyResourceName),
+					),
+				},
+			},
+		})
+	})
+
+	t.Run("Workspace", func(t *testing.T) {
+		desc := fmt.Sprintf("tf-acc-repl-ws-key-%s", suffix)
+		workspaceName := fmt.Sprintf("tf-acc-repl-ws-%s", suffix)
+		var prevID, prevSecret string
+
+		resource.Test(t, resource.TestCase{
+			PreCheck:                 func() { testAccPreCheck(t) },
+			ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+			CheckDestroy: resource.ComposeAggregateTestCheckFunc(
+				testAccCheckApiKeyDestroyed(apiKeyResourceName),
+				testAccCheckWorkspaceDestroyed,
+			),
+			Steps: []resource.TestStep{
+				{
+					// Org-scoped, so only `workspace` differs from the next
+					// step and it alone drives the replacement.
+					Config: providerConfig + testAccApiKeyConfigOrg(desc, "member", "", nil),
+					Check: resource.ComposeAggregateTestCheckFunc(
+						testAccCheckApiKeyExists(apiKeyResourceName),
+						captureApiKeyState(apiKeyResourceName, &prevID, &prevSecret),
+					),
+				},
+				{
+					Config: providerConfig + testAccApiKeyConfigWorkspaceInline(workspaceName, desc),
+					Check: resource.ComposeAggregateTestCheckFunc(
+						resource.TestCheckResourceAttr(apiKeyResourceName, "workspace", workspaceName),
+						expectApiKeyReplaced(apiKeyResourceName, &prevID, &prevSecret),
+						testAccCheckApiKeyExists(apiKeyResourceName),
+					),
+				},
+			},
+		})
 	})
 }
 
@@ -73,7 +169,7 @@ func runApiKeyResourceExpiring(t *testing.T) {
 		CheckDestroy:             testAccCheckApiKeyDestroyed(apiKeyResourceName),
 		Steps: []resource.TestStep{
 			{
-				Config: providerConfig + testAccApiKeyConfigOrg(desc, "member", "1h"),
+				Config: providerConfig + testAccApiKeyConfigOrg(desc, "member", "1h", nil),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrSet(apiKeyResourceName, "id"),
 					resource.TestCheckResourceAttrSet(apiKeyResourceName, "secret"),
@@ -258,6 +354,25 @@ func captureApiKeyState(name string, id, secret *string) resource.TestCheckFunc 
 	}
 }
 
+// expectApiKeyPreserved is the inverse of expectApiKeyReplaced: it asserts an
+// edit was applied in place, so callers already holding the secret keep
+// working.
+func expectApiKeyPreserved(name string, prevID, prevSecret *string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[name]
+		if !ok {
+			return fmt.Errorf("not found: %s", name)
+		}
+		if rs.Primary.ID != *prevID {
+			return fmt.Errorf("expected id to survive an in-place update; was %s, now %s", *prevID, rs.Primary.ID)
+		}
+		if rs.Primary.Attributes["secret"] != *prevSecret {
+			return fmt.Errorf("expected secret to survive an in-place update; it rotated")
+		}
+		return nil
+	}
+}
+
 func expectApiKeyReplaced(name string, prevID, prevSecret *string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[name]
@@ -307,19 +422,27 @@ func testAccApiKeyImportStateStepWithWorkspaceFromState() resource.TestStep {
 	}
 }
 
-func testAccApiKeyConfigOrg(description, role, expireIn string) string {
+func testAccApiKeyConfigOrg(description, role, expireIn string, allowlist []string) string {
 	expireLine := ""
 	if expireIn != "" {
 		expireLine = fmt.Sprintf("  expire_in_duration = %q\n", expireIn)
 	}
+	allowlistLine := ""
+	if allowlist != nil {
+		quoted := make([]string, len(allowlist))
+		for i, cidr := range allowlist {
+			quoted[i] = strconv.Quote(cidr)
+		}
+		allowlistLine = fmt.Sprintf("  ip_allowlist = [%s]\n", strings.Join(quoted, ", "))
+	}
 	return fmt.Sprintf(`
 resource "akp_api_key" "test" {
   description = %q
-%s  permissions = {
+%s%s  permissions = {
     roles = [%q]
   }
 }
-`, description, expireLine, role)
+`, description, expireLine, allowlistLine, role)
 }
 
 func testAccApiKeyConfigNoRoles(description string) string {

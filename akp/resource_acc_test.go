@@ -15,16 +15,8 @@ func TestAccAll(t *testing.T) {
 	})
 
 	if !t.Run("WorkspaceMove", func(t *testing.T) {
-		if !t.Run("DirectNamedArgoCD", func(t *testing.T) { runWorkspaceMoveDirectNamedArgoCD(t) }) {
-			return
-		}
-		if !t.Run("ArgoCD", func(t *testing.T) { runWorkspaceMoveArgoCD(t) }) {
-			return
-		}
-		if !t.Run("DirectNamedKargo", func(t *testing.T) { runWorkspaceMoveDirectNamedKargo(t) }) {
-			return
-		}
-		t.Run("Kargo", func(t *testing.T) { runWorkspaceMoveKargo(t) })
+		t.Run("ArgoCD", func(t *testing.T) { t.Parallel(); runWorkspaceMoveArgoCD(t) })
+		t.Run("Kargo", func(t *testing.T) { t.Parallel(); runWorkspaceMoveKargo(t) })
 	}) {
 		return
 	}
@@ -92,6 +84,7 @@ func TestAccAll(t *testing.T) {
 		t.Run("WorkspaceMember_Team", func(t *testing.T) { runWorkspaceMemberResource(t) })
 
 		t.Run("ApiKey_Basic", func(t *testing.T) { runApiKeyResource(t) })
+		t.Run("ApiKey_Replacement", func(t *testing.T) { runApiKeyResourceReplacement(t) })
 		t.Run("ApiKey_Expiring", func(t *testing.T) { runApiKeyResourceExpiring(t) })
 		t.Run("ApiKey_MissingRoles", func(t *testing.T) { runApiKeyResourceMissingRoles(t) })
 		t.Run("ApiKey_Workspace", func(t *testing.T) { runApiKeyResourceWorkspace(t) })
@@ -105,20 +98,20 @@ func TestAccAll(t *testing.T) {
 	t.Run("InstanceConfigs", func(t *testing.T) {
 		t.Run("ArgoCD", func(t *testing.T) {
 			t.Parallel()
-			t.Run("Configs", func(t *testing.T) { runInstanceConfigTests(t) })
-			t.Run("NestedOptionalObjectStability", func(t *testing.T) { runInstance_NestedOptionalObjectStability(t) })
-			t.Run("RBACChangeWithCombinedCustomizations", func(t *testing.T) { runInstance_RBACChangeWithCombinedCustomizations(t) })
-			t.Run("MinimalSpecImport", func(t *testing.T) { runInstance_MinimalSpecImport(t) })
-			t.Run("PartialInstanceSpecImport", func(t *testing.T) { runInstance_PartialInstanceSpecImport(t) })
+			t.Run("Configs", func(t *testing.T) { t.Parallel(); runInstanceConfigTests(t) })
+			t.Run("NestedOptionalObjectStability", func(t *testing.T) { t.Parallel(); runInstance_NestedOptionalObjectStability(t) })
+			t.Run("RBACChangeWithCombinedCustomizations", func(t *testing.T) { t.Parallel(); runInstance_RBACChangeWithCombinedCustomizations(t) })
+			t.Run("MinimalSpecImport", func(t *testing.T) { t.Parallel(); runInstance_MinimalSpecImport(t) })
+			t.Run("PartialInstanceSpecImport", func(t *testing.T) { t.Parallel(); runInstance_PartialInstanceSpecImport(t) })
 		})
 
 		t.Run("Kargo", func(t *testing.T) {
 			t.Parallel()
-			t.Run("Configs", func(t *testing.T) { runKargoConfigTests(t) })
-			t.Run("NestedOptionalObjectStability", func(t *testing.T) { runKargo_NestedOptionalObjectStability(t) })
-			t.Run("MinimalSpecImport", func(t *testing.T) { runKargo_MinimalSpecImport(t) })
-			t.Run("PartialOIDCImport", func(t *testing.T) { runKargo_PartialOIDCImport(t) })
-			t.Run("PartialKargoInstanceSpecImport", func(t *testing.T) { runKargo_PartialKargoInstanceSpecImport(t) })
+			t.Run("Configs", func(t *testing.T) { t.Parallel(); runKargoConfigTests(t) })
+			t.Run("NestedOptionalObjectStability", func(t *testing.T) { t.Parallel(); runKargo_NestedOptionalObjectStability(t) })
+			t.Run("MinimalSpecImport", func(t *testing.T) { t.Parallel(); runKargo_MinimalSpecImport(t) })
+			t.Run("PartialOIDCImport", func(t *testing.T) { t.Parallel(); runKargo_PartialOIDCImport(t) })
+			t.Run("PartialKargoInstanceSpecImport", func(t *testing.T) { t.Parallel(); runKargo_PartialKargoInstanceSpecImport(t) })
 		})
 	})
 }

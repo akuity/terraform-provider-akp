@@ -2,7 +2,7 @@ default: acc-test
 
 .PHONY: acc-test
 acc-test:
-	TF_ACC=1 go test -race ./akp/... --tags=acc -v -run 'TestAccAll' -parallel 3 $(TESTARGS) -timeout 60m
+	TF_ACC=1 go test -race ./akp --tags=acc -v -run 'TestAccAll' -parallel 3 $(TESTARGS) -timeout 40m
 
 # Run unit tests
 .PHONY: unit-test

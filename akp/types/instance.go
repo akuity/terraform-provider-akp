@@ -30,6 +30,7 @@ type Instance struct {
 	RepoTemplateCredentialSecrets types.Map                          `tfsdk:"repo_template_credential_secrets"`
 	ConfigManagementPlugins       map[string]*ConfigManagementPlugin `tfsdk:"config_management_plugins"`
 	ArgoCDResources               types.Map                          `tfsdk:"argocd_resources"`
+	ManagedSecrets                map[string]*ManagedSecret          `tfsdk:"managed_secrets"`
 }
 
 func (i *Instance) GetSensitiveStrings(ctx context.Context, diagnostics *diag.Diagnostics) []string {
@@ -51,6 +52,12 @@ func (i *Instance) GetSensitiveStrings(ctx context.Context, diagnostics *diag.Di
 	}
 	for _, secret := range repoTemplateCredentialSecrets {
 		res = append(res, GetSensitiveStrings(secret)...)
+	}
+	for _, secret := range i.ManagedSecrets {
+		if secret == nil {
+			continue
+		}
+		res = append(res, GetSensitiveStrings(secret.Data)...)
 	}
 	return res
 }

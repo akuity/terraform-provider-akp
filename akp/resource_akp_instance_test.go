@@ -3,14 +3,22 @@
 package akp
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"regexp"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/plancheck"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
+	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
+	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 )
 
 // labeledStep pairs a human-readable label with a TestStep. numberedSteps uses
@@ -145,7 +153,7 @@ func runInstanceConfigTests(t *testing.T) {
 				),
 			}},
 			{label: "Core Fields", step: resource.TestStep{
-				Config: providerConfig + testAccInstanceResourceConfigCoreFields(name),
+				Config: providerConfig + testAccInstanceResourceConfigCoreFields(name, "example", "replace-me", "1"),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_instance.test", "name", name),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.declarative_management_enabled", "true"),
@@ -171,6 +179,19 @@ func runInstanceConfigTests(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd_cm.ui.bannerurl", "https://argoproj.github.io"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd_cm.accounts.alice", "apiKey,login"),
 					resource.TestCheckResourceAttr("akp_instance.test", "repo_credential_secrets.%", "2"),
+					resource.TestCheckResourceAttr("akp_instance.test", "managed_secrets.%", "1"),
+					resource.TestCheckResourceAttr("akp_instance.test", "managed_secrets.terraform-acceptance.labels.environment", "example"),
+					resource.TestCheckResourceAttr("akp_instance.test", "managed_secrets.terraform-acceptance.allowed_clusters.#", "1"),
+					resource.TestCheckResourceAttr("akp_instance.test", "managed_secrets.terraform-acceptance.allowed_clusters.0", "ALL"),
+					resource.TestCheckResourceAttr("akp_instance.test", "managed_secrets.terraform-acceptance.cluster_selector", "env=example"),
+					resource.TestCheckResourceAttr("akp_instance.test", "managed_secrets.terraform-acceptance.data_version", "1"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "managed_secrets.%", "1"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "managed_secrets.terraform-acceptance.labels.environment", "example"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "managed_secrets.terraform-acceptance.allowed_clusters.#", "1"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "managed_secrets.terraform-acceptance.allowed_clusters.0", "ALL"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "managed_secrets.terraform-acceptance.cluster_selector", "env=example"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "managed_secrets.terraform-acceptance.secret_keys.#", "1"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "managed_secrets.terraform-acceptance.secret_keys.0", "token"),
 					resource.TestCheckResourceAttr("data.akp_instance.test", "name", name),
 					resource.TestCheckResourceAttrSet("data.akp_instance.test", "id"),
 					// The data source is built straight from the API, which reports the
@@ -226,6 +247,49 @@ func runInstanceConfigTests(t *testing.T) {
 					// argocd_ssh_known_hosts_cm
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd_ssh_known_hosts_cm.%", "1"),
 					resource.TestCheckResourceAttrSet("akp_instance.test", "argocd_ssh_known_hosts_cm.ssh_known_hosts"),
+				),
+			}},
+			{label: "Managed Secret Updated", step: resource.TestStep{
+				Config: providerConfig + testAccInstanceResourceConfigCoreFields(name, "platform", "rotated-secret", "2"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("akp_instance.test", "managed_secrets.%", "1"),
+					resource.TestCheckResourceAttr("akp_instance.test", "managed_secrets.terraform-acceptance.labels.environment", "platform"),
+					resource.TestCheckResourceAttr("akp_instance.test", "managed_secrets.terraform-acceptance.data_version", "2"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "managed_secrets.terraform-acceptance.labels.environment", "platform"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "managed_secrets.terraform-acceptance.secret_keys.0", "token"),
+				),
+			}},
+			{label: "Managed Secret Data Not Pushed Without Version Bump", step: resource.TestStep{
+				Config: providerConfig + testAccInstanceResourceConfigCoreFieldsWithDataKey(name, "staging", "stale-key", "stale-value", "2"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("akp_instance.test", "managed_secrets.terraform-acceptance.labels.environment", "staging"),
+					resource.TestCheckResourceAttr("akp_instance.test", "managed_secrets.terraform-acceptance.data_version", "2"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "managed_secrets.terraform-acceptance.labels.environment", "staging"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "managed_secrets.terraform-acceptance.secret_keys.#", "1"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "managed_secrets.terraform-acceptance.secret_keys.0", "token"),
+				),
+			}},
+			{label: "Managed Secret Data Cleared", step: resource.TestStep{
+				Config: providerConfig + testAccInstanceResourceConfigCoreFields(name, "platform", "", "3"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("akp_instance.test", "managed_secrets.terraform-acceptance.data_version", "3"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "managed_secrets.terraform-acceptance.secret_keys.#", "0"),
+				),
+			}},
+			{label: "Managed Secret Not Adopted", step: resource.TestStep{
+				PreConfig: func() {
+					testAccPreCreateManagedSecret(t, name, "terraform-acceptance-adopted")
+				},
+				Config:      providerConfig + testAccInstanceResourceConfigCoreFields(name, "platform", "", "3", adoptedManagedSecretEntry),
+				ExpectError: regexp.MustCompile("not adopted"),
+			}},
+			{label: "Managed Secret Removed", step: resource.TestStep{
+				Config: providerConfig + testAccInstanceResourceConfigCoreFields(name, "", "", ""),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckNoResourceAttr("akp_instance.test", "managed_secrets"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "managed_secrets.%", "1"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "managed_secrets.terraform-acceptance-adopted.secret_keys.#", "1"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "managed_secrets.terraform-acceptance-adopted.secret_keys.0", "token"),
 				),
 			}},
 			{step: testAccInstanceImportStateStep(name, testAccInstanceCoreFieldsImportStateVerifyIgnore...)},
@@ -1138,7 +1202,63 @@ resource "akp_instance" "test" {
 `, name, getInstanceVersion())
 }
 
-func testAccInstanceResourceConfigCoreFields(name string) string {
+const adoptedManagedSecretEntry = `
+    terraform-acceptance-adopted = {
+      data = {
+        token = "adopted"
+      }
+      data_version = "1"
+    }`
+
+func testAccPreCreateManagedSecret(t *testing.T, instanceName, secretName string) {
+	t.Helper()
+	cli := getTestAkpCli()
+	if cli == nil {
+		t.Fatal("could not get test client")
+	}
+	ctx := httpctx.SetAuthorizationHeader(context.Background(), cli.Cred.Scheme(), cli.Cred.Credential())
+	instanceResp, err := cli.Cli.GetInstance(ctx, instanceGetRequest(cli.OrgId, "", instanceName))
+	if err != nil {
+		t.Fatalf("get instance %q: %v", instanceName, err)
+	}
+	_, err = cli.Cli.CreateManagedSecret(ctx, &argocdv1.CreateManagedSecretRequest{
+		OrganizationId:    cli.OrgId,
+		WorkspaceId:       instanceResp.GetInstance().GetWorkspaceId(),
+		InstanceId:        instanceResp.GetInstance().GetId(),
+		ManagedSecret:     &argocdv1.ManagedSecret{Name: secretName},
+		ManagedSecretData: map[string]string{"token": "created-outside-terraform"},
+	})
+	if err != nil && status.Code(err) != codes.AlreadyExists {
+		t.Fatalf("pre-create managed secret %q: %v", secretName, err)
+	}
+}
+
+func testAccInstanceResourceConfigCoreFields(name, managedSecretEnvironment, managedSecretData, managedSecretDataVersion string, extraManagedSecretEntries ...string) string {
+	return testAccInstanceResourceConfigCoreFieldsWithDataKey(name, managedSecretEnvironment, "token", managedSecretData, managedSecretDataVersion, extraManagedSecretEntries...)
+}
+
+func testAccInstanceResourceConfigCoreFieldsWithDataKey(name, managedSecretEnvironment, managedSecretDataKey, managedSecretData, managedSecretDataVersion string, extraManagedSecretEntries ...string) string {
+	managedSecretConfig := ""
+	if managedSecretDataVersion != "" {
+		dataConfig := "data = {}"
+		if managedSecretData != "" {
+			dataConfig = fmt.Sprintf(`data = {
+        %s = %q
+      }`, managedSecretDataKey, managedSecretData)
+		}
+		managedSecretConfig = fmt.Sprintf(`
+  managed_secrets = {
+    terraform-acceptance = {
+      labels = {
+        environment = %q
+      }
+      allowed_clusters = ["ALL"]
+      cluster_selector = "env=example"
+      %s
+      data_version = %q
+    }%s
+  }`, managedSecretEnvironment, dataConfig, managedSecretDataVersion, strings.Join(extraManagedSecretEntries, ""))
+	}
 	return fmt.Sprintf(`
 resource "akp_instance" "test" {
   name = %q
@@ -1259,6 +1379,7 @@ resource "akp_instance" "test" {
     "dex.github.clientSecret" = "my-github-oidc-secret"
     "webhook.github.secret"   = "shhhh! it's a github secret"
   }
+%s
   application_set_secret = {
     "my-appset-secret" = "xyz456"
   }
@@ -1374,7 +1495,7 @@ vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOf
 
 data "akp_instance" "test" {
   name = akp_instance.test.name
-}`, name, getInstanceVersion())
+}`, name, getInstanceVersion(), managedSecretConfig)
 }
 
 func testAccInstanceResourceConfigSpecFeatures(name string) string {

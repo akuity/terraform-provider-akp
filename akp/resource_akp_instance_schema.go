@@ -1,6 +1,8 @@
 package akp
 
 import (
+	"context"
+	"fmt"
 	"regexp"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
@@ -15,6 +17,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	boolplanmodifier2 "github.com/akuity/terraform-provider-akp/akp/modifiers/bool"
 	listplanmodifier2 "github.com/akuity/terraform-provider-akp/akp/modifiers/list"
@@ -180,6 +183,66 @@ func getAKPInstanceAttributes() map[string]schema.Attribute {
 				mapplanmodifier.UseStateForUnknown(),
 			},
 		},
+		"managed_secrets": schema.MapNestedAttribute{
+			MarkdownDescription: "is a map of [managed secrets](https://docs.akuity.io/argo-cd/settings/features/secrets), where each map key is the secret name. Managed secrets are created in the Akuity control plane and can be synced to managed clusters via `allowed_clusters` or `cluster_selector`. Terraform creates, updates, and deletes exactly the secrets in this map. Creating an entry whose name matches a secret that already exists (for example one created through the UI, API, or declarative CLI) fails with an \"already exists\" error: existing secrets are not adopted — delete the existing secret or use a different name. Removing an entry, including removing the whole attribute, deletes only secrets tracked in this resource's state. Secrets that are not listed in this map are never modified or deleted. Requires Terraform 1.11+ when `data` is set.",
+			Optional:            true,
+			NestedObject: schema.NestedAttributeObject{
+				Attributes: getManagedSecretAttributes(),
+			},
+		},
+	}
+}
+
+func getManagedSecretAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"labels": schema.MapAttribute{
+			MarkdownDescription: "Additional labels to set on the secret.",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
+		"allowed_clusters": schema.ListAttribute{
+			MarkdownDescription: "Names of managed clusters the secret is synced to. Use `ALL` to sync the secret to all clusters. Takes precedence over `cluster_selector`.",
+			Optional:            true,
+			ElementType:         types.StringType,
+		},
+		"cluster_selector": schema.StringAttribute{
+			MarkdownDescription: "Kubernetes label selector (e.g. `env=prod`) that selects the managed clusters the secret is synced to.",
+			Optional:            true,
+			Validators: []validator.String{
+				labelSelectorValidator{},
+			},
+		},
+		"data": schema.MapAttribute{
+			MarkdownDescription: "Secret data. This attribute is write-only: values are sent to Akuity on apply but never stored in Terraform state or plan (requires Terraform 1.11+). Because previous values are not stored, changing only `data` does not produce a diff; change `data_version` to push new values. Omitting `data` keeps the existing secret data unchanged. Setting `data` to an empty map (together with a new `data_version`) removes every key from the secret.",
+			Optional:            true,
+			Sensitive:           true,
+			WriteOnly:           true,
+			ElementType:         types.StringType,
+		},
+		"data_version": schema.StringAttribute{
+			MarkdownDescription: "Version marker for `data`. Change this value (e.g. a counter, timestamp, or hash) whenever `data` changes so Terraform detects an update and re-sends the secret data.",
+			Optional:            true,
+		},
+	}
+}
+
+type labelSelectorValidator struct{}
+
+func (v labelSelectorValidator) Description(_ context.Context) string {
+	return "value must be a valid Kubernetes label selector"
+}
+
+func (v labelSelectorValidator) MarkdownDescription(_ context.Context) string {
+	return "value must be a valid Kubernetes label selector"
+}
+
+func (v labelSelectorValidator) ValidateString(_ context.Context, req validator.StringRequest, resp *validator.StringResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
+		return
+	}
+	if _, err := metav1.ParseToLabelSelector(req.ConfigValue.ValueString()); err != nil {
+		resp.Diagnostics.AddAttributeError(req.Path, "Invalid Label Selector",
+			fmt.Sprintf("Unable to parse %q as a Kubernetes label selector: %s", req.ConfigValue.ValueString(), err))
 	}
 }
 

@@ -81,6 +81,37 @@ func getAKPInstanceDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			ElementType:         types.StringType,
 		},
+		"managed_secrets": schema.MapNestedAttribute{
+			MarkdownDescription: "Managed secrets on the instance. Secret values are not returned.",
+			Computed:            true,
+			NestedObject: schema.NestedAttributeObject{
+				Attributes: getManagedSecretDataSourceAttributes(),
+			},
+		},
+	}
+}
+
+func getManagedSecretDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"labels": schema.MapAttribute{
+			MarkdownDescription: "Additional labels set on the secret.",
+			Computed:            true,
+			ElementType:         types.StringType,
+		},
+		"allowed_clusters": schema.ListAttribute{
+			MarkdownDescription: "Names of managed clusters the secret is synced to.",
+			Computed:            true,
+			ElementType:         types.StringType,
+		},
+		"cluster_selector": schema.StringAttribute{
+			MarkdownDescription: "Kubernetes label selector that selects the managed clusters the secret is synced to.",
+			Computed:            true,
+		},
+		"secret_keys": schema.ListAttribute{
+			MarkdownDescription: "Names of keys stored in the secret. Secret values are not returned.",
+			Computed:            true,
+			ElementType:         types.StringType,
+		},
 	}
 }
 
