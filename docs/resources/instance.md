@@ -118,9 +118,27 @@ resource "akp_instance" "argocd" {
 
 ## Example Usage (Exhaustive)
 ```terraform
+variable "managed_secret_token" {
+  type      = string
+  sensitive = true
+}
+
 resource "akp_instance" "example" {
   name      = "test"
   workspace = "test-workspace"
+  managed_secrets = {
+    example-managed-secret = {
+      labels = {
+        environment = "example"
+      }
+      allowed_clusters = ["ALL"]
+      cluster_selector = "env=example"
+      data = {
+        token = var.managed_secret_token
+      }
+      data_version = "1"
+    }
+  }
   argocd = {
     spec = {
       description = "test-inst"
@@ -772,6 +790,7 @@ locals {
 - `argocd_ssh_known_hosts_cm` (Map of String) is aligned with the options in `argocd-ssh-known-hosts-cm` ConfigMap as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-ssh-known-hosts-cm-yaml/).
 - `argocd_tls_certs_cm` (Map of String) is aligned with the options in `argocd-tls-certs-cm` ConfigMap as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-tls-certs-cm-yaml/).
 - `config_management_plugins` (Attributes Map) is a map of [Config Management Plugins](https://argo-cd.readthedocs.io/en/stable/operator-manual/config-management-plugins/#config-management-plugins), the key of map entry is the `name` of the plugin, and the value is the definition of the Config Management Plugin(v2). (see [below for nested schema](#nestedatt--config_management_plugins))
+- `managed_secrets` (Attributes Map) is a map of [managed secrets](https://docs.akuity.io/argo-cd/settings/features/secrets), where each map key is the secret name. Managed secrets are created in the Akuity control plane and can be synced to managed clusters via `allowed_clusters` or `cluster_selector`. Terraform creates, updates, and deletes exactly the secrets in this map. Creating an entry whose name matches a secret that already exists (for example one created through the UI, API, or declarative CLI) fails with an "already exists" error: existing secrets are not adopted — delete the existing secret or use a different name. Removing an entry, including removing the whole attribute, deletes only secrets tracked in this resource's state. Secrets that are not listed in this map are never modified or deleted. Requires Terraform 1.11+ when `data` is set. (see [below for nested schema](#nestedatt--managed_secrets))
 - `repo_credential_secrets` (Map of Map of String, Sensitive) is a map of repo credential secrets, the key of map entry is the `name` of the secret, and the value is the aligned with options in `argocd-repositories.yaml.data` as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-repositories-yaml/).
 - `repo_template_credential_secrets` (Map of Map of String, Sensitive) is a map of repository credential templates secrets, the key of map entry is the `name` of the secret, and the value is the aligned with options in `argocd-repo-creds.yaml.data` as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-repo-creds.yaml/).
 - `workspace` (String) Workspace name for the ArgoCD instance. Defaults to the organization's default workspace.
@@ -1357,6 +1376,21 @@ Optional:
 - `string` (String) This field communicates the parameter's default value to the UI if the parameter is a `string`.
 - `title` (String) Title and description of the parameter
 - `tooltip` (String) Tooltip of the Parameter, will be shown when hovering over the title
+
+
+
+
+
+<a id="nestedatt--managed_secrets"></a>
+### Nested Schema for `managed_secrets`
+
+Optional:
+
+- `allowed_clusters` (List of String) Names of managed clusters the secret is synced to. Use `ALL` to sync the secret to all clusters. Takes precedence over `cluster_selector`.
+- `cluster_selector` (String) Kubernetes label selector (e.g. `env=prod`) that selects the managed clusters the secret is synced to.
+- `data` (Map of String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Secret data. This attribute is write-only: values are sent to Akuity on apply but never stored in Terraform state or plan (requires Terraform 1.11+). Because previous values are not stored, changing only `data` does not produce a diff; change `data_version` to push new values. Omitting `data` keeps the existing secret data unchanged. Setting `data` to an empty map (together with a new `data_version`) removes every key from the secret.
+- `data_version` (String) Version marker for `data`. Change this value (e.g. a counter, timestamp, or hash) whenever `data` changes so Terraform detects an update and re-sends the secret data.
+- `labels` (Map of String) Additional labels to set on the secret.
 
 ## Import
 

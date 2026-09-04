@@ -3,12 +3,12 @@
 page_title: "akp_api_key Resource - akp"
 subcategory: ""
 description: |-
-  Manages an Akuity Platform API key. The key may be scoped to the whole organization (omit workspace) or to a single workspace (set workspace). API keys are immutable on the server — any change to description, permissions, expire_in_duration, or workspace triggers replacement, which mints a fresh secret.
+  Manages an Akuity Platform API key. The key may be scoped to the whole organization (omit workspace) or to a single workspace (set workspace). description, permissions, and ip_allowlist are updated in place, leaving secret intact. expire_in_duration and workspace are not mutable on the server, so changing either triggers replacement, which mints a fresh secret.
 ---
 
 # akp_api_key (Resource)
 
-Manages an Akuity Platform API key. The key may be scoped to the whole organization (omit `workspace`) or to a single workspace (set `workspace`). API keys are immutable on the server — any change to `description`, `permissions`, `expire_in_duration`, or `workspace` triggers replacement, which mints a fresh `secret`.
+Manages an Akuity Platform API key. The key may be scoped to the whole organization (omit `workspace`) or to a single workspace (set `workspace`). `description`, `permissions`, and `ip_allowlist` are updated in place, leaving `secret` intact. `expire_in_duration` and `workspace` are not mutable on the server, so changing either triggers replacement, which mints a fresh `secret`.
 
 
 
@@ -23,6 +23,7 @@ Manages an Akuity Platform API key. The key may be scoped to the whole organizat
 ### Optional
 
 - `expire_in_duration` (String) Duration from creation until the key expires (e.g. `30d`, `8760h`). Omit for a non-expiring key.
+- `ip_allowlist` (List of String) CIDR ranges allowed to authenticate with this key. Omit to leave the key unrestricted. Not available on self-hosted installations.
 - `workspace` (String) Workspace name. When set, the key is scoped to this workspace; when omitted, the key is org-scoped.
 
 ### Read-Only
@@ -40,4 +41,4 @@ Optional:
 
 - `actions` (List of String) Action grants (uncommon; usually empty)
 - `custom_roles` (List of String) IDs of custom roles to bind to the key
-- `roles` (List of String) Built-in role names. Valid org-scoped values are `owner`, `admin`, and `member`; valid workspace-scoped values are `admin` and `member`.
+- `roles` (List of String) Built-in role names. Valid org-scoped values are `owner` and `member`; valid workspace-scoped values are `admin` and `member`. The two sets do not overlap beyond `member`: `admin` is workspace-only and `owner` is org-only.

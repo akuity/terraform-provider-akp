@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
@@ -23,9 +24,11 @@ type GenericResource[Plan any] struct {
 	CreateFunc           func(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, plan *Plan) (*Plan, error)
 	ReadFunc             func(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, data *Plan) error
 	UpdateFunc           func(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, plan *Plan) (*Plan, error)
+	UpdateWithStateFunc  func(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, state, plan *Plan) (*Plan, error)
 	DeleteFunc           func(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, state *Plan) error
 	ImportStateFunc      func(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse)
 	ConfigValidatorsFunc func() []resource.ConfigValidator
+	CopyWriteOnlyFunc    func(ctx context.Context, config tfsdk.Config, diags *diag.Diagnostics, plan *Plan)
 }
 
 func (r *GenericResource[Plan]) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -42,6 +45,12 @@ func (r *GenericResource[Plan]) Create(ctx context.Context, req resource.CreateR
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
+	}
+	if r.CopyWriteOnlyFunc != nil {
+		r.CopyWriteOnlyFunc(ctx, req.Config, &resp.Diagnostics, &plan)
+		if resp.Diagnostics.HasError() {
+			return
+		}
 	}
 	ctx = r.AuthCtx(ctx)
 	result, err := r.CreateFunc(ctx, r.akpCli, &resp.Diagnostics, &plan)
@@ -75,8 +84,25 @@ func (r *GenericResource[Plan]) Update(ctx context.Context, req resource.UpdateR
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	if r.CopyWriteOnlyFunc != nil {
+		r.CopyWriteOnlyFunc(ctx, req.Config, &resp.Diagnostics, &plan)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	}
 	ctx = r.AuthCtx(ctx)
-	result, err := r.UpdateFunc(ctx, r.akpCli, &resp.Diagnostics, &plan)
+	var result *Plan
+	var err error
+	if r.UpdateWithStateFunc != nil {
+		var state Plan
+		resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		result, err = r.UpdateWithStateFunc(ctx, r.akpCli, &resp.Diagnostics, &state, &plan)
+	} else {
+		result, err = r.UpdateFunc(ctx, r.akpCli, &resp.Diagnostics, &plan)
+	}
 	if err != nil {
 		resp.Diagnostics.AddError("Client Error", err.Error())
 	}

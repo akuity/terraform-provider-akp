@@ -19,7 +19,8 @@ var (
 		"KARGO_AGENT_SIZE_UNSPECIFIED": "unspecified",
 	}
 	KargoOverridesMap = overrideMap{
-		"spec.fqdn": alwaysIncludeString(),
+		"spec.fqdn":                              alwaysIncludeString(),
+		"spec.kargo_instance_spec.ip_allow_list": alwaysIncludeList(),
 		"spec.kargo_instance_spec.agent_customization_defaults.kustomization": yamlStringToObject(),
 		"spec.oidc_config.dex_config_secret":                                  mapStringToValueObject(),
 		"data.kustomization":                                                  yamlStringToObject(),

@@ -5,8 +5,6 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -20,7 +18,7 @@ var expireInDurationRegex = regexp.MustCompile(`^(\d+(\.\d+)?(ns|us|µs|ms|s|m|h
 
 func apiKeySchema() schema.Schema {
 	return schema.Schema{
-		MarkdownDescription: "Manages an Akuity Platform API key. The key may be scoped to the whole organization (omit `workspace`) or to a single workspace (set `workspace`). API keys are immutable on the server — any change to `description`, `permissions`, `expire_in_duration`, or `workspace` triggers replacement, which mints a fresh `secret`.",
+		MarkdownDescription: "Manages an Akuity Platform API key. The key may be scoped to the whole organization (omit `workspace`) or to a single workspace (set `workspace`). `description`, `permissions`, and `ip_allowlist` are updated in place, leaving `secret` intact. `expire_in_duration` and `workspace` are not mutable on the server, so changing either triggers replacement, which mints a fresh `secret`.",
 		Attributes:          getApiKeyAttributes(),
 	}
 }
@@ -50,9 +48,6 @@ func getApiKeyAttributes() map[string]schema.Attribute {
 		"description": schema.StringAttribute{
 			Required:            true,
 			MarkdownDescription: "Human-readable description for the key",
-			PlanModifiers: []planmodifier.String{
-				stringplanmodifier.RequiresReplace(),
-			},
 		},
 		"expire_in_duration": schema.StringAttribute{
 			Optional:            true,
@@ -70,16 +65,20 @@ func getApiKeyAttributes() map[string]schema.Attribute {
 				stringplanmodifier.RequiresReplace(),
 			},
 		},
+		// Updated in place. The server replaces permissions wholesale, so
+		// apiKeyUpdate must send every nested field on each call — a field
+		// added here without being wired into that request would plan clean
+		// and never reach the server. TestNoNewApiKeyFields forces a schema
+		// change for any new field, which is what surfaces that.
 		"permissions": schema.SingleNestedAttribute{
 			Required:            true,
 			MarkdownDescription: "Permissions granted to the key. At least one of `roles` or `custom_roles` is required.",
-			PlanModifiers: []planmodifier.Object{
-				// Permissions are immutable on the server; force replacement
-				// at the parent level so any nested-field change (including
-				// fields added later) keeps state and remote in sync.
-				objectplanmodifier.RequiresReplace(),
-			},
-			Attributes: getApiKeyPermissionsAttributes(),
+			Attributes:          getApiKeyPermissionsAttributes(),
+		},
+		"ip_allowlist": schema.ListAttribute{
+			Optional:            true,
+			ElementType:         types.StringType,
+			MarkdownDescription: "CIDR ranges allowed to authenticate with this key. Omit to leave the key unrestricted. Not available on self-hosted installations.",
 		},
 		"secret": schema.StringAttribute{
 			Computed:            true,
@@ -119,25 +118,16 @@ func getApiKeyPermissionsAttributes() map[string]schema.Attribute {
 			Optional:            true,
 			ElementType:         types.StringType,
 			MarkdownDescription: "Action grants (uncommon; usually empty)",
-			PlanModifiers: []planmodifier.List{
-				listplanmodifier.RequiresReplace(),
-			},
 		},
 		"roles": schema.ListAttribute{
 			Optional:            true,
 			ElementType:         types.StringType,
-			MarkdownDescription: "Built-in role names. Valid org-scoped values are `owner`, `admin`, and `member`; valid workspace-scoped values are `admin` and `member`.",
-			PlanModifiers: []planmodifier.List{
-				listplanmodifier.RequiresReplace(),
-			},
+			MarkdownDescription: "Built-in role names. Valid org-scoped values are `owner` and `member`; valid workspace-scoped values are `admin` and `member`. The two sets do not overlap beyond `member`: `admin` is workspace-only and `owner` is org-only.",
 		},
 		"custom_roles": schema.ListAttribute{
 			Optional:            true,
 			ElementType:         types.StringType,
 			MarkdownDescription: "IDs of custom roles to bind to the key",
-			PlanModifiers: []planmodifier.List{
-				listplanmodifier.RequiresReplace(),
-			},
 		},
 	}
 }

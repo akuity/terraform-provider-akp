@@ -31,116 +31,6 @@ const (
 	workspaceMoveKargoDataName      = "data.akp_kargo_instance.workspace_move"
 )
 
-func runWorkspaceMoveDirectNamedArgoCD(t *testing.T) {
-	version := os.Getenv("AKUITY_ARGOCD_INSTANCE_VERSION")
-	name := acctest.RandomWithPrefix("workspace-move-direct-argocd")
-	workspaceName := acctest.RandomWithPrefix("workspace-move-direct-argocd")
-	stableID := ""
-	namedConfig := providerConfig + testAccWorkspaceMoveArgoCDConfig(name, workspaceName, workspaceName, version)
-	defaultConfig := providerConfig + testAccWorkspaceMoveArgoCDConfig(name, workspaceName, "default", version)
-
-	resource.Test(t, resource.TestCase{
-		PreCheck: func() {
-			testAccPreCheck(t)
-			if version == "" {
-				t.Fatal("AKUITY_ARGOCD_INSTANCE_VERSION must be set for the workspace move acceptance test")
-			}
-		},
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		Steps: []resource.TestStep{
-			{
-				Config: namedConfig,
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrWith(workspaceMoveArgoCDResourceName, "id", testAccCheckStableID(&stableID)),
-					resource.TestCheckResourceAttr(workspaceMoveArgoCDResourceName, "name", name),
-					resource.TestCheckResourceAttr(workspaceMoveArgoCDResourceName, "workspace", workspaceName),
-					resource.TestCheckResourceAttr(workspaceMoveArgoCDDataName, "workspace", workspaceName),
-					resource.TestCheckResourceAttrPair(workspaceMoveArgoCDResourceName, "id", workspaceMoveArgoCDDataName, "id"),
-					testAccCheckArgoCDWorkspace(workspaceMoveArgoCDResourceName, workspaceName),
-				),
-			},
-			{
-				Config: namedConfig,
-				ConfigPlanChecks: resource.ConfigPlanChecks{
-					PreApply: []plancheck.PlanCheck{plancheck.ExpectEmptyPlan()},
-				},
-			},
-			{
-				Config: defaultConfig,
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrWith(workspaceMoveArgoCDResourceName, "id", testAccCheckStableID(&stableID)),
-					resource.TestCheckResourceAttr(workspaceMoveArgoCDResourceName, "name", name),
-					resource.TestCheckResourceAttr(workspaceMoveArgoCDResourceName, "workspace", "default"),
-					resource.TestCheckResourceAttr(workspaceMoveArgoCDDataName, "workspace", "default"),
-					resource.TestCheckResourceAttrPair(workspaceMoveArgoCDResourceName, "id", workspaceMoveArgoCDDataName, "id"),
-					testAccCheckArgoCDWorkspace(workspaceMoveArgoCDResourceName, "default"),
-				),
-			},
-			{
-				Config: defaultConfig,
-				ConfigPlanChecks: resource.ConfigPlanChecks{
-					PreApply: []plancheck.PlanCheck{plancheck.ExpectEmptyPlan()},
-				},
-			},
-		},
-	})
-}
-
-func runWorkspaceMoveDirectNamedKargo(t *testing.T) {
-	version := os.Getenv("AKUITY_KARGO_VERSION")
-	name := acctest.RandomWithPrefix("workspace-move-direct-kargo")
-	workspaceName := acctest.RandomWithPrefix("workspace-move-direct-kargo")
-	stableID := ""
-	namedConfig := providerConfig + testAccWorkspaceMoveKargoConfig(name, workspaceName, workspaceName, version, false)
-	defaultConfig := providerConfig + testAccWorkspaceMoveKargoConfig(name, workspaceName, "default", version, false)
-
-	resource.Test(t, resource.TestCase{
-		PreCheck: func() {
-			testAccPreCheck(t)
-			if version == "" {
-				t.Fatal("AKUITY_KARGO_VERSION must be set for the workspace move acceptance test")
-			}
-		},
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		Steps: []resource.TestStep{
-			{
-				Config: namedConfig,
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrWith(workspaceMoveKargoResourceName, "id", testAccCheckStableID(&stableID)),
-					resource.TestCheckResourceAttr(workspaceMoveKargoResourceName, "name", name),
-					resource.TestCheckResourceAttr(workspaceMoveKargoResourceName, "workspace", workspaceName),
-					resource.TestCheckResourceAttr(workspaceMoveKargoDataName, "workspace", workspaceName),
-					resource.TestCheckResourceAttrPair(workspaceMoveKargoResourceName, "id", workspaceMoveKargoDataName, "id"),
-					testAccCheckKargoWorkspace(workspaceMoveKargoResourceName, workspaceName),
-				),
-			},
-			{
-				Config: namedConfig,
-				ConfigPlanChecks: resource.ConfigPlanChecks{
-					PreApply: []plancheck.PlanCheck{plancheck.ExpectEmptyPlan()},
-				},
-			},
-			{
-				Config: defaultConfig,
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrWith(workspaceMoveKargoResourceName, "id", testAccCheckStableID(&stableID)),
-					resource.TestCheckResourceAttr(workspaceMoveKargoResourceName, "name", name),
-					resource.TestCheckResourceAttr(workspaceMoveKargoResourceName, "workspace", "default"),
-					resource.TestCheckResourceAttr(workspaceMoveKargoDataName, "workspace", "default"),
-					resource.TestCheckResourceAttrPair(workspaceMoveKargoResourceName, "id", workspaceMoveKargoDataName, "id"),
-					testAccCheckKargoWorkspace(workspaceMoveKargoResourceName, "default"),
-				),
-			},
-			{
-				Config: defaultConfig,
-				ConfigPlanChecks: resource.ConfigPlanChecks{
-					PreApply: []plancheck.PlanCheck{plancheck.ExpectEmptyPlan()},
-				},
-			},
-		},
-	})
-}
-
 func runWorkspaceMoveArgoCD(t *testing.T) {
 	version := os.Getenv("AKUITY_ARGOCD_INSTANCE_VERSION")
 
@@ -162,24 +52,7 @@ func runWorkspaceMoveArgoCD(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: defaultConfig,
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrWith(workspaceMoveArgoCDResourceName, "id", testAccCheckStableID(&stableID)),
-					resource.TestCheckResourceAttr(workspaceMoveArgoCDResourceName, "name", name),
-					resource.TestCheckResourceAttr(workspaceMoveArgoCDResourceName, "workspace", "default"),
-					resource.TestCheckResourceAttr(workspaceMoveArgoCDDataName, "workspace", "default"),
-					resource.TestCheckResourceAttrPair(workspaceMoveArgoCDResourceName, "id", workspaceMoveArgoCDDataName, "id"),
-					testAccCheckArgoCDWorkspace(workspaceMoveArgoCDResourceName, "default"),
-				),
-			},
-			{
 				Config: namedConfig,
-				ConfigPlanChecks: resource.ConfigPlanChecks{
-					PreApply: []plancheck.PlanCheck{
-						plancheck.ExpectResourceAction(workspaceMoveArgoCDResourceName, plancheck.ResourceActionUpdate),
-						expectManagedPlanActions{creates: 0, updates: 1, destroys: 0},
-					},
-				},
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrWith(workspaceMoveArgoCDResourceName, "id", testAccCheckStableID(&stableID)),
 					resource.TestCheckResourceAttr(workspaceMoveArgoCDResourceName, "name", name),
@@ -220,10 +93,26 @@ func runWorkspaceMoveArgoCD(t *testing.T) {
 			},
 			{
 				Config: namedConfig,
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction(workspaceMoveArgoCDResourceName, plancheck.ResourceActionUpdate),
+						expectManagedPlanActions{creates: 0, updates: 1, destroys: 0},
+					},
+				},
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrWith(workspaceMoveArgoCDResourceName, "id", testAccCheckStableID(&stableID)),
+					resource.TestCheckResourceAttr(workspaceMoveArgoCDResourceName, "name", name),
+					resource.TestCheckResourceAttr(workspaceMoveArgoCDResourceName, "workspace", workspaceName),
+					resource.TestCheckResourceAttr(workspaceMoveArgoCDDataName, "workspace", workspaceName),
+					resource.TestCheckResourceAttrPair(workspaceMoveArgoCDResourceName, "id", workspaceMoveArgoCDDataName, "id"),
 					testAccCheckArgoCDWorkspace(workspaceMoveArgoCDResourceName, workspaceName),
 				),
+			},
+			{
+				Config: namedConfig,
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{plancheck.ExpectEmptyPlan()},
+				},
 			},
 			{
 				Config: renamedDefaultConfig,
@@ -289,24 +178,7 @@ func runWorkspaceMoveKargo(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: defaultConfig,
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrWith(workspaceMoveKargoResourceName, "id", testAccCheckStableID(&stableID)),
-					resource.TestCheckResourceAttr(workspaceMoveKargoResourceName, "name", name),
-					resource.TestCheckResourceAttr(workspaceMoveKargoResourceName, "workspace", "default"),
-					resource.TestCheckResourceAttr(workspaceMoveKargoDataName, "workspace", "default"),
-					resource.TestCheckResourceAttrPair(workspaceMoveKargoResourceName, "id", workspaceMoveKargoDataName, "id"),
-					testAccCheckKargoWorkspace(workspaceMoveKargoResourceName, "default"),
-				),
-			},
-			{
 				Config: namedConfig,
-				ConfigPlanChecks: resource.ConfigPlanChecks{
-					PreApply: []plancheck.PlanCheck{
-						plancheck.ExpectResourceAction(workspaceMoveKargoResourceName, plancheck.ResourceActionUpdate),
-						expectManagedPlanActions{creates: 0, updates: 1, destroys: 0},
-					},
-				},
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrWith(workspaceMoveKargoResourceName, "id", testAccCheckStableID(&stableID)),
 					resource.TestCheckResourceAttr(workspaceMoveKargoResourceName, "name", name),
@@ -356,10 +228,26 @@ func runWorkspaceMoveKargo(t *testing.T) {
 			},
 			{
 				Config: namedConfig,
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction(workspaceMoveKargoResourceName, plancheck.ResourceActionUpdate),
+						expectManagedPlanActions{creates: 0, updates: 1, destroys: 0},
+					},
+				},
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrWith(workspaceMoveKargoResourceName, "id", testAccCheckStableID(&stableID)),
+					resource.TestCheckResourceAttr(workspaceMoveKargoResourceName, "name", name),
+					resource.TestCheckResourceAttr(workspaceMoveKargoResourceName, "workspace", workspaceName),
+					resource.TestCheckResourceAttr(workspaceMoveKargoDataName, "workspace", workspaceName),
+					resource.TestCheckResourceAttrPair(workspaceMoveKargoResourceName, "id", workspaceMoveKargoDataName, "id"),
 					testAccCheckKargoWorkspace(workspaceMoveKargoResourceName, workspaceName),
 				),
+			},
+			{
+				Config: namedConfig,
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{plancheck.ExpectEmptyPlan()},
+				},
 			},
 			{
 				Config: renamedDefaultConfig,

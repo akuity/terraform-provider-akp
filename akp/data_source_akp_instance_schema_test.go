@@ -15,6 +15,7 @@ import (
 // Update the schema attribute accordingly.
 func TestNoNewAKPInstanceDataSourceFields(t *testing.T) {
 	assert.Equal(t, reflect.TypeFor[types.InstanceDataSource]().NumField(), len(getAKPInstanceDataSourceAttributes()))
+	assert.Equal(t, reflect.TypeFor[types.ManagedSecretDataSource]().NumField(), len(getManagedSecretDataSourceAttributes()))
 }
 
 // If this test fails, a field has been added/removed to the ArgoCD related type.

@@ -28,6 +28,7 @@ var instanceDataSourceExcludedTags = map[string]struct{}{
 	"argocd_image_updater_secret":      {},
 	"repo_credential_secrets":          {},
 	"repo_template_credential_secrets": {},
+	"managed_secrets":                  {},
 	"metrics_ingress_password_hash":    {},
 }
 
@@ -41,9 +42,18 @@ var kargoDataSourceExcludedTags = map[string]struct{}{
 // added but not populated by NewInstanceDataSourceModel.
 func TestNewInstanceDataSourceModelMatchesResourceModel(t *testing.T) {
 	instance := populateProjectionFixture[Instance](t, "instance")
-	projected := NewInstanceDataSourceModel(&instance)
+	managedSecrets := map[string]*ManagedSecretDataSource{
+		"managed": {
+			Labels:          frameworktypes.MapNull(frameworktypes.StringType),
+			AllowedClusters: frameworktypes.ListNull(frameworktypes.StringType),
+			ClusterSelector: frameworktypes.StringValue("env=prod"),
+			SecretKeys:      frameworktypes.ListNull(frameworktypes.StringType),
+		},
+	}
+	projected := NewInstanceDataSourceModel(&instance, managedSecrets)
 
 	assertProjectionMatches(t, reflect.ValueOf(instance), reflect.ValueOf(projected), instanceDataSourceExcludedTags, "instance", "NewInstanceDataSourceModel")
+	require.Equal(t, managedSecrets, projected.ManagedSecrets)
 }
 
 // If this test fails, a new non-secret field was added to the resource model

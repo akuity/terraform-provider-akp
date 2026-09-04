@@ -85,6 +85,7 @@ func apiKeyCreate(ctx context.Context, cli *AkpCli, _ *diag.Diagnostics, plan *t
 				Description:      plan.Description.ValueString(),
 				Permissions:      perms,
 				ExpireInDuration: expireIn,
+				IpAllowlist:      stringSliceFromTF(plan.IPAllowlist),
 			})
 		}, "CreateOrganizationAPIKey")
 		if err != nil {
@@ -105,6 +106,7 @@ func apiKeyCreate(ctx context.Context, cli *AkpCli, _ *diag.Diagnostics, plan *t
 			Description:      plan.Description.ValueString(),
 			Permissions:      perms,
 			ExpireInDuration: expireIn,
+			IpAllowlist:      stringSliceFromTF(plan.IPAllowlist),
 		})
 	}, "CreateWorkspaceAPIKey")
 	if err != nil {
@@ -165,11 +167,61 @@ func fetchAPIKey(ctx context.Context, cli *AkpCli, data *types.ApiKey) (*apikeyv
 	return resp.GetApiKey(), nil
 }
 
-func apiKeyUpdate(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, plan *types.ApiKey) (*types.ApiKey, error) {
-	// All mutable fields are marked RequiresReplace, so Update should only
-	// fire when Terraform refreshes a value that doesn't actually change the
-	// remote (e.g. computed attributes). Re-read to keep state in sync.
-	return plan, apiKeyRead(ctx, cli, diags, plan)
+// apiKeyUpdate changes description, permissions, and ip_allowlist in place so
+// editing any of them does not rotate the key's secret.
+//
+// The server replaces those three wholesale on every call, so the complete
+// desired state goes out each time rather than a diff. That is safe without
+// access to prior state (GenericResource.Update only hands us the plan)
+// because Terraform plans are complete desired state, and because the two
+// attributes this endpoint cannot change — `workspace` and
+// `expire_in_duration` — are still RequiresReplace, so their plan values here
+// always match state.
+//
+// Update responses carry no secret; applyApiKeyResponse leaves the known one
+// in state untouched.
+func apiKeyUpdate(ctx context.Context, cli *AkpCli, _ *diag.Diagnostics, plan *types.ApiKey) (*types.ApiKey, error) {
+	perms, err := buildApiKeyPermissions(plan.Permissions)
+	if err != nil {
+		return nil, err
+	}
+	allowlist := stringSliceFromTF(plan.IPAllowlist)
+
+	if plan.Workspace.IsNull() || plan.Workspace.ValueString() == "" {
+		resp, err := retryWithBackoff(ctx, func(ctx context.Context) (*apikeyv1.UpdateAPIKeyResponse, error) {
+			return cli.ApiKeyCli.UpdateAPIKey(ctx, &apikeyv1.UpdateAPIKeyRequest{
+				Id:          plan.ID.ValueString(),
+				Description: plan.Description.ValueString(),
+				Permissions: perms,
+				IpAllowlist: allowlist,
+			})
+		}, "UpdateAPIKey")
+		if err != nil {
+			return nil, fmt.Errorf("unable to update API key: %w", err)
+		}
+		applyApiKeyResponse(plan, resp.GetApiKey())
+		return plan, nil
+	}
+
+	workspace, err := getWorkspace(ctx, cli.OrgCli, cli.OrgId, plan.Workspace.ValueString())
+	if err != nil {
+		return nil, fmt.Errorf("unable to resolve workspace %q: %w", plan.Workspace.ValueString(), err)
+	}
+	resp, err := retryWithBackoff(ctx, func(ctx context.Context) (*apikeyv1.UpdateWorkspaceAPIKeyResponse, error) {
+		return cli.ApiKeyCli.UpdateWorkspaceAPIKey(ctx, &apikeyv1.UpdateWorkspaceAPIKeyRequest{
+			OrganizationId: cli.OrgId,
+			WorkspaceId:    workspace.GetId(),
+			Id:             plan.ID.ValueString(),
+			Description:    plan.Description.ValueString(),
+			Permissions:    perms,
+			IpAllowlist:    allowlist,
+		})
+	}, "UpdateWorkspaceAPIKey")
+	if err != nil {
+		return nil, fmt.Errorf("unable to update workspace API key: %w", err)
+	}
+	applyApiKeyResponse(plan, resp.GetApiKey())
+	return plan, nil
 }
 
 func apiKeyDelete(ctx context.Context, cli *AkpCli, _ *diag.Diagnostics, state *types.ApiKey) error {
@@ -263,6 +315,10 @@ func applyApiKeyResponse(data *types.ApiKey, key *apikeyv1.APIKey) {
 	} else {
 		data.ExpireTime = tftypes.StringValue("")
 	}
+	// Server flattens "unrestricted" and an empty list to the same thing, so
+	// applyStringList's keep-current-on-empty is what stops a null config from
+	// drifting to `[]` and diffing forever.
+	data.IPAllowlist = applyStringList(data.IPAllowlist, key.GetIpAllowlist())
 
 	if key.GetPermissions() != nil {
 		// Workspace-scoped keys get `organization/member` force-appended server-side
