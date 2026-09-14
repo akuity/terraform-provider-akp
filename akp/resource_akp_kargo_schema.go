@@ -200,6 +200,15 @@ func getKargoSpecInstanceAttributes() map[string]schema.Attribute {
 				objectplanmodifier2.UseStateForNullUnknown(),
 			},
 		},
+		"mcp_server": schema.SingleNestedAttribute{
+			MarkdownDescription: "MCP server configuration for the instance. Turns MCP agent access on or off: the instance's own `/mcp` endpoint and instance actions performed through the organization's platform MCP endpoint. Enabling it requires the organization's MCP server feature.",
+			Optional:            true,
+			Computed:            true,
+			Attributes:          getMCPServerConfigAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier2.UseStateForNullUnknown(),
+			},
+		},
 		"gc_config": schema.SingleNestedAttribute{
 			MarkdownDescription: "Garbage collector configuration",
 			Optional:            true,
@@ -313,6 +322,23 @@ func getKargoAgentCustomizationAttributes() map[string]schema.Attribute {
 				stringplanmodifier.UseStateForUnknown(),
 				stringplanmodifier2.SuppressProtobufDefault(),
 			},
+		},
+		"size": schema.StringAttribute{
+			MarkdownDescription: "Default agent size applied to new agents that do not specify their own. One of `small`, `medium`, `large` or `auto`. A Custom default is expressed as `large` plus resource patches in `kustomization`. Akuity-managed agents never inherit it — their size is managed by Akuity.",
+			Optional:            true,
+			Computed:            true,
+			Validators: []validator.String{
+				stringvalidator.OneOf("small", "medium", "large", "auto"),
+			},
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+				stringplanmodifier2.SuppressProtobufDefault(),
+			},
+		},
+		"autoscaler_config": schema.SingleNestedAttribute{
+			MarkdownDescription: "Default min/max scaling limits applied when `size` is `auto`. Required for an `auto` default, ignored for any other size.",
+			Optional:            true,
+			Attributes:          getKargoAutoscalerConfigAttributes(),
 		},
 	}
 }

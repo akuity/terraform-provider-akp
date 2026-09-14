@@ -56,10 +56,12 @@ type KargoIPAllowListEntry struct {
 }
 
 type KargoAgentCustomization struct {
-	AutoUpgradeDisabled types.Bool   `tfsdk:"auto_upgrade_disabled"`
-	Kustomization       types.String `tfsdk:"kustomization"`
-	Connectivity        types.String `tfsdk:"connectivity"`
-	CustomCaBundle      types.String `tfsdk:"custom_ca_bundle"`
+	AutoUpgradeDisabled types.Bool             `tfsdk:"auto_upgrade_disabled"`
+	Kustomization       types.String           `tfsdk:"kustomization"`
+	Connectivity        types.String           `tfsdk:"connectivity"`
+	CustomCaBundle      types.String           `tfsdk:"custom_ca_bundle"`
+	Size                types.String           `tfsdk:"size"`
+	AutoscalerConfig    *KargoAutoscalerConfig `tfsdk:"autoscaler_config"`
 }
 
 type KargoInstanceSpec struct {
@@ -76,6 +78,7 @@ type KargoInstanceSpec struct {
 	TerminationProtectionEnabled types.Bool               `tfsdk:"termination_protection_enabled"`
 	TerminationProtectionNotes   types.String             `tfsdk:"termination_protection_notes"`
 	Connectivity                 types.String             `tfsdk:"connectivity"`
+	McpServer                    *MCPServerConfig         `tfsdk:"mcp_server"`
 }
 
 type KargoArgoCDUIConfig struct {

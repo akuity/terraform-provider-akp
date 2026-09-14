@@ -67,6 +67,7 @@ Read-Only:
 - `global_credentials_ns` (List of String) List of global credentials namespaces
 - `global_service_account_ns` (List of String) List of global service account namespaces
 - `ip_allow_list` (Attributes List) List of allowed IPs (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--ip_allow_list))
+- `mcp_server` (Attributes) MCP server configuration for the instance. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--mcp_server))
 - `promo_controller_enabled` (Boolean) Whether Kargo Promotion Controller is enabled for this instance
 - `secrets` (Attributes) Cross-cluster secret synchronization configuration. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--secrets))
 - `termination_protection_enabled` (Boolean) When enabled, prevents accidental deletion of this Kargo instance.
@@ -78,9 +79,46 @@ Read-Only:
 Read-Only:
 
 - `auto_upgrade_disabled` (Boolean) Whether auto upgrade is disabled
+- `autoscaler_config` (Attributes) Default min/max scaling limits applied when `size` is `auto`. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--agent_customization_defaults--autoscaler_config))
 - `connectivity` (String) Default agent connectivity applied to new agents. One of `public` (internet) or `private` (AWS PrivateLink).
 - `custom_ca_bundle` (String) Default PEM bundle of one or more CA certificates applied to new agents that do not specify their own.
 - `kustomization` (String) Kustomization configuration
+- `size` (String) Default agent size applied to new agents that do not specify their own. One of `small`, `medium`, `large` or `auto`. A Custom default is expressed as `large` plus resource patches in `kustomization`.
+
+<a id="nestedatt--kargo--spec--kargo_instance_spec--agent_customization_defaults--autoscaler_config"></a>
+### Nested Schema for `kargo.spec.kargo_instance_spec.agent_customization_defaults.autoscaler_config`
+
+Read-Only:
+
+- `kargo_controller` (Attributes) Kargo Controller auto scaling config (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--agent_customization_defaults--autoscaler_config--kargo_controller))
+
+<a id="nestedatt--kargo--spec--kargo_instance_spec--agent_customization_defaults--autoscaler_config--kargo_controller"></a>
+### Nested Schema for `kargo.spec.kargo_instance_spec.agent_customization_defaults.autoscaler_config.kargo_controller`
+
+Read-Only:
+
+- `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--agent_customization_defaults--autoscaler_config--kargo_controller--resource_maximum))
+- `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--agent_customization_defaults--autoscaler_config--kargo_controller--resource_minimum))
+
+<a id="nestedatt--kargo--spec--kargo_instance_spec--agent_customization_defaults--autoscaler_config--kargo_controller--resource_maximum"></a>
+### Nested Schema for `kargo.spec.kargo_instance_spec.agent_customization_defaults.autoscaler_config.kargo_controller.resource_maximum`
+
+Read-Only:
+
+- `cpu` (String) CPU
+- `mem` (String) Memory
+
+
+<a id="nestedatt--kargo--spec--kargo_instance_spec--agent_customization_defaults--autoscaler_config--kargo_controller--resource_minimum"></a>
+### Nested Schema for `kargo.spec.kargo_instance_spec.agent_customization_defaults.autoscaler_config.kargo_controller.resource_minimum`
+
+Read-Only:
+
+- `cpu` (String) CPU
+- `mem` (String) Memory
+
+
+
 
 
 <a id="nestedatt--kargo--spec--kargo_instance_spec--akuity_intelligence"></a>
@@ -121,6 +159,14 @@ Read-Only:
 
 - `description` (String) Description for the IP address
 - `ip` (String) IP address
+
+
+<a id="nestedatt--kargo--spec--kargo_instance_spec--mcp_server"></a>
+### Nested Schema for `kargo.spec.kargo_instance_spec.mcp_server`
+
+Read-Only:
+
+- `enabled` (Boolean) Whether MCP agent access is enabled for the instance
 
 
 <a id="nestedatt--kargo--spec--kargo_instance_spec--secrets"></a>

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"sync/atomic"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
@@ -54,7 +55,17 @@ var testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServe
 	"akp": providerserver.NewProtocol6WithError(New("test")()),
 }
 
+var accSuiteFailed atomic.Bool
+
 func testAccPreCheck(t *testing.T) {
+	if accSuiteFailed.Load() {
+		t.Skip("skipping: an earlier acceptance test failed")
+	}
+	t.Cleanup(func() {
+		if t.Failed() {
+			accSuiteFailed.Store(true)
+		}
+	})
 	if v := os.Getenv("AKUITY_API_KEY_ID"); v == "" {
 		t.Fatal("AKUITY_API_KEY_ID must be set for acceptance tests")
 	}

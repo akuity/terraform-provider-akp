@@ -70,7 +70,26 @@ resource "akp_instance" "example" {
           # custom_ca_bundle is the default PEM CA bundle applied to new clusters that
           # do not set their own (e.g. a TLS-intercepting proxy CA).
           custom_ca_bundle = "-----BEGIN CERTIFICATE-----\nMIIB...\n-----END CERTIFICATE-----\n"
-          kustomization    = <<-EOF
+          # size is the default agent size applied to new clusters that do not set
+          # their own. One of "small", "medium", "large" or "auto".
+          size = "large"
+          # autoscaler_config sets the min/max scaling limits used when size is "auto".
+          # It is required for an "auto" default and ignored for any other size:
+          #
+          # size = "auto"
+          # autoscaler_config = {
+          #   application_controller = {
+          #     resource_minimum = { cpu = "500m", memory = "1Gi" }
+          #     resource_maximum = { cpu = "2", memory = "4Gi" }
+          #   }
+          #   repo_server = {
+          #     resource_minimum = { cpu = "250m", memory = "512Mi" }
+          #     resource_maximum = { cpu = "1", memory = "2Gi" }
+          #     replicas_minimum = 1
+          #     replicas_maximum = 3
+          #   }
+          # }
+          kustomization = <<-EOF
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 patches:
@@ -185,6 +204,14 @@ EOF
           enabled           = true
           allowed_usernames = ["*"]
           allowed_groups    = ["*"]
+        }
+
+        # MCP server
+        # Lets AI agents reach this instance through MCP: its own /mcp endpoint and
+        # instance actions through the organization's platform MCP endpoint.
+        # Requires the organization's MCP server feature.
+        mcp_server = {
+          enabled = true
         }
 
         # Akuity Intelligence Extension
@@ -599,6 +626,7 @@ vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOf
           ]
         }
         preserve_file_mode = false
+        provide_git_creds  = false
         version            = "v1.0"
       }
     },

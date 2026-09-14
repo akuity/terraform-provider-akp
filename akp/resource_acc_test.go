@@ -14,14 +14,17 @@ func TestAccAll(t *testing.T) {
 		}
 	})
 
-	if !t.Run("WorkspaceMove", func(t *testing.T) {
+	t.Run("ArgoCDConfigs", func(t *testing.T) { t.Parallel(); runInstanceConfigTests(t) })
+	t.Run("WarmSharedInstances", func(t *testing.T) { t.Parallel(); getInstanceId(); getKargoInstanceId() })
+
+	t.Run("WorkspaceMove", func(t *testing.T) {
+		t.Parallel()
 		t.Run("ArgoCD", func(t *testing.T) { t.Parallel(); runWorkspaceMoveArgoCD(t) })
 		t.Run("Kargo", func(t *testing.T) { t.Parallel(); runWorkspaceMoveKargo(t) })
-	}) {
-		return
-	}
+	})
 
 	t.Run("Resources", func(t *testing.T) {
+		t.Parallel()
 		t.Run("Cluster_Basic", func(t *testing.T) { runClusterResource(t) })
 		t.Run("Cluster_IPv6", func(t *testing.T) { runClusterResourceIPv6(t) })
 		t.Run("Cluster_ArgoCDNotifications", func(t *testing.T) { runClusterResourceArgoCDNotifications(t) })
@@ -96,9 +99,9 @@ func TestAccAll(t *testing.T) {
 	})
 
 	t.Run("InstanceConfigs", func(t *testing.T) {
+		t.Parallel()
 		t.Run("ArgoCD", func(t *testing.T) {
 			t.Parallel()
-			t.Run("Configs", func(t *testing.T) { t.Parallel(); runInstanceConfigTests(t) })
 			t.Run("NestedOptionalObjectStability", func(t *testing.T) { t.Parallel(); runInstance_NestedOptionalObjectStability(t) })
 			t.Run("RBACChangeWithCombinedCustomizations", func(t *testing.T) { t.Parallel(); runInstance_RBACChangeWithCombinedCustomizations(t) })
 			t.Run("MinimalSpecImport", func(t *testing.T) { t.Parallel(); runInstance_MinimalSpecImport(t) })

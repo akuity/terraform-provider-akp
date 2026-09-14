@@ -72,17 +72,13 @@ func getKargoInstanceId() string {
 }
 
 func getKargoVersion() string {
+	if v := os.Getenv("AKUITY_KARGO_VERSION"); v != "" {
+		return v
+	}
 	getKargoInstanceId()
 	kargoInstanceMu.RLock()
 	defer kargoInstanceMu.RUnlock()
 	return kargoVersion
-}
-
-func getKargoInstanceName() string {
-	getKargoInstanceId()
-	kargoInstanceMu.RLock()
-	defer kargoInstanceMu.RUnlock()
-	return kargoInstanceName
 }
 
 func createTestKargoInstance() string {

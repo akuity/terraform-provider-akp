@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -61,23 +60,17 @@ func numberedSteps(entries []labeledStep) []resource.TestStep {
 }
 
 func runInstanceConfigTests(t *testing.T) {
-	name := getInstanceName()
+	name := acctest.RandomWithPrefix("instance-configs")
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: numberedSteps([]labeledStep{
-			{label: "Import the shared instance", step: resource.TestStep{
-				Config:            providerConfig + testAccInstanceImportConfig(name),
-				ImportState:       true,
-				ImportStateId:     name,
-				ResourceName:      "akp_instance.test",
-				ImportStateVerify: false,
-			}},
 			{label: "AI Config Full", step: resource.TestStep{
 				Config: providerConfig + testAccInstanceResourceAIConfigFull(name),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_instance.test", "name", name),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.akuity_intelligence_extension.enabled", "true"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.mcp_server.enabled", "true"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.argocd_slack_channels.#", "2"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.runbooks.#", "2"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.runbook_repos.#", "1"),
@@ -87,6 +80,7 @@ func runInstanceConfigTests(t *testing.T) {
 			{label: "AI Config Updated", step: resource.TestStep{
 				Config: providerConfig + testAccInstanceResourceAIConfigUpdated(name),
 				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.mcp_server.enabled", "false"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.runbooks.0.slack_channel_names.#", "3"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.kube_vision_config.ai_config.argocd_slack_channels.#", "3"),
 				),
@@ -294,13 +288,18 @@ func runInstanceConfigTests(t *testing.T) {
 			}},
 			{step: testAccInstanceImportStateStep(name, testAccInstanceCoreFieldsImportStateVerifyIgnore...)},
 			{label: "Spec Features", step: resource.TestStep{
-				PreConfig: func() { time.Sleep(30 * time.Second) },
-				Config:    providerConfig + testAccInstanceResourceConfigSpecFeatures(name),
+				Config: providerConfig + testAccInstanceResourceConfigSpecFeatures(name),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_instance.test", "name", name),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.extensions.#", "1"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.cluster_customization_defaults.auto_upgrade_disabled", "true"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.appset_policy.policy", "create-update"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.appset_new_git_file_globbing_enabled", "true"),
+					// Also assert through the data source: its state is built by the
+					// hand-maintained mapping in types/datasource_models.go, and
+					// check-terraform-field-usage only enforces coverage for resource
+					// attribute paths — so a missing line there would go unnoticed.
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.appset_new_git_file_globbing_enabled", "true"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.manifest_generation.kustomize.default_version", "v5.4.3"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.manifest_generation.kustomize.additional_versions.#", "2"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.termination_protection_enabled", "true"),
@@ -308,6 +307,10 @@ func runInstanceConfigTests(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.connectivity", "public"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.cluster_customization_defaults.connectivity", "public"),
 					resource.TestCheckResourceAttrSet("data.akp_instance.test", "argocd.spec.instance_spec.cluster_customization_defaults.connectivity"),
+					// A Custom default size is Large plus a resource override, so both the
+					// size and the override must survive apply → export → state.
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.cluster_customization_defaults.size", "large"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.cluster_customization_defaults.size", "large"),
 				),
 			}},
 			{label: "Misc Features", step: resource.TestStep{
@@ -317,6 +320,11 @@ func runInstanceConfigTests(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.host_aliases.#", "1"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.crossplane_extension.resources.#", "1"),
 					resource.TestCheckResourceAttr("akp_instance.test", "config_management_plugins.test-plugin.enabled", "true"),
+					// An Auto default carries the scaling limits; Custom's override from the
+					// previous step must be gone once the default is no longer Large.
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.cluster_customization_defaults.size", "auto"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.cluster_customization_defaults.autoscaler_config.application_controller.resource_minimum.cpu", "500m"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.cluster_customization_defaults.autoscaler_config.repo_server.replicas_maximum", "3"),
 				),
 			}},
 			{label: "Secrets Sync", step: resource.TestStep{
@@ -361,12 +369,13 @@ func runInstanceConfigTests(t *testing.T) {
 				},
 			}},
 			{label: "CMP Create", step: resource.TestStep{
-				PreConfig: func() { time.Sleep(30 * time.Second) },
-				Config:    providerConfig + testAccInstanceResourceConfigCMP(name),
+				Config: providerConfig + testAccInstanceResourceConfigCMP(name),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_instance.test", "config_management_plugins.my-plugin.enabled", "true"),
 					resource.TestCheckResourceAttr("akp_instance.test", "config_management_plugins.my-plugin.image", "busybox:latest"),
 					resource.TestCheckResourceAttr("akp_instance.test", "config_management_plugins.my-plugin.spec.version", "v1.0"),
+					resource.TestCheckResourceAttr("akp_instance.test", "config_management_plugins.my-plugin.spec.preserve_file_mode", "true"),
+					resource.TestCheckResourceAttr("akp_instance.test", "config_management_plugins.my-plugin.spec.provide_git_creds", "true"),
 				),
 			}},
 			{label: "CMP Update", step: resource.TestStep{
@@ -374,6 +383,10 @@ func runInstanceConfigTests(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_instance.test", "config_management_plugins.my-plugin.image", "alpine:latest"),
 					resource.TestCheckResourceAttr("akp_instance.test", "config_management_plugins.my-plugin.spec.version", "v2.0"),
+					// the update config drops both flags, so they must fall back to the
+					// schema default rather than leaking the previous true.
+					resource.TestCheckResourceAttr("akp_instance.test", "config_management_plugins.my-plugin.spec.preserve_file_mode", "false"),
+					resource.TestCheckResourceAttr("akp_instance.test", "config_management_plugins.my-plugin.spec.provide_git_creds", "false"),
 				),
 			}},
 			{label: "IgnoreResourceUpdates config", step: resource.TestStep{
@@ -804,19 +817,6 @@ resource "akp_instance" "test" {
 `, name, getInstanceVersion())
 }
 
-// testAccInstanceImportConfig returns a minimal config for importing the shared instance.
-func testAccInstanceImportConfig(name string) string {
-	return fmt.Sprintf(`
-resource "akp_instance" "test" {
-  name = %q
-  argocd = {
-    spec = {
-      version = %q
-    }
-  }
-}`, name, getInstanceVersion())
-}
-
 func testAccInstanceResourceAIConfigFull(name string) string {
 	return fmt.Sprintf(`
 resource "akp_instance" "test" {
@@ -832,6 +832,10 @@ resource "akp_instance" "test" {
           enabled           = true
           allowed_usernames = ["admin", "test-user"]
           allowed_groups    = ["admins", "developers"]
+        }
+
+        mcp_server = {
+          enabled = true
         }
 
         kube_vision_config = {
@@ -891,6 +895,10 @@ resource "akp_instance" "test" {
           enabled           = true
           allowed_usernames = ["admin", "test-user"]
           allowed_groups    = ["admins", "developers"]
+        }
+
+        mcp_server = {
+          enabled = false
         }
 
         kube_vision_config = {
@@ -1521,6 +1529,7 @@ resource "akp_instance" "test" {
           redis_tunneling          = true
           server_side_diff_enabled = true
           connectivity             = "public"
+          size                     = "large"
         }
         application_set_extension = {
           enabled = true
@@ -1529,6 +1538,7 @@ resource "akp_instance" "test" {
           policy          = "create-update"
           override_policy = true
         }
+        appset_new_git_file_globbing_enabled = true
         agent_permissions_rules = [
           {
             api_groups = ["*"]
@@ -1598,6 +1608,34 @@ resource "akp_instance" "test" {
         manifest_generation = {
           kustomize = {
             default_version = "v5.4.3"
+          }
+        }
+        cluster_customization_defaults = {
+          auto_upgrade_disabled = false
+          size                  = "auto"
+          autoscaler_config = {
+            application_controller = {
+              resource_minimum = {
+                cpu    = "500m"
+                memory = "1Gi"
+              }
+              resource_maximum = {
+                cpu    = "2"
+                memory = "4Gi"
+              }
+            }
+            repo_server = {
+              resource_minimum = {
+                cpu    = "250m"
+                memory = "512Mi"
+              }
+              resource_maximum = {
+                cpu    = "1"
+                memory = "2Gi"
+              }
+              replicas_minimum = 1
+              replicas_maximum = 3
+            }
           }
         }
       }
@@ -1715,6 +1753,7 @@ resource "akp_instance" "test" {
       spec = {
         version           = "v1.0"
         preserve_file_mode = true
+        provide_git_creds  = true
         init = {
           command = ["sh"]
           args    = ["-c", "echo init"]

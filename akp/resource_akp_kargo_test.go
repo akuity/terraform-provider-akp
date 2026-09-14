@@ -12,20 +12,12 @@ import (
 )
 
 func runKargoConfigTests(t *testing.T) {
-	name := getKargoInstanceName()
+	name := acctest.RandomWithPrefix("kargo-configs")
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Step 1: Import the shared kargo instance
-			{
-				Config:            providerConfig + testAccKargoImportConfig(name),
-				ImportState:       true,
-				ImportStateId:     name,
-				ResourceName:      "akp_kargo_instance.test",
-				ImportStateVerify: false,
-			},
-			// Step 2: Admin Account Non-Alphabetical Values
+			// Step 1: Admin Account Non-Alphabetical Values
 			{
 				Config: providerConfig + testAccKargoInstanceResourceConfigAdminAccountNonAlphabetical(name),
 				Check: resource.ComposeAggregateTestCheckFunc(
@@ -35,7 +27,7 @@ func runKargoConfigTests(t *testing.T) {
 					resource.TestCheckTypeSetElemAttr("akp_kargo_instance.test", "kargo.spec.oidc_config.admin_account.claims.groups.values.*", "oncall@foo.com"),
 				),
 			},
-			// Step 3: Dex Config
+			// Step 2: Dex Config
 			{
 				Config: providerConfig + testAccKargoInstanceResourceConfigDexConfig(name),
 				Check: resource.ComposeAggregateTestCheckFunc(
@@ -46,7 +38,7 @@ func runKargoConfigTests(t *testing.T) {
 				),
 			},
 			testAccKargoImportStateStep(name, testAccKargoDexConfigSecretImportStateVerifyIgnore...),
-			// Step 4: Spec and Config
+			// Step 3: Spec and Config
 			{
 				Config: providerConfig + testAccKargoInstanceResourceConfigSpecAndConfig(name),
 				Check: resource.ComposeAggregateTestCheckFunc(
@@ -65,10 +57,15 @@ func runKargoConfigTests(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.promo_controller_enabled", "true"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.akuity_intelligence.enabled", "true"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.gc_config.max_retained_freight", "10"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.mcp_server.enabled", "true"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.argocd_ui.idp_groups_mapping", "true"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.termination_protection_enabled", "true"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.termination_protection_notes", "Critical production instance - do not delete"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.connectivity", "public"),
+					// A Custom default size is Large plus a resource override, so both the
+					// size and the override must survive apply → export → state.
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.agent_customization_defaults.size", "large"),
+					resource.TestCheckResourceAttr("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.agent_customization_defaults.size", "large"),
 					// The data source is built straight from the API, which reports the
 					// unnamed default shard as "" — unlike the resource, whose unconfigured
 					// shard stays null in state.
@@ -78,6 +75,7 @@ func runKargoConfigTests(t *testing.T) {
 					resource.TestCheckResourceAttr("data.akp_kargo_instance.test", "name", name),
 					resource.TestCheckResourceAttrSet("data.akp_kargo_instance.test", "id"),
 					resource.TestCheckResourceAttr("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.backend_ip_allow_list_enabled", "true"),
+					resource.TestCheckResourceAttr("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.mcp_server.enabled", "true"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo_resources.%", "2"),
 					resource.TestCheckResourceAttrSet("akp_kargo_instance.test", "kargo_resources.kargo.akuity.io/v1alpha1/Project//test-project"),
 					// ClusterConfig round-trips through apply + export on the resource...
@@ -87,11 +85,13 @@ func runKargoConfigTests(t *testing.T) {
 					resource.TestCheckResourceAttrSet("data.akp_kargo_instance.test", "kargo_resources.kargo.akuity.io/v1alpha1/ClusterConfig//cluster"),
 				),
 			},
-			// Step 5: OIDC and Extras
+			// Step 4: OIDC and Extras
 			{
 				Config: providerConfig + testAccKargoInstanceResourceConfigOIDCAndExtras(name),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "name", name),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.mcp_server.enabled", "false"),
+					resource.TestCheckResourceAttr("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.mcp_server.enabled", "false"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.ip_allow_list.#", "0"),
 					resource.TestCheckResourceAttr("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.ip_allow_list.#", "0"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.oidc_config.enabled", "true"),
@@ -102,7 +102,7 @@ func runKargoConfigTests(t *testing.T) {
 				),
 			},
 			testAccKargoImportStateStep(name, testAccKargoSecretImportStateVerifyIgnore...),
-			// Step 6: Secrets Sync
+			// Step 5: Secrets Sync
 			{
 				Config: providerConfig + testAccKargoInstanceResourceConfigSecretsSync(name),
 				Check: resource.ComposeAggregateTestCheckFunc(
@@ -164,6 +164,11 @@ func runKargo_NestedOptionalObjectStability(t *testing.T) {
 					resource.TestCheckResourceAttrSet("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.agent_customization_defaults.connectivity"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.agent_customization_defaults.custom_ca_bundle", testCABundle),
 					resource.TestCheckResourceAttrSet("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.agent_customization_defaults.custom_ca_bundle"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.agent_customization_defaults.size", "auto"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.agent_customization_defaults.autoscaler_config.kargo_controller.resource_minimum.cpu", "500m"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.agent_customization_defaults.autoscaler_config.kargo_controller.resource_maximum.mem", "4Gi"),
+					resource.TestCheckResourceAttr("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.agent_customization_defaults.size", "auto"),
+					resource.TestCheckResourceAttrSet("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.agent_customization_defaults.autoscaler_config.kargo_controller.resource_minimum.cpu"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.akuity_intelligence.enabled", "true"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.gc_config.max_retained_freight", "10"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.oidc_config.enabled", "true"),
@@ -187,6 +192,11 @@ func runKargo_NestedOptionalObjectStability(t *testing.T) {
 					resource.TestCheckResourceAttrSet("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.agent_customization_defaults.connectivity"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.agent_customization_defaults.custom_ca_bundle", testCABundle),
 					resource.TestCheckResourceAttrSet("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.agent_customization_defaults.custom_ca_bundle"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.agent_customization_defaults.size", "auto"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.agent_customization_defaults.autoscaler_config.kargo_controller.resource_minimum.cpu", "500m"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.agent_customization_defaults.autoscaler_config.kargo_controller.resource_maximum.mem", "4Gi"),
+					resource.TestCheckResourceAttr("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.agent_customization_defaults.size", "auto"),
+					resource.TestCheckResourceAttrSet("data.akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.agent_customization_defaults.autoscaler_config.kargo_controller.resource_minimum.cpu"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.akuity_intelligence.enabled", "true"),
 					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.kargo_instance_spec.gc_config.max_retained_freight", "10"),
 					resource.TestCheckTypeSetElemAttr("akp_kargo_instance.test", "kargo.spec.oidc_config.viewer_account.claims.groups.values.*", "viewer@example.com"),
@@ -358,19 +368,6 @@ resource "akp_kargo_instance" "test" {
 }`, name, getKargoVersion())
 }
 
-// testAccKargoImportConfig returns a minimal config for importing the shared kargo instance.
-func testAccKargoImportConfig(name string) string {
-	return fmt.Sprintf(`
-resource "akp_kargo_instance" "test" {
-  name = %q
-  kargo = {
-    spec = {
-      version = %q
-    }
-  }
-}`, name, getKargoVersion())
-}
-
 func testAccKargoInstanceResourceConfigAdminAccountNonAlphabetical(name string) string {
 	return fmt.Sprintf(`
 resource "akp_kargo_instance" "test" {
@@ -476,12 +473,16 @@ resource "akp_kargo_instance" "test" {
           auto_upgrade_disabled = true
           kustomization         = "apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\n"
           connectivity          = "public"
+          size                  = "large"
         }
         akuity_intelligence = {
           enabled                     = true
           ai_support_engineer_enabled = true
           allowed_usernames           = ["alice@example.com", "bob@example.com"]
           allowed_groups              = ["ai-users"]
+        }
+        mcp_server = {
+          enabled = true
         }
         gc_config = {
           max_retained_freight       = 10
@@ -545,6 +546,9 @@ resource "akp_kargo_instance" "test" {
       kargo_instance_spec = {
         backend_ip_allow_list_enabled  = false
         termination_protection_enabled = false
+        mcp_server = {
+          enabled = false
+        }
       }
       oidc_config = {
         enabled       = true
@@ -678,6 +682,19 @@ resource "akp_kargo_instance" "test" {
           kustomization         = "apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\n"
           connectivity          = "public"
           custom_ca_bundle      = %q
+          size                  = "auto"
+          autoscaler_config = {
+            kargo_controller = {
+              resource_minimum = {
+                cpu = "500m"
+                mem = "1Gi"
+              }
+              resource_maximum = {
+                cpu = "2"
+                mem = "4Gi"
+              }
+            }
+          }
         }
         akuity_intelligence = {
           enabled          = true

@@ -50,6 +50,17 @@ var (
 		"data.auto_agent_size_config.repo_server.resource_maximum.memory":            "mem",
 		"data.auto_agent_size_config.repo_server.replicas_maximum":                   "replicaMaximum",
 		"data.auto_agent_size_config.repo_server.replicas_minimum":                   "replicaMinimum",
+
+		// The instance-level agent-size default reuses the same attribute shapes as
+		// the per-cluster block above, so it needs the same renames. Without them
+		// the TF names go to the API verbatim and UpdateInstance rejects the patch
+		// with `unknown field "memory"`.
+		"spec.instance_spec.cluster_customization_defaults.autoscaler_config.application_controller.resource_minimum.memory": "mem",
+		"spec.instance_spec.cluster_customization_defaults.autoscaler_config.application_controller.resource_maximum.memory": "mem",
+		"spec.instance_spec.cluster_customization_defaults.autoscaler_config.repo_server.resource_minimum.memory":            "mem",
+		"spec.instance_spec.cluster_customization_defaults.autoscaler_config.repo_server.resource_maximum.memory":            "mem",
+		"spec.instance_spec.cluster_customization_defaults.autoscaler_config.repo_server.replicas_minimum":                   "replicaMinimum",
+		"spec.instance_spec.cluster_customization_defaults.autoscaler_config.repo_server.replicas_maximum":                   "replicaMaximum",
 	}
 
 	// ReverseOverridesMap defines custom API→TF conversion logic for ArgoCD and Cluster resources.
@@ -66,6 +77,9 @@ var (
 		"namespace_scoped":                  HydrateFromAPIWhenPlanNull(),
 		// Write-only secret field
 		"spec.instance_spec.metrics_ingress_password_hash": PreserveFromPlan(),
+		// The platform reports a disabled MCP server by omitting enabled; without this the
+		// portal toggle turning it off never shows up as drift.
+		"spec.instance_spec.mcp_server.enabled": EnabledFromAPIWhenConfigured(),
 		// Enum fields: protojson outputs proto names (e.g., "CLUSTER_SIZE_SMALL"), TF expects lowercase
 		"data.size":                             ProtoEnumToLowerString(clusterSizeProtoToTF),
 		"data.direct_cluster_spec.cluster_type": ProtoEnumToLowerString(directClusterTypeProtoToTF),
@@ -75,6 +89,11 @@ var (
 		// Customization defaults connectivity is an optional nested object: normalize the
 		// enum name but decline when absent so the object is not materialized.
 		"spec.instance_spec.cluster_customization_defaults.connectivity": ProtoEnumToLowerString(connectivityProtoToTF),
+		// The instance-level default agent size has the same problem: the API
+		// returns CLUSTER_SIZE_*, and the raw name would leak into a sensitive
+		// block. "custom" is not a value here — the schema allows only
+		// small/medium/large/auto, with Custom expressed as large plus patches.
+		"spec.instance_spec.cluster_customization_defaults.size": ProtoEnumToLowerString(clusterSizeProtoToTF),
 	}
 
 	// ReverseRenamesMap maps tfsdk tags to API camelCase keys for the reverse direction.
@@ -820,4 +839,147 @@ func toAutoScalerConfigTFModel(plan *Cluster, apiConfig *argocdv1.AutoScalerConf
 	}
 
 	return result
+}
+
+// preserveInstanceAutoscalerPlanQuantities keeps the operator's own spelling of
+// the instance-level auto limits when the API returns an equivalent quantity.
+//
+// The server stores these as resource.Quantity and renders them back through a
+// %0.2fGi formatter, so a configured "4Gi" comes back as "4.00Gi". Both mean the
+// same thing, but Terraform compares strings — and since the whole argocd block
+// is one sensitive attribute, the mismatch surfaces as "inconsistent values for
+// sensitive attribute" naming no field at all.
+//
+// This is a post-processing pass rather than a ReverseFieldOverride because
+// cluster_customization_defaults is a dynamic types.Object and buildTFObject
+// only resolves overrides for an Object's direct children (see its
+// "deep nested overrides" TODO); these quantities sit three levels deeper. The
+// Cluster resource's equivalent limits are handled in toAutoScalerConfigTFModel,
+// which only has the Cluster plan.
+//
+// A genuinely different quantity is left untouched so real drift stays visible.
+func preserveInstanceAutoscalerPlanQuantities(state, plan *ArgoCD) {
+	if state == nil || plan == nil {
+		return
+	}
+	stateCCD := state.Spec.InstanceSpec.ClusterCustomizationDefaults
+	planCCD := plan.Spec.InstanceSpec.ClusterCustomizationDefaults
+	if stateCCD.IsNull() || stateCCD.IsUnknown() || planCCD.IsNull() || planCCD.IsUnknown() {
+		return
+	}
+
+	stateCfg, ok := objectAttr(stateCCD, "autoscaler_config")
+	if !ok {
+		return
+	}
+	planCfg, ok := objectAttr(planCCD, "autoscaler_config")
+	if !ok {
+		return
+	}
+
+	rebuiltCfg, changed := preserveWorkloadQuantities(stateCfg, planCfg)
+	if !changed {
+		return
+	}
+
+	attrs := stateCCD.Attributes()
+	attrs["autoscaler_config"] = rebuiltCfg
+	rebuilt, diags := types.ObjectValue(stateCCD.AttributeTypes(context.Background()), attrs)
+	if diags.HasError() {
+		return
+	}
+	state.Spec.InstanceSpec.ClusterCustomizationDefaults = rebuilt
+}
+
+// preserveWorkloadQuantities walks autoscaler_config's workload objects
+// (application_controller, repo_server) and their resource_minimum /
+// resource_maximum pairs, swapping any state quantity for the planned spelling
+// when the two are equivalent.
+func preserveWorkloadQuantities(stateCfg, planCfg types.Object) (types.Object, bool) {
+	changed := false
+	cfgAttrs := stateCfg.Attributes()
+
+	for _, workload := range []string{"application_controller", "repo_server"} {
+		stateWL, ok := objectAttr(stateCfg, workload)
+		if !ok {
+			continue
+		}
+		planWL, ok := objectAttr(planCfg, workload)
+		if !ok {
+			continue
+		}
+
+		wlAttrs := stateWL.Attributes()
+		wlChanged := false
+		for _, bound := range []string{"resource_minimum", "resource_maximum"} {
+			stateRes, ok := objectAttr(stateWL, bound)
+			if !ok {
+				continue
+			}
+			planRes, ok := objectAttr(planWL, bound)
+			if !ok {
+				continue
+			}
+
+			resAttrs := stateRes.Attributes()
+			resChanged := false
+			for name, stateVal := range resAttrs {
+				stateStr, ok := stateVal.(types.String)
+				if !ok {
+					continue
+				}
+				planStr, ok := planRes.Attributes()[name].(types.String)
+				if !ok || planStr.IsNull() || planStr.IsUnknown() || planStr.ValueString() == "" {
+					continue
+				}
+				if planStr.ValueString() == stateStr.ValueString() ||
+					!areResourcesEquivalent(planStr.ValueString(), stateStr.ValueString()) {
+					continue
+				}
+				resAttrs[name] = planStr
+				resChanged = true
+			}
+			if !resChanged {
+				continue
+			}
+			rebuiltRes, diags := types.ObjectValue(stateRes.AttributeTypes(context.Background()), resAttrs)
+			if diags.HasError() {
+				continue
+			}
+			wlAttrs[bound] = rebuiltRes
+			wlChanged = true
+		}
+		if !wlChanged {
+			continue
+		}
+		rebuiltWL, diags := types.ObjectValue(stateWL.AttributeTypes(context.Background()), wlAttrs)
+		if diags.HasError() {
+			continue
+		}
+		cfgAttrs[workload] = rebuiltWL
+		changed = true
+	}
+
+	if !changed {
+		return stateCfg, false
+	}
+	rebuilt, diags := types.ObjectValue(stateCfg.AttributeTypes(context.Background()), cfgAttrs)
+	if diags.HasError() {
+		return stateCfg, false
+	}
+	return rebuilt, true
+}
+
+// objectAttr reads a nested types.Object attribute, reporting whether it is
+// present and usable.
+func objectAttr(parent types.Object, name string) (types.Object, bool) {
+	val, ok := parent.Attributes()[name]
+	if !ok {
+		return types.Object{}, false
+	}
+	obj, ok := val.(types.Object)
+	if !ok || obj.IsNull() || obj.IsUnknown() {
+		return types.Object{}, false
+	}
+	return obj, true
 }

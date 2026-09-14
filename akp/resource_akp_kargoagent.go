@@ -18,7 +18,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
-	orgcv1 "github.com/akuity/api-client-go/pkg/api/gen/organization/v1"
 	healthv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/health/v1"
 	reconv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/reconciliation/v1"
 	"github.com/akuity/terraform-provider-akp/akp/types"
@@ -295,10 +294,7 @@ func refreshKargoAgentState(ctx context.Context, diagnostics *diag.Diagnostics, 
 // It prefers the workspace name already stored on the agent (from state or
 // plan) and resolves it by name, falling back to resolveKargoInstanceWorkspace
 // only when the name is absent — typically during `terraform import`, which
-// seeds the resource with instance_id/name only. The scan-by-instance fallback
-// is unreliable for API-key actors because the server's ListKargoInstances
-// ignores the WorkspaceId filter for that actor type, so the first iterated
-// workspace wins regardless of where the instance actually lives.
+// seeds the resource with instance_id/name only.
 func resolveKargoAgentWorkspace(ctx context.Context, cli *AkpCli, kargoAgent *types.KargoAgent) (string, string) {
 	if cli == nil || kargoAgent == nil {
 		return "", ""
@@ -332,32 +328,26 @@ func resolveKargoInstanceWorkspace(ctx context.Context, cli *AkpCli, instanceID 
 		return "", ""
 	}
 
-	workspacesResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*orgcv1.ListWorkspacesResponse, error) {
-		return cli.OrgCli.ListWorkspaces(ctx, &orgcv1.ListWorkspacesRequest{
+	instancesResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ListKargoInstancesResponse, error) {
+		return cli.KargoCli.ListKargoInstances(ctx, &kargov1.ListKargoInstancesRequest{
 			OrganizationId: cli.OrgId,
 		})
-	}, "ListWorkspaces")
+	}, "ListKargoInstances")
 	if err != nil {
 		tflog.Warn(ctx, fmt.Sprintf("Unable to resolve Kargo instance workspace: %s", err))
 		return "", ""
 	}
 
-	for _, workspace := range workspacesResp.GetWorkspaces() {
-		instancesResp, listErr := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ListKargoInstancesResponse, error) {
-			return cli.KargoCli.ListKargoInstances(ctx, &kargov1.ListKargoInstancesRequest{
-				OrganizationId: cli.OrgId,
-				WorkspaceId:    workspace.GetId(),
-			})
-		}, "ListKargoInstances")
-		if listErr != nil {
-			tflog.Warn(ctx, fmt.Sprintf("Unable to list Kargo instances for workspace %q: %s", workspace.GetName(), listErr))
+	for _, instance := range instancesResp.GetInstances() {
+		if instance.GetId() != instanceID || instance.GetWorkspaceId() == "" {
 			continue
 		}
-		for _, instance := range instancesResp.GetInstances() {
-			if instance.GetId() == instanceID {
-				return workspace.GetId(), workspace.GetName()
-			}
+		ws, err := getWorkspaceByID(ctx, cli.OrgCli, cli.OrgId, instance.GetWorkspaceId())
+		if err != nil {
+			tflog.Warn(ctx, fmt.Sprintf("Unable to resolve Kargo instance workspace %q: %s", instance.GetWorkspaceId(), err))
+			return "", ""
 		}
+		return ws.GetId(), ws.GetName()
 	}
 
 	return "", ""

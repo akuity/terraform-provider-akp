@@ -579,7 +579,34 @@ func buildTFObject(
 					continue
 				}
 			}
-			_ = nestedOverrides // TODO: deep nested overrides for types.Object children
+			_ = nestedOverrides
+		}
+
+		// A nested object must be built through buildTFObject with scoped
+		// renames/overrides, not the rename-blind convertAPIValueToAttr:
+		// otherwise a rename that applies at depth (e.g. the autoscaler config's
+		// memory->mem or replicas_minimum->replicaMinimum under
+		// cluster_customization_defaults) is never applied and the field reads
+		// back null. cpu survives only because it needs no rename.
+		if ot, isObj := attrType.(types.ObjectType); isObj {
+			if _, isMap := apiVal.(map[string]any); isMap {
+				var childPlan reflect.Value
+				if planAttrs != nil {
+					if pv, ok := planAttrs[name]; ok {
+						childPlan = reflect.ValueOf(pv)
+					}
+				}
+				child, d := buildTFObject(ctx, apiVal, childPlan,
+					extractNestedMap(overrides, name), extractNestedMap(renames, name),
+					fullPath+"."+name)
+				diags.Append(d...)
+				if child != nil {
+					attrs[name] = *child
+				} else {
+					attrs[name] = types.ObjectNull(ot.AttrTypes)
+				}
+				continue
+			}
 		}
 
 		attrs[name] = convertAPIValueToAttr(ctx, apiVal, attrType, fullPath+"."+name)

@@ -23,5 +23,6 @@ func TestNoNewKargoDataSourceFields(t *testing.T) {
 	assert.Equal(t, reflect.TypeFor[types.KargoOidcConfigDataSource]().NumField(), len(getOIDCConfigDataSourceAttributes()))
 	assert.Equal(t, reflect.TypeFor[types.GarbageCollectorConfig]().NumField(), len(getGarbageCollectorConfigDataSourceAttributes()))
 	assert.Equal(t, reflect.TypeFor[types.AkuityIntelligence]().NumField(), len(getKargoAkuityIntelligenceDataSourceAttributes()))
+	assert.Equal(t, reflect.TypeFor[types.MCPServerConfig]().NumField(), len(getMCPServerConfigDataSourceAttributes()))
 	assert.Equal(t, reflect.TypeFor[types.KargoArgoCDUIConfig]().NumField(), len(getKargoArgoCDUIConfigDataSourceAttributes()))
 }

@@ -91,6 +91,7 @@ var (
 	testAccInstanceCommonImportStateVerifyIgnore = []string{
 		// UseStateForNullUnknown objects
 		"argocd.spec.instance_spec.akuity_intelligence_extension",                      // UseStateForNullUnknown
+		"argocd.spec.instance_spec.mcp_server",                                         // UseStateForNullUnknown
 		"argocd.spec.instance_spec.appset_policy",                                      // UseStateForNullUnknown
 		"argocd.spec.instance_spec.cluster_customization_defaults",                     // UseStateForNullUnknown
 		"argocd.spec.instance_spec.kube_vision_config.cve_scan_config",                 // UseStateForNullUnknown
@@ -98,18 +99,19 @@ var (
 		"argocd.spec.instance_spec.kube_vision_config.cve_scan_config.rescan_interval", // Optional-only inside UseStateForNullUnknown
 		"argocd.spec.instance_spec.kube_vision_config.cve_scan_config.scan_enabled",    // Optional-only inside UseStateForNullUnknown
 		// SuppressProtobufDefault fields (ImportStateVerify bypasses plan modifiers)
-		"argocd.spec.instance_spec.assistant_extension_enabled",         // SuppressProtobufDefault (bool)
-		"argocd.spec.instance_spec.audit_extension_enabled",             // SuppressProtobufDefault (bool)
-		"argocd.spec.instance_spec.backend_ip_allow_list_enabled",       // SuppressProtobufDefault (bool)
-		"argocd.spec.instance_spec.fqdn",                                // SuppressProtobufDefault (string)
-		"argocd.spec.instance_spec.image_updater_enabled",               // SuppressProtobufDefault (bool)
-		"argocd.spec.instance_spec.metrics_ingress_username",            // SuppressProtobufDefault (string)
-		"argocd.spec.instance_spec.multi_cluster_k8s_dashboard_enabled", // SuppressProtobufDefault (bool)
-		"argocd.spec.instance_spec.prefer_control_plane_repo_server",    // SuppressProtobufDefault (bool)
-		"argocd.spec.instance_spec.privileged_notification_cluster",     // SuppressProtobufDefault (string)
-		"argocd.spec.instance_spec.sync_history_extension_enabled",      // SuppressProtobufDefault (bool)
-		"argocd.spec.instance_spec.termination_protection_enabled",      // SuppressProtobufDefault (bool)
-		"argocd.spec.instance_spec.termination_protection_notes",        // SuppressProtobufDefault (string)
+		"argocd.spec.instance_spec.appset_new_git_file_globbing_enabled", // SuppressProtobufDefault (bool)
+		"argocd.spec.instance_spec.assistant_extension_enabled",          // SuppressProtobufDefault (bool)
+		"argocd.spec.instance_spec.audit_extension_enabled",              // SuppressProtobufDefault (bool)
+		"argocd.spec.instance_spec.backend_ip_allow_list_enabled",        // SuppressProtobufDefault (bool)
+		"argocd.spec.instance_spec.fqdn",                                 // SuppressProtobufDefault (string)
+		"argocd.spec.instance_spec.image_updater_enabled",                // SuppressProtobufDefault (bool)
+		"argocd.spec.instance_spec.metrics_ingress_username",             // SuppressProtobufDefault (string)
+		"argocd.spec.instance_spec.multi_cluster_k8s_dashboard_enabled",  // SuppressProtobufDefault (bool)
+		"argocd.spec.instance_spec.prefer_control_plane_repo_server",     // SuppressProtobufDefault (bool)
+		"argocd.spec.instance_spec.privileged_notification_cluster",      // SuppressProtobufDefault (string)
+		"argocd.spec.instance_spec.sync_history_extension_enabled",       // SuppressProtobufDefault (bool)
+		"argocd.spec.instance_spec.termination_protection_enabled",       // SuppressProtobufDefault (bool)
+		"argocd.spec.instance_spec.termination_protection_notes",         // SuppressProtobufDefault (string)
 		// With the default shard unnamed the server reports shard as "" (and
 		// exports omit it). Import therefore hydrates "", while a state whose
 		// config never mentioned shard holds null — raw-state comparison sees a
@@ -149,9 +151,11 @@ var (
 	testAccKargoInstanceCommonImportStateVerifyIgnore = []string{
 		// UseStateForNullUnknown objects
 		"kargo.spec.kargo_instance_spec.akuity_intelligence", // UseStateForNullUnknown
+		"kargo.spec.kargo_instance_spec.mcp_server",          // UseStateForNullUnknown
 		// SuppressProtobufDefault fields (ImportStateVerify bypasses plan modifiers)
 		"kargo.spec.fqdn", // SuppressProtobufDefault (string)
 		"kargo.spec.kargo_instance_spec.agent_customization_defaults.custom_ca_bundle", // SuppressProtobufDefault (string)
+		"kargo.spec.kargo_instance_spec.agent_customization_defaults.size",             // SuppressProtobufDefault (string)
 		"kargo.spec.kargo_instance_spec.promo_controller_enabled",                      // SuppressProtobufDefault (bool)
 		"kargo.spec.kargo_instance_spec.termination_protection_enabled",                // SuppressProtobufDefault (bool)
 		"kargo.spec.kargo_instance_spec.termination_protection_notes",                  // SuppressProtobufDefault (string)
@@ -164,11 +168,12 @@ var (
 		// where a never-configured state holds null.
 		"kargo.spec.shard", // unnamed default shard: "" on import vs null in state
 		// Optional-only fields
-		"kargo.spec.kargo_instance_spec.argocd_ui",                 // Optional-only
-		"kargo.spec.kargo_instance_spec.global_credentials_ns",     // Optional-only
-		"kargo.spec.kargo_instance_spec.global_service_account_ns", // Optional-only
-		"kargo.spec.kargo_instance_spec.ip_allow_list",             // Optional-only
-		"kargo.spec.oidc_config.additional_scopes",                 // Optional-only
+		"kargo.spec.kargo_instance_spec.agent_customization_defaults.autoscaler_config", // Optional-only
+		"kargo.spec.kargo_instance_spec.argocd_ui",                                      // Optional-only
+		"kargo.spec.kargo_instance_spec.global_credentials_ns",                          // Optional-only
+		"kargo.spec.kargo_instance_spec.global_service_account_ns",                      // Optional-only
+		"kargo.spec.kargo_instance_spec.ip_allow_list",                                  // Optional-only
+		"kargo.spec.oidc_config.additional_scopes",                                      // Optional-only
 		"kargo_resources", // Optional-only
 	}
 	testAccKargoDexConfigSecretImportStateVerifyIgnore = appendImportStateVerifyIgnore(

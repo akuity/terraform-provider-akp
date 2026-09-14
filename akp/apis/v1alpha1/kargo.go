@@ -60,10 +60,12 @@ type KargoIPAllowListEntry struct {
 }
 
 type KargoAgentCustomization struct {
-	AutoUpgradeDisabled *bool                `json:"autoUpgradeDisabled,omitempty"`
-	Kustomization       runtime.RawExtension `json:"kustomization,omitempty"`
-	Connectivity        Connectivity         `json:"connectivity,omitempty"`
-	CustomCaBundle      string               `json:"customCaBundle,omitempty"`
+	AutoUpgradeDisabled *bool                  `json:"autoUpgradeDisabled,omitempty"`
+	Kustomization       runtime.RawExtension   `json:"kustomization,omitempty"`
+	Connectivity        Connectivity           `json:"connectivity,omitempty"`
+	CustomCaBundle      string                 `json:"customCaBundle,omitempty"`
+	Size                KargoAgentSize         `json:"size,omitempty"`
+	AutoscalerConfig    *KargoAutoscalerConfig `json:"autoscalerConfig,omitempty"`
 }
 
 type KargoInstanceSpec struct {
@@ -81,6 +83,7 @@ type KargoInstanceSpec struct {
 	TerminationProtectionEnabled *bool                    `json:"terminationProtectionEnabled,omitempty"`
 	TerminationProtectionNotes   *string                  `json:"terminationProtectionNotes,omitempty"`
 	Connectivity                 Connectivity             `json:"connectivity,omitempty"`
+	McpServer                    *MCPServerConfig         `json:"mcpServer,omitempty"`
 }
 
 type KargoArgoCDUIConfig struct {

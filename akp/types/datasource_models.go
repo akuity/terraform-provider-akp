@@ -53,10 +53,12 @@ type InstanceSpecDataSource struct {
 	AuditExtensionEnabled           types.Bool                     `tfsdk:"audit_extension_enabled"`
 	SyncHistoryExtensionEnabled     types.Bool                     `tfsdk:"sync_history_extension_enabled"`
 	CrossplaneExtension             *CrossplaneExtension           `tfsdk:"crossplane_extension"`
+	McpServer                       *MCPServerConfig               `tfsdk:"mcp_server"`
 	ImageUpdaterDelegate            *ImageUpdaterDelegate          `tfsdk:"image_updater_delegate"`
 	AppSetDelegate                  *AppSetDelegate                `tfsdk:"app_set_delegate"`
 	AssistantExtensionEnabled       types.Bool                     `tfsdk:"assistant_extension_enabled"`
 	AppsetPolicy                    types.Object                   `tfsdk:"appset_policy"`
+	AppsetNewGitFileGlobbingEnabled types.Bool                     `tfsdk:"appset_new_git_file_globbing_enabled"`
 	HostAliases                     []*HostAliases                 `tfsdk:"host_aliases"`
 	AgentPermissionsRules           []*AgentPermissionsRule        `tfsdk:"agent_permissions_rules"`
 	Fqdn                            types.String                   `tfsdk:"fqdn"`
@@ -110,10 +112,12 @@ func NewInstanceDataSourceModel(instance *Instance, managedSecrets map[string]*M
 					AuditExtensionEnabled:           instance.ArgoCD.Spec.InstanceSpec.AuditExtensionEnabled,
 					SyncHistoryExtensionEnabled:     instance.ArgoCD.Spec.InstanceSpec.SyncHistoryExtensionEnabled,
 					CrossplaneExtension:             instance.ArgoCD.Spec.InstanceSpec.CrossplaneExtension,
+					McpServer:                       instance.ArgoCD.Spec.InstanceSpec.McpServer,
 					ImageUpdaterDelegate:            instance.ArgoCD.Spec.InstanceSpec.ImageUpdaterDelegate,
 					AppSetDelegate:                  instance.ArgoCD.Spec.InstanceSpec.AppSetDelegate,
 					AssistantExtensionEnabled:       instance.ArgoCD.Spec.InstanceSpec.AssistantExtensionEnabled,
 					AppsetPolicy:                    instance.ArgoCD.Spec.InstanceSpec.AppsetPolicy,
+					AppsetNewGitFileGlobbingEnabled: instance.ArgoCD.Spec.InstanceSpec.AppsetNewGitFileGlobbingEnabled,
 					HostAliases:                     instance.ArgoCD.Spec.InstanceSpec.HostAliases,
 					AgentPermissionsRules:           instance.ArgoCD.Spec.InstanceSpec.AgentPermissionsRules,
 					Fqdn:                            instance.ArgoCD.Spec.InstanceSpec.Fqdn,

@@ -420,11 +420,29 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 				objectplanmodifier2.UseStateForNullUnknown(),
 			},
 		},
+		"appset_new_git_file_globbing_enabled": schema.BoolAttribute{
+			MarkdownDescription: "Enable doublestar globbing for the Application Set git file generator. By default `*` matches across directories (like `**`); the new globbing treats `*` as a single path segment. Existing generators written for the old behavior may stop matching.",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Bool{
+				boolplanmodifier.UseStateForUnknown(),
+				boolplanmodifier2.SuppressProtobufDefault(),
+			},
+		},
 		"host_aliases": schema.ListNestedAttribute{
 			MarkdownDescription: "Host Aliases that override the DNS entries for control plane Argo CD components such as API Server and Dex.",
 			Optional:            true,
 			NestedObject: schema.NestedAttributeObject{
 				Attributes: getHostAliasAttributes(),
+			},
+		},
+		"mcp_server": schema.SingleNestedAttribute{
+			MarkdownDescription: "MCP server configuration for the instance. Turns MCP agent access on or off: the instance's own `/mcp` endpoint and instance actions performed through the organization's platform MCP endpoint. Enabling it requires the organization's MCP server feature.",
+			Optional:            true,
+			Computed:            true,
+			Attributes:          getMCPServerConfigAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier2.UseStateForNullUnknown(),
 			},
 		},
 		"crossplane_extension": schema.SingleNestedAttribute{
@@ -745,6 +763,23 @@ func getClusterCustomizationAttributes() map[string]schema.Attribute {
 				stringplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
+		"size": schema.StringAttribute{
+			MarkdownDescription: "Default agent size applied to new clusters that do not specify their own. One of `small`, `medium`, `large` or `auto`. A Custom default is expressed as `large` plus resource patches in `kustomization`.",
+			Optional:            true,
+			Computed:            true,
+			Validators: []validator.String{
+				stringvalidator.OneOf("small", "medium", "large", "auto"),
+			},
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+				stringplanmodifier2.SuppressProtobufDefault(),
+			},
+		},
+		"autoscaler_config": schema.SingleNestedAttribute{
+			MarkdownDescription: "Default min/max scaling limits applied when `size` is `auto`. Required for an `auto` default, ignored for any other size.",
+			Optional:            true,
+			Attributes:          getAutoScalerConfigAttributes(),
+		},
 	}
 }
 
@@ -845,7 +880,13 @@ func getPluginSpecAttributes() map[string]schema.Attribute {
 			Attributes:          getParametersAttributes(),
 		},
 		"preserve_file_mode": schema.BoolAttribute{
-			MarkdownDescription: "Whether the plugin receives repository files with original file mode. Dangerous since the repository might have executable files. Set to true only if you trust the CMP plugin authors. Set to false by default.",
+			MarkdownDescription: "Passes repository files to the plugin with their original file mode instead of resetting it. Dangerous since the repository might contain executable files. Set to true only if you trust the CMP plugin authors. Set to false by default.",
+			Computed:            true,
+			Optional:            true,
+			Default:             booldefault.StaticBool(false),
+		},
+		"provide_git_creds": schema.BoolAttribute{
+			MarkdownDescription: "Lets the plugin obtain the git credentials for the Application's source repository from the repo-server during manifest generation. Dangerous since the plugin can then authenticate as Argo CD against that repository. Set to true only if you trust the CMP plugin authors. Set to false by default.",
 			Computed:            true,
 			Optional:            true,
 			Default:             booldefault.StaticBool(false),
@@ -1447,6 +1488,19 @@ func getLabelSelectorRequirementAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Array of string values. Must be non-empty for `In`/`NotIn` and must be empty for `Exists`/`DoesNotExist`.",
 			Optional:            true,
 			ElementType:         types.StringType,
+		},
+	}
+}
+
+func getMCPServerConfigAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"enabled": schema.BoolAttribute{
+			MarkdownDescription: "Enable MCP agent access for the instance",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Bool{
+				boolplanmodifier.UseStateForUnknown(),
+			},
 		},
 	}
 }

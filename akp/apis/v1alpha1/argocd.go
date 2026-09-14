@@ -17,6 +17,10 @@ type ArgoCD struct {
 	Spec ArgoCDSpec `json:"spec,omitempty"`
 }
 
+type MCPServerConfig struct {
+	Enabled *bool `json:"enabled"`
+}
+
 type ArgoCDSpec struct {
 	Description string `json:"description"`
 	Version     string `json:"version"`
@@ -38,6 +42,8 @@ type ClusterCustomization struct {
 	ServerSideDiffEnabled *bool                `json:"serverSideDiffEnabled,omitempty"`
 	Connectivity          Connectivity         `json:"connectivity,omitempty"`
 	CustomCaBundle        string               `json:"customCaBundle,omitempty"`
+	Size                  ClusterSize          `json:"size,omitempty"`
+	AutoscalerConfig      *AutoScalerConfig    `json:"autoscalerConfig,omitempty"`
 }
 
 type AppsetPolicy struct {
@@ -218,15 +224,17 @@ type InstanceSpec struct {
 	AppsetPlugins           []*AppsetPlugins         `json:"appsetPlugins,omitempty"`
 	ApplicationSetExtension *ApplicationSetExtension `json:"applicationSetExtension,omitempty"`
 
-	MetricsIngressUsername        *string                 `json:"metricsIngressUsername,omitempty"`
-	MetricsIngressPasswordHash    *string                 `json:"metricsIngressPasswordHash,omitempty"`
-	PrivilegedNotificationCluster *string                 `json:"privilegedNotificationCluster,omitempty"`
-	ClusterAddonsExtension        *ClusterAddonsExtension `json:"clusterAddonsExtension,omitempty"`
-	ManifestGeneration            *ManifestGeneration     `json:"manifestGeneration,omitempty"`
-	PreferControlPlaneRepoServer  *bool                   `json:"preferControlPlaneRepoServer,omitempty"`
-	TerminationProtectionEnabled  *bool                   `json:"terminationProtectionEnabled,omitempty"`
-	TerminationProtectionNotes    *string                 `json:"terminationProtectionNotes,omitempty"`
-	Connectivity                  Connectivity            `json:"connectivity,omitempty"`
+	MetricsIngressUsername          *string                 `json:"metricsIngressUsername,omitempty"`
+	MetricsIngressPasswordHash      *string                 `json:"metricsIngressPasswordHash,omitempty"`
+	PrivilegedNotificationCluster   *string                 `json:"privilegedNotificationCluster,omitempty"`
+	ClusterAddonsExtension          *ClusterAddonsExtension `json:"clusterAddonsExtension,omitempty"`
+	ManifestGeneration              *ManifestGeneration     `json:"manifestGeneration,omitempty"`
+	PreferControlPlaneRepoServer    *bool                   `json:"preferControlPlaneRepoServer,omitempty"`
+	TerminationProtectionEnabled    *bool                   `json:"terminationProtectionEnabled,omitempty"`
+	TerminationProtectionNotes      *string                 `json:"terminationProtectionNotes,omitempty"`
+	Connectivity                    Connectivity            `json:"connectivity,omitempty"`
+	McpServer                       *MCPServerConfig        `json:"mcpServer,omitempty"`
+	AppsetNewGitFileGlobbingEnabled *bool                   `json:"appsetNewGitFileGlobbingEnabled,omitempty"`
 }
 
 type AppsetPlugins struct {
