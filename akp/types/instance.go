@@ -72,6 +72,7 @@ func (i *Instance) Update(ctx context.Context, diagnostics *diag.Diagnostics, ex
 	} else {
 		plan := DeepCopyArgoCD(i.ArgoCD)
 		diagnostics.Append(BuildStateFromAPI(ctx, apiMap, i.ArgoCD, plan, ReverseOverridesMap, ReverseRenamesMap, "argocd")...)
+		preserveInstanceAutoscalerPlanQuantities(i.ArgoCD, plan)
 	}
 	if isDataSource {
 		i.ArgoCDConfigMap = ToDataSourceConfigMapTFModel(ctx, diagnostics, exportResp.ArgocdConfigmap, i.ArgoCDConfigMap)

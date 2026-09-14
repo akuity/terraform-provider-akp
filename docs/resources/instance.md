@@ -109,6 +109,7 @@ resource "akp_instance" "argocd" {
           ]
         }
         preserve_file_mode = false
+        provide_git_creds  = false
         version            = "v1.0"
       }
     },
@@ -190,7 +191,26 @@ resource "akp_instance" "example" {
           # custom_ca_bundle is the default PEM CA bundle applied to new clusters that
           # do not set their own (e.g. a TLS-intercepting proxy CA).
           custom_ca_bundle = "-----BEGIN CERTIFICATE-----\nMIIB...\n-----END CERTIFICATE-----\n"
-          kustomization    = <<-EOF
+          # size is the default agent size applied to new clusters that do not set
+          # their own. One of "small", "medium", "large" or "auto".
+          size = "large"
+          # autoscaler_config sets the min/max scaling limits used when size is "auto".
+          # It is required for an "auto" default and ignored for any other size:
+          #
+          # size = "auto"
+          # autoscaler_config = {
+          #   application_controller = {
+          #     resource_minimum = { cpu = "500m", memory = "1Gi" }
+          #     resource_maximum = { cpu = "2", memory = "4Gi" }
+          #   }
+          #   repo_server = {
+          #     resource_minimum = { cpu = "250m", memory = "512Mi" }
+          #     resource_maximum = { cpu = "1", memory = "2Gi" }
+          #     replicas_minimum = 1
+          #     replicas_maximum = 3
+          #   }
+          # }
+          kustomization = <<-EOF
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 patches:
@@ -305,6 +325,14 @@ EOF
           enabled           = true
           allowed_usernames = ["*"]
           allowed_groups    = ["*"]
+        }
+
+        # MCP server
+        # Lets AI agents reach this instance through MCP: its own /mcp endpoint and
+        # instance actions through the organization's platform MCP endpoint.
+        # Requires the organization's MCP server feature.
+        mcp_server = {
+          enabled = true
         }
 
         # Akuity Intelligence Extension
@@ -719,6 +747,7 @@ vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOf
           ]
         }
         preserve_file_mode = false
+        provide_git_creds  = false
         version            = "v1.0"
       }
     },
@@ -829,6 +858,7 @@ Optional:
 - `app_in_any_namespace_config` (Attributes) App in any namespace config (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--app_in_any_namespace_config))
 - `app_set_delegate` (Attributes) Select cluster in which you want to Install Application Set controller (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--app_set_delegate))
 - `application_set_extension` (Attributes) Configuration for the ApplicationSet extension, enabling the controller and UI integration within Argo CD. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--application_set_extension))
+- `appset_new_git_file_globbing_enabled` (Boolean) Enable doublestar globbing for the Application Set git file generator. By default `*` matches across directories (like `**`); the new globbing treats `*` as a single path segment. Existing generators written for the old behavior may stop matching.
 - `appset_plugins` (Attributes List) Application Set plugins (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--appset_plugins))
 - `appset_policy` (Attributes) Configures Application Set policy settings. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--appset_policy))
 - `assistant_extension_enabled` (Boolean, Deprecated) Deprecated: upcoming removal. Enable Powerful AI-powered assistant Extension. It helps analyze Kubernetes resources behavior and provides suggestions about resolving issues.
@@ -846,6 +876,7 @@ Optional:
 - `image_updater_enabled` (Boolean) Enable Image Updater
 - `kube_vision_config` (Attributes) Advanced Akuity Intelligence configuration like CVE scanning and AI runbooks (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config))
 - `manifest_generation` (Attributes) Manifest generation configuration for config management tool versions (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--manifest_generation))
+- `mcp_server` (Attributes) MCP server configuration for the instance. Turns MCP agent access on or off: the instance's own `/mcp` endpoint and instance actions performed through the organization's platform MCP endpoint. Enabling it requires the organization's MCP server feature. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--mcp_server))
 - `metrics_ingress_password_hash` (String, Sensitive) Password hash for metrics ingress authentication
 - `metrics_ingress_username` (String) Username for metrics ingress authentication
 - `multi_cluster_k8s_dashboard_enabled` (Boolean) Enable the KubeVision feature
@@ -956,11 +987,78 @@ Optional:
 
 - `app_replication` (Boolean) Enables Argo CD state replication to the managed cluster that allows disconnecting the cluster from Akuity Platform without losing core Argocd features
 - `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
+- `autoscaler_config` (Attributes) Default min/max scaling limits applied when `size` is `auto`. Required for an `auto` default, ignored for any other size. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--cluster_customization_defaults--autoscaler_config))
 - `connectivity` (String) Default agent connectivity applied to new agents. One of `public` (internet) or `private` (AWS PrivateLink).
 - `custom_ca_bundle` (String) Default PEM bundle of one or more CA certificates applied to new clusters that do not specify their own. Certificates must be unexpired.
 - `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
 - `redis_tunneling` (Boolean) Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy
 - `server_side_diff_enabled` (Boolean) Enables the ability to set server-side diff on the application-controller.
+- `size` (String) Default agent size applied to new clusters that do not specify their own. One of `small`, `medium`, `large` or `auto`. A Custom default is expressed as `large` plus resource patches in `kustomization`.
+
+<a id="nestedatt--argocd--spec--instance_spec--cluster_customization_defaults--autoscaler_config"></a>
+### Nested Schema for `argocd.spec.instance_spec.cluster_customization_defaults.autoscaler_config`
+
+Optional:
+
+- `application_controller` (Attributes) Application Controller auto scaling config (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--cluster_customization_defaults--autoscaler_config--application_controller))
+- `repo_server` (Attributes) Repo Server auto scaling config (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--cluster_customization_defaults--autoscaler_config--repo_server))
+
+<a id="nestedatt--argocd--spec--instance_spec--cluster_customization_defaults--autoscaler_config--application_controller"></a>
+### Nested Schema for `argocd.spec.instance_spec.cluster_customization_defaults.autoscaler_config.application_controller`
+
+Optional:
+
+- `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--cluster_customization_defaults--autoscaler_config--application_controller--resource_maximum))
+- `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--cluster_customization_defaults--autoscaler_config--application_controller--resource_minimum))
+
+<a id="nestedatt--argocd--spec--instance_spec--cluster_customization_defaults--autoscaler_config--application_controller--resource_maximum"></a>
+### Nested Schema for `argocd.spec.instance_spec.cluster_customization_defaults.autoscaler_config.application_controller.resource_maximum`
+
+Optional:
+
+- `cpu` (String) CPU
+- `memory` (String) Memory
+
+
+<a id="nestedatt--argocd--spec--instance_spec--cluster_customization_defaults--autoscaler_config--application_controller--resource_minimum"></a>
+### Nested Schema for `argocd.spec.instance_spec.cluster_customization_defaults.autoscaler_config.application_controller.resource_minimum`
+
+Optional:
+
+- `cpu` (String) CPU
+- `memory` (String) Memory
+
+
+
+<a id="nestedatt--argocd--spec--instance_spec--cluster_customization_defaults--autoscaler_config--repo_server"></a>
+### Nested Schema for `argocd.spec.instance_spec.cluster_customization_defaults.autoscaler_config.repo_server`
+
+Optional:
+
+- `replicas_maximum` (Number) Replica maximum
+- `replicas_minimum` (Number) Replica minimum, this should be set to 1 as a minimum
+- `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--cluster_customization_defaults--autoscaler_config--repo_server--resource_maximum))
+- `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--cluster_customization_defaults--autoscaler_config--repo_server--resource_minimum))
+
+<a id="nestedatt--argocd--spec--instance_spec--cluster_customization_defaults--autoscaler_config--repo_server--resource_maximum"></a>
+### Nested Schema for `argocd.spec.instance_spec.cluster_customization_defaults.autoscaler_config.repo_server.resource_maximum`
+
+Optional:
+
+- `cpu` (String) CPU
+- `memory` (String) Memory
+
+
+<a id="nestedatt--argocd--spec--instance_spec--cluster_customization_defaults--autoscaler_config--repo_server--resource_minimum"></a>
+### Nested Schema for `argocd.spec.instance_spec.cluster_customization_defaults.autoscaler_config.repo_server.resource_minimum`
+
+Optional:
+
+- `cpu` (String) CPU
+- `memory` (String) Memory
+
+
+
 
 
 <a id="nestedatt--argocd--spec--instance_spec--crossplane_extension"></a>
@@ -1197,6 +1295,14 @@ Optional:
 
 
 
+<a id="nestedatt--argocd--spec--instance_spec--mcp_server"></a>
+### Nested Schema for `argocd.spec.instance_spec.mcp_server`
+
+Optional:
+
+- `enabled` (Boolean) Enable MCP agent access for the instance
+
+
 <a id="nestedatt--argocd--spec--instance_spec--repo_server_delegate"></a>
 ### Nested Schema for `argocd.spec.instance_spec.repo_server_delegate`
 
@@ -1299,7 +1405,8 @@ Optional:
 - `discover` (Attributes) The discovery config is applied to a repository. If every configured discovery tool matches, then the plugin may be used to generate manifests for Applications using the repository. If the discovery config is omitted then the plugin will not match any application but can still be invoked explicitly by specifying the plugin name in the app spec. Only one of fileName, find.glob, or find.command should be specified. If multiple are specified then only the first (in that order) is evaluated. (see [below for nested schema](#nestedatt--config_management_plugins--spec--discover))
 - `init` (Attributes) The init command runs in the Application source directory at the beginning of each manifest generation. The init command can output anything. A non-zero status code will fail manifest generation. Init always happens immediately before generate, but its output is not treated as manifests. This is a good place to, for example, download chart dependencies. (see [below for nested schema](#nestedatt--config_management_plugins--spec--init))
 - `parameters` (Attributes) The parameters config describes what parameters the UI should display for an Application. It is up to the user to actually set parameters in the Application manifest (in spec.source.plugin.parameters). The announcements only inform the "Parameters" tab in the App Details page of the UI. (see [below for nested schema](#nestedatt--config_management_plugins--spec--parameters))
-- `preserve_file_mode` (Boolean) Whether the plugin receives repository files with original file mode. Dangerous since the repository might have executable files. Set to true only if you trust the CMP plugin authors. Set to false by default.
+- `preserve_file_mode` (Boolean) Passes repository files to the plugin with their original file mode instead of resetting it. Dangerous since the repository might contain executable files. Set to true only if you trust the CMP plugin authors. Set to false by default.
+- `provide_git_creds` (Boolean) Lets the plugin obtain the git credentials for the Application's source repository from the repo-server during manifest generation. Dangerous since the plugin can then authenticate as Argo CD against that repository. Set to true only if you trust the CMP plugin authors. Set to false by default.
 - `version` (String) Plugin version
 
 <a id="nestedatt--config_management_plugins--spec--generate"></a>

@@ -37,6 +37,15 @@ func NewAkpKargoInstanceResource() resource.Resource {
 		ImportStateFunc: func(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 			resource.ImportStatePassthroughID(ctx, path.Root("name"), req, resp)
 		},
+		ConfigValidatorsFunc: func() []resource.ConfigValidator {
+			return []resource.ConfigValidator{
+				agentSizeDefaultValidator{
+					defaultsPath: path.Root("kargo").AtName("spec").
+						AtName("kargo_instance_spec").AtName("agent_customization_defaults"),
+					autoSize: "auto",
+				},
+			}
+		},
 	}
 }
 

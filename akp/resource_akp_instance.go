@@ -60,6 +60,15 @@ func NewAkpInstanceResource() resource.Resource {
 		ImportStateFunc: func(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 			resource.ImportStatePassthroughID(ctx, path.Root("name"), req, resp)
 		},
+		ConfigValidatorsFunc: func() []resource.ConfigValidator {
+			return []resource.ConfigValidator{
+				agentSizeDefaultValidator{
+					defaultsPath: path.Root("argocd").AtName("spec").
+						AtName("instance_spec").AtName("cluster_customization_defaults"),
+					autoSize: "auto",
+				},
+			}
+		},
 	}
 }
 
@@ -572,7 +581,11 @@ func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, insta
 }
 
 func buildArgoCD(_ context.Context, diag *diag.Diagnostics, instance *types.Instance) *structpb.Struct {
-	rawMap := types.TFToMapWithOverrides(instance.ArgoCD, types.OverridesMap, nil)
+	// RenamesMap, not nil: the instance-level agent-size default carries the same
+	// `memory`/`replicas_*` attribute names as the per-cluster block, and the API
+	// expects `mem`/`replica*`. Passing nil sent the Terraform names verbatim and
+	// UpdateInstance rejected the patch with `unknown field "memory"`.
+	rawMap := types.TFToMapWithOverrides(instance.ArgoCD, types.OverridesMap, types.RenamesMap)
 	if rawMap == nil {
 		diag.AddError("Client Error", "Unable to convert Argo CD instance to map")
 		return nil

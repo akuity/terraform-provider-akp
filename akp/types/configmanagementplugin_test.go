@@ -71,6 +71,7 @@ func TestToConfigManagementPluginsTFModel_ImportPreservesNonDefaultValues(t *tes
 				"command": []any{"generate.sh"},
 			},
 			"preserveFileMode": true,
+			"provideGitCreds":  true,
 		},
 	})
 
@@ -82,6 +83,29 @@ func TestToConfigManagementPluginsTFModel_ImportPreservesNonDefaultValues(t *tes
 	require.NotNil(t, cmp.Spec)
 	assert.Equal(t, "1.2.3", cmp.Spec.Version.ValueString())
 	assert.True(t, cmp.Spec.PreserveFileMode.ValueBool())
+	assert.True(t, cmp.Spec.ProvideGitCreds.ValueBool())
+}
+
+// provideGitCreds round-trips back out to the API map, so a value set in HCL
+// actually reaches the platform rather than being dropped on apply.
+func TestBuildCMPMap_RoundTripsProvideGitCreds(t *testing.T) {
+	cmp := &ConfigManagementPlugin{
+		Enabled: types.BoolValue(true),
+		Image:   types.StringValue("quay.io/my-plugin:latest"),
+		Spec: &PluginSpec{
+			Generate: &Command{
+				Command: []types.String{types.StringValue("generate.sh")},
+			},
+			ProvideGitCreds: types.BoolValue(true),
+		},
+	}
+
+	rawMap := BuildCMPMap(cmp, "my-plugin")
+
+	spec, ok := rawMap["spec"].(map[string]any)
+	require.True(t, ok, "spec missing from built CMP map: %#v", rawMap)
+	assert.Equal(t, true, spec["provideGitCreds"],
+		"provideGitCreds must survive the TF->API conversion; got spec %#v", spec)
 }
 
 func TestToConfigManagementPluginsTFModel_ExistingStatePreservesPlanValues(t *testing.T) {

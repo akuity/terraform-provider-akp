@@ -327,6 +327,23 @@ func HydrateFromAPIWhenPlanNull() ReverseFieldOverride {
 	}
 }
 
+// EnabledFromAPIWhenConfigured returns an override for a nested "enabled" flag whose
+// off state the platform reports by omission: protojson drops a false bool and the
+// export type carries omitempty, so a switch turned off out of band arrives as "{}".
+// The generic bool rule reads that as "no value" and keeps the plan, which hides the
+// drift. When the parent object is configured, trust the API: present and true is
+// true, absent or false is false. An unconfigured parent keeps the default handling
+// so the object is not materialized.
+func EnabledFromAPIWhenConfigured() ReverseFieldOverride {
+	return func(mapValue any, planValue reflect.Value) (attr.Value, bool) {
+		if !planValue.IsValid() || planIsNull(planValue) {
+			return nil, false
+		}
+		enabled, _ := mapValue.(bool)
+		return types.BoolValue(enabled), true
+	}
+}
+
 // TFOnlyField returns an override that always preserves the plan/state value
 // and falls back to a default attr.Value when the plan has no value.
 // Use for fields that exist only in the TF schema with no API equivalent

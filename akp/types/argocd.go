@@ -13,6 +13,10 @@ type ArgoCD struct {
 	Spec ArgoCDSpec `tfsdk:"spec"`
 }
 
+type MCPServerConfig struct {
+	Enabled types.Bool `tfsdk:"enabled"`
+}
+
 type ArgoCDSpec struct {
 	Description  types.String `tfsdk:"description"`
 	Version      types.String `tfsdk:"version"`
@@ -26,13 +30,15 @@ type ArgoCDExtensionInstallEntry struct {
 }
 
 type ClusterCustomization struct {
-	AutoUpgradeDisabled   types.Bool   `tfsdk:"auto_upgrade_disabled"`
-	Kustomization         types.String `tfsdk:"kustomization"`
-	AppReplication        types.Bool   `tfsdk:"app_replication"`
-	RedisTunneling        types.Bool   `tfsdk:"redis_tunneling"`
-	ServerSideDiffEnabled types.Bool   `tfsdk:"server_side_diff_enabled"`
-	Connectivity          types.String `tfsdk:"connectivity"`
-	CustomCaBundle        types.String `tfsdk:"custom_ca_bundle"`
+	AutoUpgradeDisabled   types.Bool        `tfsdk:"auto_upgrade_disabled"`
+	Kustomization         types.String      `tfsdk:"kustomization"`
+	AppReplication        types.Bool        `tfsdk:"app_replication"`
+	RedisTunneling        types.Bool        `tfsdk:"redis_tunneling"`
+	ServerSideDiffEnabled types.Bool        `tfsdk:"server_side_diff_enabled"`
+	Connectivity          types.String      `tfsdk:"connectivity"`
+	CustomCaBundle        types.String      `tfsdk:"custom_ca_bundle"`
+	Size                  types.String      `tfsdk:"size"`
+	AutoscalerConfig      *AutoScalerConfig `tfsdk:"autoscaler_config"`
 }
 
 type AppsetPolicy struct {
@@ -219,6 +225,8 @@ type InstanceSpec struct {
 	TerminationProtectionEnabled    types.Bool                     `tfsdk:"termination_protection_enabled"`
 	TerminationProtectionNotes      types.String                   `tfsdk:"termination_protection_notes"`
 	Connectivity                    types.String                   `tfsdk:"connectivity"`
+	McpServer                       *MCPServerConfig               `tfsdk:"mcp_server"`
+	AppsetNewGitFileGlobbingEnabled types.Bool                     `tfsdk:"appset_new_git_file_globbing_enabled"`
 }
 
 type AppsetPlugins struct {

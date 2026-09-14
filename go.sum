@@ -23,8 +23,8 @@ github.com/ProtonMail/go-crypto v1.3.0 h1:ILq8+Sf5If5DCpHQp4PbZdS1J7HDFRXz/+xKBi
 github.com/ProtonMail/go-crypto v1.3.0/go.mod h1:9whxjD8Rbs29b4XWbB8irEcE8KHMqaR2e7GWU1R+/PE=
 github.com/agext/levenshtein v1.2.2 h1:0S/Yg6LYmFJ5stwQeRp6EeOcCbj7xiqQSdNelsXvaqE=
 github.com/agext/levenshtein v1.2.2/go.mod h1:JEDfjyjHDjOF/1e4FlBE/PkbqA9OfWu2ki2W0IB5558=
-github.com/akuity/api-client-go v0.29.1-0.20260903103219-e783caf0031c h1:dYrco6eKKiNQQqJvKyerjr3J6aaiNIaRqsS0jd8ulXs=
-github.com/akuity/api-client-go v0.29.1-0.20260903103219-e783caf0031c/go.mod h1:l1KysY8NXHVy2yN3+vEyygqKIqVEWvA78dTw0lShCUE=
+github.com/akuity/api-client-go v0.29.1-0.20260914093146-798881f7433e h1:ea8n5b4UXIR0JpQg7YzfdIkTrOaqjehhxzR3oNZTsAo=
+github.com/akuity/api-client-go v0.29.1-0.20260914093146-798881f7433e/go.mod h1:l1KysY8NXHVy2yN3+vEyygqKIqVEWvA78dTw0lShCUE=
 github.com/akuity/grpc-gateway-client v0.0.0-20260723085237-ba27dc2ed546 h1:zA8VH1QZJfvyCze05E4GFlkhasJ4hqzdy9WKBPvmI/o=
 github.com/akuity/grpc-gateway-client v0.0.0-20260723085237-ba27dc2ed546/go.mod h1:StjHAw8sfLRVcUwdwCABalPbK9TjhoUjbbidv6wizZw=
 github.com/alevinval/sse v1.0.2 h1:ooc08hn9B5X/u7vOMpnYDkXxIKA0y5DOw9qBVVK3YKY=

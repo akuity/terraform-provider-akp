@@ -68,6 +68,7 @@ resource "akp_instance" "argocd" {
           ]
         }
         preserve_file_mode = false
+        provide_git_creds  = false
         version            = "v1.0"
       }
     },

@@ -125,6 +125,11 @@ func getKargoInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			Attributes:          getKargoAkuityIntelligenceDataSourceAttributes(),
 		},
+		"mcp_server": schema.SingleNestedAttribute{
+			MarkdownDescription: "MCP server configuration for the instance.",
+			Computed:            true,
+			Attributes:          getMCPServerConfigDataSourceAttributes(),
+		},
 		"gc_config": schema.SingleNestedAttribute{
 			MarkdownDescription: "Garbage collector configuration",
 			Computed:            true,
@@ -198,6 +203,15 @@ func getKargoAgentCustomizationDataSourceAttributes() map[string]schema.Attribut
 		"custom_ca_bundle": schema.StringAttribute{
 			MarkdownDescription: "Default PEM bundle of one or more CA certificates applied to new agents that do not specify their own.",
 			Computed:            true,
+		},
+		"size": schema.StringAttribute{
+			MarkdownDescription: "Default agent size applied to new agents that do not specify their own. One of `small`, `medium`, `large` or `auto`. A Custom default is expressed as `large` plus resource patches in `kustomization`.",
+			Computed:            true,
+		},
+		"autoscaler_config": schema.SingleNestedAttribute{
+			MarkdownDescription: "Default min/max scaling limits applied when `size` is `auto`.",
+			Computed:            true,
+			Attributes:          getKargoAutoscalerConfigDataSourceAttributes(),
 		},
 	}
 }

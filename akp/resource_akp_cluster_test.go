@@ -47,17 +47,13 @@ var (
 )
 
 func getInstanceVersion() string {
+	if v := os.Getenv("AKUITY_ARGOCD_INSTANCE_VERSION"); v != "" {
+		return v
+	}
 	getInstanceId()
 	instanceMu.RLock()
 	defer instanceMu.RUnlock()
 	return instanceVersion
-}
-
-func getInstanceName() string {
-	getInstanceId()
-	instanceMu.RLock()
-	defer instanceMu.RUnlock()
-	return instanceName
 }
 
 func getInstanceId() string {

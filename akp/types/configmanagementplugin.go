@@ -22,6 +22,7 @@ type PluginSpec struct {
 	Discover         *Discover    `tfsdk:"discover"`
 	Parameters       *Parameters  `tfsdk:"parameters"`
 	PreserveFileMode types.Bool   `tfsdk:"preserve_file_mode"`
+	ProvideGitCreds  types.Bool   `tfsdk:"provide_git_creds"`
 }
 
 type Command struct {

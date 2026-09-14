@@ -111,7 +111,7 @@ func TestResolveKargoAgentWorkspace(t *testing.T) {
 		require.Equal(t, targetWorkspaceName, gotName)
 	})
 
-	t.Run("scan fallback returns the first-seen workspace (pre-fix behavior)", func(t *testing.T) {
+	t.Run("scan fallback uses the instance's own workspace", func(t *testing.T) {
 		cli := &AkpCli{
 			OrgId:    "org-1",
 			OrgCli:   &fakeOrgCli{workspaces: multiWorkspaces},
@@ -124,11 +124,8 @@ func TestResolveKargoAgentWorkspace(t *testing.T) {
 
 		gotID, gotName := resolveKargoAgentWorkspace(context.Background(), cli, agent)
 
-		// Documents the broken behavior we are intentionally avoiding when the
-		// workspace name is known: the scan picks the first-iterated workspace,
-		// which is NOT the instance's actual workspace.
-		require.Equal(t, newerWorkspaceID, gotID)
-		require.Equal(t, newerWorkspaceName, gotName)
+		require.Equal(t, targetWorkspaceID, gotID)
+		require.Equal(t, targetWorkspaceName, gotName)
 	})
 
 	t.Run("name lookup failure falls back to scan", func(t *testing.T) {

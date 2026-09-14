@@ -219,12 +219,21 @@ func getInstanceSpecDataSourceAttributes() map[string]schema.Attribute {
 			Computed:            true,
 			Attributes:          getAppsetPolicyDataSourceAttributes(),
 		},
+		"appset_new_git_file_globbing_enabled": schema.BoolAttribute{
+			MarkdownDescription: "Enable doublestar globbing for the Application Set git file generator. By default `*` matches across directories (like `**`); the new globbing treats `*` as a single path segment. Existing generators written for the old behavior may stop matching.",
+			Computed:            true,
+		},
 		"host_aliases": schema.ListNestedAttribute{
 			MarkdownDescription: "Host Aliases that override the DNS entries for control plane Argo CD components such as API Server and Dex.",
 			Computed:            true,
 			NestedObject: schema.NestedAttributeObject{
 				Attributes: getHostAliasesDataSourceAttributes(),
 			},
+		},
+		"mcp_server": schema.SingleNestedAttribute{
+			MarkdownDescription: "MCP server configuration for the instance.",
+			Computed:            true,
+			Attributes:          getMCPServerConfigDataSourceAttributes(),
 		},
 		"crossplane_extension": schema.SingleNestedAttribute{
 			MarkdownDescription: "Custom Resource Definition group name that identifies the Crossplane resource in kubernetes. We will include built-in crossplane resources. Note that you can use glob pattern to match the group. ie. *.crossplane.io",
@@ -483,6 +492,15 @@ func getClusterCustomizationDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "Default PEM bundle of one or more CA certificates applied to new clusters that do not specify their own.",
 			Computed:            true,
 		},
+		"size": schema.StringAttribute{
+			MarkdownDescription: "Default agent size applied to new clusters that do not specify their own. One of `small`, `medium`, `large` or `auto`. A Custom default is expressed as `large` plus resource patches in `kustomization`.",
+			Computed:            true,
+		},
+		"autoscaler_config": schema.SingleNestedAttribute{
+			MarkdownDescription: "Default min/max scaling limits applied when `size` is `auto`.",
+			Computed:            true,
+			Attributes:          getAutoScalerConfigDataSourceAttributes(),
+		},
 	}
 }
 
@@ -578,7 +596,11 @@ func getPluginSpecDataSourceAttributes() map[string]schema.Attribute {
 			Attributes:          getParametersDataSourceAttributes(),
 		},
 		"preserve_file_mode": schema.BoolAttribute{
-			MarkdownDescription: "Whether the plugin receives repository files with original file mode. Dangerous since the repository might have executable files. Set to true only if you trust the CMP plugin authors. Set to false by default.",
+			MarkdownDescription: "Passes repository files to the plugin with their original file mode instead of resetting it. Dangerous since the repository might contain executable files. Set to true only if you trust the CMP plugin authors. Set to false by default.",
+			Computed:            true,
+		},
+		"provide_git_creds": schema.BoolAttribute{
+			MarkdownDescription: "Lets the plugin obtain the git credentials for the Application's source repository from the repo-server during manifest generation. Dangerous since the plugin can then authenticate as Argo CD against that repository. Set to true only if you trust the CMP plugin authors. Set to false by default.",
 			Computed:            true,
 		},
 	}
@@ -1082,6 +1104,15 @@ func getIncidentWebhookConfigDataSourceAttributes() map[string]schema.Attribute 
 		},
 		"title_path": schema.StringAttribute{
 			MarkdownDescription: "JSON path for incident title field",
+			Computed:            true,
+		},
+	}
+}
+
+func getMCPServerConfigDataSourceAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"enabled": schema.BoolAttribute{
+			MarkdownDescription: "Whether MCP agent access is enabled for the instance",
 			Computed:            true,
 		},
 	}

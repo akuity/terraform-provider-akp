@@ -36,6 +36,9 @@ var (
 		"data.kustomization": ObjectToYAMLString(),
 		// dex_config_secret wraps string values in {value: "..."}  objects
 		"spec.oidc_config.dex_config_secret": ValueObjectToMapString(),
+		// The platform reports a disabled MCP server by omitting enabled; without this the
+		// portal toggle turning it off never shows up as drift.
+		"spec.kargo_instance_spec.mcp_server.enabled": EnabledFromAPIWhenConfigured(),
 		// TF-only fields for KargoAgent
 		"remove_agent_resources_on_destroy": TFOnlyField(types.BoolValue(true)),
 		"reapply_manifests_on_update":       TFOnlyField(types.BoolValue(false)),
@@ -47,6 +50,10 @@ var (
 		// Customization defaults connectivity is an optional nested object: normalize the
 		// enum name but decline when absent so the object is not materialized.
 		"spec.kargo_instance_spec.agent_customization_defaults.connectivity": ProtoEnumToLowerString(connectivityProtoToTF),
+		// Same for the instance-level default agent size: the API answers with the
+		// proto enum name, so without this the raw KARGO_AGENT_SIZE_* leaks into a
+		// sensitive block and every apply reports an inconsistent result.
+		"spec.kargo_instance_spec.agent_customization_defaults.size": ProtoEnumToLowerString(kargoAgentSizeProtoToTF),
 	}
 
 	// KargoReverseRenamesMap maps tfsdk tags to API camelCase keys for the reverse direction.
@@ -124,14 +131,41 @@ func (ka *KargoAgent) Update(ctx context.Context, diagnostics *diag.Diagnostics,
 // quantity strings (e.g. "1Gi", "500m") when the API returns a normalized
 // equivalent (e.g. "1.00Gi", "500m"), preventing perpetual plan diffs.
 func preserveKargoAutoscalerConfigPlanValues(state *KargoAutoscalerConfig, plan *KargoAgentSpec) {
+	if plan == nil {
+		return
+	}
+	preserveKargoControllerPlanQuantities(state, plan.Data.AutoscalerConfig)
+}
+
+// preserveKargoInstanceAutoscalerPlanValues does the same for the
+// instance-level default in agent_customization_defaults. The server stores
+// these as resource.Quantity and renders them back through a %0.2fGi
+// formatter, so a configured "4Gi" returns as "4.00Gi" — which Terraform
+// rejects as an inconsistent result for the sensitive kargo block, since the
+// whole instance is one sensitive attribute.
+func preserveKargoInstanceAutoscalerPlanValues(state, plan *Kargo) {
+	if state == nil || plan == nil {
+		return
+	}
+	stateACD := state.Spec.KargoInstanceSpec.AgentCustomizationDefaults
+	planACD := plan.Spec.KargoInstanceSpec.AgentCustomizationDefaults
+	if stateACD == nil || planACD == nil {
+		return
+	}
+	preserveKargoControllerPlanQuantities(stateACD.AutoscalerConfig, planACD.AutoscalerConfig)
+}
+
+// preserveKargoControllerPlanQuantities rewrites state quantities back to the
+// planned spelling whenever the two describe the same quantity.
+func preserveKargoControllerPlanQuantities(state, plan *KargoAutoscalerConfig) {
 	if state == nil || state.KargoController == nil {
 		return
 	}
-	if plan == nil || plan.Data.AutoscalerConfig == nil || plan.Data.AutoscalerConfig.KargoController == nil {
+	if plan == nil || plan.KargoController == nil {
 		return
 	}
 	ctrl := state.KargoController
-	planCtrl := plan.Data.AutoscalerConfig.KargoController
+	planCtrl := plan.KargoController
 
 	if ctrl.ResourceMinimum != nil && planCtrl.ResourceMinimum != nil {
 		if areResourcesEquivalent(planCtrl.ResourceMinimum.Mem.ValueString(), ctrl.ResourceMinimum.Mem.ValueString()) {

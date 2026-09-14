@@ -134,7 +134,21 @@ resource "akp_kargo_instance" "example" {
           # custom_ca_bundle is the default PEM CA bundle applied to new agents that
           # do not set their own (e.g. a TLS-intercepting proxy CA).
           custom_ca_bundle = "-----BEGIN CERTIFICATE-----\nMIIB...\n-----END CERTIFICATE-----\n"
-          kustomization    = <<-EOT
+          # size is the default agent size applied to new agents that do not set their
+          # own. One of "small", "medium", "large" or "auto". Akuity-managed agents
+          # never inherit it — their size is managed by Akuity.
+          size = "large"
+          # autoscaler_config sets the min/max scaling limits used when size is "auto".
+          # It is required for an "auto" default and ignored for any other size:
+          #
+          # size = "auto"
+          # autoscaler_config = {
+          #   kargo_controller = {
+          #     resource_minimum = { cpu = "500m", mem = "1Gi" }
+          #     resource_maximum = { cpu = "2", mem = "4Gi" }
+          #   }
+          # }
+          kustomization = <<-EOT
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
@@ -168,6 +182,14 @@ EOT
           ]
           # Default to OpenAI GPT
           model_version = ""
+        }
+
+        # MCP server
+        # Lets AI agents reach this instance through MCP: its own /mcp endpoint and
+        # instance actions through the organization's platform MCP endpoint.
+        # Requires the organization's MCP server feature.
+        mcp_server = {
+          enabled = true
         }
 
         gc_config = {
@@ -328,6 +350,7 @@ Optional:
 - `global_credentials_ns` (List of String) List of global credentials namespaces
 - `global_service_account_ns` (List of String) List of global service account namespaces
 - `ip_allow_list` (Attributes List) List of allowed IPs (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--ip_allow_list))
+- `mcp_server` (Attributes) MCP server configuration for the instance. Turns MCP agent access on or off: the instance's own `/mcp` endpoint and instance actions performed through the organization's platform MCP endpoint. Enabling it requires the organization's MCP server feature. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--mcp_server))
 - `promo_controller_enabled` (Boolean) Whether Kargo Promotion Controller is enabled for this instance
 - `secrets` (Attributes) Cross-cluster secret synchronization configuration. Selects which Kubernetes Secrets are synchronized from source clusters to destination clusters. Secrets opt in by carrying the `akuity.io/secret-sync: "true"` label. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--secrets))
 - `termination_protection_enabled` (Boolean) When enabled, prevents accidental deletion of this Kargo instance.
@@ -339,9 +362,46 @@ Optional:
 Optional:
 
 - `auto_upgrade_disabled` (Boolean) Whether auto upgrade is disabled
+- `autoscaler_config` (Attributes) Default min/max scaling limits applied when `size` is `auto`. Required for an `auto` default, ignored for any other size. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--agent_customization_defaults--autoscaler_config))
 - `connectivity` (String) Default agent connectivity applied to new agents. One of `public` (internet) or `private` (AWS PrivateLink).
 - `custom_ca_bundle` (String) Default PEM bundle of one or more CA certificates applied to new agents that do not specify their own. Certificates must be unexpired.
 - `kustomization` (String) Kustomization that will be applied to the Kargo agent to generate agent installation manifests
+- `size` (String) Default agent size applied to new agents that do not specify their own. One of `small`, `medium`, `large` or `auto`. A Custom default is expressed as `large` plus resource patches in `kustomization`. Akuity-managed agents never inherit it — their size is managed by Akuity.
+
+<a id="nestedatt--kargo--spec--kargo_instance_spec--agent_customization_defaults--autoscaler_config"></a>
+### Nested Schema for `kargo.spec.kargo_instance_spec.agent_customization_defaults.autoscaler_config`
+
+Optional:
+
+- `kargo_controller` (Attributes) Kargo Controller auto scaling config (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--agent_customization_defaults--autoscaler_config--kargo_controller))
+
+<a id="nestedatt--kargo--spec--kargo_instance_spec--agent_customization_defaults--autoscaler_config--kargo_controller"></a>
+### Nested Schema for `kargo.spec.kargo_instance_spec.agent_customization_defaults.autoscaler_config.kargo_controller`
+
+Optional:
+
+- `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--agent_customization_defaults--autoscaler_config--kargo_controller--resource_maximum))
+- `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--agent_customization_defaults--autoscaler_config--kargo_controller--resource_minimum))
+
+<a id="nestedatt--kargo--spec--kargo_instance_spec--agent_customization_defaults--autoscaler_config--kargo_controller--resource_maximum"></a>
+### Nested Schema for `kargo.spec.kargo_instance_spec.agent_customization_defaults.autoscaler_config.kargo_controller.resource_maximum`
+
+Optional:
+
+- `cpu` (String) CPU
+- `mem` (String) Memory
+
+
+<a id="nestedatt--kargo--spec--kargo_instance_spec--agent_customization_defaults--autoscaler_config--kargo_controller--resource_minimum"></a>
+### Nested Schema for `kargo.spec.kargo_instance_spec.agent_customization_defaults.autoscaler_config.kargo_controller.resource_minimum`
+
+Optional:
+
+- `cpu` (String) CPU
+- `mem` (String) Memory
+
+
+
 
 
 <a id="nestedatt--kargo--spec--kargo_instance_spec--akuity_intelligence"></a>
@@ -385,6 +445,14 @@ Required:
 Optional:
 
 - `description` (String) Description
+
+
+<a id="nestedatt--kargo--spec--kargo_instance_spec--mcp_server"></a>
+### Nested Schema for `kargo.spec.kargo_instance_spec.mcp_server`
+
+Optional:
+
+- `enabled` (Boolean) Enable MCP agent access for the instance
 
 
 <a id="nestedatt--kargo--spec--kargo_instance_spec--secrets"></a>

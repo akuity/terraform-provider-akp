@@ -36,6 +36,7 @@ func (k *KargoInstance) Update(ctx context.Context, diagnostics *diag.Diagnostic
 		diagnostics.Append(BuildStateFromAPI(ctx, apiMap, k.Kargo, nil, KargoReverseOverridesMap, KargoReverseRenamesMap, "kargo")...)
 	} else {
 		diagnostics.Append(BuildStateFromAPI(ctx, apiMap, k.Kargo, plan, KargoReverseOverridesMap, KargoReverseRenamesMap, "kargo")...)
+		preserveKargoInstanceAutoscalerPlanValues(k.Kargo, plan)
 	}
 
 	// Convert ConfigMap values, ensuring booleans are converted to strings

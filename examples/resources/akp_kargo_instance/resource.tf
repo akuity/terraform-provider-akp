@@ -107,7 +107,21 @@ resource "akp_kargo_instance" "example" {
           # custom_ca_bundle is the default PEM CA bundle applied to new agents that
           # do not set their own (e.g. a TLS-intercepting proxy CA).
           custom_ca_bundle = "-----BEGIN CERTIFICATE-----\nMIIB...\n-----END CERTIFICATE-----\n"
-          kustomization    = <<-EOT
+          # size is the default agent size applied to new agents that do not set their
+          # own. One of "small", "medium", "large" or "auto". Akuity-managed agents
+          # never inherit it — their size is managed by Akuity.
+          size = "large"
+          # autoscaler_config sets the min/max scaling limits used when size is "auto".
+          # It is required for an "auto" default and ignored for any other size:
+          #
+          # size = "auto"
+          # autoscaler_config = {
+          #   kargo_controller = {
+          #     resource_minimum = { cpu = "500m", mem = "1Gi" }
+          #     resource_maximum = { cpu = "2", mem = "4Gi" }
+          #   }
+          # }
+          kustomization = <<-EOT
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
@@ -141,6 +155,14 @@ EOT
           ]
           # Default to OpenAI GPT
           model_version = ""
+        }
+
+        # MCP server
+        # Lets AI agents reach this instance through MCP: its own /mcp endpoint and
+        # instance actions through the organization's platform MCP endpoint.
+        # Requires the organization's MCP server feature.
+        mcp_server = {
+          enabled = true
         }
 
         gc_config = {
