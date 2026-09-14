@@ -127,12 +127,12 @@ func parseArgs(args []string) (options, error) {
 		"project root (defaults to the closest ancestor containing go.mod)")
 	fs.Var(&opts.apiClientPkgs, "pkg",
 		"api-client-go subpackage containing protobuf Go types; may be repeated. "+
-			"Default: pkg/api/gen/argocd/v1 and pkg/api/gen/kargo/v1")
+			"Default: pkg/api/gen/argocd/v1, pkg/api/gen/kargo/v1, and pkg/api/gen/types/mcp/v1")
 	if err := fs.Parse(args); err != nil {
 		return opts, err
 	}
 	if len(opts.apiClientPkgs) == 0 {
-		opts.apiClientPkgs = []string{"pkg/api/gen/argocd/v1", "pkg/api/gen/kargo/v1"}
+		opts.apiClientPkgs = []string{"pkg/api/gen/argocd/v1", "pkg/api/gen/kargo/v1", "pkg/api/gen/types/mcp/v1"}
 	}
 	return opts, nil
 }
