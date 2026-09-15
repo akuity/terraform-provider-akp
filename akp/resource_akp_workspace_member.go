@@ -3,7 +3,6 @@ package akp
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/resourcevalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -25,31 +24,18 @@ func NewAkpWorkspaceMemberResource() resource.Resource {
 		ReadFunc:       workspaceMemberRead,
 		UpdateFunc:     workspaceMemberUpdate,
 		DeleteFunc:     workspaceMemberDelete,
-		ConfigValidatorsFunc: func() []resource.ConfigValidator {
-			// Exactly one member identifier must be set (the API's
-			// `oneof member`, minus the unexposed user_id).
-			return []resource.ConfigValidator{
-				resourcevalidator.ExactlyOneOf(
-					path.MatchRoot("user_email"),
-					path.MatchRoot("team_name"),
-				),
-			}
+		// Exactly one member identifier must be set (the API's
+		// `oneof member`, minus the unexposed user_id).
+		Validators: []resource.ConfigValidator{
+			resourcevalidator.ExactlyOneOf(
+				path.MatchRoot("user_email"),
+				path.MatchRoot("team_name"),
+			),
 		},
-		ImportStateFunc: func(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-			// Import ID: <workspace_name>/<member_id>. Read resolves the role
-			// and member identity; the operator must then write config whose
-			// member identifier (user_email/team_name) matches.
-			parts := strings.Split(req.ID, "/")
-			if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-				resp.Diagnostics.AddError(
-					"Unexpected Import Identifier",
-					fmt.Sprintf("Expected `workspace_name/member_id`. Got: %q", req.ID),
-				)
-				return
-			}
-			resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("workspace"), parts[0])...)
-			resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), parts[1])...)
-		},
+		// Import ID: <workspace_name>/<member_id>. Read resolves the role
+		// and member identity; the operator must then write config whose
+		// member identifier (user_email/team_name) matches.
+		ImportStateFunc: importSplitID("workspace", "id"),
 	}
 }
 

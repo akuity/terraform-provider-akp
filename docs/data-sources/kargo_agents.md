@@ -37,21 +37,18 @@ data "akp_kargo_agents" "examples" {
 <a id="nestedatt--agents"></a>
 ### Nested Schema for `agents`
 
-Required:
-
-- `instance_id` (String) The ID of the Kargo instance
-- `name` (String) The name of the Kargo agent
-
 Read-Only:
 
-- `annotations` (Map of String) The annotations of the Kargo agent
+- `annotations` (Map of String) Annotations
 - `id` (String) The ID of the Kargo agent
-- `kube_config` (Attributes) The kubeconfig of the Kargo agent (see [below for nested schema](#nestedatt--agents--kube_config))
-- `labels` (Map of String) The labels of the Kargo agent
+- `instance_id` (String) The ID of the Kargo instance
+- `kube_config` (Attributes) Kubernetes connection settings. If configured, terraform will try to connect to the cluster and install the agent (see [below for nested schema](#nestedatt--agents--kube_config))
+- `labels` (Map of String) Labels
+- `name` (String) The name of the Kargo agent
 - `namespace` (String) The namespace of the Kargo agent
-- `reapply_manifests_on_update` (Boolean) Whether to reapply manifests on update
-- `remove_agent_resources_on_destroy` (Boolean) Whether to remove agent resources on destroy
-- `spec` (Attributes) The spec of the Kargo agent (see [below for nested schema](#nestedatt--agents--spec))
+- `reapply_manifests_on_update` (Boolean) If true, re-apply generated agent manifests to the target cluster on every update when `kube_config` is provided.
+- `remove_agent_resources_on_destroy` (Boolean) Remove agent Kubernetes resources from the managed cluster when destroying cluster, default to `true`
+- `spec` (Attributes) Spec of the Kargo agent (see [below for nested schema](#nestedatt--agents--spec))
 - `workspace` (String) Workspace name for the Kargo agent
 
 <a id="nestedatt--agents--kube_config"></a>
@@ -67,12 +64,24 @@ Read-Only:
 - `config_context_cluster` (String)
 - `config_path` (String) Path to the kube config file.
 - `config_paths` (List of String) A list of paths to kube config files.
+- `exec` (Attributes) Configuration for the Kubernetes client authentication exec‐plugin (see [below for nested schema](#nestedatt--agents--kube_config--exec))
 - `host` (String) The hostname (in form of URI) of Kubernetes master.
 - `insecure` (Boolean) Whether server should be accessed without verifying the TLS certificate.
 - `password` (String, Sensitive) The password to use for HTTP basic authentication when accessing the Kubernetes master endpoint.
 - `proxy_url` (String) URL to the proxy to be used for all API requests
-- `token` (String, Sensitive) Token to authenticate an service account
+- `token` (String, Sensitive) Token to authenticate a service account
 - `username` (String) The username to use for HTTP basic authentication when accessing the Kubernetes master endpoint.
+
+<a id="nestedatt--agents--kube_config--exec"></a>
+### Nested Schema for `agents.kube_config.exec`
+
+Read-Only:
+
+- `api_version` (String)
+- `args` (List of String) Arguments to pass to the exec plugin
+- `command` (String) The exec plugin binary to call
+- `env` (Map of String) Environment variables for the exec plugin
+
 
 
 <a id="nestedatt--agents--spec"></a>
@@ -80,29 +89,29 @@ Read-Only:
 
 Read-Only:
 
-- `data` (Attributes) The data of the Kargo agent (see [below for nested schema](#nestedatt--agents--spec--data))
-- `description` (String) The description of the Kargo agent
+- `data` (Attributes) Kargo agent data (see [below for nested schema](#nestedatt--agents--spec--data))
+- `description` (String) Description of the Kargo agent
 
 <a id="nestedatt--agents--spec--data"></a>
 ### Nested Schema for `agents.spec.data`
 
 Read-Only:
 
-- `akuity_managed` (Boolean) Whether the Kargo agent is managed by Akuity
-- `allowed_job_sa` (List of String) The list of allowed job service accounts for the Kargo agent
-- `argocd_namespace` (String) The namespace of the Argo CD instance
-- `auto_upgrade_disabled` (Boolean) Whether auto upgrade is disabled
+- `akuity_managed` (Boolean) This means the agent is managed by Akuity
+- `allowed_job_sa` (List of String) List of allowed service accounts for analysis jobs created by the agent
+- `argocd_namespace` (String) Provide the namespace your Argo CD is installed in. This is only available if you self-host your Kargo agent.
+- `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
 - `autoscaler_config` (Attributes) Autoscaler configuration for the Kargo agent. (see [below for nested schema](#nestedatt--agents--spec--data--autoscaler_config))
-- `connectivity` (String) How the Kargo agent is reached. One of `public` (internet) or `private` (AWS PrivateLink).
-- `custom_ca_bundle` (String) PEM bundle of one or more CA certificates the agent workloads trust in addition to the system roots (e.g. a TLS-intercepting proxy CA).
-- `kustomization` (String) Kustomize configuration that will be applied to generated Kargo agent installation manifests
-- `maintenance_mode` (Boolean) Whether maintenance mode is enabled for the agent.
-- `maintenance_mode_expiry` (String) Expiry time for maintenance mode in RFC3339 format.
-- `pod_inherit_metadata` (Boolean) Whether pod metadata inheritance is enabled for the agent.
-- `remote_argocd` (String) The ID of the remote Argo CD instance
-- `self_managed_argocd_url` (String) URL of the self-managed Argo CD instance the agent connects to
-- `size` (String) The size of the Kargo agent
-- `target_version` (String) The target version of the Kargo agent
+- `connectivity` (String) How the Kargo agent is reached. One of `public` (internet) or `private` (AWS PrivateLink). Defaults to `public`.
+- `custom_ca_bundle` (String) PEM bundle of one or more CA certificates the agent workloads trust in addition to the system roots (e.g. a TLS-intercepting proxy CA). Certificates must be unexpired.
+- `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
+- `maintenance_mode` (Boolean) Enable maintenance mode for the agent. When enabled, alerts for degraded agents are muted.
+- `maintenance_mode_expiry` (String) Expiry time for maintenance mode in RFC3339 format. Maintenance mode will be automatically disabled after this time.
+- `pod_inherit_metadata` (Boolean) Enable pod metadata inheritance. When enabled, pods inherit labels and annotations from the agent.
+- `remote_argocd` (String) Remote Argo CD instance to connect to
+- `self_managed_argocd_url` (String) URL of the self-managed Argo CD instance the agent connects to. This is only available if you self-host your Kargo agent.
+- `size` (String) Cluster Size. One of `small`, `medium`, `large`. Must be omitted when `akuity_managed` is `true` because the size is managed by Akuity; use the Akuity UI or the AIMS API to change the size of an Akuity-managed agent.
+- `target_version` (String) Target version of the agent to install on your cluster
 
 <a id="nestedatt--agents--spec--data--autoscaler_config"></a>
 ### Nested Schema for `agents.spec.data.autoscaler_config`

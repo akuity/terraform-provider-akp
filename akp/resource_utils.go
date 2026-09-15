@@ -9,14 +9,16 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-// resourceGroupAppender is a function type that appends a resource to a request
-type resourceGroupAppender[T any] func(req T, item *structpb.Struct)
+// resourceGroup maps a manifest kind to the API group it belongs to and the
+// request slice that carries it.
+type resourceGroup[Req any] struct {
+	group string
+	slice func(Req) *[]*structpb.Struct
+}
 
 // resourceValidator is a function type that validates a resource
 type resourceValidator func(un *unstructured.Unstructured) error
@@ -26,9 +28,7 @@ func processResources[T any](
 	ctx context.Context,
 	diagnostics *diag.Diagnostics,
 	resources types.Map,
-	resourceGroups map[string]struct {
-		appendFunc resourceGroupAppender[T]
-	},
+	resourceGroups map[string]resourceGroup[T],
 	validateFunc resourceValidator,
 	req T,
 	resourceType string,
@@ -75,38 +75,42 @@ func processResources[T any](
 			continue
 		}
 
-		resourceGroups[resourceItem.GetKind()].appendFunc(req, resourceStructPb)
+		slice := resourceGroups[resourceItem.GetKind()].slice(req)
+		*slice = append(*slice, resourceStructPb)
 	}
 }
 
-// validateResource validates a resource with the given API version and resource groups
-func validateResource[T any](un *unstructured.Unstructured, apiVersion string, resourceGroups map[string]struct {
-	appendFunc resourceGroupAppender[T]
-},
-) error {
+// validateResource checks that the resource is a named object of a supported group/kind.
+func validateResource[T any](un *unstructured.Unstructured, resourceGroups map[string]resourceGroup[T]) error {
 	if un == nil {
 		return errors.New("unstructured is nil")
 	}
-
-	if un.GetAPIVersion() != apiVersion {
-		return errors.New("unsupported apiVersion")
-	}
-
-	if _, ok := resourceGroups[un.GetKind()]; !ok {
+	if g, ok := resourceGroups[un.GetKind()]; !ok || g.group != un.GroupVersionKind().Group {
 		return errors.New("unsupported kind")
 	}
-
 	if un.GetName() == "" {
 		return errors.New("name is required")
 	}
-
 	return nil
 }
 
 func handleReadResourceError(ctx context.Context, resp *resource.ReadResponse, err error) {
-	if status.Code(err) == codes.NotFound || status.Code(err) == codes.PermissionDenied {
+	if isGoneErr(err) {
 		resp.State.RemoveResource(ctx)
 	} else {
 		resp.Diagnostics.AddError("Client Error", err.Error())
+	}
+}
+
+// pruneNormalizedEmptyFields drops spec.data keys whose value is "": the control
+// plane normalizes them away instead of persisting an empty string, and sending
+// "" back fails the apply (an empty maintenanceModeExpiry does not parse as a
+// timestamp).
+func pruneNormalizedEmptyFields(rawMap map[string]any, keys ...string) {
+	dataMap, _ := rawMap["data"].(map[string]any)
+	for _, key := range keys {
+		if value, ok := dataMap[key].(string); ok && value == "" {
+			delete(dataMap, key)
+		}
 	}
 }

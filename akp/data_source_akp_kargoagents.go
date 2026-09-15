@@ -7,7 +7,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
-	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
 	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
 	orgcv1 "github.com/akuity/api-client-go/pkg/api/gen/organization/v1"
 	"github.com/akuity/terraform-provider-akp/akp/types"
@@ -39,7 +38,7 @@ func (a *AkpKargoAgentsDataSource) Read(ctx context.Context, req datasource.Read
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	ctx = httpctx.SetAuthorizationHeader(ctx, a.akpCli.Cred.Scheme(), a.akpCli.Cred.Credential())
+	ctx = a.AuthCtx(ctx)
 
 	workspaces, err := a.akpCli.OrgCli.ListWorkspaces(ctx, &orgcv1.ListWorkspacesRequest{
 		OrganizationId: a.akpCli.OrgId,

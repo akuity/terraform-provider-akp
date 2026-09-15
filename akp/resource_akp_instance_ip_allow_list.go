@@ -2,15 +2,15 @@ package akp
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
@@ -23,40 +23,10 @@ var (
 	_ resource.Resource                = &AkpInstanceIPAllowListResource{}
 	_ resource.ResourceWithImportState = &AkpInstanceIPAllowListResource{}
 
-	instanceMutexKV = NewMutexKV()
+	// instanceLocks serialises allow-list patches per instance so several
+	// resources managing the same instance do not overwrite each other.
+	instanceLocks sync.Map
 )
-
-type MutexKV struct {
-	lock  sync.Mutex
-	store map[string]*sync.Mutex
-}
-
-func NewMutexKV() *MutexKV {
-	return &MutexKV{
-		store: make(map[string]*sync.Mutex),
-	}
-}
-
-func (m *MutexKV) Lock(key string) {
-	m.lock.Lock()
-	mutex, ok := m.store[key]
-	if !ok {
-		mutex = &sync.Mutex{}
-		m.store[key] = mutex
-	}
-	m.lock.Unlock()
-	mutex.Lock()
-}
-
-func (m *MutexKV) Unlock(key string) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	mutex, ok := m.store[key]
-	if !ok {
-		return
-	}
-	mutex.Unlock()
-}
 
 func NewAkpInstanceIPAllowListResource() resource.Resource {
 	return &AkpInstanceIPAllowListResource{}
@@ -81,72 +51,32 @@ func (r *AkpInstanceIPAllowListResource) Create(ctx context.Context, req resourc
 	var plan IPAllowListResourceModel
 
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	checkDuplicateIPs(&resp.Diagnostics, plan.Entries)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	ctx = r.AuthCtx(ctx)
-
-	if _, _, err := getInstanceIPAllowList(ctx, r.akpCli, plan.InstanceID.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get instance: %s", err))
-		return
-	}
-
-	tflog.Debug(ctx, fmt.Sprintf("Acquiring lock for instance %s", plan.InstanceID.ValueString()))
-	instanceMutexKV.Lock(plan.InstanceID.ValueString())
-	tflog.Debug(ctx, fmt.Sprintf("Lock acquired for instance %s", plan.InstanceID.ValueString()))
-
-	ipMap := make(map[string]bool)
-	for _, entry := range plan.Entries {
-		ip := entry.Ip.ValueString()
-		if ipMap[ip] {
-			instanceMutexKV.Unlock(plan.InstanceID.ValueString())
-			resp.Diagnostics.AddError("Duplicate IP", fmt.Sprintf("IP %s appears multiple times in the entries list", ip))
-			return
+	instanceName := r.mutateIPAllowList(ctx, &resp.Diagnostics, plan.InstanceID.ValueString(), func(current []*types.IPAllowListEntry) []*types.IPAllowListEntry {
+		currentIPs := ipSet(current)
+		for _, entry := range plan.Entries {
+			if currentIPs[entry.Ip.ValueString()] {
+				addForeignIPError(&resp.Diagnostics, entry.Ip.ValueString())
+				return nil
+			}
 		}
-		ipMap[ip] = true
-	}
-
-	currentEntries, instanceName, err := getInstanceIPAllowList(ctx, r.akpCli, plan.InstanceID.ValueString())
-	if err != nil {
-		instanceMutexKV.Unlock(plan.InstanceID.ValueString())
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get instance: %s", err))
+		return append(current, plan.Entries...)
+	})
+	if resp.Diagnostics.HasError() {
 		return
 	}
-
-	currentIPs := make(map[string]bool)
-	for _, entry := range currentEntries {
-		currentIPs[entry.Ip.ValueString()] = true
-	}
-
-	for _, entry := range plan.Entries {
-		ip := entry.Ip.ValueString()
-		if currentIPs[ip] {
-			instanceMutexKV.Unlock(plan.InstanceID.ValueString())
-			resp.Diagnostics.AddError(
-				"Duplicate IP",
-				fmt.Sprintf("IP %s already exists in the allow list. It may be managed by another resource", ip),
-			)
-			return
-		}
-	}
-
-	newList := append(currentEntries, plan.Entries...)
-
-	if err := patchInstanceIPAllowList(ctx, r.akpCli, plan.InstanceID.ValueString(), newList); err != nil {
-		instanceMutexKV.Unlock(plan.InstanceID.ValueString())
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update instance: %s", err))
-		return
-	}
-
-	instanceMutexKV.Unlock(plan.InstanceID.ValueString())
 
 	if err := waitForInstanceHealth(ctx, r.akpCli, instanceName); err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Instance did not become healthy: %s", err))
 		return
 	}
 
-	plan.ID = tftypes.StringValue(uuid.New().String())
+	plan.ID = tftypes.StringValue(rand.Text())
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
@@ -168,24 +98,16 @@ func (r *AkpInstanceIPAllowListResource) Read(ctx context.Context, req resource.
 		return
 	}
 
-	managedIPs := make(map[string]*types.IPAllowListEntry)
-	for _, entry := range data.Entries {
-		managedIPs[entry.Ip.ValueString()] = entry
-	}
-
-	var updatedEntries []*types.IPAllowListEntry
+	managedIPs := ipSet(data.Entries)
+	updatedEntries := []*types.IPAllowListEntry{}
 	for _, entry := range currentEntries {
-		if _, exists := managedIPs[entry.Ip.ValueString()]; exists {
+		if managedIPs[entry.Ip.ValueString()] {
 			updatedEntries = append(updatedEntries, entry)
 		}
 	}
 
 	if len(updatedEntries) < len(data.Entries) {
 		tflog.Warn(ctx, fmt.Sprintf("Some IPs managed by this resource were deleted externally. Expected %d, found %d", len(data.Entries), len(updatedEntries)))
-	}
-
-	if updatedEntries == nil {
-		updatedEntries = []*types.IPAllowListEntry{}
 	}
 	data.Entries = updatedEntries
 
@@ -199,112 +121,43 @@ func (r *AkpInstanceIPAllowListResource) Update(ctx context.Context, req resourc
 
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	checkDuplicateIPs(&resp.Diagnostics, plan.Entries)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	ctx = r.AuthCtx(ctx)
-
-	if _, _, err := getInstanceIPAllowList(ctx, r.akpCli, plan.InstanceID.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get instance: %s", err))
-		return
-	}
-
-	tflog.Debug(ctx, fmt.Sprintf("Acquiring lock for instance %s", state.InstanceID.ValueString()))
-	instanceMutexKV.Lock(state.InstanceID.ValueString())
-	tflog.Debug(ctx, fmt.Sprintf("Lock acquired for instance %s", state.InstanceID.ValueString()))
-
-	ipMap := make(map[string]bool)
+	oldIPs := ipSet(state.Entries)
+	planByIP := make(map[string]*types.IPAllowListEntry, len(plan.Entries))
 	for _, entry := range plan.Entries {
-		ip := entry.Ip.ValueString()
-		if ipMap[ip] {
-			instanceMutexKV.Unlock(state.InstanceID.ValueString())
-			resp.Diagnostics.AddError("Duplicate IP", fmt.Sprintf("IP %s appears multiple times in the entries list", ip))
-			return
-		}
-		ipMap[ip] = true
+		planByIP[entry.Ip.ValueString()] = entry
 	}
-
-	currentEntries, instanceName, err := getInstanceIPAllowList(ctx, r.akpCli, plan.InstanceID.ValueString())
-	if err != nil {
-		instanceMutexKV.Unlock(state.InstanceID.ValueString())
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get instance: %s", err))
-		return
-	}
-
-	oldIPs := make(map[string]bool)
-	for _, entry := range state.Entries {
-		oldIPs[entry.Ip.ValueString()] = true
-	}
-
-	newIPs := make(map[string]bool)
-	for _, entry := range plan.Entries {
-		newIPs[entry.Ip.ValueString()] = true
-	}
-
-	toAdd := []*types.IPAllowListEntry{}
-	for _, entry := range plan.Entries {
-		ip := entry.Ip.ValueString()
-		if !oldIPs[ip] {
-			toAdd = append(toAdd, entry)
-		}
-	}
-
-	toRemove := make(map[string]bool)
-	for _, entry := range state.Entries {
-		ip := entry.Ip.ValueString()
-		if !newIPs[ip] {
-			toRemove[ip] = true
-		}
-	}
-
-	currentIPMap := make(map[string]bool)
-	for _, entry := range currentEntries {
-		ip := entry.Ip.ValueString()
-		if !toRemove[ip] {
-			currentIPMap[ip] = true
-		}
-	}
-
-	for _, entry := range toAdd {
-		ip := entry.Ip.ValueString()
-		if currentIPMap[ip] {
-			instanceMutexKV.Unlock(state.InstanceID.ValueString())
-			resp.Diagnostics.AddError(
-				"Duplicate IP",
-				fmt.Sprintf("IP %s already exists in the allow list. It may be managed by another resource", ip),
-			)
-			return
-		}
-	}
-
-	newList := []*types.IPAllowListEntry{}
-	for _, entry := range currentEntries {
-		ip := entry.Ip.ValueString()
-		if toRemove[ip] {
-			continue
-		}
-		if oldIPs[ip] {
-			for _, planEntry := range plan.Entries {
-				if planEntry.Ip.ValueString() == ip {
-					newList = append(newList, planEntry)
-					break
-				}
+	instanceName := r.mutateIPAllowList(ctx, &resp.Diagnostics, plan.InstanceID.ValueString(), func(current []*types.IPAllowListEntry) []*types.IPAllowListEntry {
+		newList := []*types.IPAllowListEntry{}
+		for _, entry := range current {
+			ip := entry.Ip.ValueString()
+			planned, inPlan := planByIP[ip]
+			switch {
+			case oldIPs[ip] && !inPlan: // removed by this resource
+			case oldIPs[ip]: // managed here: the planned entry carries any description change
+				newList = append(newList, planned)
+			case inPlan: // about to be added, but someone else already owns it
+				addForeignIPError(&resp.Diagnostics, ip)
+				return nil
+			default:
+				newList = append(newList, entry)
 			}
-		} else {
-			newList = append(newList, entry)
 		}
-	}
-
-	newList = append(newList, toAdd...)
-
-	if err := patchInstanceIPAllowList(ctx, r.akpCli, plan.InstanceID.ValueString(), newList); err != nil {
-		instanceMutexKV.Unlock(state.InstanceID.ValueString())
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update instance: %s", err))
+		for _, entry := range plan.Entries {
+			if !oldIPs[entry.Ip.ValueString()] {
+				newList = append(newList, entry)
+			}
+		}
+		return newList
+	})
+	if resp.Diagnostics.HasError() {
 		return
 	}
-
-	instanceMutexKV.Unlock(state.InstanceID.ValueString())
 
 	if err := waitForInstanceHealth(ctx, r.akpCli, instanceName); err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Instance did not become healthy: %s", err))
@@ -326,94 +179,39 @@ func (r *AkpInstanceIPAllowListResource) Delete(ctx context.Context, req resourc
 	}
 
 	ctx = r.AuthCtx(ctx)
-
-	if _, _, err := getInstanceIPAllowList(ctx, r.akpCli, state.InstanceID.ValueString()); err != nil {
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get instance: %s", err))
-		return
-	}
-
-	tflog.Debug(ctx, fmt.Sprintf("Acquiring lock for instance %s", state.InstanceID.ValueString()))
-	instanceMutexKV.Lock(state.InstanceID.ValueString())
-	tflog.Debug(ctx, fmt.Sprintf("Lock acquired for instance %s", state.InstanceID.ValueString()))
-
-	var managedIPsList []string
-	for _, entry := range state.Entries {
-		managedIPsList = append(managedIPsList, entry.Ip.ValueString())
-	}
-	tflog.Debug(ctx, fmt.Sprintf("Delete called for instance %s with IPs: %v", state.InstanceID.ValueString(), managedIPsList))
-
-	tflog.Debug(ctx, fmt.Sprintf("Fetching current instance %s", state.InstanceID.ValueString()))
-	currentEntries, instanceName, err := getInstanceIPAllowList(ctx, r.akpCli, state.InstanceID.ValueString())
-	if err != nil {
-		instanceMutexKV.Unlock(state.InstanceID.ValueString())
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get instance: %s", err))
-		return
-	}
-
-	var currentIPsList []string
-	for _, entry := range currentEntries {
-		currentIPsList = append(currentIPsList, entry.Ip.ValueString())
-	}
-	tflog.Debug(ctx, fmt.Sprintf("Current IPs in instance: %v", currentIPsList))
-
-	managedIPs := make(map[string]bool)
-	for _, entry := range state.Entries {
-		managedIPs[entry.Ip.ValueString()] = true
-	}
-
-	newList := []*types.IPAllowListEntry{}
-	for _, entry := range currentEntries {
-		if !managedIPs[entry.Ip.ValueString()] {
-			newList = append(newList, entry)
-			tflog.Debug(ctx, fmt.Sprintf("Keeping IP %s (not managed by this resource)", entry.Ip.ValueString()))
-		} else {
-			tflog.Debug(ctx, fmt.Sprintf("Removing IP %s (managed by this resource)", entry.Ip.ValueString()))
+	managedIPs := ipSet(state.Entries)
+	instanceName := r.mutateIPAllowList(ctx, &resp.Diagnostics, state.InstanceID.ValueString(), func(current []*types.IPAllowListEntry) []*types.IPAllowListEntry {
+		newList := []*types.IPAllowListEntry{}
+		for _, entry := range current {
+			if !managedIPs[entry.Ip.ValueString()] {
+				newList = append(newList, entry)
+			}
 		}
-	}
-
-	var newIPsList []string
-	for _, entry := range newList {
-		newIPsList = append(newIPsList, entry.Ip.ValueString())
-	}
-	tflog.Debug(ctx, fmt.Sprintf("New IP list after filtering: %v (nil: %v)", newIPsList, newList == nil))
-
-	tflog.Debug(ctx, fmt.Sprintf("Updating instance %s with new IP list", state.InstanceID.ValueString()))
-	if err := patchInstanceIPAllowList(ctx, r.akpCli, state.InstanceID.ValueString(), newList); err != nil {
-		instanceMutexKV.Unlock(state.InstanceID.ValueString())
-		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update instance: %s", err))
-		tflog.Error(ctx, fmt.Sprintf("Failed to update instance: %s", err))
+		return newList
+	})
+	if resp.Diagnostics.HasError() {
 		return
 	}
-
-	instanceMutexKV.Unlock(state.InstanceID.ValueString())
 
 	if err := waitForInstanceHealth(ctx, r.akpCli, instanceName); err != nil {
 		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Instance did not become healthy: %s", err))
 		return
 	}
 
-	tflog.Debug(ctx, "Verifying IP list changes were applied")
 	updatedEntries, _, err := getInstanceIPAllowList(ctx, r.akpCli, state.InstanceID.ValueString())
 	if err != nil {
 		tflog.Warn(ctx, fmt.Sprintf("Failed to verify IP list changes: %s", err))
-	} else {
-		for _, entry := range updatedEntries {
-			if managedIPs[entry.Ip.ValueString()] {
-				tflog.Error(ctx, fmt.Sprintf("IP %s was supposed to be deleted but is still present!", entry.Ip.ValueString()))
-				resp.Diagnostics.AddError(
-					"Delete Verification Failed",
-					fmt.Sprintf("IP %s was not successfully removed from the instance", entry.Ip.ValueString()),
-				)
-				return
-			}
-		}
-		var remainingIPs []string
-		for _, entry := range updatedEntries {
-			remainingIPs = append(remainingIPs, entry.Ip.ValueString())
-		}
-		tflog.Debug(ctx, fmt.Sprintf("Verified deletion successful. Remaining IPs in instance: %v", remainingIPs))
+		return
 	}
-	tflog.Debug(ctx, fmt.Sprintf("Successfully deleted IP allow list for instance %s", state.InstanceID.ValueString()))
+	for _, entry := range updatedEntries {
+		if managedIPs[entry.Ip.ValueString()] {
+			resp.Diagnostics.AddError(
+				"Delete Verification Failed",
+				fmt.Sprintf("IP %s was not successfully removed from the instance", entry.Ip.ValueString()),
+			)
+			return
+		}
+	}
 }
 
 func (r *AkpInstanceIPAllowListResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
@@ -430,12 +228,60 @@ func (r *AkpInstanceIPAllowListResource) ImportState(ctx context.Context, req re
 	}
 
 	state := IPAllowListResourceModel{
-		ID:         tftypes.StringValue(uuid.New().String()),
+		ID:         tftypes.StringValue(rand.Text()),
 		InstanceID: tftypes.StringValue(req.ID),
 		Entries:    entries,
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+}
+
+// mutateIPAllowList fetches the instance's allow list under the per-instance
+// lock, patches it with the result of mutate, and returns the instance name for
+// the health wait. mutate reports failures through diags and returns nil.
+func (r *AkpInstanceIPAllowListResource) mutateIPAllowList(ctx context.Context, diags *diag.Diagnostics, instanceID string, mutate func(current []*types.IPAllowListEntry) []*types.IPAllowListEntry) string {
+	mu, _ := instanceLocks.LoadOrStore(instanceID, &sync.Mutex{})
+	mu.(*sync.Mutex).Lock()
+	defer mu.(*sync.Mutex).Unlock()
+
+	current, instanceName, err := getInstanceIPAllowList(ctx, r.akpCli, instanceID)
+	if err != nil {
+		diags.AddError("Client Error", fmt.Sprintf("Unable to get instance: %s", err))
+		return ""
+	}
+	newList := mutate(current)
+	if diags.HasError() {
+		return ""
+	}
+	if err := patchInstanceIPAllowList(ctx, r.akpCli, instanceID, newList); err != nil {
+		diags.AddError("Client Error", fmt.Sprintf("Unable to update instance: %s", err))
+		return ""
+	}
+	return instanceName
+}
+
+func ipSet(entries []*types.IPAllowListEntry) map[string]bool {
+	set := make(map[string]bool, len(entries))
+	for _, entry := range entries {
+		set[entry.Ip.ValueString()] = true
+	}
+	return set
+}
+
+func checkDuplicateIPs(diags *diag.Diagnostics, entries []*types.IPAllowListEntry) {
+	seen := make(map[string]bool, len(entries))
+	for _, entry := range entries {
+		ip := entry.Ip.ValueString()
+		if seen[ip] {
+			diags.AddError("Duplicate IP", fmt.Sprintf("IP %s appears multiple times in the entries list", ip))
+			return
+		}
+		seen[ip] = true
+	}
+}
+
+func addForeignIPError(diags *diag.Diagnostics, ip string) {
+	diags.AddError("Duplicate IP", fmt.Sprintf("IP %s already exists in the allow list. It may be managed by another resource", ip))
 }
 
 func getInstanceIPAllowList(ctx context.Context, cli *AkpCli, instanceID string) ([]*types.IPAllowListEntry, string, error) {
@@ -447,7 +293,7 @@ func getInstanceIPAllowList(ctx context.Context, cli *AkpCli, instanceID string)
 		})
 	}, "GetInstance")
 	if err != nil {
-		return nil, "", errors.Wrap(err, "failed to get instance")
+		return nil, "", fmt.Errorf("failed to get instance: %w", err)
 	}
 
 	var entries []*types.IPAllowListEntry
@@ -481,7 +327,7 @@ func patchInstanceIPAllowList(ctx context.Context, cli *AkpCli, instanceID strin
 		},
 	})
 	if err != nil {
-		return errors.Wrap(err, "failed to build patch struct")
+		return fmt.Errorf("failed to build patch struct: %w", err)
 	}
 
 	_, err = retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.PatchInstanceResponse, error) {
@@ -492,7 +338,7 @@ func patchInstanceIPAllowList(ctx context.Context, cli *AkpCli, instanceID strin
 		})
 	}, "PatchInstance")
 	if err != nil {
-		return errors.Wrap(err, "unable to patch instance IP allow list")
+		return fmt.Errorf("unable to patch instance IP allow list: %w", err)
 	}
 	return nil
 }
@@ -528,7 +374,7 @@ func waitForInstanceHealth(ctx context.Context, cli *AkpCli, instanceName string
 	)
 
 	if healthErr != nil {
-		return errors.Wrap(healthErr, fmt.Sprintf("instance '%s' did not become healthy", instanceName))
+		return fmt.Errorf("instance '%s' did not become healthy: %w", instanceName, healthErr)
 	}
 
 	return nil
