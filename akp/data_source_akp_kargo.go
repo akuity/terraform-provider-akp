@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
-	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
 	"github.com/akuity/terraform-provider-akp/akp/types"
 )
 
@@ -26,6 +26,19 @@ func (k *AkpKargoDataSource) Metadata(ctx context.Context, req datasource.Metada
 	resp.TypeName = req.ProviderTypeName + "_kargo_instance"
 }
 
+func (k *AkpKargoDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	attrs := toDataSourceAttributes(getAKPKargoInstanceAttributes(), "name")
+	// Preserve the data source's public shape: unreturned secrets must not add
+	// sensitivity to existing outputs of the whole object.
+	delete(attrs, "kargo_secret")
+	oidcConfig := attrs["kargo"].(schema.SingleNestedAttribute).Attributes["spec"].(schema.SingleNestedAttribute).Attributes["oidc_config"].(schema.SingleNestedAttribute)
+	delete(oidcConfig.Attributes, "dex_config_secret")
+	resp.Schema = schema.Schema{
+		MarkdownDescription: "Gets information about a Kargo instance",
+		Attributes:          attrs,
+	}
+}
+
 func (k *AkpKargoDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	tflog.Debug(ctx, "Reading an Instance Datasource")
 	var data types.KargoInstanceDataSource
@@ -35,11 +48,9 @@ func (k *AkpKargoDataSource) Read(ctx context.Context, req datasource.ReadReques
 		return
 	}
 
-	ctx = httpctx.SetAuthorizationHeader(ctx, k.akpCli.Cred.Scheme(), k.akpCli.Cred.Credential())
+	ctx = k.AuthCtx(ctx)
 
-	instance := &types.KargoInstance{
-		Name: data.Name,
-	}
+	instance := &types.KargoInstance{Name: data.Name}
 	if err := refreshKargoState(ctx, &resp.Diagnostics, k.akpCli, instance, k.akpCli.OrgId, true); err != nil {
 		resp.Diagnostics.AddError("Failed to refresh kargo state", err.Error())
 		return

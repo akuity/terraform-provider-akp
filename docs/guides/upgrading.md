@@ -12,6 +12,7 @@ Review the relevant guide before upgrading across minor versions. If a minor ver
 
 ## Version-Specific Guides
 
+- [Upgrading to v0.17](v0.17-upgrading.md)
 - [Upgrading to v0.16](v0.16-upgrading.md)
 - [Upgrading to v0.15](v0.15-upgrading.md)
 - [Upgrading to v0.14](v0.14-upgrading.md)

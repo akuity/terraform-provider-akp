@@ -2,42 +2,14 @@ package types
 
 import "reflect"
 
-// DeepCopyArgoCD creates a deep copy of an ArgoCD struct, ensuring all pointer
-// and slice fields are fully independent. This is critical for BuildStateFromAPI
-// where we need a plan reference that won't be corrupted when the state struct
-// is modified in place.
-func DeepCopyArgoCD(src *ArgoCD) *ArgoCD {
+// DeepCopy creates a deep copy of src, ensuring all pointer and slice fields are
+// fully independent. This is critical for BuildStateFromAPI where we need a plan
+// reference that won't be corrupted when the state struct is modified in place.
+func DeepCopy[T any](src *T) *T {
 	if src == nil {
 		return nil
 	}
-	dst := new(ArgoCD)
-	deepCopyValue(reflect.ValueOf(dst).Elem(), reflect.ValueOf(src).Elem())
-	return dst
-}
-
-func DeepCopyClusterSpec(src *ClusterSpec) *ClusterSpec {
-	if src == nil {
-		return nil
-	}
-	dst := new(ClusterSpec)
-	deepCopyValue(reflect.ValueOf(dst).Elem(), reflect.ValueOf(src).Elem())
-	return dst
-}
-
-func DeepCopyKargo(src *Kargo) *Kargo {
-	if src == nil {
-		return nil
-	}
-	dst := new(Kargo)
-	deepCopyValue(reflect.ValueOf(dst).Elem(), reflect.ValueOf(src).Elem())
-	return dst
-}
-
-func DeepCopyKargoAgentSpec(src *KargoAgentSpec) *KargoAgentSpec {
-	if src == nil {
-		return nil
-	}
-	dst := new(KargoAgentSpec)
+	dst := new(T)
 	deepCopyValue(reflect.ValueOf(dst).Elem(), reflect.ValueOf(src).Elem())
 	return dst
 }

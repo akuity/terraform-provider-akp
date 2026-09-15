@@ -2,9 +2,7 @@ package akp
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"math/rand/v2"
 	"slices"
 	"strings"
 	"time"
@@ -12,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 func waitForStatus[ResourceType any, StatusCodeType comparable](
@@ -25,65 +24,29 @@ func waitForStatus[ResourceType any, StatusCodeType comparable](
 	statusName string,
 ) error {
 	tflog.Debug(ctx, fmt.Sprintf("Waiting for %s %s status to reach one of %v", resourceName, statusName, targetStatuses))
-
-	waitCtx := ctx
-	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
-		var cancel context.CancelFunc
-		waitCtx, cancel = context.WithTimeout(ctx, timeout)
-		defer cancel()
-	}
-
-	startTime := time.Now()
-	lastStatusLog := time.Now()
+	start := time.Now()
+	lastLog := start
 	var lastStatus StatusCodeType
-
-	for {
-		select {
-		case <-waitCtx.Done():
-			elapsed := time.Since(startTime)
-			if errors.Is(waitCtx.Err(), context.DeadlineExceeded) {
-				return fmt.Errorf("timed out after %v waiting for %s %s status (expected: %v, last seen: %v)", timeout, resourceName, statusName, targetStatuses, lastStatus)
-			}
-			return fmt.Errorf("context cancelled/done while waiting for %s %s status after %v: %w", resourceName, statusName, elapsed, waitCtx.Err())
-		default:
+	err := wait.PollUntilContextTimeout(ctx, pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
+		resource, err := getResourceFunc(ctx)
+		if status.Code(err) == codes.NotFound {
+			tflog.Debug(ctx, fmt.Sprintf("%s not found yet, retrying...", resourceName))
+			return false, nil
 		}
-
-		resource, err := getResourceFunc(waitCtx)
 		if err != nil {
-			st, ok := status.FromError(err)
-			if ok && st.Code() == codes.NotFound {
-				tflog.Debug(ctx, fmt.Sprintf("%s not found yet, retrying...", resourceName))
-			} else {
-				elapsed := time.Since(startTime)
-				tflog.Error(ctx, fmt.Sprintf("Failed to get %s during status wait after %v: %v", resourceName, elapsed, err))
-				return fmt.Errorf("failed to get %s during status wait: %w", resourceName, err)
-			}
-		} else {
-			currentStatus := getStatusFunc(resource)
-			lastStatus = currentStatus
-
-			if time.Since(lastStatusLog) >= 30*time.Second {
-				elapsed := time.Since(startTime)
-				tflog.Info(ctx, fmt.Sprintf("%s %s status: %v (elapsed: %v, target: %v)", resourceName, statusName, currentStatus, elapsed, targetStatuses))
-				lastStatusLog = time.Now()
-			} else {
-				tflog.Debug(ctx, fmt.Sprintf("%s %s status: %v", resourceName, statusName, currentStatus))
-			}
-
-			if slices.Contains(targetStatuses, currentStatus) {
-				elapsed := time.Since(startTime)
-				tflog.Info(ctx, fmt.Sprintf("%s %s status reached target state (%v) after %v", resourceName, statusName, currentStatus, elapsed))
-				return nil
-			}
+			return false, fmt.Errorf("failed to get %s during status wait: %w", resourceName, err)
 		}
-
-		timer := time.NewTimer(pollInterval)
-		select {
-		case <-timer.C:
-		case <-waitCtx.Done():
-			timer.Stop()
+		lastStatus = getStatusFunc(resource)
+		if time.Since(lastLog) >= 30*time.Second {
+			tflog.Info(ctx, fmt.Sprintf("%s %s status: %v (elapsed: %v, target: %v)", resourceName, statusName, lastStatus, time.Since(start), targetStatuses))
+			lastLog = time.Now()
 		}
+		return slices.Contains(targetStatuses, lastStatus), nil
+	})
+	if wait.Interrupted(err) && ctx.Err() == nil {
+		return fmt.Errorf("timed out after %v waiting for %s %s status (expected: %v, last seen: %v)", timeout, resourceName, statusName, targetStatuses, lastStatus)
 	}
+	return err
 }
 
 // isGoneErr reports whether err indicates the resource is no longer accessible
@@ -104,65 +67,33 @@ func isGoneErr(err error) bool {
 	}
 }
 
-// retryWithBackoff executes a function with exponential backoff retry logic
+// Six attempts with 1s, 2s, 4s, 8s and 16s between them, about 31s of retrying in total.
+var retryBackoff = wait.Backoff{Duration: time.Second, Factor: 2, Jitter: 0.1, Steps: 6, Cap: 30 * time.Second}
+
+// retryWithBackoff retries operation on retryable errors with exponential backoff.
 func retryWithBackoff[T any](
 	ctx context.Context,
 	operation func(ctx context.Context) (T, error),
 	operationName string,
 ) (T, error) {
-	const (
-		maxRetries    = 5
-		initialDelay  = 500 * time.Millisecond
-		maxDelay      = 30 * time.Second
-		backoffFactor = 2.0
-	)
-
 	var result T
 	var lastErr error
-	delay := initialDelay
-
-	for attempt := 0; attempt <= maxRetries; attempt++ {
-		if attempt > 0 {
-			// Apply jitter to prevent thundering herd (10% jitter)
-			jitterRange := time.Duration(float64(delay) * 0.1)
-			jitter := time.Duration(rand.Int64N(int64(jitterRange*2))) - jitterRange
-			actualDelay := delay + jitter
-			if actualDelay < 0 {
-				actualDelay = delay
-			}
-
-			tflog.Debug(ctx, fmt.Sprintf("Retrying %s (attempt %d/%d) after %v", operationName, attempt, maxRetries, actualDelay))
-
-			select {
-			case <-time.After(actualDelay):
-				// Continue with retry
-			case <-ctx.Done():
-				return result, ctx.Err()
-			}
-		}
-
+	err := wait.ExponentialBackoffWithContext(ctx, retryBackoff, func(ctx context.Context) (bool, error) {
 		result, lastErr = operation(ctx)
-		if lastErr == nil {
-			if attempt > 0 {
-				tflog.Info(ctx, fmt.Sprintf("%s succeeded after %d retries", operationName, attempt))
-			}
-			return result, nil
+		if lastErr != nil && isRetryableError(lastErr) {
+			tflog.Debug(ctx, fmt.Sprintf("%s failed with retryable error: %v", operationName, lastErr))
+			return false, nil
 		}
-
-		// Check if the error is retryable
-		if !isRetryableError(lastErr) {
-			tflog.Debug(ctx, fmt.Sprintf("%s failed with non-retryable error: %v", operationName, lastErr))
-			return result, lastErr
-		}
-
-		tflog.Debug(ctx, fmt.Sprintf("%s failed with retryable error (attempt %d/%d): %v", operationName, attempt+1, maxRetries+1, lastErr))
-
-		// Exponential backoff with cap
-		delay = min(time.Duration(float64(delay)*backoffFactor), maxDelay)
+		return true, nil
+	})
+	switch {
+	case err == nil:
+		return result, lastErr
+	case ctx.Err() != nil:
+		return result, ctx.Err()
+	default:
+		return result, fmt.Errorf("%s failed after %d attempts: %w", operationName, retryBackoff.Steps, lastErr)
 	}
-
-	tflog.Error(ctx, fmt.Sprintf("%s failed after %d retries, last error: %v", operationName, maxRetries+1, lastErr))
-	return result, fmt.Errorf("%s failed after %d retries: %w", operationName, maxRetries+1, lastErr)
 }
 
 // isRetryableError determines if an error should trigger a retry
@@ -226,46 +157,16 @@ func isRetryableError(err error) bool {
 // last member while keeping the workspace reports success without removing it —
 // an operation the backend disallows as a standalone end-state anyway.
 func isLastWorkspaceMemberErr(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	type grpcStatus interface {
-		GRPCStatus() *status.Status
-	}
-
-	var statusErr grpcStatus
-	if !errors.As(err, &statusErr) {
-		return false
-	}
-
-	st := statusErr.GRPCStatus()
+	st := status.Convert(err)
 	return st.Code() == codes.InvalidArgument &&
 		strings.Contains(st.Message(), "last member of the workspace")
 }
 
 func isConnectedKargoAgentsDeleteError(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	type grpcStatus interface {
-		GRPCStatus() *status.Status
-	}
-
-	var statusErr grpcStatus
-	if !errors.As(err, &statusErr) {
-		return false
-	}
-
-	st := statusErr.GRPCStatus()
-	msg := st.Message()
-	if !strings.Contains(msg, "instance has some connected kargo agents") &&
-		!strings.Contains(msg, "delete them before deleting instance") {
-		return false
-	}
-
-	return st.Code() == codes.InvalidArgument
+	st := status.Convert(err)
+	return st.Code() == codes.InvalidArgument &&
+		(strings.Contains(st.Message(), "instance has some connected kargo agents") ||
+			strings.Contains(st.Message(), "delete them before deleting instance"))
 }
 
 func deleteWithCooldown[Resp any](

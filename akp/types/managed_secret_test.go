@@ -40,7 +40,7 @@ func TestToManagedSecretUpsertAPIModel(t *testing.T) {
 	assert.Equal(t, []string{"cluster-a", "cluster-b"}, upsert.Secret.GetAllowedClusters())
 	assert.Equal(t, map[string]string{"env": "prod"}, upsert.Secret.GetClusterSelector().GetMatchLabels())
 	assert.Equal(t, map[string]string{"token": "s3cr3t"}, upsert.Data)
-	assert.False(t, upsert.ClearData)
+	assert.False(t, upsert.ClearData())
 }
 
 func TestToManagedSecretUpsertAPIModelMinimal(t *testing.T) {
@@ -62,7 +62,7 @@ func TestToManagedSecretUpsertAPIModelMinimal(t *testing.T) {
 	assert.Empty(t, upsert.Secret.GetAllowedClusters())
 	assert.Nil(t, upsert.Secret.GetClusterSelector())
 	assert.Nil(t, upsert.Data)
-	assert.False(t, upsert.ClearData)
+	assert.False(t, upsert.ClearData())
 }
 
 func TestToManagedSecretUpsertAPIModelEmptyDataClears(t *testing.T) {
@@ -81,7 +81,7 @@ func TestToManagedSecretUpsertAPIModelEmptyDataClears(t *testing.T) {
 	})
 	require.False(t, diags.HasError())
 	require.NotNil(t, upsert)
-	assert.True(t, upsert.ClearData)
+	assert.True(t, upsert.ClearData())
 	assert.Empty(t, upsert.Data)
 }
 

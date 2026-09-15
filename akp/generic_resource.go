@@ -3,8 +3,11 @@ package akp
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
@@ -19,16 +22,50 @@ var (
 
 type GenericResource[Plan any] struct {
 	BaseResource
-	TypeNameSuffix       string
-	SchemaFunc           func() schema.Schema
-	CreateFunc           func(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, plan *Plan) (*Plan, error)
-	ReadFunc             func(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, data *Plan) error
-	UpdateFunc           func(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, plan *Plan) (*Plan, error)
-	UpdateWithStateFunc  func(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, state, plan *Plan) (*Plan, error)
-	DeleteFunc           func(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, state *Plan) error
-	ImportStateFunc      func(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse)
-	ConfigValidatorsFunc func() []resource.ConfigValidator
-	CopyWriteOnlyFunc    func(ctx context.Context, config tfsdk.Config, diags *diag.Diagnostics, plan *Plan)
+	TypeNameSuffix      string
+	SchemaFunc          func() schema.Schema
+	CreateFunc          func(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, plan *Plan) (*Plan, error)
+	ReadFunc            func(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, data *Plan) error
+	UpdateFunc          func(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, plan *Plan) (*Plan, error)
+	UpdateWithStateFunc func(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, state, plan *Plan) (*Plan, error)
+	DeleteFunc          func(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, state *Plan) error
+	ImportStateFunc     func(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse)
+	Validators          []resource.ConfigValidator
+	CopyWriteOnlyFunc   func(ctx context.Context, config tfsdk.Config, diags *diag.Diagnostics, plan *Plan)
+}
+
+// importSplitID returns an ImportStateFunc that splits the "/"-separated import
+// ID into the named attributes.
+func importSplitID(attrs ...string) func(context.Context, resource.ImportStateRequest, *resource.ImportStateResponse) {
+	return func(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+		parts := strings.Split(req.ID, "/")
+		if len(parts) != len(attrs) || slices.Contains(parts, "") {
+			resp.Diagnostics.AddError(
+				"Unexpected Import Identifier",
+				fmt.Sprintf("Expected import identifier with format: %s. Got: %q", strings.Join(attrs, "/"), req.ID),
+			)
+			return
+		}
+		for i, a := range attrs {
+			resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root(a), parts[i])...)
+		}
+	}
+}
+
+// importScopedID handles `<id>` (org-scoped) or `<workspace_name>/<id>` import identifiers.
+func importScopedID(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	parts := strings.Split(req.ID, "/")
+	if len(parts) > 2 || slices.Contains(parts, "") {
+		resp.Diagnostics.AddError(
+			"Unexpected Import Identifier",
+			fmt.Sprintf("Expected `id` or `workspace_name/id`. Got: %q", req.ID),
+		)
+		return
+	}
+	if len(parts) == 2 {
+		resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("workspace"), parts[0])...)
+	}
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), parts[len(parts)-1])...)
 }
 
 func (r *GenericResource[Plan]) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -133,8 +170,5 @@ func (r *GenericResource[Plan]) ImportState(ctx context.Context, req resource.Im
 }
 
 func (r *GenericResource[Plan]) ConfigValidators(_ context.Context) []resource.ConfigValidator {
-	if r.ConfigValidatorsFunc != nil {
-		return r.ConfigValidatorsFunc()
-	}
-	return nil
+	return r.Validators
 }

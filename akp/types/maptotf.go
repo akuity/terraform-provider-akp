@@ -344,6 +344,23 @@ func EnabledFromAPIWhenConfigured() ReverseFieldOverride {
 	}
 }
 
+// PreserveEquivalentQuantity keeps the planned spelling of a resource quantity
+// when the API returns an equivalent one (a configured "4Gi" comes back as
+// "4.00Gi"). A genuinely different quantity falls through so drift stays visible.
+func PreserveEquivalentQuantity() ReverseFieldOverride {
+	return func(mapValue any, planValue reflect.Value) (attr.Value, bool) {
+		apiStr, ok := mapValue.(string)
+		if !ok || !planValue.IsValid() {
+			return nil, false
+		}
+		plan, ok := planValue.Interface().(types.String)
+		if !ok || plan.IsNull() || plan.IsUnknown() || plan.ValueString() == "" || !areResourcesEquivalent(plan.ValueString(), apiStr) {
+			return nil, false
+		}
+		return plan, true
+	}
+}
+
 // TFOnlyField returns an override that always preserves the plan/state value
 // and falls back to a default attr.Value when the plan has no value.
 // Use for fields that exist only in the TF schema with no API equivalent
@@ -364,16 +381,8 @@ func TFOnlyField(defaultVal attr.Value) ReverseFieldOverride {
 // Use for kustomization fields that are stored as YAML strings in TF but as objects in the API.
 func ObjectToYAMLString() ReverseFieldOverride {
 	return func(mapValue any, planValue reflect.Value) (attr.Value, bool) {
-		if mapValue == nil {
-			return types.StringNull(), true
-		}
-		// Marshal the map to JSON, then convert to YAML
-		jsonBytes, err := json.Marshal(mapValue)
-		if err != nil {
-			return types.StringNull(), true
-		}
-		var objMap map[string]any
-		if err := json.Unmarshal(jsonBytes, &objMap); err != nil {
+		objMap, ok := mapValue.(map[string]any)
+		if !ok {
 			return types.StringNull(), true
 		}
 		if len(objMap) == 0 {
@@ -382,6 +391,11 @@ func ObjectToYAMLString() ReverseFieldOverride {
 					return types.StringValue(""), true
 				}
 			}
+			return types.StringNull(), true
+		}
+		// Marshal the map to JSON, then convert to YAML
+		jsonBytes, err := json.Marshal(objMap)
+		if err != nil {
 			return types.StringNull(), true
 		}
 		yamlBytes, err := yaml.JSONToYAML(jsonBytes)

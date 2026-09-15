@@ -28,7 +28,7 @@ func getAKPClustersDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "List of clusters",
 			Computed:            true,
 			NestedObject: schema.NestedAttributeObject{
-				Attributes: getAKPClusterDataSourceAttributes(),
+				Attributes: toDataSourceAttributes(getAKPClusterAttributes()),
 			},
 		},
 	}

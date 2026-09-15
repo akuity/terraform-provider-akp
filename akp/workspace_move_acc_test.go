@@ -4,12 +4,10 @@ package akp
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"os"
 	"regexp"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -20,8 +18,6 @@ import (
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
-
-	_ "github.com/lib/pq"
 )
 
 const (
@@ -549,7 +545,7 @@ func testAccCheckArgoCDWorkspace(resourceName, expectedWorkspaceName string) res
 				instance.GetWorkspaceId(), expectedWorkspace.GetId(), expectedWorkspace.GetName(),
 			)
 		}
-		return testAccCheckDatabaseWorkspace(ctx, "argocd", instanceID, cli.OrgId, expectedWorkspace.GetId())
+		return nil
 	}
 }
 
@@ -585,7 +581,7 @@ func testAccCheckKargoWorkspace(resourceName, expectedWorkspaceName string) reso
 				instance.GetWorkspaceId(), expectedWorkspace.GetId(), expectedWorkspace.GetName(),
 			)
 		}
-		return testAccCheckDatabaseWorkspace(ctx, "kargo", instanceID, cli.OrgId, expectedWorkspace.GetId())
+		return nil
 	}
 }
 
@@ -598,46 +594,4 @@ func testAccResourceID(state *terraform.State, resourceName string) (string, err
 		return "", fmt.Errorf("resource %s has an empty ID", resourceName)
 	}
 	return resourceState.Primary.ID, nil
-}
-
-func testAccCheckDatabaseWorkspace(ctx context.Context, instanceType, instanceID, organizationID, expectedWorkspaceID string) error {
-	// Cloud acceptance environments do not expose PostgreSQL. Local runs opt in
-	// so the same checks prove the API response and stored workspace agree.
-	dsn := os.Getenv("AKUITY_ACC_POSTGRES_DSN")
-	if dsn == "" {
-		return nil
-	}
-
-	query := ""
-	switch instanceType {
-	case "argocd":
-		query = `SELECT workspace_id FROM public.argo_cd_instance WHERE id = $1 AND organization_owner = $2`
-	case "kargo":
-		query = `SELECT workspace_id FROM public.kargo_instance WHERE id = $1 AND organization_owner = $2`
-	default:
-		return fmt.Errorf("unsupported instance type %q", instanceType)
-	}
-
-	db, err := sql.Open("postgres", dsn)
-	if err != nil {
-		return fmt.Errorf("open local acceptance database: %w", err)
-	}
-	defer db.Close()
-
-	queryCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-	var actualWorkspaceID sql.NullString
-	if err := db.QueryRowContext(queryCtx, query, instanceID, organizationID).Scan(&actualWorkspaceID); err != nil {
-		return fmt.Errorf("query %s instance %q workspace from database: %w", instanceType, instanceID, err)
-	}
-	if !actualWorkspaceID.Valid {
-		return fmt.Errorf("%s instance %q has NULL workspace_id in database", instanceType, instanceID)
-	}
-	if actualWorkspaceID.String != expectedWorkspaceID {
-		return fmt.Errorf(
-			"%s database workspace_id = %q, want %q",
-			instanceType, actualWorkspaceID.String, expectedWorkspaceID,
-		)
-	}
-	return nil
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 // ResourceLifecycle encapsulates the common Apply → Wait → Refresh pipeline
@@ -135,10 +136,7 @@ func (lc *ResourceLifecycle[Plan, APIResponse, StatusCode]) Upsert(ctx context.C
 	return true, lc.Refresh(ctx, diagnostics, plan)
 }
 
-const (
-	reconGracePeriod       = 15 * time.Second
-	reconGracePollInterval = 2 * time.Second
-)
+const reconGracePeriod = 15 * time.Second
 
 func (lc *ResourceLifecycle[Plan, APIResponse, StatusCode]) waitForReconciliation(
 	ctx context.Context,
@@ -148,83 +146,39 @@ func (lc *ResourceLifecycle[Plan, APIResponse, StatusCode]) waitForReconciliatio
 	timeout time.Duration,
 	resourceName string,
 ) error {
-	waitCtx := ctx
-	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
-		var cancel context.CancelFunc
-		waitCtx, cancel = context.WithTimeout(ctx, timeout)
-		defer cancel()
-	}
-
-	startTime := time.Now()
-	lastStatusLog := time.Now()
+	start := time.Now()
+	lastLog := start
 	sawReconciling := false
-
 	tflog.Info(ctx, fmt.Sprintf("%s waiting for reconciliation (pre-apply generation: %d)", resourceName, preApplyGeneration))
-
-	for {
-		select {
-		case <-waitCtx.Done():
-			elapsed := time.Since(startTime)
-			if ctx.Err() != nil {
-				return fmt.Errorf("context cancelled while waiting for %s after %v", resourceName, elapsed)
-			}
-			return fmt.Errorf("timed out after %v waiting for %s reconciliation", timeout, resourceName)
-		default:
+	err := wait.PollUntilContextTimeout(ctx, pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
+		resp, err := lc.Get(ctx, plan)
+		if status.Code(err) == codes.NotFound {
+			tflog.Debug(ctx, fmt.Sprintf("%s not found yet, retrying...", resourceName))
+			return false, nil
 		}
-
-		resp, err := lc.Get(waitCtx, plan)
 		if err != nil {
-			st, ok := status.FromError(err)
-			if ok && st.Code() == codes.NotFound {
-				tflog.Debug(ctx, fmt.Sprintf("%s not found yet, retrying...", resourceName))
-			} else {
-				return fmt.Errorf("failed to get %s during reconciliation wait: %w", resourceName, err)
-			}
-		} else {
-			currentStatus := lc.GetStatus(resp)
-			currentGen := lc.GetGeneration(resp)
-			isTarget := slices.Contains(lc.TargetStatuses, currentStatus)
-			reconDone := lc.GetReconciliationDone(resp)
-			genAdvanced := currentGen > preApplyGeneration
-
-			if !reconDone {
-				sawReconciling = true
-			}
-
-			gracePeriodExpired := time.Since(startTime) >= reconGracePeriod
-			reconcileConfirmed := genAdvanced || sawReconciling || gracePeriodExpired
-
-			if time.Since(lastStatusLog) >= 30*time.Second {
-				tflog.Info(ctx, fmt.Sprintf(
-					"%s status: %v, generation: %d (pre: %d), recon_done: %v, health_target: %v, confirmed: %v (elapsed: %v)",
-					resourceName, currentStatus, currentGen, preApplyGeneration, reconDone, isTarget, reconcileConfirmed, time.Since(startTime)))
-				lastStatusLog = time.Now()
-			} else {
-				tflog.Debug(ctx, fmt.Sprintf(
-					"%s status: %v, generation: %d (pre: %d), recon_done: %v, health_target: %v, confirmed: %v",
-					resourceName, currentStatus, currentGen, preApplyGeneration, reconDone, isTarget, reconcileConfirmed))
-			}
-
-			if lc.GetReconciliationFailed != nil && lc.GetReconciliationFailed(resp) {
-				return fmt.Errorf("%s reconciliation failed (health status: %v)", resourceName, currentStatus)
-			}
-
-			if reconcileConfirmed && reconDone && isTarget {
-				tflog.Info(ctx, fmt.Sprintf("%s reconciliation complete: status=%v, generation=%d (elapsed: %v)", resourceName, currentStatus, currentGen, time.Since(startTime)))
-				return nil
-			}
+			return false, fmt.Errorf("failed to get %s during reconciliation wait: %w", resourceName, err)
 		}
-
-		currentPollInterval := pollInterval
-		if !sawReconciling && time.Since(startTime) < reconGracePeriod {
-			currentPollInterval = reconGracePollInterval
+		currentStatus := lc.GetStatus(resp)
+		currentGen := lc.GetGeneration(resp)
+		reconDone := lc.GetReconciliationDone(resp)
+		if !reconDone {
+			sawReconciling = true
 		}
-
-		timer := time.NewTimer(currentPollInterval)
-		select {
-		case <-timer.C:
-		case <-waitCtx.Done():
-			timer.Stop()
+		// A no-op apply never advances the generation, so accept the current state once the grace period passes.
+		reconcileConfirmed := currentGen > preApplyGeneration || sawReconciling || time.Since(start) >= reconGracePeriod
+		if time.Since(lastLog) >= 30*time.Second {
+			tflog.Info(ctx, fmt.Sprintf("%s status: %v, generation: %d (pre: %d), recon_done: %v, confirmed: %v (elapsed: %v)",
+				resourceName, currentStatus, currentGen, preApplyGeneration, reconDone, reconcileConfirmed, time.Since(start)))
+			lastLog = time.Now()
 		}
+		if lc.GetReconciliationFailed != nil && lc.GetReconciliationFailed(resp) {
+			return false, fmt.Errorf("%s reconciliation failed (health status: %v)", resourceName, currentStatus)
+		}
+		return reconcileConfirmed && reconDone && slices.Contains(lc.TargetStatuses, currentStatus), nil
+	})
+	if wait.Interrupted(err) && ctx.Err() == nil {
+		return fmt.Errorf("timed out after %v waiting for %s reconciliation", timeout, resourceName)
 	}
+	return err
 }

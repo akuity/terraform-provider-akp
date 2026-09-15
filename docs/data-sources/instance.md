@@ -31,7 +31,7 @@ output "managed_secrets" {
 
 ### Read-Only
 
-- `argocd` (Attributes) Argo CD instance (see [below for nested schema](#nestedatt--argocd))
+- `argocd` (Attributes) Argo CD instance configuration (see [below for nested schema](#nestedatt--argocd))
 - `argocd_cm` (Map of String) is aligned with the options in `argocd-cm` ConfigMap as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-cm-yaml/).
 - `argocd_image_updater_config` (Map of String) configures Argo CD image updater, and it is aligned with `argocd-image-updater-config` ConfigMap of Argo CD, for available options and examples, refer to [this documentation](https://argocd-image-updater.readthedocs.io/en/stable/).
 - `argocd_image_updater_ssh_config` (Map of String) contains the ssh configuration for Argo CD image updater, and it is aligned with `argocd-image-updater-ssh-config` ConfigMap of Argo CD, for available options and examples, refer to [this documentation](https://argocd-image-updater.readthedocs.io/en/stable/).
@@ -43,7 +43,7 @@ output "managed_secrets" {
 - `config_management_plugins` (Attributes Map) is a map of [Config Management Plugins](https://argo-cd.readthedocs.io/en/stable/operator-manual/config-management-plugins/#config-management-plugins), the key of map entry is the `name` of the plugin, and the value is the definition of the Config Management Plugin(v2). (see [below for nested schema](#nestedatt--config_management_plugins))
 - `id` (String) Instance ID
 - `managed_secrets` (Attributes Map) Managed secrets on the instance. Secret values are not returned. (see [below for nested schema](#nestedatt--managed_secrets))
-- `workspace` (String) Workspace name for the ArgoCD instance
+- `workspace` (String) Workspace name for the ArgoCD instance. Defaults to the organization's default workspace.
 
 <a id="nestedatt--argocd"></a>
 ### Nested Schema for `argocd`
@@ -59,7 +59,7 @@ Read-Only:
 
 - `description` (String) Instance description
 - `instance_spec` (Attributes) Argo CD instance spec (see [below for nested schema](#nestedatt--argocd--spec--instance_spec))
-- `shard` (String) Workload-cluster shard (region) the instance is pinned to, by its display name (e.g. `us0`).
+- `shard` (String) Workload-cluster shard (region) the instance is pinned to, by its display name (e.g. `us0`). Must be one of the shards available to the organization. Immutable: changing it forces recreation of the instance. When omitted the server places the instance on the organization's default shard.
 - `version` (String) Argo CD version. Should be equal to any Akuity [`argocd` image tag](https://quay.io/repository/akuity/argocd?tab=tags).
 
 <a id="nestedatt--argocd--spec--instance_spec"></a>
@@ -80,7 +80,7 @@ Read-Only:
 - `backend_ip_allow_list_enabled` (Boolean) Enable ip allow list for cluster agents
 - `cluster_addons_extension` (Attributes) Cluster Addons Extension configuration for managing cluster addons (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--cluster_addons_extension))
 - `cluster_customization_defaults` (Attributes) Default values for cluster agents (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--cluster_customization_defaults))
-- `connectivity` (String) How the Argo CD instance is reached. One of `public` (internet) or `private` (AWS PrivateLink).
+- `connectivity` (String) How the Argo CD instance is reached. One of `public` (internet) or `private` (AWS PrivateLink). Defaults to `public`.
 - `crossplane_extension` (Attributes) Custom Resource Definition group name that identifies the Crossplane resource in kubernetes. We will include built-in crossplane resources. Note that you can use glob pattern to match the group. ie. *.crossplane.io (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--crossplane_extension))
 - `declarative_management_enabled` (Boolean) Enable Declarative Management
 - `extensions` (Attributes List) Extensions (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--extensions))
@@ -88,15 +88,15 @@ Read-Only:
 - `host_aliases` (Attributes List) Host Aliases that override the DNS entries for control plane Argo CD components such as API Server and Dex. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--host_aliases))
 - `image_updater_delegate` (Attributes) Select cluster in which you want to Install Image Updater (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--image_updater_delegate))
 - `image_updater_enabled` (Boolean) Enable Image Updater
-- `kube_vision_config` (Attributes) Advanced Akuity Intelligence configuration like CVE scanning and incident resolution (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config))
+- `kube_vision_config` (Attributes) Advanced Akuity Intelligence configuration like CVE scanning and AI runbooks (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config))
 - `manifest_generation` (Attributes) Manifest generation configuration for config management tool versions (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--manifest_generation))
-- `mcp_server` (Attributes) MCP server configuration for the instance. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--mcp_server))
+- `mcp_server` (Attributes) MCP server configuration for the instance. Turns MCP agent access on or off: the instance's own `/mcp` endpoint and instance actions performed through the organization's platform MCP endpoint. Enabling it requires the organization's MCP server feature. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--mcp_server))
 - `metrics_ingress_username` (String) Username for metrics ingress authentication
 - `multi_cluster_k8s_dashboard_enabled` (Boolean) Enable the KubeVision feature
-- `prefer_control_plane_repo_server` (Boolean) When enabled, manifests for any repository used by an in-cluster application are generated by the control plane Repo Server instead of a managed cluster Repo Server. Mutually exclusive with `repo_server_delegate`.
+- `prefer_control_plane_repo_server` (Boolean) When enabled, manifests for any repository used by an in-cluster application are generated by the control plane Repo Server instead of a managed cluster Repo Server, even when the request is for a non in-cluster application that shares the repository. Mutually exclusive with `repo_server_delegate`.
 - `privileged_notification_cluster` (String) Cluster name where notifications controller will be installed with elevated privileges to see controlplane and intg. cluster apps
 - `repo_server_delegate` (Attributes) In case some clusters don't have network access to your private Git provider you can delegate these operations to one specific cluster. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--repo_server_delegate))
-- `secrets` (Attributes) Cross-cluster secret synchronization configuration. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--secrets))
+- `secrets` (Attributes) Cross-cluster secret synchronization configuration. Selects which Kubernetes Secrets are synchronized from source clusters to destination clusters. Secrets opt in by carrying the `akuity.io/secret-sync: "true"` label (sensitive control-plane Secrets like `argocd-secret` are protected and cannot be synced). (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--secrets))
 - `subdomain` (String) Instance subdomain. By default equals to instance id
 - `sync_history_extension_enabled` (Boolean) Enable Sync History Extension. Sync count and duration graphs as well as event details table on Argo CD application details page.
 - `termination_protection_enabled` (Boolean) When enabled, prevents accidental deletion of this Argo CD instance.
@@ -185,8 +185,8 @@ Available options: `sync`, `create-only`, `create-delete`, and `create-update`.
 
 Read-Only:
 
-- `allowed_groups` (List of String) List of groups allowed to use cluster addons
-- `allowed_usernames` (List of String) List of usernames allowed to use cluster addons
+- `allowed_groups` (List of String) List of groups allowed to manage cluster addons
+- `allowed_usernames` (List of String) List of usernames allowed to manage cluster addons
 - `enabled` (Boolean) Enable Cluster Addons Extension for managing cluster addons
 
 
@@ -197,9 +197,9 @@ Read-Only:
 
 - `app_replication` (Boolean) Enables Argo CD state replication to the managed cluster that allows disconnecting the cluster from Akuity Platform without losing core Argocd features
 - `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
-- `autoscaler_config` (Attributes) Default min/max scaling limits applied when `size` is `auto`. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--cluster_customization_defaults--autoscaler_config))
+- `autoscaler_config` (Attributes) Default min/max scaling limits applied when `size` is `auto`. Required for an `auto` default, ignored for any other size. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--cluster_customization_defaults--autoscaler_config))
 - `connectivity` (String) Default agent connectivity applied to new agents. One of `public` (internet) or `private` (AWS PrivateLink).
-- `custom_ca_bundle` (String) Default PEM bundle of one or more CA certificates applied to new clusters that do not specify their own.
+- `custom_ca_bundle` (String) Default PEM bundle of one or more CA certificates applied to new clusters that do not specify their own. Certificates must be unexpired.
 - `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
 - `redis_tunneling` (Boolean) Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy
 - `server_side_diff_enabled` (Boolean) Enables the ability to set server-side diff on the application-controller.
@@ -246,7 +246,7 @@ Read-Only:
 Read-Only:
 
 - `replicas_maximum` (Number) Replica maximum
-- `replicas_minimum` (Number) Replica minimum
+- `replicas_minimum` (Number) Replica minimum, this should be set to 1 as a minimum
 - `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--cluster_customization_defaults--autoscaler_config--repo_server--resource_maximum))
 - `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--cluster_customization_defaults--autoscaler_config--repo_server--resource_minimum))
 
@@ -301,7 +301,7 @@ Read-Only:
 
 Read-Only:
 
-- `hostnames` (List of String) Hostnames
+- `hostnames` (List of String) List of hostnames
 - `ip` (String) IP address
 
 
@@ -423,7 +423,7 @@ Read-Only:
 
 Read-Only:
 
-- `applied_for` (Attributes Map) Per-runbook applied_to overrides keyed by runbook name (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--runbook_repos--applied_for))
+- `applied_for` (Attributes Map) Per-runbook applied_to overrides keyed by runbook name. Overrides any applied_to set in the runbook's front matter. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--kube_vision_config--ai_config--runbook_repos--applied_for))
 - `path` (String) Path within the repository to scan for runbooks
 - `repo_url` (String) Git repository URL
 - `revision` (String) Git revision (branch, tag, or commit SHA)
@@ -485,8 +485,8 @@ Read-Only:
 
 Read-Only:
 
-- `additional_versions` (List of String) Additional versions of the config management tool
-- `default_version` (String) Default version of the config management tool
+- `additional_versions` (List of String) Additional versions of the config management tool (e.g. ["v5.6.0", "v5.7.0"])
+- `default_version` (String) Default version of the config management tool (e.g. "v5.4.3")
 
 
 
@@ -495,7 +495,7 @@ Read-Only:
 
 Read-Only:
 
-- `enabled` (Boolean) Whether MCP agent access is enabled for the instance
+- `enabled` (Boolean) Enable MCP agent access for the instance
 
 
 <a id="nestedatt--argocd--spec--instance_spec--repo_server_delegate"></a>
@@ -520,32 +520,32 @@ Read-Only:
 
 Read-Only:
 
-- `sources` (Attributes List) Cluster/secret selectors picking the synchronization sources. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--secrets--sources))
+- `sources` (Attributes List) Selectors picking the clusters and Secrets to use as synchronization sources. A source matches when both the cluster and secret selectors are satisfied; if a selector is omitted, all clusters or all secrets are selected. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--secrets--sources))
 
 <a id="nestedatt--argocd--spec--instance_spec--secrets--sources"></a>
 ### Nested Schema for `argocd.spec.instance_spec.secrets.sources`
 
 Read-Only:
 
-- `clusters` (Attributes) Cluster selector. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--secrets--sources--clusters))
-- `secrets` (Attributes) Secret selector. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--secrets--sources--secrets))
+- `clusters` (Attributes) Cluster selector. If omitted, all clusters are selected. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--secrets--sources--clusters))
+- `secrets` (Attributes) Secret selector. If omitted, all secrets are selected. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--secrets--sources--secrets))
 
 <a id="nestedatt--argocd--spec--instance_spec--secrets--sources--clusters"></a>
 ### Nested Schema for `argocd.spec.instance_spec.secrets.sources.clusters`
 
 Read-Only:
 
-- `match_expressions` (Attributes List) List of label selector requirements. Requirements are ANDed. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--secrets--sources--clusters--match_expressions))
-- `match_labels` (Map of String) Map of label key/value pairs. Requirements are ANDed.
+- `match_expressions` (Attributes List) A list of label selector requirements. Requirements are ANDed. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--secrets--sources--clusters--match_expressions))
+- `match_labels` (Map of String) A map of {key,value} pairs. A single entry is equivalent to a `match_expressions` entry with operator `In` and a single value. Requirements are ANDed.
 
 <a id="nestedatt--argocd--spec--instance_spec--secrets--sources--clusters--match_expressions"></a>
 ### Nested Schema for `argocd.spec.instance_spec.secrets.sources.clusters.match_expressions`
 
 Read-Only:
 
-- `key` (String) The label key.
-- `operator` (String) The relationship between the key and the values. One of `In`, `NotIn`, `Exists`, `DoesNotExist`.
-- `values` (List of String) Array of string values.
+- `key` (String) The label key that the selector applies to.
+- `operator` (String) Operator representing the key's relationship to the values. Valid operators are `In`, `NotIn`, `Exists`, and `DoesNotExist`.
+- `values` (List of String) Array of string values. Must be non-empty for `In`/`NotIn` and must be empty for `Exists`/`DoesNotExist`.
 
 
 
@@ -554,17 +554,17 @@ Read-Only:
 
 Read-Only:
 
-- `match_expressions` (Attributes List) List of label selector requirements. Requirements are ANDed. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--secrets--sources--secrets--match_expressions))
-- `match_labels` (Map of String) Map of label key/value pairs. Requirements are ANDed.
+- `match_expressions` (Attributes List) A list of label selector requirements. Requirements are ANDed. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--secrets--sources--secrets--match_expressions))
+- `match_labels` (Map of String) A map of {key,value} pairs. A single entry is equivalent to a `match_expressions` entry with operator `In` and a single value. Requirements are ANDed.
 
 <a id="nestedatt--argocd--spec--instance_spec--secrets--sources--secrets--match_expressions"></a>
 ### Nested Schema for `argocd.spec.instance_spec.secrets.sources.secrets.match_expressions`
 
 Read-Only:
 
-- `key` (String) The label key.
-- `operator` (String) The relationship between the key and the values. One of `In`, `NotIn`, `Exists`, `DoesNotExist`.
-- `values` (List of String) Array of string values.
+- `key` (String) The label key that the selector applies to.
+- `operator` (String) Operator representing the key's relationship to the values. Valid operators are `In`, `NotIn`, `Exists`, and `DoesNotExist`.
+- `values` (List of String) Array of string values. Must be non-empty for `In`/`NotIn` and must be empty for `Exists`/`DoesNotExist`.
 
 
 

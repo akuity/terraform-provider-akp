@@ -1,10 +1,16 @@
 package types
 
 import (
+	"context"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/structpb"
 	"sigs.k8s.io/yaml"
+
+	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 )
 
 func TestGenerateExpectedKustomization_MergesCustomAndUser(t *testing.T) {
@@ -71,11 +77,11 @@ patches:
 	customOnly := map[string]any{
 		"patches": []any{
 			map[string]any{
-				"patch":  generateAppControllerPatch(custom.ApplicationController),
+				"patch":  generateResourcePatch("argocd-application-controller", custom.ApplicationController.Memory.ValueString(), custom.ApplicationController.Cpu.ValueString()),
 				"target": map[string]string{"kind": "Deployment", "name": "argocd-application-controller"},
 			},
 			map[string]any{
-				"patch":  generateRepoServerPatch(custom.RepoServer),
+				"patch":  generateResourcePatch("argocd-repo-server", custom.RepoServer.Memory.ValueString(), custom.RepoServer.Cpu.ValueString()),
 				"target": map[string]string{"kind": "Deployment", "name": "argocd-repo-server"},
 			},
 		},
@@ -172,7 +178,7 @@ patches: []
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !yamlEqual(user, out) {
+	if !normalizedYAMLEqual(user, out) {
 		t.Fatalf("expected output to equal user input")
 	}
 }
@@ -332,4 +338,60 @@ patches:
 	if !isKustomizationSubset(subset, superset) {
 		t.Fatalf("expected exact same resources patch to be subset")
 	}
+}
+
+// A custom-size cluster's kustomization in state must hold only what the operator
+// wrote. The API echoes the patches generated from custom_agent_size_config; feeding
+// those back as user input made the next apply reject them as conflicting patches.
+func TestClusterUpdate_CustomSizeKustomizationIsNotUserInput(t *testing.T) {
+	custom := &CustomAgentSizeConfig{
+		ApplicationController: &AppControllerCustomAgentSizeConfig{Cpu: tftypes.StringValue("1000m"), Memory: tftypes.StringValue("2Gi")},
+		RepoServer:            &RepoServerCustomAgentSizeConfig{Cpu: tftypes.StringValue("2000m"), Memory: tftypes.StringValue("4Gi"), Replicas: tftypes.Int64Value(3)},
+	}
+	user := "apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\npatches:\n- patch: |\n    apiVersion: apps/v1\n    kind: Deployment\n    metadata:\n      name: argocd-repo-server\n    spec:\n      template:\n        spec:\n          nodeSelector:\n            argocd: \"true\"\n  target:\n    kind: Deployment\n"
+	generated, err := GenerateExpectedKustomization(custom, "")
+	require.NoError(t, err)
+	withUser, err := GenerateExpectedKustomization(custom, user)
+	require.NoError(t, err)
+
+	apiCluster := func(kustomization string) *argocdv1.Cluster {
+		var m map[string]any
+		require.NoError(t, yaml.Unmarshal([]byte(kustomization), &m))
+		k, err := structpb.NewStruct(m)
+		require.NoError(t, err)
+		return &argocdv1.Cluster{Id: "id", Name: "custom", Data: &argocdv1.ClusterData{Namespace: "argocd", Kustomization: k}}
+	}
+
+	for name, tc := range map[string]struct {
+		plan     tftypes.String
+		api      string
+		expected tftypes.String
+	}{
+		"unset kustomization is planned unknown":     {plan: tftypes.StringUnknown(), api: generated, expected: tftypes.StringNull()},
+		"state written before the fix holds patches": {plan: tftypes.StringValue(generated), api: generated, expected: tftypes.StringNull()},
+		"operator kustomization is kept":             {plan: tftypes.StringValue(user), api: withUser, expected: tftypes.StringValue(user)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			plan := &Cluster{Spec: &ClusterSpec{Data: ClusterData{
+				Size: tftypes.StringValue("custom"), CustomAgentSizeConfig: custom, Kustomization: tc.plan,
+			}}}
+			state := &Cluster{}
+			var diags diag.Diagnostics
+			state.Update(context.Background(), &diags, apiCluster(tc.api), plan)
+			require.False(t, diags.HasError(), "%v", diags)
+			require.Equal(t, "custom", state.Spec.Data.Size.ValueString())
+			require.Equal(t, tc.expected, state.Spec.Data.Kustomization)
+		})
+	}
+
+	t.Run("unknown plan never reaches state when the API returns no patches", func(t *testing.T) {
+		plan := &Cluster{Spec: &ClusterSpec{Data: ClusterData{
+			Size: tftypes.StringValue("custom"), CustomAgentSizeConfig: custom, Kustomization: tftypes.StringUnknown(),
+		}}}
+		state := &Cluster{}
+		var diags diag.Diagnostics
+		state.Update(context.Background(), &diags, &argocdv1.Cluster{Id: "id", Name: "custom", Data: &argocdv1.ClusterData{Namespace: "argocd"}}, plan)
+		require.False(t, diags.HasError(), "%v", diags)
+		require.False(t, state.Spec.Data.Kustomization.IsUnknown())
+	})
 }

@@ -28,7 +28,7 @@ func getAKPKargoAgentsDataSourceAttributes() map[string]schema.Attribute {
 			MarkdownDescription: "List of Kargo agents",
 			Computed:            true,
 			NestedObject: schema.NestedAttributeObject{
-				Attributes: getAKPKargoAgentDataSourceAttributes(),
+				Attributes: toDataSourceAttributes(getAKPKargoAgentResourceAttributes()),
 			},
 		},
 	}

@@ -559,7 +559,6 @@ func buildTFObject(
 
 		// Check override
 		if overrides != nil {
-			nestedOverrides := extractNestedMap(overrides, name)
 			if override, ok := overrides[name]; ok {
 				var planAttrVal reflect.Value
 				if planAttrs != nil {
@@ -579,7 +578,6 @@ func buildTFObject(
 					continue
 				}
 			}
-			_ = nestedOverrides
 		}
 
 		// A nested object must be built through buildTFObject with scoped

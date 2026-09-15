@@ -3,6 +3,7 @@ package akp
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -115,7 +116,7 @@ func applyWorkspaceResponse(data *types.Workspace, ws *orgcv1.Workspace) {
 	data.Name = tftypes.StringValue(ws.GetName())
 	data.Description = tftypes.StringValue(ws.GetDescription())
 	if t := ws.GetCreateTime(); t != nil {
-		data.CreateTime = tftypes.StringValue(t.AsTime().Format("2006-01-02T15:04:05Z07:00"))
+		data.CreateTime = tftypes.StringValue(t.AsTime().Format(time.RFC3339))
 	}
 	data.IsDefault = tftypes.BoolValue(ws.GetIsDefault())
 }

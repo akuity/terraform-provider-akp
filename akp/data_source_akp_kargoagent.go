@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 
-	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
 	"github.com/akuity/terraform-provider-akp/akp/types"
 )
 
@@ -25,6 +25,13 @@ func (a *AkpKargoAgentDataSource) Metadata(ctx context.Context, req datasource.M
 	resp.TypeName = req.ProviderTypeName + "_kargo_agent"
 }
 
+func (a *AkpKargoAgentDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		MarkdownDescription: "Gets information about a Kargo agent by its name and Kargo instance ID",
+		Attributes:          toDataSourceAttributes(getAKPKargoAgentResourceAttributes(), "instance_id", "name"),
+	}
+}
+
 func (a *AkpKargoAgentDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	tflog.Debug(ctx, "Reading a Kargo Agent Datasource")
 	var data types.KargoAgent
@@ -34,7 +41,7 @@ func (a *AkpKargoAgentDataSource) Read(ctx context.Context, req datasource.ReadR
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	ctx = httpctx.SetAuthorizationHeader(ctx, a.akpCli.Cred.Scheme(), a.akpCli.Cred.Credential())
+	ctx = a.AuthCtx(ctx)
 	if err := refreshKargoAgentState(ctx, &resp.Diagnostics, a.akpCli, &data, nil); err != nil {
 		resp.Diagnostics.AddError(
 			"Failed to refresh Kargo Agent state",

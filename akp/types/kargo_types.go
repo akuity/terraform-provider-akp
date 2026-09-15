@@ -60,11 +60,6 @@ var (
 	KargoReverseRenamesMap = KargoRenamesMap
 )
 
-type AgentMaps struct {
-	NameToID map[string]string
-	IDToName map[string]string
-}
-
 func (ka *KargoAgent) Update(ctx context.Context, diagnostics *diag.Diagnostics, apiKargoAgent *kargov1.KargoAgent, plan *KargoAgent) {
 	ka.ID = types.StringValue(apiKargoAgent.GetId())
 	ka.Name = types.StringValue(apiKargoAgent.GetName())
@@ -95,7 +90,7 @@ func (ka *KargoAgent) Update(ctx context.Context, diagnostics *diag.Diagnostics,
 	}
 	var planSpec *KargoAgentSpec
 	if plan != nil && plan.Spec != nil {
-		planSpec = DeepCopyKargoAgentSpec(plan.Spec)
+		planSpec = DeepCopy(plan.Spec)
 	}
 
 	apiMap, err := marshal.ProtoToMap(apiKargoAgent)
@@ -158,30 +153,23 @@ func preserveKargoInstanceAutoscalerPlanValues(state, plan *Kargo) {
 // preserveKargoControllerPlanQuantities rewrites state quantities back to the
 // planned spelling whenever the two describe the same quantity.
 func preserveKargoControllerPlanQuantities(state, plan *KargoAutoscalerConfig) {
-	if state == nil || state.KargoController == nil {
+	if state == nil || state.KargoController == nil || plan == nil || plan.KargoController == nil {
 		return
 	}
-	if plan == nil || plan.KargoController == nil {
-		return
-	}
-	ctrl := state.KargoController
-	planCtrl := plan.KargoController
+	preserveKargoResources(state.KargoController.ResourceMinimum, plan.KargoController.ResourceMinimum)
+	preserveKargoResources(state.KargoController.ResourceMaximum, plan.KargoController.ResourceMaximum)
+}
 
-	if ctrl.ResourceMinimum != nil && planCtrl.ResourceMinimum != nil {
-		if areResourcesEquivalent(planCtrl.ResourceMinimum.Mem.ValueString(), ctrl.ResourceMinimum.Mem.ValueString()) {
-			ctrl.ResourceMinimum.Mem = planCtrl.ResourceMinimum.Mem
-		}
-		if areResourcesEquivalent(planCtrl.ResourceMinimum.Cpu.ValueString(), ctrl.ResourceMinimum.Cpu.ValueString()) {
-			ctrl.ResourceMinimum.Cpu = planCtrl.ResourceMinimum.Cpu
-		}
+// preserveKargoResources keeps the planned spelling of quantities equivalent to the state value.
+func preserveKargoResources(state, plan *KargoResources) {
+	if state == nil || plan == nil {
+		return
 	}
-	if ctrl.ResourceMaximum != nil && planCtrl.ResourceMaximum != nil {
-		if areResourcesEquivalent(planCtrl.ResourceMaximum.Mem.ValueString(), ctrl.ResourceMaximum.Mem.ValueString()) {
-			ctrl.ResourceMaximum.Mem = planCtrl.ResourceMaximum.Mem
-		}
-		if areResourcesEquivalent(planCtrl.ResourceMaximum.Cpu.ValueString(), ctrl.ResourceMaximum.Cpu.ValueString()) {
-			ctrl.ResourceMaximum.Cpu = planCtrl.ResourceMaximum.Cpu
-		}
+	if areResourcesEquivalent(plan.Mem.ValueString(), state.Mem.ValueString()) {
+		state.Mem = plan.Mem
+	}
+	if areResourcesEquivalent(plan.Cpu.ValueString(), state.Cpu.ValueString()) {
+		state.Cpu = plan.Cpu
 	}
 }
 
