@@ -7,8 +7,6 @@ import (
 
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
 	orgcv1 "github.com/akuity/api-client-go/pkg/api/gen/organization/v1"
@@ -74,13 +72,9 @@ type fakeKargoCli struct {
 	kargov1.KargoServiceGatewayClient
 
 	allInstances []*kargov1.KargoInstance
-	listErr      error
 }
 
 func (f *fakeKargoCli) ListKargoInstances(context.Context, *kargov1.ListKargoInstancesRequest) (*kargov1.ListKargoInstancesResponse, error) {
-	if f.listErr != nil {
-		return nil, f.listErr
-	}
 	return &kargov1.ListKargoInstancesResponse{Instances: f.allInstances}, nil
 }
 
@@ -161,27 +155,5 @@ func TestResolveKargoAgentWorkspace(t *testing.T) {
 		gotID, gotName = resolveKargoAgentWorkspace(context.Background(), &AkpCli{}, nil)
 		require.Empty(t, gotID)
 		require.Empty(t, gotName)
-	})
-}
-
-func TestCheckAgentIsNotDefaultShard(t *testing.T) {
-	const instanceID = "kargo-instance-1"
-	agent := &tfakptypes.KargoAgent{ID: tftypes.StringValue("agent-1"), InstanceID: tftypes.StringValue(instanceID)}
-	check := func(kargoCli *fakeKargoCli) error {
-		return checkAgentIsNotDefaultShard(context.Background(), &AkpCli{OrgId: "org-1", KargoCli: kargoCli}, agent)
-	}
-
-	t.Run("missing instance skips the check", func(t *testing.T) {
-		require.NoError(t, check(&fakeKargoCli{}))
-	})
-
-	t.Run("default shard agent is rejected", func(t *testing.T) {
-		instances := []*kargov1.KargoInstance{{Id: instanceID, Spec: &kargov1.KargoInstanceSpec{DefaultShardAgent: "agent-1"}}}
-		require.ErrorContains(t, check(&fakeKargoCli{allInstances: instances}), "default shard")
-	})
-
-	t.Run("permission denied is not treated as gone", func(t *testing.T) {
-		err := check(&fakeKargoCli{listErr: status.Error(codes.PermissionDenied, "denied")})
-		require.Equal(t, codes.PermissionDenied, status.Code(err))
 	})
 }

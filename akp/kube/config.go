@@ -3,30 +3,41 @@ package kube
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"github.com/mitchellh/go-homedir"
 	apimachineryschema "k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/akuity/terraform-provider-akp/akp/types"
 )
 
-// expandHome replaces a leading "~" (followed by / or \) with the user's home directory.
-func expandHome(p string) (string, error) {
-	if p != "~" && !strings.HasPrefix(p, "~/") && !strings.HasPrefix(p, `~\`) {
-		return p, nil
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(home, p[1:]), nil
+type Kubectl struct {
+	config        *rest.Config
+	fact          cmdutil.Factory
+	openAPISchema openapi.Resources
+}
+
+// NewKubectl returns a kubectl instance from a rest config
+func NewKubectl(config *rest.Config) (*Kubectl, error) {
+	kubeConfigFlags := genericclioptions.NewConfigFlags(true)
+	kubeConfigFlags.WithWrapConfigFn(func(_ *rest.Config) *rest.Config {
+		return config
+	})
+	matchVersionKubeConfigFlags := cmdutil.NewMatchVersionFlags(kubeConfigFlags)
+	fact := cmdutil.NewFactory(matchVersionKubeConfigFlags)
+	return &Kubectl{
+		config: config,
+		fact:   fact,
+	}, nil
 }
 
 // Adapted github.com/gavinbunney/terraform-provider-kubectl/kubernetes/provider.go functions
@@ -39,13 +50,13 @@ func InitializeConfiguration(ctx context.Context, k *types.Kubeconfig) (*rest.Co
 		configPaths = []string{v}
 	} else if v := k.ConfigPaths.Elements(); len(v) > 0 {
 		for _, p := range v {
-			configPaths = append(configPaths, p.(tftypes.String).ValueString())
+			configPaths = append(configPaths, p.String())
 		}
 	}
 	if len(configPaths) > 0 {
 		expandedPaths := []string{}
 		for _, p := range configPaths {
-			path, err := expandHome(p)
+			path, err := homedir.Expand(p)
 			if err != nil {
 				return nil, err
 			}
@@ -151,6 +162,25 @@ func InitializeConfiguration(ctx context.Context, k *types.Kubeconfig) (*rest.Co
 	}
 	cfg.QPS = 100.0
 	cfg.Burst = 100
-	cfg.UserAgent = fieldManager
+
+	// Overriding with static configuration
+	terraformVersion := "unknown"
+	cfg.UserAgent = fmt.Sprintf("HashiCorp/1.0 Terraform/%s", terraformVersion)
 	return cfg, nil
+}
+
+func (k *Kubectl) OpenAPISchema() (openapi.Resources, error) {
+	if k.openAPISchema != nil {
+		return k.openAPISchema, nil
+	}
+	disco, err := discovery.NewDiscoveryClientForConfig(k.config)
+	if err != nil {
+		return nil, err
+	}
+	openAPISchema, err := openapi.NewOpenAPIParser(openapi.NewOpenAPIGetter(disco)).Parse()
+	if err != nil {
+		return nil, err
+	}
+	k.openAPISchema = openAPISchema
+	return k.openAPISchema, nil
 }

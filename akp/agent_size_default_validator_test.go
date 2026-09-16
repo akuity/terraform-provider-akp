@@ -80,6 +80,7 @@ func runAgentSizeDefaultValidator(t *testing.T, defaults tftypes.Value) resource
 	t.Helper()
 	v := agentSizeDefaultValidator{
 		defaultsPath: path.Root("defaults"),
+		autoSize:     "auto",
 	}
 	var resp resource.ValidateConfigResponse
 	v.ValidateResource(

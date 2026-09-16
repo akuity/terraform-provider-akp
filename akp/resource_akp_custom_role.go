@@ -3,8 +3,10 @@ package akp
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"google.golang.org/grpc/codes"
@@ -16,13 +18,41 @@ import (
 
 func NewAkpCustomRoleResource() resource.Resource {
 	return &GenericResource[types.CustomRole]{
-		TypeNameSuffix:  "custom_role",
-		SchemaFunc:      customRoleSchema,
-		CreateFunc:      customRoleCreate,
-		ReadFunc:        customRoleRead,
-		UpdateFunc:      customRoleUpdate,
-		DeleteFunc:      customRoleDelete,
-		ImportStateFunc: importScopedID,
+		TypeNameSuffix: "custom_role",
+		SchemaFunc:     customRoleSchema,
+		CreateFunc:     customRoleCreate,
+		ReadFunc:       customRoleRead,
+		UpdateFunc:     customRoleUpdate,
+		DeleteFunc:     customRoleDelete,
+		ImportStateFunc: func(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+			// Import IDs:
+			//   org-scoped:       <custom_role_id>
+			//   workspace-scoped: <workspace_name>/<custom_role_id>
+			parts := strings.Split(req.ID, "/")
+			badID := func() {
+				resp.Diagnostics.AddError(
+					"Unexpected Import Identifier",
+					fmt.Sprintf("Expected `custom_role_id` or `workspace_name/custom_role_id`. Got: %q", req.ID),
+				)
+			}
+			switch len(parts) {
+			case 1:
+				if parts[0] == "" {
+					badID()
+					return
+				}
+				resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), parts[0])...)
+			case 2:
+				if parts[0] == "" || parts[1] == "" {
+					badID()
+					return
+				}
+				resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("workspace"), parts[0])...)
+				resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), parts[1])...)
+			default:
+				badID()
+			}
+		},
 	}
 }
 

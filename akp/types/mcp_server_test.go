@@ -54,7 +54,7 @@ func TestBuildStateFromAPI_MCPServerEnabledFollowsAPI(t *testing.T) {
 	for name, tc := range cases {
 		t.Run("argocd/"+name, func(t *testing.T) {
 			plan := &ArgoCD{Spec: ArgoCDSpec{InstanceSpec: InstanceSpec{McpServer: tc.prior}}}
-			state := DeepCopy(plan)
+			state := DeepCopyArgoCD(plan)
 			apiMap := map[string]any{"spec": map[string]any{"instanceSpec": tc.api}}
 
 			var diags diag.Diagnostics
@@ -71,7 +71,7 @@ func TestBuildStateFromAPI_MCPServerEnabledFollowsAPI(t *testing.T) {
 		})
 		t.Run("kargo/"+name, func(t *testing.T) {
 			plan := &Kargo{Spec: KargoSpec{KargoInstanceSpec: KargoInstanceSpec{McpServer: tc.prior}}}
-			state := DeepCopy(plan)
+			state := DeepCopyKargo(plan)
 			apiMap := map[string]any{"spec": map[string]any{"kargoInstanceSpec": tc.api}}
 
 			var diags diag.Diagnostics

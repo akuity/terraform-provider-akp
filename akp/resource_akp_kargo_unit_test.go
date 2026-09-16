@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/structpb"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
 )
@@ -15,7 +16,9 @@ import (
 // without this entry, isKargoResourceValid would reject the kind as "unsupported" and
 // TF apply would fail for users declaring a CustomPromotionStep in their manifests.
 func TestKargoSupportedGroupKinds_CustomPromotionStep(t *testing.T) {
-	require.Equal(t, "ee.kargo.akuity.io", kargoResourceGroups["CustomPromotionStep"].group)
+	gk := schema.GroupKind{Group: "ee.kargo.akuity.io", Kind: "CustomPromotionStep"}
+	_, ok := kargoSupportedGroupKinds[gk]
+	require.True(t, ok, "CustomPromotionStep missing from kargoSupportedGroupKinds")
 
 	un := &unstructured.Unstructured{}
 	un.SetUnstructuredContent(map[string]any{
@@ -37,7 +40,7 @@ func TestKargoResourceGroups_CustomPromotionStep(t *testing.T) {
 	require.NoError(t, err)
 
 	req := &kargov1.ApplyKargoInstanceRequest{}
-	*g.slice(req) = append(*g.slice(req), s)
+	g.appendFunc(req, s)
 	assert.Equal(t, []*structpb.Struct{s}, req.CustomPromotionSteps)
 }
 
@@ -45,7 +48,9 @@ func TestKargoResourceGroups_CustomPromotionStep(t *testing.T) {
 // support: without this entry, isKargoResourceValid would reject ClusterConfig as
 // "unsupported" and TF apply would fail for users declaring one in kargo_resources.
 func TestKargoSupportedGroupKinds_ClusterConfig(t *testing.T) {
-	require.Equal(t, "kargo.akuity.io", kargoResourceGroups["ClusterConfig"].group)
+	gk := schema.GroupKind{Group: "kargo.akuity.io", Kind: "ClusterConfig"}
+	_, ok := kargoSupportedGroupKinds[gk]
+	require.True(t, ok, "ClusterConfig missing from kargoSupportedGroupKinds")
 
 	un := &unstructured.Unstructured{}
 	un.SetUnstructuredContent(map[string]any{
@@ -66,6 +71,6 @@ func TestKargoResourceGroups_ClusterConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	req := &kargov1.ApplyKargoInstanceRequest{}
-	*g.slice(req) = append(*g.slice(req), s)
+	g.appendFunc(req, s)
 	assert.Equal(t, []*structpb.Struct{s}, req.ClusterConfigs)
 }

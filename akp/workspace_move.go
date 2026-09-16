@@ -2,10 +2,9 @@ package akp
 
 import (
 	"context"
-	"errors"
-	"fmt"
 
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -25,7 +24,7 @@ func ensureInstanceWorkspace(ctx context.Context, client argocdv1.ArgoCDServiceG
 		}
 		instance := getResp.GetInstance()
 		if instance == nil {
-			return nil, errors.New("getInstance response did not include an instance")
+			return nil, errors.New("GetInstance response did not include an instance")
 		}
 		current := instance.GetWorkspaceId()
 		if workspaceMoveNotNeeded(current, workspace) {
@@ -40,7 +39,7 @@ func ensureInstanceWorkspace(ctx context.Context, client argocdv1.ArgoCDServiceG
 		})
 	}, "EnsureInstanceWorkspace")
 	if err != nil {
-		return moveAttempted, fmt.Errorf("unable to move Argo CD instance to workspace %q: %w", workspace.GetName(), err)
+		return moveAttempted, errors.Wrapf(err, "Unable to move Argo CD instance to workspace %q", workspace.GetName())
 	}
 	return moveAttempted, nil
 }
@@ -64,7 +63,7 @@ func ensureKargoInstanceWorkspace(ctx context.Context, client kargov1.KargoServi
 		}
 		instance := getResp.GetInstance()
 		if instance == nil {
-			return nil, errors.New("kargo instance lookup did not include an instance")
+			return nil, errors.New("Kargo instance lookup did not include an instance")
 		}
 		current := instance.GetWorkspaceId()
 		if workspaceMoveNotNeeded(current, workspace) {
@@ -79,7 +78,7 @@ func ensureKargoInstanceWorkspace(ctx context.Context, client kargov1.KargoServi
 		})
 	}, "EnsureKargoInstanceWorkspace")
 	if err != nil {
-		return moveAttempted, fmt.Errorf("unable to move Kargo instance to workspace %q: %w", workspace.GetName(), err)
+		return moveAttempted, errors.Wrapf(err, "Unable to move Kargo instance to workspace %q", workspace.GetName())
 	}
 	return moveAttempted, nil
 }
@@ -129,13 +128,13 @@ func workspaceStateFromAPI(
 	workspace, err := getWorkspaceByID(ctx, client, orgID, workspaceID)
 	if err != nil {
 		if strict {
-			return current, fmt.Errorf("unable to resolve workspace ID %q after apply: %w", workspaceID, err)
+			return current, errors.Wrapf(err, "unable to resolve workspace ID %q after apply", workspaceID)
 		}
 		return current, nil
 	}
 	if workspace == nil {
 		if strict {
-			return current, fmt.Errorf("workspace lookup for ID %q returned no workspace", workspaceID)
+			return current, errors.Errorf("workspace lookup for ID %q returned no workspace", workspaceID)
 		}
 		return current, nil
 	}
