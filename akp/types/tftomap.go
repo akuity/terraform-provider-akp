@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/json"
 	"reflect"
 	"strings"
 	"unicode"
@@ -101,7 +102,11 @@ func yamlStringToObject() FieldOverride {
 			return map[string]any{}, true
 		}
 		var obj map[string]any
-		if err := yaml.Unmarshal([]byte(v.ValueString()), &obj); err != nil {
+		jsonBytes, err := yaml.YAMLToJSON([]byte(v.ValueString()))
+		if err != nil {
+			return nil, false
+		}
+		if err := json.Unmarshal(jsonBytes, &obj); err != nil {
 			return nil, false
 		}
 		if len(obj) == 0 {
@@ -301,10 +306,40 @@ func convertFieldWithOverrides(fieldVal reflect.Value, overrides overrideMap, re
 }
 
 func convertField(fieldVal reflect.Value) (any, bool) {
-	if av, ok := fieldVal.Interface().(attr.Value); ok {
-		return convertAttrValue(av)
+	iface := fieldVal.Interface()
+
+	switch v := iface.(type) {
+	case types.String:
+		if v.IsNull() || v.IsUnknown() {
+			return nil, false
+		}
+		return v.ValueString(), true
+	case types.Bool:
+		if v.IsNull() || v.IsUnknown() {
+			return nil, false
+		}
+		return v.ValueBool(), true
+	case types.Int64:
+		if v.IsNull() || v.IsUnknown() {
+			return nil, false
+		}
+		return v.ValueInt64(), true
+	case types.Float64:
+		if v.IsNull() || v.IsUnknown() {
+			return nil, false
+		}
+		return v.ValueFloat64(), true
+	case types.Object:
+		return convertObject(v)
+	case types.List:
+		return convertList(v)
+	case types.Set:
+		return convertSet(v)
+	case types.Map:
+		return convertMap(v)
+	default:
+		return convertReflect(fieldVal)
 	}
-	return convertReflect(fieldVal)
 }
 
 func convertObject(obj types.Object) (any, bool) {
@@ -318,6 +353,34 @@ func convertObject(obj types.Object) (any, bool) {
 			continue
 		}
 		result[SnakeToCamel(name)] = converted
+	}
+	return result, true
+}
+
+func convertList(list types.List) (any, bool) {
+	if list.IsNull() || list.IsUnknown() {
+		return nil, false
+	}
+	result := make([]any, 0)
+	for _, elem := range list.Elements() {
+		converted, ok := convertAttrValue(elem)
+		if ok {
+			result = append(result, converted)
+		}
+	}
+	return result, true
+}
+
+func convertSet(set types.Set) (any, bool) {
+	if set.IsNull() || set.IsUnknown() {
+		return nil, false
+	}
+	result := make([]any, 0)
+	for _, elem := range set.Elements() {
+		converted, ok := convertAttrValue(elem)
+		if ok {
+			result = append(result, converted)
+		}
 	}
 	return result, true
 }
@@ -337,39 +400,38 @@ func convertMap(m types.Map) (any, bool) {
 }
 
 func convertAttrValue(val attr.Value) (any, bool) {
-	if val == nil || val.IsNull() || val.IsUnknown() {
-		return nil, false
-	}
 	switch v := val.(type) {
 	case types.String:
+		if v.IsNull() || v.IsUnknown() {
+			return nil, false
+		}
 		return v.ValueString(), true
 	case types.Bool:
+		if v.IsNull() || v.IsUnknown() {
+			return nil, false
+		}
 		return v.ValueBool(), true
 	case types.Int64:
+		if v.IsNull() || v.IsUnknown() {
+			return nil, false
+		}
 		return v.ValueInt64(), true
 	case types.Float64:
+		if v.IsNull() || v.IsUnknown() {
+			return nil, false
+		}
 		return v.ValueFloat64(), true
 	case types.Object:
 		return convertObject(v)
 	case types.List:
-		return convertElements(v.Elements()), true
+		return convertList(v)
 	case types.Set:
-		return convertElements(v.Elements()), true
+		return convertSet(v)
 	case types.Map:
 		return convertMap(v)
 	default:
 		return nil, false
 	}
-}
-
-func convertElements(elems []attr.Value) []any {
-	result := make([]any, 0, len(elems))
-	for _, elem := range elems {
-		if converted, ok := convertAttrValue(elem); ok {
-			result = append(result, converted)
-		}
-	}
-	return result
 }
 
 func convertReflect(v reflect.Value) (any, bool) {

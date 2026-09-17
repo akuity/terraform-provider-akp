@@ -2,7 +2,6 @@ package akp
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -14,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -28,12 +28,24 @@ import (
 	"github.com/akuity/terraform-provider-akp/akp/types"
 )
 
-type argoApplyReq = *argocdv1.ApplyInstanceRequest
-
-var argoResourceGroups = map[string]resourceGroup[argoApplyReq]{
-	"Application":    {"argoproj.io", func(r argoApplyReq) *[]*structpb.Struct { return &r.Applications }},
-	"ApplicationSet": {"argoproj.io", func(r argoApplyReq) *[]*structpb.Struct { return &r.ApplicationSets }},
-	"AppProject":     {"argoproj.io", func(r argoApplyReq) *[]*structpb.Struct { return &r.AppProjects }},
+var argoResourceGroups = map[string]struct {
+	appendFunc resourceGroupAppender[*argocdv1.ApplyInstanceRequest]
+}{
+	"Application": {
+		appendFunc: func(req *argocdv1.ApplyInstanceRequest, item *structpb.Struct) {
+			req.Applications = append(req.Applications, item)
+		},
+	},
+	"ApplicationSet": {
+		appendFunc: func(req *argocdv1.ApplyInstanceRequest, item *structpb.Struct) {
+			req.ApplicationSets = append(req.ApplicationSets, item)
+		},
+	},
+	"AppProject": {
+		appendFunc: func(req *argocdv1.ApplyInstanceRequest, item *structpb.Struct) {
+			req.AppProjects = append(req.AppProjects, item)
+		},
+	},
 }
 
 func NewAkpInstanceResource() resource.Resource {
@@ -48,11 +60,14 @@ func NewAkpInstanceResource() resource.Resource {
 		ImportStateFunc: func(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 			resource.ImportStatePassthroughID(ctx, path.Root("name"), req, resp)
 		},
-		Validators: []resource.ConfigValidator{
-			agentSizeDefaultValidator{
-				defaultsPath: path.Root("argocd").AtName("spec").
-					AtName("instance_spec").AtName("cluster_customization_defaults"),
-			},
+		ConfigValidatorsFunc: func() []resource.ConfigValidator {
+			return []resource.ConfigValidator{
+				agentSizeDefaultValidator{
+					defaultsPath: path.Root("argocd").AtName("spec").
+						AtName("instance_spec").AtName("cluster_customization_defaults"),
+					autoSize: "auto",
+				},
+			}
 		},
 	}
 }
@@ -136,7 +151,7 @@ func createAddedManagedSecrets(ctx context.Context, cli *AkpCli, diags *diag.Dia
 	}
 	workspace, err := getWorkspace(ctx, cli.OrgCli, cli.OrgId, state.Workspace.ValueString())
 	if err != nil {
-		return nil, fmt.Errorf("unable to get workspace for managed secret changes: %w", err)
+		return nil, errors.Wrap(err, "Unable to get workspace for managed secret changes")
 	}
 	return syncManagedSecrets(ctx, cli, diags, state.ID.ValueString(), workspace.GetId(), nil, added)
 }
@@ -171,7 +186,7 @@ func applyManagedSecretChanges(ctx context.Context, cli *AkpCli, diags *diag.Dia
 	workspace, err := getWorkspace(ctx, cli.OrgCli, cli.OrgId, result.Workspace.ValueString())
 	if err != nil {
 		result.ManagedSecrets = tracked
-		return result, fmt.Errorf("unable to get workspace for managed secret changes: %w", err)
+		return result, errors.Wrap(err, "Unable to get workspace for managed secret changes")
 	}
 	synced, syncErr := syncManagedSecrets(ctx, cli, diags, result.ID.ValueString(), workspace.GetId(), stateSecrets, pending)
 	maps.Copy(synced, created)
@@ -199,7 +214,7 @@ func syncManagedSecrets(ctx context.Context, cli *AkpCli, diags *diag.Diagnostic
 		}
 		upsert := types.ToManagedSecretUpsertAPIModel(ctx, diags, name, secret)
 		if diags.HasError() || upsert == nil {
-			return current, fmt.Errorf("unable to build managed secret %q", name)
+			return current, errors.Errorf("Unable to build managed secret %q", name)
 		}
 		var err error
 		created := false
@@ -208,13 +223,14 @@ func syncManagedSecrets(ctx context.Context, cli *AkpCli, diags *diag.Diagnostic
 			if stateSecret.DataVersion.Equal(secret.DataVersion) {
 				metadataOnly := *upsert
 				metadataOnly.Data = nil
+				metadataOnly.ClearData = false
 				update = &metadataOnly
 			}
-			if update.ClearData() {
+			if update.ClearData {
 				if existingKeys == nil {
 					existingKeys, err = listManagedSecretKeys(ctx, cli, instanceID, workspaceID)
 					if err != nil {
-						return current, fmt.Errorf("unable to list managed secrets: %w", err)
+						return current, errors.Wrap(err, "Unable to list managed secrets")
 					}
 				}
 				err = patchManagedSecretClearData(ctx, cli, instanceID, workspaceID, update, existingKeys[name])
@@ -228,30 +244,27 @@ func syncManagedSecrets(ctx context.Context, cli *AkpCli, diags *diag.Diagnostic
 		} else {
 			err = createManagedSecret(ctx, cli, instanceID, workspaceID, upsert)
 			if status.Code(err) == codes.AlreadyExists {
-				return current, fmt.Errorf("secret %q already exists and is not tracked by this resource; existing secrets are not adopted, delete the existing secret or use a different name: %w", name, err)
+				return current, errors.Wrapf(err, "secret %q already exists and is not tracked by this resource; existing secrets are not adopted — delete the existing secret or use a different name", name)
 			}
 			created = err == nil
 		}
-		if created && upsert.ClearData() {
+		if created && upsert.ClearData {
 			existingKeys, err = listManagedSecretKeys(ctx, cli, instanceID, workspaceID)
 			if err != nil {
-				return current, fmt.Errorf("unable to list managed secrets: %w", err)
+				return current, errors.Wrap(err, "Unable to list managed secrets")
 			}
 			if len(existingKeys[name]) > 0 {
 				err = patchManagedSecretClearData(ctx, cli, instanceID, workspaceID, upsert, existingKeys[name])
 			}
 		}
 		if err != nil {
-			return current, fmt.Errorf("unable to apply managed secret %q: %w", name, err)
+			return current, errors.Wrapf(err, "Unable to apply managed secret %q", name)
 		}
 		sanitized := *secret
 		sanitized.Data = tftypes.MapNull(tftypes.StringType)
 		current[name] = &sanitized
 	}
-	for _, name := range slices.Sorted(maps.Keys(state)) {
-		if state[name] == nil || plan[name] != nil {
-			continue
-		}
+	for _, name := range removedManagedSecretNames(state, plan) {
 		if err := deleteManagedSecret(ctx, cli, instanceID, workspaceID, name); err != nil {
 			return current, err
 		}
@@ -328,6 +341,21 @@ func listManagedSecretKeys(ctx context.Context, cli *AkpCli, instanceID, workspa
 	return keys, nil
 }
 
+func removedManagedSecretNames(state, plan map[string]*types.ManagedSecret) []string {
+	var names []string
+	for name, secret := range state {
+		if secret == nil {
+			continue
+		}
+		plannedSecret, ok := plan[name]
+		if !ok || plannedSecret == nil {
+			names = append(names, name)
+		}
+	}
+	slices.Sort(names)
+	return names
+}
+
 func deleteManagedSecret(ctx context.Context, cli *AkpCli, instanceID, workspaceID, name string) error {
 	_, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.DeleteManagedSecretResponse, error) {
 		return cli.Cli.DeleteManagedSecret(ctx, &argocdv1.DeleteManagedSecretRequest{
@@ -338,7 +366,7 @@ func deleteManagedSecret(ctx context.Context, cli *AkpCli, instanceID, workspace
 		})
 	}, "DeleteManagedSecret")
 	if err != nil {
-		return fmt.Errorf("unable to delete managed secret %q: %w", name, err)
+		return errors.Wrapf(err, "Unable to delete managed secret %q", name)
 	}
 	return nil
 }
@@ -418,12 +446,12 @@ func instanceUpsert(ctx context.Context, cli *AkpCli, diagnostics *diag.Diagnost
 			workspace, err := getWorkspace(ctx, cli.OrgCli, cli.OrgId, plan.Workspace.ValueString())
 			if err != nil {
 				diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get workspace. %s", err))
-				return false, errors.New("unable to get workspace")
+				return false, errors.New("Unable to get workspace")
 			}
 
 			apiReq := buildApplyRequest(ctx, diagnostics, plan, cli.OrgId, workspace.GetId())
 			if diagnostics.HasError() {
-				return false, errors.New("unable to build Argo CD instance request")
+				return false, errors.New("Unable to build Argo CD instance request")
 			}
 			tflog.Debug(ctx, fmt.Sprintf("Apply instance request: %s", apiReq.Argocd))
 			_, err = retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.ApplyInstanceResponse, error) {
@@ -432,7 +460,7 @@ func instanceUpsert(ctx context.Context, cli *AkpCli, diagnostics *diag.Diagnost
 			if err != nil {
 				// Export cannot reconstruct write-only fields such as secrets. Do
 				// not commit the planned state unless the full apply succeeded.
-				return false, fmt.Errorf("unable to upsert Argo CD instance: %w", err)
+				return false, errors.Wrap(err, "Unable to upsert Argo CD instance")
 			}
 
 			// ApplyInstance only honors workspace_id when creating an instance;
@@ -641,7 +669,7 @@ func refreshStateWithWorkspaceMode(ctx context.Context, diagnostics *diag.Diagno
 		return cli.Cli.GetInstance(ctx, getInstanceReq)
 	}, "GetInstance")
 	if err != nil {
-		return fmt.Errorf("unable to read Argo CD instance: %w", err)
+		return errors.Wrap(err, "Unable to read Argo CD instance")
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Get instance response: %s", getInstanceResp))
 	instance.ID = tftypes.StringValue(getInstanceResp.Instance.Id)
@@ -671,7 +699,7 @@ func refreshStateWithWorkspaceMode(ctx context.Context, diagnostics *diag.Diagno
 		return argocdexport.ExportInstance(ctx, cli.Cli, exportReq)
 	}, "ExportInstance")
 	if err != nil {
-		return fmt.Errorf("unable to export Argo CD instance: %w", err)
+		return errors.Wrap(err, "Unable to export Argo CD instance")
 	}
 	if err := instance.Update(ctx, diagnostics, exportResp, isDataSource); err != nil {
 		return err
@@ -694,15 +722,12 @@ func refreshManagedSecrets(ctx context.Context, diagnostics *diag.Diagnostics, c
 		})
 	}, "ListInstanceManagedSecrets")
 	if err != nil {
-		return fmt.Errorf("unable to list managed secrets: %w", err)
+		return errors.Wrap(err, "Unable to list managed secrets")
 	}
 	instance.ManagedSecrets = types.ToManagedSecretsTFModel(ctx, diagnostics, instance.ManagedSecrets, resp.GetManagedSecrets())
 	return nil
 }
 
 func isArgoResourceValid(un *unstructured.Unstructured) error {
-	if un != nil && un.GetAPIVersion() != "argoproj.io/v1alpha1" {
-		return errors.New("unsupported apiVersion")
-	}
-	return validateResource(un, argoResourceGroups)
+	return validateResource(un, "argoproj.io/v1alpha1", argoResourceGroups)
 }

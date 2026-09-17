@@ -2,8 +2,8 @@ package akp
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -24,14 +25,29 @@ import (
 
 func NewAkpKargoAgentResource() resource.Resource {
 	return &GenericResource[types.KargoAgent]{
-		TypeNameSuffix:  "kargo_agent",
-		SchemaFunc:      kargoAgentSchema,
-		CreateFunc:      kargoAgentCreate,
-		ReadFunc:        kargoAgentRead,
-		UpdateFunc:      kargoAgentUpdate,
-		DeleteFunc:      kargoAgentDelete,
-		ImportStateFunc: importSplitID("instance_id", "name"),
-		Validators:      []resource.ConfigValidator{kargoAgentConfigValidator{}},
+		TypeNameSuffix: "kargo_agent",
+		SchemaFunc:     kargoAgentSchema,
+		CreateFunc:     kargoAgentCreate,
+		ReadFunc:       kargoAgentRead,
+		UpdateFunc:     kargoAgentUpdate,
+		DeleteFunc:     kargoAgentDelete,
+		ImportStateFunc: func(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+			idParts := strings.Split(req.ID, "/")
+			if len(idParts) != 2 || idParts[0] == "" || idParts[1] == "" {
+				resp.Diagnostics.AddError(
+					"Unexpected Import Identifier",
+					fmt.Sprintf("Expected import identifier with format: instance_id/name. Got: %q", req.ID),
+				)
+				return
+			}
+			resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("instance_id"), idParts[0])...)
+			resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("name"), idParts[1])...)
+		},
+		ConfigValidatorsFunc: func() []resource.ConfigValidator {
+			return []resource.ConfigValidator{
+				kargoAgentConfigValidator{},
+			}
+		},
 	}
 }
 
@@ -58,7 +74,7 @@ func kargoAgentDelete(ctx context.Context, cli *AkpCli, _ *diag.Diagnostics, pla
 
 	workspaceID, _ := resolveKargoAgentWorkspace(ctx, cli, plan)
 
-	if err := checkAgentIsNotDefaultShard(ctx, cli, plan); err != nil {
+	if err := checkAgentIsNotDefaultShard(ctx, cli, plan, workspaceID); err != nil {
 		return err
 	}
 
@@ -84,7 +100,8 @@ func kargoAgentDelete(ctx context.Context, cli *AkpCli, _ *diag.Diagnostics, pla
 
 	err = deleteWithCooldown(ctx, func(ctx context.Context) (*kargov1.DeleteInstanceAgentResponse, error) {
 		resp, err := cli.KargoCli.DeleteInstanceAgent(ctx, apiReq)
-		if isGoneErr(err) {
+		// Treat NotFound and PermissionDenied as successful deletes
+		if err != nil && (status.Code(err) == codes.NotFound || status.Code(err) == codes.PermissionDenied) {
 			return resp, nil
 		}
 		return resp, err
@@ -104,7 +121,7 @@ func kargoAgentUpsert(ctx context.Context, cli *AkpCli, diagnostics *diag.Diagno
 	workspace, err := getWorkspace(ctx, cli.OrgCli, cli.OrgId, plan.Workspace.ValueString())
 	if err != nil {
 		diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get workspace. %s", err))
-		return nil, errors.New("unable to get workspace")
+		return nil, errors.New("Unable to get workspace")
 	}
 	apiReq := buildKargoAgentApplyRequest(ctx, diagnostics, plan, cli.OrgId, workspace.Id)
 	if diagnostics.HasError() {
@@ -122,7 +139,7 @@ func kargoAgentUpsert(ctx context.Context, cli *AkpCli, diagnostics *diag.Diagno
 	if plan.Workspace.ValueString() == "" {
 		plan.Workspace = tftypes.StringValue(workspace.GetName())
 	}
-	if err := autoSetDefaultShardAgent(ctx, cli, result); err != nil {
+	if err := autoSetDefaultShardAgent(ctx, cli, result, workspace.Id); err != nil {
 		tflog.Warn(ctx, fmt.Sprintf("Failed to auto-set defaultShardAgent: %s", err))
 	}
 
@@ -227,11 +244,25 @@ func refreshKargoAgentState(ctx context.Context, diagnostics *diag.Diagnostics, 
 	agentID := kargoAgent.ID.ValueString()
 
 	if agentID == "" {
-		agent, err := findKargoAgentByName(ctx, cli.KargoCli, cli.OrgId, kargoAgent.InstanceID.ValueString(), workspaceID, kargoAgent.Name.ValueString())
+		agents, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ListKargoInstanceAgentsResponse, error) {
+			return cli.KargoCli.ListKargoInstanceAgents(ctx, &kargov1.ListKargoInstanceAgentsRequest{
+				OrganizationId: cli.OrgId,
+				InstanceId:     kargoAgent.InstanceID.ValueString(),
+				WorkspaceId:    workspaceID,
+			})
+		}, "ListKargoInstanceAgents")
 		if err != nil {
-			return err
+			return errors.Wrap(err, "Unable to list Kargo agents")
 		}
-		agentID = agent.GetId()
+		for _, a := range agents.GetAgents() {
+			if a.GetName() == kargoAgent.Name.ValueString() {
+				agentID = a.GetId()
+				break
+			}
+		}
+		if agentID == "" {
+			return status.Error(codes.NotFound, "Kargo agent not found")
+		}
 	}
 
 	resp, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.GetKargoInstanceAgentResponse, error) {
@@ -243,7 +274,7 @@ func refreshKargoAgentState(ctx context.Context, diagnostics *diag.Diagnostics, 
 		})
 	}, "GetKargoInstanceAgent")
 	if err != nil {
-		return fmt.Errorf("unable to read Kargo agent: %w", err)
+		return errors.Wrap(err, "Unable to read Kargo agent")
 	}
 	if resp.GetAgent() == nil {
 		return status.Error(codes.NotFound, "Kargo agent not found")
@@ -261,7 +292,7 @@ func refreshKargoAgentState(ctx context.Context, diagnostics *diag.Diagnostics, 
 
 // resolveKargoAgentWorkspace picks the workspace to use for Kargo agent calls.
 // It prefers the workspace name already stored on the agent (from state or
-// plan) and resolves it by name, falling back to the instance's own workspace
+// plan) and resolves it by name, falling back to resolveKargoInstanceWorkspace
 // only when the name is absent — typically during `terraform import`, which
 // seeds the resource with instance_id/name only.
 func resolveKargoAgentWorkspace(ctx context.Context, cli *AkpCli, kargoAgent *types.KargoAgent) (string, string) {
@@ -296,40 +327,30 @@ func resolveKargoInstanceWorkspace(ctx context.Context, cli *AkpCli, instanceID 
 	if cli == nil || cli.OrgCli == nil || cli.KargoCli == nil || instanceID == "" {
 		return "", ""
 	}
-	instance, err := getKargoInstanceByID(ctx, cli, instanceID)
-	if err != nil {
-		tflog.Warn(ctx, fmt.Sprintf("Unable to resolve Kargo instance workspace: %s", err))
-		return "", ""
-	}
-	if instance.GetWorkspaceId() == "" {
-		return "", ""
-	}
-	workspace, err := getWorkspaceByID(ctx, cli.OrgCli, cli.OrgId, instance.GetWorkspaceId())
-	if err != nil {
-		tflog.Warn(ctx, fmt.Sprintf("Unable to resolve Kargo instance workspace: %s", err))
-		return "", ""
-	}
-	return workspace.GetId(), workspace.GetName()
-}
 
-// findKargoAgentByName returns the instance's agent called name, or a NotFound status.
-func findKargoAgentByName(ctx context.Context, client kargov1.KargoServiceGatewayClient, orgID, instanceID, workspaceID, name string) (*kargov1.KargoAgent, error) {
-	agents, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ListKargoInstanceAgentsResponse, error) {
-		return client.ListKargoInstanceAgents(ctx, &kargov1.ListKargoInstanceAgentsRequest{
-			OrganizationId: orgID,
-			InstanceId:     instanceID,
-			WorkspaceId:    workspaceID,
+	instancesResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ListKargoInstancesResponse, error) {
+		return cli.KargoCli.ListKargoInstances(ctx, &kargov1.ListKargoInstancesRequest{
+			OrganizationId: cli.OrgId,
 		})
-	}, "ListKargoInstanceAgents")
+	}, "ListKargoInstances")
 	if err != nil {
-		return nil, fmt.Errorf("unable to list Kargo agents: %w", err)
+		tflog.Warn(ctx, fmt.Sprintf("Unable to resolve Kargo instance workspace: %s", err))
+		return "", ""
 	}
-	for _, a := range agents.GetAgents() {
-		if a.GetName() == name {
-			return a, nil
+
+	for _, instance := range instancesResp.GetInstances() {
+		if instance.GetId() != instanceID || instance.GetWorkspaceId() == "" {
+			continue
 		}
+		ws, err := getWorkspaceByID(ctx, cli.OrgCli, cli.OrgId, instance.GetWorkspaceId())
+		if err != nil {
+			tflog.Warn(ctx, fmt.Sprintf("Unable to resolve Kargo instance workspace %q: %s", instance.GetWorkspaceId(), err))
+			return "", ""
+		}
+		return ws.GetId(), ws.GetName()
 	}
-	return nil, status.Errorf(codes.NotFound, "Kargo agent %q not found", name)
+
+	return "", ""
 }
 
 // hydrateKargoAgentFieldsFromGet fills fields that Update leaves empty (e.g. on
@@ -410,12 +431,27 @@ func buildKargoAgents(ctx context.Context, diagnostics *diag.Diagnostics, kargoA
 }
 
 func pruneNormalizedEmptyKargoAgentFields(rawMap map[string]any) {
-	pruneNormalizedEmptyFields(rawMap, "argocdNamespace", "maintenanceModeExpiry")
+	if rawMap == nil {
+		return
+	}
+
+	dataMap, _ := rawMap["data"].(map[string]any)
+	if len(dataMap) == 0 {
+		return
+	}
+
+	// The control plane normalizes these fields away instead of persisting an
+	// empty string. Omitting them from apply payloads prevents later updates
+	// from sending invalid empty values back to the API.
+	for _, key := range []string{"argocdNamespace", "maintenanceModeExpiry"} {
+		if value, ok := dataMap[key].(string); ok && value == "" {
+			delete(dataMap, key)
+		}
+	}
 
 	// The control plane rejects `size` for Akuity-managed agents because the
 	// size is owned by AIMS. Drop it so reads from state (which may carry a
 	// server-computed size) do not leak back into apply payloads.
-	dataMap, _ := rawMap["data"].(map[string]any)
 	if akuityManaged, _ := dataMap["akuityManaged"].(bool); akuityManaged {
 		delete(dataMap, "size")
 	}
@@ -432,19 +468,59 @@ func (v kargoAgentConfigValidator) MarkdownDescription(ctx context.Context) stri
 }
 
 func (v kargoAgentConfigValidator) ValidateResource(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
-	data, ok := configDataAttributes(ctx, req, resp)
-	if !ok {
+	dataPath := path.Root("spec").AtName("data")
+
+	var data tftypes.Object
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, dataPath, &data)...)
+	if resp.Diagnostics.HasError() || data.IsNull() || data.IsUnknown() {
 		return
 	}
+
+	var argocdNamespace tftypes.String
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, dataPath.AtName("argocd_namespace"), &argocdNamespace)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	var remoteArgocd tftypes.String
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, dataPath.AtName("remote_argocd"), &remoteArgocd)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	var akuityManaged tftypes.Bool
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, dataPath.AtName("akuity_managed"), &akuityManaged)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	var maintenanceMode tftypes.Bool
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, dataPath.AtName("maintenance_mode"), &maintenanceMode)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	var maintenanceModeExpiry tftypes.String
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, dataPath.AtName("maintenance_mode_expiry"), &maintenanceModeExpiry)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	var size tftypes.String
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, dataPath.AtName("size"), &size)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	validateKargoAgentConfigValues(
 		&resp.Diagnostics,
-		path.Root("spec").AtName("data"),
-		data["argocd_namespace"].(tftypes.String),
-		data["remote_argocd"].(tftypes.String),
-		data["akuity_managed"].(tftypes.Bool),
-		data["maintenance_mode"].(tftypes.Bool),
-		data["maintenance_mode_expiry"].(tftypes.String),
-		data["size"].(tftypes.String),
+		dataPath,
+		argocdNamespace,
+		remoteArgocd,
+		akuityManaged,
+		maintenanceMode,
+		maintenanceModeExpiry,
+		size,
 	)
 }
 
@@ -520,14 +596,29 @@ func isKnownTrueBool(value tftypes.Bool) bool {
 }
 
 func getKargoManifests(ctx context.Context, client kargov1.KargoServiceGatewayClient, orgId string, kargoAgent *types.KargoAgent) (string, string, error) {
-	agent, err := findKargoAgentByName(ctx, client, orgId, kargoAgent.InstanceID.ValueString(), "", kargoAgent.Name.ValueString())
+	agents, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ListKargoInstanceAgentsResponse, error) {
+		return client.ListKargoInstanceAgents(ctx, &kargov1.ListKargoInstanceAgentsRequest{
+			OrganizationId: orgId,
+			InstanceId:     kargoAgent.InstanceID.ValueString(),
+		})
+	}, "ListKargoInstanceAgents")
 	if err != nil {
-		return "", "", err
+		return "", "", errors.Wrap(err, "Unable to read Kargo agents")
+	}
+	var agent *kargov1.KargoAgent
+	for _, a := range agents.GetAgents() {
+		if a.GetName() == kargoAgent.Name.ValueString() {
+			agent = a
+			break
+		}
+	}
+	if agent == nil {
+		return "", "", errors.New("Unable to find Kargo agent")
 	}
 
 	k, err := waitKargoAgentReconStatus(ctx, client, agent, orgId, kargoAgent.InstanceID.ValueString())
 	if err != nil {
-		return "", "", fmt.Errorf("unable to check kargo agent health status: %w", err)
+		return "", "", errors.Wrap(err, "Unable to check kargo agent health status")
 	}
 	apiReq := &kargov1.GetKargoInstanceAgentManifestsRequest{
 		OrganizationId: orgId,
@@ -536,11 +627,11 @@ func getKargoManifests(ctx context.Context, client kargov1.KargoServiceGatewayCl
 	}
 	resChan, errChan, err := client.GetKargoInstanceAgentManifests(ctx, apiReq)
 	if err != nil {
-		return "", "", fmt.Errorf("unable to download manifests: %w", err)
+		return "", "", errors.Wrap(err, "Unable to download manifests")
 	}
 	res, err := readStream(resChan, errChan)
 	if err != nil {
-		return "", "", fmt.Errorf("unable to parse manifests: %w", err)
+		return "", "", errors.Wrap(err, "Unable to parse manifests")
 	}
 
 	return string(res), k.Id, nil
@@ -620,35 +711,104 @@ func waitKargoAgentReconStatus(ctx context.Context, client kargov1.KargoServiceG
 	return kargoAgent, nil
 }
 
-func autoSetDefaultShardAgent(ctx context.Context, cli *AkpCli, agent *types.KargoAgent) error {
-	instance, err := getKargoInstanceByID(ctx, cli, agent.InstanceID.ValueString())
+func autoSetDefaultShardAgent(ctx context.Context, cli *AkpCli, agent *types.KargoAgent, workspaceID string) error {
+	instancesResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ListKargoInstancesResponse, error) {
+		return cli.KargoCli.ListKargoInstances(ctx, &kargov1.ListKargoInstancesRequest{
+			OrganizationId: cli.OrgId,
+			WorkspaceId:    workspaceID,
+		})
+	}, "ListKargoInstances")
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to list kargo instances")
 	}
+
+	var instance *kargov1.KargoInstance
+	for _, i := range instancesResp.GetInstances() {
+		if i.GetId() == agent.InstanceID.ValueString() {
+			instance = i
+			break
+		}
+	}
+	if instance == nil {
+		return errors.New("instance not found")
+	}
+
 	if instance.GetSpec().GetDefaultShardAgent() != "" {
 		return nil
 	}
-	kargoAgent, err := findKargoAgentByName(ctx, cli.KargoCli, cli.OrgId, agent.InstanceID.ValueString(), "", agent.Name.ValueString())
+
+	agents, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ListKargoInstanceAgentsResponse, error) {
+		return cli.KargoCli.ListKargoInstanceAgents(ctx, &kargov1.ListKargoInstanceAgentsRequest{
+			OrganizationId: cli.OrgId,
+			InstanceId:     agent.InstanceID.ValueString(),
+		})
+	}, "ListKargoInstanceAgents")
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Unable to read Kargo agents")
 	}
-	if err := setDefaultShardAgent(ctx, cli, agent.InstanceID.ValueString(), kargoAgent.GetId()); err != nil {
-		return err
+	var kargoAgent *kargov1.KargoAgent
+	for _, a := range agents.GetAgents() {
+		if a.GetName() == agent.Name.ValueString() {
+			kargoAgent = a
+			break
+		}
 	}
-	tflog.Info(ctx, fmt.Sprintf("Auto-set defaultShardAgent to '%s'", agent.Name.ValueString()))
+	if kargoAgent == nil {
+		return status.Error(codes.NotFound, " Kargo agents not found")
+	}
+
+	patchResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.PatchKargoInstanceResponse, error) {
+		return cli.KargoCli.PatchKargoInstance(ctx, &kargov1.PatchKargoInstanceRequest{
+			OrganizationId: cli.OrgId,
+			Id:             agent.InstanceID.ValueString(),
+			Patch: &structpb.Struct{
+				Fields: map[string]*structpb.Value{
+					"spec": {
+						Kind: &structpb.Value_StructValue{
+							StructValue: &structpb.Struct{
+								Fields: map[string]*structpb.Value{
+									"defaultShardAgent": structpb.NewStringValue(kargoAgent.Id),
+								},
+							},
+						},
+					},
+				},
+			},
+		})
+	}, "PatchKargoInstance")
+	if err != nil {
+		return errors.Wrap(err, "failed to patch instance with defaultShardAgent")
+	}
+
+	if patchResp.Instance.GetSpec().GetDefaultShardAgent() == kargoAgent.Id {
+		tflog.Info(ctx, fmt.Sprintf("Successfully auto-set defaultShardAgent to '%s'", agent.Name.ValueString()))
+	}
+
 	return nil
 }
 
-func checkAgentIsNotDefaultShard(ctx context.Context, cli *AkpCli, agent *types.KargoAgent) error {
-	instance, err := getKargoInstanceByID(ctx, cli, agent.InstanceID.ValueString())
-	if status.Code(err) == codes.NotFound {
-		return nil
-	}
+func checkAgentIsNotDefaultShard(ctx context.Context, cli *AkpCli, agent *types.KargoAgent, workspaceID string) error {
+	instancesResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ListKargoInstancesResponse, error) {
+		return cli.KargoCli.ListKargoInstances(ctx, &kargov1.ListKargoInstancesRequest{
+			OrganizationId: cli.OrgId,
+			WorkspaceId:    workspaceID,
+		})
+	}, "ListKargoInstances")
 	if err != nil {
-		return fmt.Errorf("failed to get Kargo instance: %w", err)
+		if status.Code(err) == codes.NotFound {
+			return nil
+		}
+		return fmt.Errorf("failed to list Kargo instances: %w", err)
 	}
-	if instance.GetSpec().GetDefaultShardAgent() == agent.ID.ValueString() {
-		return fmt.Errorf("unable to delete Kargo agent: cannot delete default shard agent, change default shard before deleting")
+
+	for _, instance := range instancesResp.GetInstances() {
+		if instance.GetId() != agent.InstanceID.ValueString() {
+			continue
+		}
+		if instance.GetSpec().GetDefaultShardAgent() == agent.ID.ValueString() {
+			return fmt.Errorf("unable to delete Kargo agent: cannot delete default shard agent, change default shard before deleting")
+		}
+		return nil
 	}
 	return nil
 }

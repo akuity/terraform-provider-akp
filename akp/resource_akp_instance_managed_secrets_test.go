@@ -320,7 +320,7 @@ func TestSyncManagedSecrets(t *testing.T) {
 
 		synced, err := syncManagedSecrets(ctx, cli, &diags, "instance-id", "workspace-id", state, plan)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), `unable to apply managed secret "new"`)
+		assert.Contains(t, err.Error(), `Unable to apply managed secret "new"`)
 		assert.Empty(t, client.deleteRequests)
 		assert.Contains(t, synced, "removed")
 	})
@@ -480,6 +480,40 @@ func TestRefreshManagedSecrets(t *testing.T) {
 	assert.NotContains(t, instance.ManagedSecrets, "unconfigured")
 }
 
+func TestRemovedManagedSecretNames(t *testing.T) {
+	secret := &types.ManagedSecret{}
+	tests := map[string]struct {
+		state  map[string]*types.ManagedSecret
+		plan   map[string]*types.ManagedSecret
+		expect []string
+	}{
+		"removed names are sorted": {
+			state: map[string]*types.ManagedSecret{
+				"removed-b": secret,
+				"kept":      secret,
+				"removed-a": secret,
+				"null-plan": secret,
+				"null":      nil,
+			},
+			plan:   map[string]*types.ManagedSecret{"kept": secret, "new": secret, "null-plan": nil},
+			expect: []string{"null-plan", "removed-a", "removed-b"},
+		},
+		"nil state": {
+			plan: map[string]*types.ManagedSecret{"new": secret},
+		},
+		"nil plan removes state names": {
+			state:  map[string]*types.ManagedSecret{"removed": secret},
+			expect: []string{"removed"},
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, tc.expect, removedManagedSecretNames(tc.state, tc.plan))
+		})
+	}
+}
+
 func TestDeleteManagedSecret(t *testing.T) {
 	t.Run("deletes the named secret", func(t *testing.T) {
 		client := &managedSecretsArgoCDClient{}
@@ -501,7 +535,7 @@ func TestDeleteManagedSecret(t *testing.T) {
 
 		err := deleteManagedSecret(context.Background(), cli, "instance-id", "workspace-id", "reserved")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), `unable to delete managed secret "reserved"`)
+		assert.Contains(t, err.Error(), `Unable to delete managed secret "reserved"`)
 	})
 }
 
@@ -521,7 +555,7 @@ func TestApplyManagedSecretChangesWorkspaceLookupFailure(t *testing.T) {
 
 	got, err := applyManagedSecretChanges(context.Background(), cli, &diags, result, stateSecrets, plannedSecrets, nil)
 	require.Error(t, err)
-	require.ErrorContains(t, err, "unable to get workspace for managed secret changes")
+	require.ErrorContains(t, err, "Unable to get workspace for managed secret changes")
 	require.Same(t, result, got)
 	assert.Equal(t, stateSecrets, got.ManagedSecrets)
 	assert.Empty(t, client.createRequests)

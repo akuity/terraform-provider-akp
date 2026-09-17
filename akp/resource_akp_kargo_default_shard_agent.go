@@ -3,10 +3,13 @@ package akp
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -22,13 +25,25 @@ type KargoDefaultShardAgentResourceModel struct {
 
 func NewAkpKargoDefaultShardAgentResource() resource.Resource {
 	return &GenericResource[KargoDefaultShardAgentResourceModel]{
-		TypeNameSuffix:  "kargo_default_shard_agent",
-		SchemaFunc:      kargoDefaultShardAgentSchema,
-		CreateFunc:      kargoDefaultShardAgentCreate,
-		ReadFunc:        kargoDefaultShardAgentRead,
-		UpdateFunc:      kargoDefaultShardAgentUpdate,
-		DeleteFunc:      kargoDefaultShardAgentDelete,
-		ImportStateFunc: importSplitID("kargo_instance_id", "agent_id"),
+		TypeNameSuffix: "kargo_default_shard_agent",
+		SchemaFunc:     kargoDefaultShardAgentSchema,
+		CreateFunc:     kargoDefaultShardAgentCreate,
+		ReadFunc:       kargoDefaultShardAgentRead,
+		UpdateFunc:     kargoDefaultShardAgentUpdate,
+		DeleteFunc:     kargoDefaultShardAgentDelete,
+		ImportStateFunc: func(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+			idParts := strings.Split(req.ID, "/")
+			if len(idParts) != 2 || idParts[0] == "" || idParts[1] == "" {
+				resp.Diagnostics.AddError(
+					"Unexpected Import Identifier",
+					fmt.Sprintf("Expected import identifier with format: kargo_instance_id/agent_id. Got: %q", req.ID),
+				)
+				return
+			}
+			resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), idParts[0])...)
+			resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("kargo_instance_id"), idParts[0])...)
+			resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("agent_id"), idParts[1])...)
+		},
 	}
 }
 
@@ -41,7 +56,7 @@ func kargoDefaultShardAgentCreate(ctx context.Context, cli *AkpCli, _ *diag.Diag
 }
 
 func kargoDefaultShardAgentRead(ctx context.Context, cli *AkpCli, _ *diag.Diagnostics, data *KargoDefaultShardAgentResourceModel) error {
-	instance, err := getKargoInstanceByID(ctx, cli, data.KargoInstanceID.ValueString())
+	instance, err := getKargoInstanceForDefaultShard(ctx, cli, data.KargoInstanceID.ValueString())
 	if err != nil {
 		return err
 	}
@@ -51,7 +66,6 @@ func kargoDefaultShardAgentRead(ctx context.Context, cli *AkpCli, _ *diag.Diagno
 		return status.Errorf(codes.NotFound, "default shard agent was cleared externally")
 	}
 
-	data.ID = data.KargoInstanceID
 	data.AgentID = tftypes.StringValue(currentAgentID)
 	return nil
 }
@@ -73,6 +87,25 @@ func kargoDefaultShardAgentDelete(ctx context.Context, cli *AkpCli, _ *diag.Diag
 	return nil
 }
 
+func getKargoInstanceForDefaultShard(ctx context.Context, cli *AkpCli, instanceID string) (*kargov1.KargoInstance, error) {
+	instancesResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ListKargoInstancesResponse, error) {
+		return cli.KargoCli.ListKargoInstances(ctx, &kargov1.ListKargoInstancesRequest{
+			OrganizationId: cli.OrgId,
+		})
+	}, "ListKargoInstances")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list kargo instances")
+	}
+
+	for _, instance := range instancesResp.GetInstances() {
+		if instance.GetId() == instanceID {
+			return instance, nil
+		}
+	}
+
+	return nil, status.Errorf(codes.NotFound, "kargo instance %s not found", instanceID)
+}
+
 func setDefaultShardAgent(ctx context.Context, cli *AkpCli, instanceID, agentID string) error {
 	patchStruct, err := structpb.NewStruct(map[string]any{
 		"spec": map[string]any{
@@ -80,7 +113,7 @@ func setDefaultShardAgent(ctx context.Context, cli *AkpCli, instanceID, agentID 
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create patch struct: %w", err)
+		return errors.Wrap(err, "failed to create patch struct")
 	}
 
 	_, err = retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.PatchKargoInstanceResponse, error) {
@@ -91,7 +124,7 @@ func setDefaultShardAgent(ctx context.Context, cli *AkpCli, instanceID, agentID 
 		})
 	}, "PatchKargoInstance")
 	if err != nil {
-		return fmt.Errorf("failed to patch kargo instance: %w", err)
+		return errors.Wrap(err, "failed to patch kargo instance")
 	}
 
 	return nil

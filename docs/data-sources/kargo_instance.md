@@ -23,12 +23,12 @@ data "akp_kargo_instance" "example" {
 
 ### Required
 
-- `name` (String) Kargo Instance name
+- `name` (String) Kargo instance name
 
 ### Read-Only
 
-- `id` (String) Kargo Instance ID
-- `kargo` (Attributes) Kargo instance configuration (see [below for nested schema](#nestedatt--kargo))
+- `id` (String) Kargo instance ID
+- `kargo` (Attributes) Specification of the Kargo instance (see [below for nested schema](#nestedatt--kargo))
 - `kargo_cm` (Map of String) ConfigMap to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf
 - `kargo_resources` (Map of String) Map of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`, `ProjectConfig`, `ClusterConfig`, `Warehouse`, `Stage`, `PromotionTask`, `ClusterPromotionTask` (Group `kargo.akuity.io`); `MessageChannel`, `ClusterMessageChannel`, `EventRouter`, `CustomPromotionStep` (Group `ee.kargo.akuity.io`); `AnalysisTemplate` (Group `argoproj.io`); `Secret` (only with `kargo.akuity.io/cred-type` label); `ConfigMap`; `Role`, `RoleBinding`, `ServiceAccount` (`rbac.kargo.akuity.io/managed="true"` annotation required)
 - `workspace` (String) Workspace name for the Kargo instance
@@ -46,10 +46,10 @@ Read-Only:
 Read-Only:
 
 - `description` (String) Description of the Kargo instance
-- `fqdn` (String) Fully qualified domain name
-- `kargo_instance_spec` (Attributes) Kargo instance spec (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec))
+- `fqdn` (String) FQDN of the Kargo instance
+- `kargo_instance_spec` (Attributes) Kargo instance specific configuration (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec))
 - `oidc_config` (Attributes) OIDC configuration (see [below for nested schema](#nestedatt--kargo--spec--oidc_config))
-- `shard` (String) Workload-cluster shard (region) the instance is pinned to, by its display name (e.g. `us0`). Must be one of the shards available to the organization. Immutable: changing it forces recreation of the instance. When omitted the server places the instance on the organization's default shard.
+- `shard` (String) Workload-cluster shard (region) the instance is pinned to, by its display name (e.g. `us0`).
 - `subdomain` (String) Subdomain of the Kargo instance
 - `version` (String) Version of the Kargo instance
 
@@ -62,14 +62,14 @@ Read-Only:
 - `akuity_intelligence` (Attributes) Akuity Intelligence configuration for AI-powered features (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--akuity_intelligence))
 - `argocd_ui` (Attributes) Controls behavior of Argo CD user interface in the Kargo instance (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--argocd_ui))
 - `backend_ip_allow_list_enabled` (Boolean) Whether IP allow list is enabled for the backend
-- `connectivity` (String) How the Kargo instance is reached. One of `public` (internet) or `private` (AWS PrivateLink). Defaults to `public`.
+- `connectivity` (String) How the Kargo instance is reached. One of `public` (internet) or `private` (AWS PrivateLink).
 - `gc_config` (Attributes) Garbage collector configuration (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--gc_config))
 - `global_credentials_ns` (List of String) List of global credentials namespaces
 - `global_service_account_ns` (List of String) List of global service account namespaces
 - `ip_allow_list` (Attributes List) List of allowed IPs (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--ip_allow_list))
-- `mcp_server` (Attributes) MCP server configuration for the instance. Turns MCP agent access on or off: the instance's own `/mcp` endpoint and instance actions performed through the organization's platform MCP endpoint. Enabling it requires the organization's MCP server feature. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--mcp_server))
+- `mcp_server` (Attributes) MCP server configuration for the instance. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--mcp_server))
 - `promo_controller_enabled` (Boolean) Whether Kargo Promotion Controller is enabled for this instance
-- `secrets` (Attributes) Cross-cluster secret synchronization configuration. Selects which Kubernetes Secrets are synchronized from source clusters to destination clusters. Secrets opt in by carrying the `akuity.io/secret-sync: "true"` label. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--secrets))
+- `secrets` (Attributes) Cross-cluster secret synchronization configuration. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--secrets))
 - `termination_protection_enabled` (Boolean) When enabled, prevents accidental deletion of this Kargo instance.
 - `termination_protection_notes` (String) Notes describing why termination protection is enabled for this Kargo instance.
 
@@ -79,11 +79,11 @@ Read-Only:
 Read-Only:
 
 - `auto_upgrade_disabled` (Boolean) Whether auto upgrade is disabled
-- `autoscaler_config` (Attributes) Default min/max scaling limits applied when `size` is `auto`. Required for an `auto` default, ignored for any other size. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--agent_customization_defaults--autoscaler_config))
+- `autoscaler_config` (Attributes) Default min/max scaling limits applied when `size` is `auto`. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--agent_customization_defaults--autoscaler_config))
 - `connectivity` (String) Default agent connectivity applied to new agents. One of `public` (internet) or `private` (AWS PrivateLink).
-- `custom_ca_bundle` (String) Default PEM bundle of one or more CA certificates applied to new agents that do not specify their own. Certificates must be unexpired.
-- `kustomization` (String) Kustomization that will be applied to the Kargo agent to generate agent installation manifests
-- `size` (String) Default agent size applied to new agents that do not specify their own. One of `small`, `medium`, `large` or `auto`. A Custom default is expressed as `large` plus resource patches in `kustomization`. Akuity-managed agents never inherit it — their size is managed by Akuity.
+- `custom_ca_bundle` (String) Default PEM bundle of one or more CA certificates applied to new agents that do not specify their own.
+- `kustomization` (String) Kustomization configuration
+- `size` (String) Default agent size applied to new agents that do not specify their own. One of `small`, `medium`, `large` or `auto`. A Custom default is expressed as `large` plus resource patches in `kustomization`.
 
 <a id="nestedatt--kargo--spec--kargo_instance_spec--agent_customization_defaults--autoscaler_config"></a>
 ### Nested Schema for `kargo.spec.kargo_instance_spec.agent_customization_defaults.autoscaler_config`
@@ -157,8 +157,8 @@ Read-Only:
 
 Read-Only:
 
-- `description` (String) Description
-- `ip` (String) IP Address
+- `description` (String) Description for the IP address
+- `ip` (String) IP address
 
 
 <a id="nestedatt--kargo--spec--kargo_instance_spec--mcp_server"></a>
@@ -166,7 +166,7 @@ Read-Only:
 
 Read-Only:
 
-- `enabled` (Boolean) Enable MCP agent access for the instance
+- `enabled` (Boolean) Whether MCP agent access is enabled for the instance
 
 
 <a id="nestedatt--kargo--spec--kargo_instance_spec--secrets"></a>
@@ -174,32 +174,32 @@ Read-Only:
 
 Read-Only:
 
-- `sources` (Attributes List) Selectors picking the clusters and Secrets to use as synchronization sources. A source matches when both the cluster and secret selectors are satisfied; if a selector is omitted, all clusters or all secrets are selected. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--secrets--sources))
+- `sources` (Attributes List) Cluster/secret selectors picking the synchronization sources. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--secrets--sources))
 
 <a id="nestedatt--kargo--spec--kargo_instance_spec--secrets--sources"></a>
 ### Nested Schema for `kargo.spec.kargo_instance_spec.secrets.sources`
 
 Read-Only:
 
-- `clusters` (Attributes) Cluster selector. If omitted, all clusters are selected. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--secrets--sources--clusters))
-- `secrets` (Attributes) Secret selector. If omitted, all secrets are selected. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--secrets--sources--secrets))
+- `clusters` (Attributes) Cluster selector. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--secrets--sources--clusters))
+- `secrets` (Attributes) Secret selector. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--secrets--sources--secrets))
 
 <a id="nestedatt--kargo--spec--kargo_instance_spec--secrets--sources--clusters"></a>
 ### Nested Schema for `kargo.spec.kargo_instance_spec.secrets.sources.clusters`
 
 Read-Only:
 
-- `match_expressions` (Attributes List) A list of label selector requirements. Requirements are ANDed. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--secrets--sources--clusters--match_expressions))
-- `match_labels` (Map of String) A map of {key,value} pairs. A single entry is equivalent to a `match_expressions` entry with operator `In` and a single value. Requirements are ANDed.
+- `match_expressions` (Attributes List) List of label selector requirements. Requirements are ANDed. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--secrets--sources--clusters--match_expressions))
+- `match_labels` (Map of String) Map of label key/value pairs. Requirements are ANDed.
 
 <a id="nestedatt--kargo--spec--kargo_instance_spec--secrets--sources--clusters--match_expressions"></a>
 ### Nested Schema for `kargo.spec.kargo_instance_spec.secrets.sources.clusters.match_expressions`
 
 Read-Only:
 
-- `key` (String) The label key that the selector applies to.
-- `operator` (String) Operator representing the key's relationship to the values. Valid operators are `In`, `NotIn`, `Exists`, and `DoesNotExist`.
-- `values` (List of String) Array of string values. Must be non-empty for `In`/`NotIn` and must be empty for `Exists`/`DoesNotExist`.
+- `key` (String) The label key.
+- `operator` (String) The relationship between the key and the values. One of `In`, `NotIn`, `Exists`, `DoesNotExist`.
+- `values` (List of String) Array of string values.
 
 
 
@@ -208,17 +208,17 @@ Read-Only:
 
 Read-Only:
 
-- `match_expressions` (Attributes List) A list of label selector requirements. Requirements are ANDed. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--secrets--sources--secrets--match_expressions))
-- `match_labels` (Map of String) A map of {key,value} pairs. A single entry is equivalent to a `match_expressions` entry with operator `In` and a single value. Requirements are ANDed.
+- `match_expressions` (Attributes List) List of label selector requirements. Requirements are ANDed. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--secrets--sources--secrets--match_expressions))
+- `match_labels` (Map of String) Map of label key/value pairs. Requirements are ANDed.
 
 <a id="nestedatt--kargo--spec--kargo_instance_spec--secrets--sources--secrets--match_expressions"></a>
 ### Nested Schema for `kargo.spec.kargo_instance_spec.secrets.sources.secrets.match_expressions`
 
 Read-Only:
 
-- `key` (String) The label key that the selector applies to.
-- `operator` (String) Operator representing the key's relationship to the values. Valid operators are `In`, `NotIn`, `Exists`, and `DoesNotExist`.
-- `values` (List of String) Array of string values. Must be non-empty for `In`/`NotIn` and must be empty for `Exists`/`DoesNotExist`.
+- `key` (String) The label key.
+- `operator` (String) The relationship between the key and the values. One of `In`, `NotIn`, `Exists`, `DoesNotExist`.
+- `values` (List of String) Array of string values.
 
 
 

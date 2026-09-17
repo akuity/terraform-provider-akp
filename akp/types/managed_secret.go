@@ -18,24 +18,10 @@ type ManagedSecret struct {
 	DataVersion     types.String `tfsdk:"data_version"`
 }
 
-// ManagedSecretDataSource is the read-only shape the data source exposes: the
-// API reports key names but never secret values.
-type ManagedSecretDataSource struct {
-	Labels          types.Map    `tfsdk:"labels"`
-	AllowedClusters types.List   `tfsdk:"allowed_clusters"`
-	ClusterSelector types.String `tfsdk:"cluster_selector"`
-	SecretKeys      types.List   `tfsdk:"secret_keys"`
-}
-
 type ManagedSecretUpsert struct {
-	Secret *argocdv1.ManagedSecret
-	Data   map[string]string
-}
-
-// ClearData reports whether every key should be removed: an explicit empty map,
-// as opposed to nil, which keeps the existing data.
-func (u *ManagedSecretUpsert) ClearData() bool {
-	return u.Data != nil && len(u.Data) == 0
+	Secret    *argocdv1.ManagedSecret
+	Data      map[string]string
+	ClearData bool
 }
 
 func ToManagedSecretUpsertAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, name string, secret *ManagedSecret) *ManagedSecretUpsert {
@@ -60,8 +46,10 @@ func ToManagedSecretUpsertAPIModel(ctx context.Context, diagnostics *diag.Diagno
 	}
 
 	var data map[string]string
+	clearData := false
 	if !secret.Data.IsNull() {
 		diagnostics.Append(secret.Data.ElementsAs(ctx, &data, true)...)
+		clearData = len(data) == 0
 	}
 
 	return &ManagedSecretUpsert{
@@ -71,7 +59,8 @@ func ToManagedSecretUpsertAPIModel(ctx context.Context, diagnostics *diag.Diagno
 			AllowedClusters: allowedClusters,
 			ClusterSelector: clusterSelector,
 		},
-		Data: data,
+		Data:      data,
+		ClearData: clearData,
 	}
 }
 

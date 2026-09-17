@@ -87,20 +87,28 @@ func detectPlanModifier(a schema.Attribute) tfakptypes.PlanModifierKind {
 	case schema.ListAttribute:
 		return detectListPlanModifier(t.PlanModifiers)
 	case schema.StringAttribute:
-		if hasUseStateForUnknown(t.PlanModifiers) {
-			return tfakptypes.PlanModUseStateForUnknown
+		for _, m := range t.PlanModifiers {
+			if isUseStateForUnknownDesc(m.Description(context.TODO())) {
+				return tfakptypes.PlanModUseStateForUnknown
+			}
 		}
 	case schema.BoolAttribute:
-		if hasUseStateForUnknown(t.PlanModifiers) {
-			return tfakptypes.PlanModUseStateForUnknown
+		for _, m := range t.PlanModifiers {
+			if isUseStateForUnknownDesc(m.Description(context.TODO())) {
+				return tfakptypes.PlanModUseStateForUnknown
+			}
 		}
 	case schema.Int64Attribute:
-		if hasUseStateForUnknown(t.PlanModifiers) {
-			return tfakptypes.PlanModUseStateForUnknown
+		for _, m := range t.PlanModifiers {
+			if isUseStateForUnknownDesc(m.Description(context.TODO())) {
+				return tfakptypes.PlanModUseStateForUnknown
+			}
 		}
 	case schema.Float64Attribute:
-		if hasUseStateForUnknown(t.PlanModifiers) {
-			return tfakptypes.PlanModUseStateForUnknown
+		for _, m := range t.PlanModifiers {
+			if isUseStateForUnknownDesc(m.Description(context.TODO())) {
+				return tfakptypes.PlanModUseStateForUnknown
+			}
 		}
 	case schema.MapAttribute:
 		return detectMapPlanModifier(t.PlanModifiers)
@@ -139,15 +147,6 @@ func detectMapPlanModifier(modifiers []planmodifier.Map) tfakptypes.PlanModifier
 		}
 	}
 	return tfakptypes.PlanModNone
-}
-
-func hasUseStateForUnknown[M interface{ Description(context.Context) string }](mods []M) bool {
-	for _, m := range mods {
-		if isUseStateForUnknownDesc(m.Description(context.TODO())) {
-			return true
-		}
-	}
-	return false
 }
 
 func isUseStateForUnknownDesc(desc string) bool {

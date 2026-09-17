@@ -4,7 +4,6 @@ package akp
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -18,6 +17,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -1301,34 +1301,6 @@ EOF
 `, instanceId, name)
 }
 
-func testAccClusterResourceConfigCustomAgentSizeKustomizationOnlyUpdated(name, instanceId string) string {
-	return fmt.Sprintf(`
-resource "akp_cluster" "test" {
-  instance_id = %q
-  name      = %q
-  namespace = "test"
-  spec = {
-    namespace_scoped = true
-    description      = "Custom agent size kustomization only test"
-    data = {
-      size = "custom"
-      custom_agent_size_config = {
-        application_controller = {
-          memory = "3Gi"
-          cpu    = "1500m"
-        }
-        repo_server = {
-          memory   = "6Gi"
-          cpu      = "2500m"
-          replicas = 4
-        }
-      }
-    }
-  }
-}
-`, instanceId, name)
-}
-
 func testAccClusterResourceConfigCustomAgentSizeKustomizationOnly(name, instanceId string) string {
 	return fmt.Sprintf(`
 resource "akp_cluster" "test" {
@@ -1586,23 +1558,8 @@ func runClusterResourceCustomAgentSizeKustomizationOnly(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.custom_agent_size_config.repo_server.memory", "2Gi"),
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.custom_agent_size_config.repo_server.cpu", "1000m"),
 					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.custom_agent_size_config.repo_server.replicas", "2"),
-					// The API returns the patches generated from custom_agent_size_config,
-					// but they are not user input, so they must not be stored. Storing them
-					// made the next update fail as a conflicting user patch.
-					resource.TestCheckNoResourceAttr("akp_cluster.test", "spec.data.kustomization"),
-				),
-			},
-			// Updating the sizes while staying on custom must succeed.
-			{
-				Config: providerConfig + testAccClusterResourceConfigCustomAgentSizeKustomizationOnlyUpdated(name, getInstanceId()),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.size", "custom"),
-					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.custom_agent_size_config.application_controller.memory", "3Gi"),
-					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.custom_agent_size_config.application_controller.cpu", "1500m"),
-					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.custom_agent_size_config.repo_server.memory", "6Gi"),
-					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.custom_agent_size_config.repo_server.cpu", "2500m"),
-					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.custom_agent_size_config.repo_server.replicas", "4"),
-					resource.TestCheckNoResourceAttr("akp_cluster.test", "spec.data.kustomization"),
+					// Verify kustomization is generated automatically
+					resource.TestCheckResourceAttrSet("akp_cluster.test", "spec.data.kustomization"),
 				),
 			},
 			testAccClusterImportStateStep(getInstanceId(), name, testAccClusterCustomSizeImportStateVerifyIgnore...),

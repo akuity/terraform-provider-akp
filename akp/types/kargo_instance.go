@@ -3,13 +3,12 @@ package types
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"slices"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/structpb"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -27,11 +26,11 @@ type KargoInstance struct {
 	KargoResources types.Map    `tfsdk:"kargo_resources"`
 }
 
-func (k *KargoInstance) Update(ctx context.Context, diagnostics *diag.Diagnostics, exportResp *kargov1.ExportKargoInstanceResponse, isDataSource bool) error {
+func (k *KargoInstance) Update(ctx context.Context, diagnostics *diag.Diagnostics, exportResp *kargov1.ExportKargoInstanceResponse, agentMaps *AgentMaps, isDataSource bool) error {
 	if k.Kargo == nil {
 		k.Kargo = &Kargo{}
 	}
-	plan := DeepCopy(k.Kargo)
+	plan := DeepCopyKargo(k.Kargo)
 	apiMap := exportResp.GetKargo().AsMap()
 	if isDataSource {
 		diagnostics.Append(BuildStateFromAPI(ctx, apiMap, k.Kargo, nil, KargoReverseOverridesMap, KargoReverseRenamesMap, "kargo")...)
@@ -60,7 +59,7 @@ func (k *KargoInstance) Update(ctx context.Context, diagnostics *diag.Diagnostic
 	}
 	configMapStruct, err := structpb.NewStruct(configMap)
 	if err != nil {
-		return fmt.Errorf("unable to convert ConfigMap to struct: %w", err)
+		return errors.Wrap(err, "Unable to convert ConfigMap to struct")
 	}
 	k.KargoConfigMap = ToConfigMapTFModel(ctx, diagnostics, configMapStruct, k.KargoConfigMap)
 
@@ -77,12 +76,24 @@ func (k *KargoInstance) syncKargoResources(
 	diagnostics *diag.Diagnostics,
 	isDataSource bool,
 ) error {
-	appliedResources := slices.Concat(
-		exportResp.AnalysisTemplates, exportResp.PromotionTasks, exportResp.ClusterPromotionTasks,
-		exportResp.Projects, exportResp.ProjectConfigs, exportResp.MessageChannels, exportResp.ClusterMessageChannels,
-		exportResp.EventRouters, exportResp.CustomPromotionSteps, exportResp.ClusterConfigs, exportResp.Warehouses,
-		exportResp.Stages, exportResp.ServiceAccounts, exportResp.Roles, exportResp.RoleBindings, exportResp.Configmaps,
-	)
+	appliedResources := make([]*structpb.Struct, 0)
+	appliedResources = append(appliedResources, exportResp.AnalysisTemplates...)
+	appliedResources = append(appliedResources, exportResp.PromotionTasks...)
+	appliedResources = append(appliedResources, exportResp.ClusterPromotionTasks...)
+	appliedResources = append(appliedResources, exportResp.Projects...)
+	appliedResources = append(appliedResources, exportResp.ProjectConfigs...)
+	appliedResources = append(appliedResources, exportResp.MessageChannels...)
+	appliedResources = append(appliedResources, exportResp.ClusterMessageChannels...)
+	appliedResources = append(appliedResources, exportResp.EventRouters...)
+	appliedResources = append(appliedResources, exportResp.CustomPromotionSteps...)
+	appliedResources = append(appliedResources, exportResp.ClusterConfigs...)
+	appliedResources = append(appliedResources, exportResp.Warehouses...)
+	appliedResources = append(appliedResources, exportResp.Stages...)
+	// Include RBAC and core resources
+	appliedResources = append(appliedResources, exportResp.ServiceAccounts...)
+	appliedResources = append(appliedResources, exportResp.Roles...)
+	appliedResources = append(appliedResources, exportResp.RoleBindings...)
+	appliedResources = append(appliedResources, exportResp.Configmaps...)
 
 	newMap, err := syncResources(
 		ctx,
