@@ -11,8 +11,10 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -162,114 +164,52 @@ func parseStructsFromFile(path string, out structFields) error {
 func compare(v1 structFields, client structFields, allow allowlist) findings {
 	var f findings
 
-	// Track which allowlist entries we actually use so we can flag stale ones.
-	usedStructs := make(map[string]bool, len(allow.Structs))
-	usedFields := make(map[string]bool, len(allow.Fields))
-
-	// Walk structs in deterministic order for stable output.
-	structNames := make([]string, 0, len(v1))
-	for name := range v1 {
-		structNames = append(structNames, name)
-	}
-	sort.Strings(structNames)
-
-	for _, name := range structNames {
+	// Sort names so diagnostics remain deterministic.
+	for _, name := range slices.Sorted(maps.Keys(v1)) {
 		clientFields, exists := client[name]
-		if _, allowed := allow.Structs[name]; allowed {
-			// Allowlist entry is "used" only if api-client-go actually lacks
-			// the struct. If api-client-go has it, the entry is stale and we
-			// should still perform field-level checks.
-			if !exists {
-				usedStructs[name] = true
-				continue
+		if !exists {
+			if _, allowed := allow.Structs[name]; !allowed {
+				f.Structs = append(f.Structs, missingStruct{Name: name})
 			}
-			// Fall through to field-level checks below.
-		} else if !exists {
-			f.Structs = append(f.Structs, missingStruct{Name: name})
 			continue
 		}
-
-		// Walk fields in deterministic order.
-		v1Fields := v1[name]
-		fieldKeys := make([]string, 0, len(v1Fields))
-		for k := range v1Fields {
-			fieldKeys = append(fieldKeys, k)
-		}
-		sort.Strings(fieldKeys)
-
-		for _, normalized := range fieldKeys {
-			original := v1Fields[normalized]
-			fieldKey := name + "." + original
+		for _, normalized := range slices.Sorted(maps.Keys(v1[name])) {
+			original := v1[name][normalized]
 			_, present := clientFields[normalized]
-			if _, allowed := allow.Fields[fieldKey]; allowed {
-				// A field allowlist is only "used" if api-client-go truly
-				// lacks the field. If it's present, the entry is stale.
-				if !present {
-					usedFields[fieldKey] = true
-				}
-				continue
-			}
-			if !present {
+			_, allowed := allow.Fields[name+"."+original]
+			if !present && !allowed {
 				f.Fields = append(f.Fields, missingField{Struct: name, Field: original})
 			}
 		}
 	}
 
-	// Report unused allowlist entries. A stale allowlist is bad: it hides new
-	// drift. These are warnings, not hard errors — but we still fail CI on
-	// them so they get cleaned up promptly.
+	// An exception is stale when its source disappears or the client catches up.
 	for name := range allow.Structs {
-		if !usedStructs[name] {
-			// It's unused if either: the v1alpha1 struct no longer exists, OR
-			// the v1alpha1 struct now has a matching api-client-go struct.
-			if _, inV1 := v1[name]; !inV1 {
-				f.UnusedAllowlistStructs = append(f.UnusedAllowlistStructs, name)
-				continue
-			}
-			if _, inClient := client[name]; inClient {
-				f.UnusedAllowlistStructs = append(f.UnusedAllowlistStructs, name)
-			}
+		_, inV1 := v1[name]
+		_, inClient := client[name]
+		if !inV1 || inClient {
+			f.UnusedAllowlistStructs = append(f.UnusedAllowlistStructs, name)
 		}
 	}
 	for key := range allow.Fields {
-		if usedFields[key] {
-			continue
-		}
 		structName, fieldName, ok := strings.Cut(key, ".")
-		if !ok {
+		normalized := normalizeName(fieldName)
+		_, inV1 := v1[structName][normalized]
+		_, inClient := client[structName][normalized]
+		if !ok || !inV1 || inClient {
 			f.UnusedAllowlistFields = append(f.UnusedAllowlistFields, key)
-			continue
-		}
-		v1Fields, inV1 := v1[structName]
-		if !inV1 {
-			f.UnusedAllowlistFields = append(f.UnusedAllowlistFields, key)
-			continue
-		}
-		_, hasField := v1Fields[normalizeName(fieldName)]
-		if !hasField {
-			f.UnusedAllowlistFields = append(f.UnusedAllowlistFields, key)
-			continue
-		}
-		// v1alpha1 struct and field both exist. The entry is unused if
-		// api-client-go now has the field (so the allowlist is no longer
-		// masking anything).
-		if clientFields, inClient := client[structName]; inClient {
-			if _, has := clientFields[normalizeName(fieldName)]; has {
-				f.UnusedAllowlistFields = append(f.UnusedAllowlistFields, key)
-			}
 		}
 	}
+
 	sort.Strings(f.UnusedAllowlistStructs)
 	sort.Strings(f.UnusedAllowlistFields)
 	return f
 }
 
 // loadAllowlist reads an allowlist YAML file. A missing file returns an empty
-// (but non-nil) allowlist; any other error is returned as-is.
+// allowlist; other read and parse errors are returned.
 func loadAllowlist(path string) (allowlist, error) {
 	var a allowlist
-	a.Fields = map[string]string{}
-	a.Structs = map[string]string{}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -277,15 +217,8 @@ func loadAllowlist(path string) (allowlist, error) {
 		}
 		return a, fmt.Errorf("read allowlist %s: %w", path, err)
 	}
-	var parsed allowlist
-	if err := yaml.Unmarshal(data, &parsed); err != nil {
+	if err := yaml.Unmarshal(data, &a); err != nil {
 		return a, fmt.Errorf("parse allowlist %s: %w", path, err)
-	}
-	if parsed.Fields != nil {
-		a.Fields = parsed.Fields
-	}
-	if parsed.Structs != nil {
-		a.Structs = parsed.Structs
 	}
 	return a, nil
 }

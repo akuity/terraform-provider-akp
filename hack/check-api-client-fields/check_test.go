@@ -1,9 +1,11 @@
 package main
 
 import (
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"testing"
 )
@@ -186,24 +188,23 @@ func TestCompareUnusedAllowlistEntries(t *testing.T) {
 	}
 	allow := allowlist{
 		Fields: map[string]string{
-			"FooSpec.Name":       "stale: api-client-go now has this field",
-			"FooSpec.GoneField":  "stale: v1alpha1 no longer has this field",
-			"OldStruct.X":        "stale: v1alpha1 no longer has OldStruct",
+			"Malformed":         "stale: invalid field key",
+			"FooSpec.Name":      "stale: api-client-go now has this field",
+			"FooSpec.GoneField": "stale: v1alpha1 no longer has this field",
+			"OldStruct.X":       "stale: v1alpha1 no longer has OldStruct",
 		},
 		Structs: map[string]string{
-			"FooSpec":       "stale: api-client-go now has matching struct",
-			"NeverExisted":  "stale: never in v1alpha1",
+			"FooSpec":      "stale: api-client-go now has matching struct",
+			"NeverExisted": "stale: never in v1alpha1",
 		},
 	}
 	got := compare(v1, client, allow)
 
 	wantStructs := []string{"FooSpec", "NeverExisted"}
-	sort.Strings(got.UnusedAllowlistStructs)
 	if !reflect.DeepEqual(got.UnusedAllowlistStructs, wantStructs) {
 		t.Errorf("unused structs: got %+v, want %+v", got.UnusedAllowlistStructs, wantStructs)
 	}
-	wantFields := []string{"FooSpec.GoneField", "FooSpec.Name", "OldStruct.X"}
-	sort.Strings(got.UnusedAllowlistFields)
+	wantFields := []string{"FooSpec.GoneField", "FooSpec.Name", "Malformed", "OldStruct.X"}
 	if !reflect.DeepEqual(got.UnusedAllowlistFields, wantFields) {
 		t.Errorf("unused fields: got %+v, want %+v", got.UnusedAllowlistFields, wantFields)
 	}
@@ -292,10 +293,32 @@ structs:
 }
 
 func structKeys(s structFields) []string {
-	keys := make([]string, 0, len(s))
-	for k := range s {
-		keys = append(keys, k)
+	return slices.Sorted(maps.Keys(s))
+}
+
+func TestCompareStaleStructStillChecksFields(t *testing.T) {
+	got := compare(
+		structFields{"FooSpec": {"clientid": "ClientID"}},
+		structFields{"FooSpec": {}},
+		allowlist{Structs: map[string]string{"FooSpec": "previously missing"}},
+	)
+	want := findings{
+		Fields:                 []missingField{{Struct: "FooSpec", Field: "ClientID"}},
+		UnusedAllowlistStructs: []string{"FooSpec"},
 	}
-	sort.Strings(keys)
-	return keys
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %+v, want %+v", got, want)
+	}
+}
+
+func TestCompareFieldAllowlistWhenStructMissing(t *testing.T) {
+	got := compare(
+		structFields{"FooSpec": {"clientid": "ClientID"}},
+		structFields{},
+		allowlist{Fields: map[string]string{"FooSpec.ClientID": "not yet available"}},
+	)
+	want := findings{Structs: []missingStruct{{Name: "FooSpec"}}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %+v, want %+v", got, want)
+	}
 }

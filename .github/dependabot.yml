@@ -8,9 +8,3 @@ updates:
       interval: "daily"
     commit-message:
       prefix: "chore(deps):"
-  - package-ecosystem: "gomod"
-    directory: "/"
-    schedule:
-      interval: "daily"
-    commit-message:
-      prefix: "chore(deps):"
