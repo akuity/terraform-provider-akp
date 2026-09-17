@@ -7,6 +7,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+
+	httpctx "github.com/akuity/grpc-gateway-client/pkg/http/context"
 )
 
 var _ datasource.DataSource = &AkpKargoDefaultShardAgentDataSource{}
@@ -32,8 +34,8 @@ func (a *AkpKargoDefaultShardAgentDataSource) Read(ctx context.Context, req data
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	ctx = a.AuthCtx(ctx)
-	instance, err := getKargoInstanceByID(ctx, a.akpCli, data.KargoInstanceID.ValueString())
+	ctx = httpctx.SetAuthorizationHeader(ctx, a.akpCli.Cred.Scheme(), a.akpCli.Cred.Credential())
+	instance, err := getKargoInstanceForDefaultShard(ctx, a.akpCli, data.KargoInstanceID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Failed to get Kargo instance",

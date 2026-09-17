@@ -23,6 +23,13 @@ type InstanceDataSource struct {
 	ManagedSecrets         map[string]*ManagedSecretDataSource `tfsdk:"managed_secrets"`
 }
 
+type ManagedSecretDataSource struct {
+	Labels          types.Map    `tfsdk:"labels"`
+	AllowedClusters types.List   `tfsdk:"allowed_clusters"`
+	ClusterSelector types.String `tfsdk:"cluster_selector"`
+	SecretKeys      types.List   `tfsdk:"secret_keys"`
+}
+
 type ArgoCDDataSource struct {
 	Spec ArgoCDSpecDataSource `tfsdk:"spec"`
 }

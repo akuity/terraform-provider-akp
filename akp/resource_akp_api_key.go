@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"google.golang.org/grpc/codes"
@@ -20,13 +20,41 @@ import (
 
 func NewAkpApiKeyResource() resource.Resource {
 	return &GenericResource[types.ApiKey]{
-		TypeNameSuffix:  "api_key",
-		SchemaFunc:      apiKeySchema,
-		CreateFunc:      apiKeyCreate,
-		ReadFunc:        apiKeyRead,
-		UpdateFunc:      apiKeyUpdate,
-		DeleteFunc:      apiKeyDelete,
-		ImportStateFunc: importScopedID,
+		TypeNameSuffix: "api_key",
+		SchemaFunc:     apiKeySchema,
+		CreateFunc:     apiKeyCreate,
+		ReadFunc:       apiKeyRead,
+		UpdateFunc:     apiKeyUpdate,
+		DeleteFunc:     apiKeyDelete,
+		ImportStateFunc: func(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+			// Import IDs:
+			//   org-scoped:       <api_key_id>
+			//   workspace-scoped: <workspace_name>/<api_key_id>
+			parts := strings.Split(req.ID, "/")
+			badID := func() {
+				resp.Diagnostics.AddError(
+					"Unexpected Import Identifier",
+					fmt.Sprintf("Expected `api_key_id` or `workspace_name/api_key_id`. Got: %q", req.ID),
+				)
+			}
+			switch len(parts) {
+			case 1:
+				if parts[0] == "" {
+					badID()
+					return
+				}
+				resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), parts[0])...)
+			case 2:
+				if parts[0] == "" || parts[1] == "" {
+					badID()
+					return
+				}
+				resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("workspace"), parts[0])...)
+				resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), parts[1])...)
+			default:
+				badID()
+			}
+		},
 	}
 }
 
@@ -280,10 +308,10 @@ func applyApiKeyResponse(data *types.ApiKey, key *apikeyv1.APIKey) {
 		data.Secret = tftypes.StringValue("")
 	}
 	if t := key.GetCreateTime(); t != nil {
-		data.CreateTime = tftypes.StringValue(t.AsTime().Format(time.RFC3339))
+		data.CreateTime = tftypes.StringValue(t.AsTime().Format("2006-01-02T15:04:05Z07:00"))
 	}
 	if t := key.GetExpireTime(); t != nil && t.AsTime().Unix() > 0 {
-		data.ExpireTime = tftypes.StringValue(t.AsTime().Format(time.RFC3339))
+		data.ExpireTime = tftypes.StringValue(t.AsTime().Format("2006-01-02T15:04:05Z07:00"))
 	} else {
 		data.ExpireTime = tftypes.StringValue("")
 	}

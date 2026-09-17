@@ -14,8 +14,7 @@ func GetSensitiveStrings(data types.Map) []string {
 	if data.IsNull() || data.IsUnknown() {
 		return res
 	}
-	var secrets map[string]string
-	data.ElementsAs(context.Background(), &secrets, true)
+	secrets, _ := mapFromMapValue(data)
 	for _, value := range secrets {
 		res = append(res, value)
 	}
@@ -36,4 +35,13 @@ func ToSecretAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, name s
 		},
 		StringData: data,
 	}
+}
+
+func mapFromMapValue(s types.Map) (map[string]string, diag.Diagnostics) {
+	var data map[string]string
+	var d diag.Diagnostics
+	if !s.IsNull() {
+		d = s.ElementsAs(context.Background(), &data, true)
+	}
+	return data, d
 }

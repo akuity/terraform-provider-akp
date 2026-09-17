@@ -61,6 +61,48 @@ func TestValidateClusterConfigAllowsValidCombinations(t *testing.T) {
 	require.False(t, diags.HasError())
 }
 
+func TestPruneNormalizedEmptyClusterFields(t *testing.T) {
+	t.Run("drops empty maintenanceModeExpiry", func(t *testing.T) {
+		rawMap := map[string]any{
+			"data": map[string]any{
+				"maintenanceMode":       false,
+				"maintenanceModeExpiry": "",
+				"size":                  "large",
+			},
+		}
+
+		pruneNormalizedEmptyClusterFields(rawMap)
+
+		dataMap := rawMap["data"].(map[string]any)
+		_, present := dataMap["maintenanceModeExpiry"]
+		require.False(t, present, "empty maintenanceModeExpiry must not reach the apply payload")
+		require.Equal(t, "large", dataMap["size"], "unrelated fields must be preserved")
+		require.Equal(t, false, dataMap["maintenanceMode"], "maintenanceMode must be preserved")
+	})
+
+	t.Run("keeps a real maintenanceModeExpiry", func(t *testing.T) {
+		rawMap := map[string]any{
+			"data": map[string]any{
+				"maintenanceMode":       true,
+				"maintenanceModeExpiry": "2030-12-31T23:59:59Z",
+			},
+		}
+
+		pruneNormalizedEmptyClusterFields(rawMap)
+
+		dataMap := rawMap["data"].(map[string]any)
+		require.Equal(t, "2030-12-31T23:59:59Z", dataMap["maintenanceModeExpiry"])
+	})
+
+	t.Run("tolerates missing or empty input", func(t *testing.T) {
+		require.NotPanics(t, func() { pruneNormalizedEmptyClusterFields(nil) })
+		require.NotPanics(t, func() { pruneNormalizedEmptyClusterFields(map[string]any{}) })
+		require.NotPanics(t, func() {
+			pruneNormalizedEmptyClusterFields(map[string]any{"data": map[string]any{}})
+		})
+	})
+}
+
 // Regression test for the actual failure: the pruning must be wired into the
 // payload builder, not merely available as a helper. Without the call in
 // buildClusters, an empty maintenanceModeExpiry read back from the control

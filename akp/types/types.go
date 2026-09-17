@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"google.golang.org/protobuf/types/known/structpb"
+	yamlv3 "gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/yaml"
 
@@ -93,17 +94,6 @@ var (
 		// block. "custom" is not a value here — the schema allows only
 		// small/medium/large/auto, with Custom expressed as large plus patches.
 		"spec.instance_spec.cluster_customization_defaults.size": ProtoEnumToLowerString(clusterSizeProtoToTF),
-		// The server renders these through a %0.2fGi formatter, so a configured "4Gi"
-		// returns as "4.00Gi"; inside the sensitive argocd block that surfaces as
-		// "inconsistent values for sensitive attribute" naming no field at all.
-		"spec.instance_spec.cluster_customization_defaults.autoscaler_config.application_controller.resource_minimum.cpu":    PreserveEquivalentQuantity(),
-		"spec.instance_spec.cluster_customization_defaults.autoscaler_config.application_controller.resource_minimum.memory": PreserveEquivalentQuantity(),
-		"spec.instance_spec.cluster_customization_defaults.autoscaler_config.application_controller.resource_maximum.cpu":    PreserveEquivalentQuantity(),
-		"spec.instance_spec.cluster_customization_defaults.autoscaler_config.application_controller.resource_maximum.memory": PreserveEquivalentQuantity(),
-		"spec.instance_spec.cluster_customization_defaults.autoscaler_config.repo_server.resource_minimum.cpu":               PreserveEquivalentQuantity(),
-		"spec.instance_spec.cluster_customization_defaults.autoscaler_config.repo_server.resource_minimum.memory":            PreserveEquivalentQuantity(),
-		"spec.instance_spec.cluster_customization_defaults.autoscaler_config.repo_server.resource_maximum.cpu":               PreserveEquivalentQuantity(),
-		"spec.instance_spec.cluster_customization_defaults.autoscaler_config.repo_server.resource_maximum.memory":            PreserveEquivalentQuantity(),
 	}
 
 	// ReverseRenamesMap maps tfsdk tags to API camelCase keys for the reverse direction.
@@ -150,7 +140,7 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 	var planArg *ClusterSpec
 	var planData ClusterData
 	if plan != nil {
-		planArg = DeepCopy(plan.Spec)
+		planArg = DeepCopyClusterSpec(plan.Spec)
 		planData = planArg.Data
 	}
 	diagnostics.Append(BuildStateFromAPI(ctx, apiMap, c.Spec, planArg, ReverseOverridesMap, ReverseRenamesMap, "spec")...)
@@ -167,25 +157,9 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 		c.Spec.Data.Size = types.StringValue("custom")
 	}
 
-	if plan != nil && planData.Size.ValueString() == "custom" {
-		switch {
-		// An unset kustomization is planned unknown (UnknownWhenCustomSize) and the API
-		// then returns only the patches generated from custom_agent_size_config. Those
-		// are not user input: stored as such, the next apply would reject them as a
-		// conflicting user patch. The equality check migrates states that stored them.
-		case customConfig != nil && (planData.Kustomization.IsUnknown() || isGeneratedKustomization(planData.Kustomization.ValueString(), customConfig)):
-			c.Spec.Data.Kustomization = types.StringNull()
-		case !planData.Kustomization.IsUnknown():
-			c.Spec.Data.Kustomization = planData.Kustomization
-		}
+	if plan != nil && planData.Size.ValueString() == "custom" && !planData.Kustomization.IsUnknown() {
+		c.Spec.Data.Kustomization = planData.Kustomization
 	}
-}
-
-// isGeneratedKustomization reports whether kustomization holds exactly what
-// GenerateExpectedKustomization derives from customConfig, i.e. no user content.
-func isGeneratedKustomization(kustomization string, customConfig *CustomAgentSizeConfig) bool {
-	generated, err := GenerateExpectedKustomization(customConfig, "")
-	return err == nil && normalizedYAMLEqual(kustomization, generated)
 }
 
 func inferCustomAgentSizeConfig(apiCluster *argocdv1.Cluster, planData ClusterData, diagnostics *diag.Diagnostics) *CustomAgentSizeConfig {
@@ -314,8 +288,21 @@ func inferCustomAgentSizeConfigFromKustomization(kustomization string) (*CustomA
 }
 
 func extractCustomAgentPatchResources(patch string) (memory, cpu string, ok bool) {
-	for _, container := range patchContainers(patch) {
-		resources, ok := container["resources"].(map[string]any)
+	var patchMap map[string]any
+	if err := yaml.Unmarshal([]byte(patch), &patchMap); err != nil {
+		return "", "", false
+	}
+
+	spec, _ := patchMap["spec"].(map[string]any)
+	template, _ := spec["template"].(map[string]any)
+	templateSpec, _ := template["spec"].(map[string]any)
+	containers, _ := templateSpec["containers"].([]any)
+	for _, container := range containers {
+		containerMap, ok := container.(map[string]any)
+		if !ok {
+			continue
+		}
+		resources, ok := containerMap["resources"].(map[string]any)
 		if !ok {
 			continue
 		}
@@ -394,54 +381,96 @@ func BuildCMPMap(cmp *ConfigManagementPlugin, name string) map[string]any {
 	return rawMap
 }
 
-// patchContainers returns the pod containers addressed by a Deployment patch.
-func patchContainers(patch string) []map[string]any {
-	var patchObj map[string]any
-	if err := yaml.Unmarshal([]byte(patch), &patchObj); err != nil {
-		return nil
-	}
-	spec, _ := patchObj["spec"].(map[string]any)
-	template, _ := spec["template"].(map[string]any)
-	templateSpec, _ := template["spec"].(map[string]any)
-	containers, _ := templateSpec["containers"].([]any)
-	result := make([]map[string]any, 0, len(containers))
-	for _, container := range containers {
-		if m, ok := container.(map[string]any); ok {
-			result = append(result, m)
-		}
-	}
-	return result
-}
-
 func isResourcePatch(patch map[string]any) bool {
 	patchContent, ok := patch["patch"].(string)
 	if !ok {
 		return false
 	}
-	for _, container := range patchContainers(patchContent) {
-		if _, hasResources := container["resources"]; hasResources {
+
+	var patchObj map[string]any
+	if err := yaml.Unmarshal([]byte(patchContent), &patchObj); err != nil {
+		return false
+	}
+
+	spec, ok := patchObj["spec"].(map[string]any)
+	if !ok {
+		return false
+	}
+
+	template, ok := spec["template"].(map[string]any)
+	if !ok {
+		return false
+	}
+
+	templateSpec, ok := template["spec"].(map[string]any)
+	if !ok {
+		return false
+	}
+
+	containers, ok := templateSpec["containers"].([]any)
+	if !ok {
+		return false
+	}
+
+	for _, container := range containers {
+		containerMap, ok := container.(map[string]any)
+		if !ok {
+			return false
+		}
+		_, hasResources := containerMap["resources"]
+		if hasResources {
 			return true
 		}
 	}
 	return false
 }
 
-func generateResourcePatch(name, memory, cpu string) string {
+func generateAppControllerPatch(config *AppControllerCustomAgentSizeConfig) string {
+	if config == nil {
+		return ""
+	}
 	return fmt.Sprintf(`apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: %s
+  name: argocd-application-controller
 spec:
   template:
     spec:
       containers:
-        - name: %s
+        - name: argocd-application-controller
           resources:
             limits:
               memory: %s
             requests:
               cpu: %s
-              memory: %s`, name, name, memory, cpu, memory)
+              memory: %s`,
+		config.Memory.ValueString(),
+		config.Cpu.ValueString(),
+		config.Memory.ValueString())
+}
+
+func generateRepoServerPatch(config *RepoServerCustomAgentSizeConfig) string {
+	if config == nil {
+		return ""
+	}
+	return fmt.Sprintf(`apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-repo-server
+spec:
+  template:
+    spec:
+      containers:
+        - name: argocd-repo-server
+          resources:
+            limits:
+              memory: %s
+            requests:
+              cpu: %s
+              memory: %s`,
+		config.Memory.ValueString(),
+		config.Cpu.ValueString(),
+		config.Memory.ValueString())
 }
 
 func areResourcesEquivalent(plan, new string) bool {
@@ -466,6 +495,17 @@ func areResourcesEquivalent(plan, new string) bool {
 
 	// there maybe Mi to Gi conversion with some rounding difference
 	return diff <= 0.05
+}
+
+func yamlEqual(a, b string) bool {
+	var objA, objB any
+	if err := yamlv3.Unmarshal([]byte(a), &objA); err != nil {
+		return false
+	}
+	if err := yamlv3.Unmarshal([]byte(b), &objB); err != nil {
+		return false
+	}
+	return reflect.DeepEqual(objA, objB)
 }
 
 func GenerateExpectedKustomization(customConfig *CustomAgentSizeConfig, userKustomization string) (string, error) {
@@ -512,7 +552,7 @@ func GenerateExpectedKustomization(customConfig *CustomAgentSizeConfig, userKust
 
 	if customConfig.ApplicationController != nil {
 		customPatches = append(customPatches, map[string]any{
-			"patch": generateResourcePatch("argocd-application-controller", customConfig.ApplicationController.Memory.ValueString(), customConfig.ApplicationController.Cpu.ValueString()),
+			"patch": generateAppControllerPatch(customConfig.ApplicationController),
 			"target": map[string]string{
 				"kind": "Deployment",
 				"name": "argocd-application-controller",
@@ -522,7 +562,7 @@ func GenerateExpectedKustomization(customConfig *CustomAgentSizeConfig, userKust
 
 	if customConfig.RepoServer != nil {
 		customPatches = append(customPatches, map[string]any{
-			"patch": generateResourcePatch("argocd-repo-server", customConfig.RepoServer.Memory.ValueString(), customConfig.RepoServer.Cpu.ValueString()),
+			"patch": generateRepoServerPatch(customConfig.RepoServer),
 			"target": map[string]string{
 				"kind": "Deployment",
 				"name": "argocd-repo-server",
@@ -560,6 +600,10 @@ func GenerateExpectedKustomization(customConfig *CustomAgentSizeConfig, userKust
 
 // isKustomizationSubset checks if the API response is a subset of the expected kustomization
 func isKustomizationSubset(subset, superset string) bool {
+	if yamlEqual(subset, superset) {
+		return true
+	}
+
 	var subsetObj, supersetObj map[string]any
 	if err := yaml.Unmarshal([]byte(subset), &subsetObj); err != nil {
 		return false
@@ -628,69 +672,314 @@ func isSliceSubset(subset, superset []any) bool {
 	return true
 }
 
-// resourcesFromAPI converts API resources to the TF model, keeping the planned
-// spelling of equivalent quantities (e.g. "1Gi" vs "1024Mi") to avoid spurious diffs.
-func resourcesFromAPI(api *argocdv1.Resources, plan *Resources) *Resources {
-	if api == nil {
-		return nil
-	}
-	mem, cpu := api.Mem, api.Cpu
-	if plan != nil {
-		if areResourcesEquivalent(plan.Memory.ValueString(), mem) {
-			mem = plan.Memory.ValueString()
-		}
-		if areResourcesEquivalent(plan.Cpu.ValueString(), cpu) {
-			cpu = plan.Cpu.ValueString()
-		}
-	}
-	return &Resources{Memory: types.StringValue(mem), Cpu: types.StringValue(cpu)}
-}
-
 func toAutoScalerConfigTFModel(plan *Cluster, apiConfig *argocdv1.AutoScalerConfig) *AutoScalerConfig {
-	var planned *AutoScalerConfig
-	if plan != nil && plan.Spec != nil {
-		planned = plan.Spec.Data.AutoscalerConfig
-		if planned == nil {
+	// If plan is nil, use API value
+	if plan == nil || plan.Spec == nil {
+		if apiConfig == nil {
 			return nil
 		}
-		// Only size "auto" takes its config from the API; other sizes keep the planned values.
-		if plan.Spec.Data.Size.ValueString() != "auto" {
-			return planned
+		// Continue processing to return API config
+	} else {
+		// Get the size value
+		sizeValue := ""
+		if !plan.Spec.Data.Size.IsNull() {
+			sizeValue = plan.Spec.Data.Size.ValueString()
+		}
+
+		// Check auto_agent_size_config status
+		autoscalerIsNull := plan.Spec.Data.AutoscalerConfig == nil
+
+		// Main logic: decide whether to return null or continue processing
+		if sizeValue != "auto" {
+			// For non-auto sizes, auto_agent_size_config should generally be null
+			if autoscalerIsNull {
+				// Not specified or explicitly null - return null
+				return nil
+			}
+			// Has explicit non-null values - preserve the planned values instead of API values
+			// This handles the case where we transition from "auto" to another size
+			return plan.Spec.Data.AutoscalerConfig
+		} else {
+			// For auto size, show config from API if not explicitly set to null
+			if autoscalerIsNull {
+				return nil
+			}
+			// Continue processing to show API defaults or planned values
 		}
 	}
+
+	// If the plan doesn't include auto scaler config but size is "auto", show API defaults
+	if plan != nil && plan.Spec != nil && plan.Spec.Data.AutoscalerConfig == nil {
+		// If size is "auto", we should show the API defaults even if not explicitly configured
+		if !plan.Spec.Data.Size.IsNull() && plan.Spec.Data.Size.ValueString() == "auto" {
+			// Show API defaults in state - don't return null
+		} else {
+			// For other sizes, don't show autoscaler config
+			return nil
+		}
+	}
+
 	if apiConfig == nil {
 		return nil
 	}
 
+	// Get the planned auto scaler config to preserve original values when equivalent
+	var plannedConfig *AutoScalerConfig
+	if plan != nil && plan.Spec != nil && plan.Spec.Data.AutoscalerConfig != nil {
+		plannedConfig = plan.Spec.Data.AutoscalerConfig
+	}
+
 	result := &AutoScalerConfig{}
-	if ac := apiConfig.ApplicationController; ac != nil {
-		var planMin, planMax *Resources
-		if planned != nil && planned.ApplicationController != nil {
-			planMin, planMax = planned.ApplicationController.ResourceMinimum, planned.ApplicationController.ResourceMaximum
-		}
-		result.ApplicationController = &AppControllerAutoScalingConfig{
-			ResourceMinimum: resourcesFromAPI(ac.ResourceMinimum, planMin),
-			ResourceMaximum: resourcesFromAPI(ac.ResourceMaximum, planMax),
-		}
-	}
-	if rs := apiConfig.RepoServer; rs != nil {
-		var planMin, planMax *Resources
-		replicasMin, replicasMax := int64(rs.ReplicaMinimum), int64(rs.ReplicaMaximum)
-		if planned != nil && planned.RepoServer != nil {
-			planMin, planMax = planned.RepoServer.ResourceMinimum, planned.RepoServer.ResourceMaximum
-			if !planned.RepoServer.ReplicasMinimum.IsNull() {
-				replicasMin = planned.RepoServer.ReplicasMinimum.ValueInt64()
+
+	if apiConfig.ApplicationController != nil {
+		appController := &AppControllerAutoScalingConfig{}
+
+		if apiConfig.ApplicationController.ResourceMinimum != nil {
+			// Use planned values if they are resource-equivalent to API values
+			memoryValue := apiConfig.ApplicationController.ResourceMinimum.Mem
+			cpuValue := apiConfig.ApplicationController.ResourceMinimum.Cpu
+
+			if plannedConfig != nil && plannedConfig.ApplicationController != nil && plannedConfig.ApplicationController.ResourceMinimum != nil {
+				if areResourcesEquivalent(plannedConfig.ApplicationController.ResourceMinimum.Memory.ValueString(), memoryValue) {
+					memoryValue = plannedConfig.ApplicationController.ResourceMinimum.Memory.ValueString()
+				}
+				if areResourcesEquivalent(plannedConfig.ApplicationController.ResourceMinimum.Cpu.ValueString(), cpuValue) {
+					cpuValue = plannedConfig.ApplicationController.ResourceMinimum.Cpu.ValueString()
+				}
 			}
-			if !planned.RepoServer.ReplicasMaximum.IsNull() {
-				replicasMax = planned.RepoServer.ReplicasMaximum.ValueInt64()
+
+			appController.ResourceMinimum = &Resources{
+				Memory: types.StringValue(memoryValue),
+				Cpu:    types.StringValue(cpuValue),
 			}
 		}
-		result.RepoServer = &RepoServerAutoScalingConfig{
-			ResourceMinimum: resourcesFromAPI(rs.ResourceMinimum, planMin),
-			ResourceMaximum: resourcesFromAPI(rs.ResourceMaximum, planMax),
-			ReplicasMinimum: types.Int64Value(replicasMin),
-			ReplicasMaximum: types.Int64Value(replicasMax),
+
+		if apiConfig.ApplicationController.ResourceMaximum != nil {
+			// Use planned values if they are resource-equivalent to API values
+			memoryValue := apiConfig.ApplicationController.ResourceMaximum.Mem
+			cpuValue := apiConfig.ApplicationController.ResourceMaximum.Cpu
+
+			if plannedConfig != nil && plannedConfig.ApplicationController != nil && plannedConfig.ApplicationController.ResourceMaximum != nil {
+				if areResourcesEquivalent(plannedConfig.ApplicationController.ResourceMaximum.Memory.ValueString(), memoryValue) {
+					memoryValue = plannedConfig.ApplicationController.ResourceMaximum.Memory.ValueString()
+				}
+				if areResourcesEquivalent(plannedConfig.ApplicationController.ResourceMaximum.Cpu.ValueString(), cpuValue) {
+					cpuValue = plannedConfig.ApplicationController.ResourceMaximum.Cpu.ValueString()
+				}
+			}
+
+			appController.ResourceMaximum = &Resources{
+				Memory: types.StringValue(memoryValue),
+				Cpu:    types.StringValue(cpuValue),
+			}
 		}
+
+		result.ApplicationController = appController
 	}
+
+	if apiConfig.RepoServer != nil {
+		repoServer := &RepoServerAutoScalingConfig{}
+
+		if apiConfig.RepoServer.ResourceMinimum != nil {
+			// Use planned values if they are resource-equivalent to API values
+			memoryValue := apiConfig.RepoServer.ResourceMinimum.Mem
+			cpuValue := apiConfig.RepoServer.ResourceMinimum.Cpu
+
+			if plannedConfig != nil && plannedConfig.RepoServer != nil && plannedConfig.RepoServer.ResourceMinimum != nil {
+				if areResourcesEquivalent(plannedConfig.RepoServer.ResourceMinimum.Memory.ValueString(), memoryValue) {
+					memoryValue = plannedConfig.RepoServer.ResourceMinimum.Memory.ValueString()
+				}
+				if areResourcesEquivalent(plannedConfig.RepoServer.ResourceMinimum.Cpu.ValueString(), cpuValue) {
+					cpuValue = plannedConfig.RepoServer.ResourceMinimum.Cpu.ValueString()
+				}
+			}
+
+			repoServer.ResourceMinimum = &Resources{
+				Memory: types.StringValue(memoryValue),
+				Cpu:    types.StringValue(cpuValue),
+			}
+		}
+
+		if apiConfig.RepoServer.ResourceMaximum != nil {
+			// Use planned values if they are resource-equivalent to API values
+			memoryValue := apiConfig.RepoServer.ResourceMaximum.Mem
+			cpuValue := apiConfig.RepoServer.ResourceMaximum.Cpu
+
+			if plannedConfig != nil && plannedConfig.RepoServer != nil && plannedConfig.RepoServer.ResourceMaximum != nil {
+				if areResourcesEquivalent(plannedConfig.RepoServer.ResourceMaximum.Memory.ValueString(), memoryValue) {
+					memoryValue = plannedConfig.RepoServer.ResourceMaximum.Memory.ValueString()
+				}
+				if areResourcesEquivalent(plannedConfig.RepoServer.ResourceMaximum.Cpu.ValueString(), cpuValue) {
+					cpuValue = plannedConfig.RepoServer.ResourceMaximum.Cpu.ValueString()
+				}
+			}
+
+			repoServer.ResourceMaximum = &Resources{
+				Memory: types.StringValue(memoryValue),
+				Cpu:    types.StringValue(cpuValue),
+			}
+		}
+
+		// For replica values, always use planned values if available, otherwise API values
+		replicasMin := int64(apiConfig.RepoServer.ReplicaMinimum)
+		replicasMax := int64(apiConfig.RepoServer.ReplicaMaximum)
+		if plannedConfig != nil && plannedConfig.RepoServer != nil {
+			if !plannedConfig.RepoServer.ReplicasMinimum.IsNull() {
+				replicasMin = plannedConfig.RepoServer.ReplicasMinimum.ValueInt64()
+			}
+			if !plannedConfig.RepoServer.ReplicasMaximum.IsNull() {
+				replicasMax = plannedConfig.RepoServer.ReplicasMaximum.ValueInt64()
+			}
+		}
+
+		repoServer.ReplicasMinimum = types.Int64Value(replicasMin)
+		repoServer.ReplicasMaximum = types.Int64Value(replicasMax)
+
+		result.RepoServer = repoServer
+	}
+
 	return result
+}
+
+// preserveInstanceAutoscalerPlanQuantities keeps the operator's own spelling of
+// the instance-level auto limits when the API returns an equivalent quantity.
+//
+// The server stores these as resource.Quantity and renders them back through a
+// %0.2fGi formatter, so a configured "4Gi" comes back as "4.00Gi". Both mean the
+// same thing, but Terraform compares strings — and since the whole argocd block
+// is one sensitive attribute, the mismatch surfaces as "inconsistent values for
+// sensitive attribute" naming no field at all.
+//
+// This is a post-processing pass rather than a ReverseFieldOverride because
+// cluster_customization_defaults is a dynamic types.Object and buildTFObject
+// only resolves overrides for an Object's direct children (see its
+// "deep nested overrides" TODO); these quantities sit three levels deeper. The
+// Cluster resource's equivalent limits are handled in toAutoScalerConfigTFModel,
+// which only has the Cluster plan.
+//
+// A genuinely different quantity is left untouched so real drift stays visible.
+func preserveInstanceAutoscalerPlanQuantities(state, plan *ArgoCD) {
+	if state == nil || plan == nil {
+		return
+	}
+	stateCCD := state.Spec.InstanceSpec.ClusterCustomizationDefaults
+	planCCD := plan.Spec.InstanceSpec.ClusterCustomizationDefaults
+	if stateCCD.IsNull() || stateCCD.IsUnknown() || planCCD.IsNull() || planCCD.IsUnknown() {
+		return
+	}
+
+	stateCfg, ok := objectAttr(stateCCD, "autoscaler_config")
+	if !ok {
+		return
+	}
+	planCfg, ok := objectAttr(planCCD, "autoscaler_config")
+	if !ok {
+		return
+	}
+
+	rebuiltCfg, changed := preserveWorkloadQuantities(stateCfg, planCfg)
+	if !changed {
+		return
+	}
+
+	attrs := stateCCD.Attributes()
+	attrs["autoscaler_config"] = rebuiltCfg
+	rebuilt, diags := types.ObjectValue(stateCCD.AttributeTypes(context.Background()), attrs)
+	if diags.HasError() {
+		return
+	}
+	state.Spec.InstanceSpec.ClusterCustomizationDefaults = rebuilt
+}
+
+// preserveWorkloadQuantities walks autoscaler_config's workload objects
+// (application_controller, repo_server) and their resource_minimum /
+// resource_maximum pairs, swapping any state quantity for the planned spelling
+// when the two are equivalent.
+func preserveWorkloadQuantities(stateCfg, planCfg types.Object) (types.Object, bool) {
+	changed := false
+	cfgAttrs := stateCfg.Attributes()
+
+	for _, workload := range []string{"application_controller", "repo_server"} {
+		stateWL, ok := objectAttr(stateCfg, workload)
+		if !ok {
+			continue
+		}
+		planWL, ok := objectAttr(planCfg, workload)
+		if !ok {
+			continue
+		}
+
+		wlAttrs := stateWL.Attributes()
+		wlChanged := false
+		for _, bound := range []string{"resource_minimum", "resource_maximum"} {
+			stateRes, ok := objectAttr(stateWL, bound)
+			if !ok {
+				continue
+			}
+			planRes, ok := objectAttr(planWL, bound)
+			if !ok {
+				continue
+			}
+
+			resAttrs := stateRes.Attributes()
+			resChanged := false
+			for name, stateVal := range resAttrs {
+				stateStr, ok := stateVal.(types.String)
+				if !ok {
+					continue
+				}
+				planStr, ok := planRes.Attributes()[name].(types.String)
+				if !ok || planStr.IsNull() || planStr.IsUnknown() || planStr.ValueString() == "" {
+					continue
+				}
+				if planStr.ValueString() == stateStr.ValueString() ||
+					!areResourcesEquivalent(planStr.ValueString(), stateStr.ValueString()) {
+					continue
+				}
+				resAttrs[name] = planStr
+				resChanged = true
+			}
+			if !resChanged {
+				continue
+			}
+			rebuiltRes, diags := types.ObjectValue(stateRes.AttributeTypes(context.Background()), resAttrs)
+			if diags.HasError() {
+				continue
+			}
+			wlAttrs[bound] = rebuiltRes
+			wlChanged = true
+		}
+		if !wlChanged {
+			continue
+		}
+		rebuiltWL, diags := types.ObjectValue(stateWL.AttributeTypes(context.Background()), wlAttrs)
+		if diags.HasError() {
+			continue
+		}
+		cfgAttrs[workload] = rebuiltWL
+		changed = true
+	}
+
+	if !changed {
+		return stateCfg, false
+	}
+	rebuilt, diags := types.ObjectValue(stateCfg.AttributeTypes(context.Background()), cfgAttrs)
+	if diags.HasError() {
+		return stateCfg, false
+	}
+	return rebuilt, true
+}
+
+// objectAttr reads a nested types.Object attribute, reporting whether it is
+// present and usable.
+func objectAttr(parent types.Object, name string) (types.Object, bool) {
+	val, ok := parent.Attributes()[name]
+	if !ok {
+		return types.Object{}, false
+	}
+	obj, ok := val.(types.Object)
+	if !ok || obj.IsNull() || obj.IsUnknown() {
+		return types.Object{}, false
+	}
+	return obj, true
 }

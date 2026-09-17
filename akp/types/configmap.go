@@ -1,7 +1,6 @@
 package types
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -12,10 +11,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
-	"go.yaml.in/yaml/v3"
 	"google.golang.org/protobuf/types/known/structpb"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
 func FilterMapToPlannedKeys(_ context.Context, diagnostics *diag.Diagnostics, current, planned tftypes.Map) tftypes.Map {
@@ -183,7 +182,7 @@ func parseMergedResourceCustomizations(apiMap map[string]any) map[string]string 
 			case string:
 				valueStr = strings.TrimSpace(v)
 			default:
-				data, err := marshalYAML(v)
+				data, err := yaml.Marshal(v)
 				if err != nil {
 					continue
 				}
@@ -195,19 +194,6 @@ func parseMergedResourceCustomizations(apiMap map[string]any) map[string]string 
 	}
 
 	return result
-}
-
-// marshalYAML encodes with the 2-space, compact-sequence style kustomize uses,
-// so values round-trip byte-for-byte against the API's YAML.
-func marshalYAML(in any) ([]byte, error) {
-	var buf bytes.Buffer
-	enc := yaml.NewEncoder(&buf)
-	enc.SetIndent(2)
-	enc.CompactSeqIndent()
-	if err := enc.Encode(in); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
 }
 
 func yamlIsSubset(sub, super any) bool {
@@ -396,24 +382,64 @@ func ToConfigMapAPIModel(ctx context.Context, diagnostics *diag.Diagnostics, nam
 	}
 }
 
-// sortJSONString canonicalises a JSON object or array; encoding/json emits map
-// keys in sorted order, so a round trip is all it takes.
+func sortJSONKeys(value any) (any, error) {
+	switch v := value.(type) {
+	case map[string]any:
+		sortedMap := make(map[string]any)
+		keys := make([]string, 0, len(v))
+		for k := range v {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			sortedValue, err := sortJSONKeys(v[k])
+			if err != nil {
+				return nil, err
+			}
+			sortedMap[k] = sortedValue
+		}
+		return sortedMap, nil
+	case []any:
+		sortedArray := make([]any, len(v))
+		for i, item := range v {
+			sortedValue, err := sortJSONKeys(item)
+			if err != nil {
+				return nil, err
+			}
+			sortedArray[i] = sortedValue
+		}
+		return sortedArray, nil
+	default:
+		return v, nil
+	}
+}
+
 func sortJSONString(jsonStr string) (string, error) {
 	if !json.Valid([]byte(jsonStr)) {
 		return jsonStr, nil
 	}
+
 	var data any
-	if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
+	err := json.Unmarshal([]byte(jsonStr), &data)
+	if err != nil {
 		return "", err
 	}
+
 	switch data.(type) {
 	case map[string]any, []any:
 	default:
 		return jsonStr, nil
 	}
-	sortedJSON, err := json.Marshal(data)
+
+	sortedData, err := sortJSONKeys(data)
 	if err != nil {
 		return "", err
 	}
+
+	sortedJSON, err := json.Marshal(sortedData)
+	if err != nil {
+		return "", err
+	}
+
 	return string(sortedJSON), nil
 }

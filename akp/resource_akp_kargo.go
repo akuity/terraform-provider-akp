@@ -2,7 +2,6 @@ package akp
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -11,10 +10,12 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	tftypes "github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
 	orgcv1 "github.com/akuity/api-client-go/pkg/api/gen/organization/v1"
@@ -36,11 +37,14 @@ func NewAkpKargoInstanceResource() resource.Resource {
 		ImportStateFunc: func(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 			resource.ImportStatePassthroughID(ctx, path.Root("name"), req, resp)
 		},
-		Validators: []resource.ConfigValidator{
-			agentSizeDefaultValidator{
-				defaultsPath: path.Root("kargo").AtName("spec").
-					AtName("kargo_instance_spec").AtName("agent_customization_defaults"),
-			},
+		ConfigValidatorsFunc: func() []resource.ConfigValidator {
+			return []resource.ConfigValidator{
+				agentSizeDefaultValidator{
+					defaultsPath: path.Root("kargo").AtName("spec").
+						AtName("kargo_instance_spec").AtName("agent_customization_defaults"),
+					autoSize: "auto",
+				},
+			}
 		},
 	}
 }
@@ -107,12 +111,12 @@ func kargoInstanceUpsert(ctx context.Context, cli *AkpCli, diagnostics *diag.Dia
 			workspace, err := getWorkspace(ctx, cli.OrgCli, cli.OrgId, plan.Workspace.ValueString())
 			if err != nil {
 				diagnostics.AddError("Client Error", fmt.Sprintf("Unable to get workspace. %s", err))
-				return false, errors.New("unable to get workspace")
+				return false, errors.New("Unable to get workspace")
 			}
 
 			apiReq := buildKargoApplyRequest(ctx, diagnostics, cli.KargoCli, plan, cli.OrgId, workspace.GetId())
 			if diagnostics.HasError() {
-				return false, errors.New("unable to build Kargo instance request")
+				return false, errors.New("Unable to build Kargo instance request")
 			}
 
 			// ApplyKargoInstance only honors workspace_id when creating an
@@ -134,7 +138,7 @@ func kargoInstanceUpsert(ctx context.Context, cli *AkpCli, diagnostics *diag.Dia
 			if err != nil {
 				// Export cannot reconstruct write-only fields such as secrets. Do
 				// not commit the planned state unless the full apply succeeded.
-				return false, fmt.Errorf("unable to upsert Kargo instance: %w", err)
+				return false, errors.Wrap(err, "Unable to upsert Kargo instance")
 			}
 
 			plan.Workspace = workspaceStateValue(plan.Workspace, workspace)
@@ -194,12 +198,14 @@ func buildKargoApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, 
 		id = kargo.ID.ValueString()
 	}
 
+	agentMaps := buildAgentMaps(ctx, client, id, orgID, idType)
+
 	applyReq := &kargov1.ApplyKargoInstanceRequest{
 		OrganizationId: orgID,
 		Id:             id,
 		IdType:         idType,
 		WorkspaceId:    workspaceID,
-		Kargo:          buildKargo(ctx, diagnostics, kargo),
+		Kargo:          buildKargo(ctx, diagnostics, kargo, agentMaps),
 		KargoConfigmap: buildConfigMap(ctx, diagnostics, kargo.KargoConfigMap, "kargo-cm"),
 		KargoSecret:    buildSecret(ctx, diagnostics, kargo.KargoSecret, "kargo-secret", nil),
 	}
@@ -219,39 +225,142 @@ func buildKargoApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, 
 	return applyReq
 }
 
-type kargoApplyReq = *kargov1.ApplyKargoInstanceRequest
+var kargoResourceGroups = map[string]struct {
+	appendFunc resourceGroupAppender[*kargov1.ApplyKargoInstanceRequest]
+}{
+	"Project": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.Projects = append(req.Projects, item)
+		},
+	},
+	"Warehouse": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.Warehouses = append(req.Warehouses, item)
+		},
+	},
+	"Stage": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.Stages = append(req.Stages, item)
+		},
+	},
+	"AnalysisTemplate": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.AnalysisTemplates = append(req.AnalysisTemplates, item)
+		},
+	},
+	"Secret": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.RepoCredentials = append(req.RepoCredentials, item)
+		},
+	},
+	"PromotionTask": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.PromotionTasks = append(req.PromotionTasks, item)
+		},
+	},
+	"ClusterPromotionTask": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.ClusterPromotionTasks = append(req.ClusterPromotionTasks, item)
+		},
+	},
+	"ServiceAccount": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.ServiceAccounts = append(req.ServiceAccounts, item)
+		},
+	},
+	"Role": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.Roles = append(req.Roles, item)
+		},
+	},
+	"RoleBinding": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.RoleBindings = append(req.RoleBindings, item)
+		},
+	},
+	"ConfigMap": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.Configmaps = append(req.Configmaps, item)
+		},
+	},
+	"ProjectConfig": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.ProjectConfigs = append(req.ProjectConfigs, item)
+		},
+	},
+	"MessageChannel": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.MessageChannels = append(req.MessageChannels, item)
+		},
+	},
+	"ClusterMessageChannel": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.ClusterMessageChannels = append(req.ClusterMessageChannels, item)
+		},
+	},
+	"EventRouter": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.EventRouters = append(req.EventRouters, item)
+		},
+	},
+	"CustomPromotionStep": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.CustomPromotionSteps = append(req.CustomPromotionSteps, item)
+		},
+	},
+	"ClusterConfig": {
+		appendFunc: func(req *kargov1.ApplyKargoInstanceRequest, item *structpb.Struct) {
+			req.ClusterConfigs = append(req.ClusterConfigs, item)
+		},
+	},
+}
 
-var kargoResourceGroups = map[string]resourceGroup[kargoApplyReq]{
-	"Project":               {"kargo.akuity.io", func(r kargoApplyReq) *[]*structpb.Struct { return &r.Projects }},
-	"ProjectConfig":         {"kargo.akuity.io", func(r kargoApplyReq) *[]*structpb.Struct { return &r.ProjectConfigs }},
-	"ClusterConfig":         {"kargo.akuity.io", func(r kargoApplyReq) *[]*structpb.Struct { return &r.ClusterConfigs }},
-	"Warehouse":             {"kargo.akuity.io", func(r kargoApplyReq) *[]*structpb.Struct { return &r.Warehouses }},
-	"Stage":                 {"kargo.akuity.io", func(r kargoApplyReq) *[]*structpb.Struct { return &r.Stages }},
-	"PromotionTask":         {"kargo.akuity.io", func(r kargoApplyReq) *[]*structpb.Struct { return &r.PromotionTasks }},
-	"ClusterPromotionTask":  {"kargo.akuity.io", func(r kargoApplyReq) *[]*structpb.Struct { return &r.ClusterPromotionTasks }},
-	"MessageChannel":        {"ee.kargo.akuity.io", func(r kargoApplyReq) *[]*structpb.Struct { return &r.MessageChannels }},
-	"ClusterMessageChannel": {"ee.kargo.akuity.io", func(r kargoApplyReq) *[]*structpb.Struct { return &r.ClusterMessageChannels }},
-	"EventRouter":           {"ee.kargo.akuity.io", func(r kargoApplyReq) *[]*structpb.Struct { return &r.EventRouters }},
-	"CustomPromotionStep":   {"ee.kargo.akuity.io", func(r kargoApplyReq) *[]*structpb.Struct { return &r.CustomPromotionSteps }},
-	"AnalysisTemplate":      {"argoproj.io", func(r kargoApplyReq) *[]*structpb.Struct { return &r.AnalysisTemplates }},
-	"Role":                  {"rbac.authorization.k8s.io", func(r kargoApplyReq) *[]*structpb.Struct { return &r.Roles }},
-	"RoleBinding":           {"rbac.authorization.k8s.io", func(r kargoApplyReq) *[]*structpb.Struct { return &r.RoleBindings }},
-	"ServiceAccount":        {"", func(r kargoApplyReq) *[]*structpb.Struct { return &r.ServiceAccounts }},
-	"ConfigMap":             {"", func(r kargoApplyReq) *[]*structpb.Struct { return &r.Configmaps }},
-	"Secret":                {"", func(r kargoApplyReq) *[]*structpb.Struct { return &r.RepoCredentials }},
+var kargoSupportedGroupKinds = map[schema.GroupKind]func(*unstructured.Unstructured) error{
+	{Group: "kargo.akuity.io", Kind: "Project"}:                  nil,
+	{Group: "kargo.akuity.io", Kind: "ProjectConfig"}:            nil,
+	{Group: "kargo.akuity.io", Kind: "ClusterConfig"}:            nil,
+	{Group: "kargo.akuity.io", Kind: "Warehouse"}:                nil,
+	{Group: "kargo.akuity.io", Kind: "Stage"}:                    nil,
+	{Group: "kargo.akuity.io", Kind: "PromotionTask"}:            nil,
+	{Group: "kargo.akuity.io", Kind: "ClusterPromotionTask"}:     nil,
+	{Group: "ee.kargo.akuity.io", Kind: "MessageChannel"}:        nil,
+	{Group: "ee.kargo.akuity.io", Kind: "ClusterMessageChannel"}: nil,
+	{Group: "ee.kargo.akuity.io", Kind: "EventRouter"}:           nil,
+	{Group: "ee.kargo.akuity.io", Kind: "CustomPromotionStep"}:   nil,
+	{Group: "argoproj.io", Kind: "AnalysisTemplate"}:             nil,
+	{Group: "rbac.authorization.k8s.io", Kind: "Role"}:           nil,
+	{Group: "rbac.authorization.k8s.io", Kind: "RoleBinding"}:    nil,
+	{Group: "", Kind: "ServiceAccount"}:                          nil,
+	{Group: "", Kind: "ConfigMap"}:                               nil,
+	{Group: "", Kind: "Secret"}: func(un *unstructured.Unstructured) error {
+		if v, ok := un.GetLabels()["kargo.akuity.io/cred-type"]; !ok || v == "" {
+			return errors.New("secret must have a kargo.akuity.io/cred-type label")
+		}
+		return nil
+	},
 }
 
 func isKargoResourceValid(un *unstructured.Unstructured) error {
-	if err := validateResource(un, kargoResourceGroups); err != nil {
-		return err
+	if un == nil {
+		return errors.New("unstructured is nil")
 	}
-	if un.GetKind() == "Secret" && un.GetLabels()["kargo.akuity.io/cred-type"] == "" {
-		return errors.New("secret must have a kargo.akuity.io/cred-type label")
+	if un.GetName() == "" {
+		return errors.New("name is required")
+	}
+	gk := schema.FromAPIVersionAndKind(un.GetAPIVersion(), un.GetKind()).GroupKind()
+	validator, ok := kargoSupportedGroupKinds[gk]
+	if !ok {
+		return errors.New("unsupported kind")
+	}
+	if validator != nil {
+		if err := validator(un); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func buildKargo(_ context.Context, diagnostics *diag.Diagnostics, kargo *types.KargoInstance) *structpb.Struct {
+func buildKargo(_ context.Context, diagnostics *diag.Diagnostics, kargo *types.KargoInstance, agentMaps *types.AgentMaps) *structpb.Struct {
 	subdomain := kargo.Kargo.Spec.Subdomain.ValueString()
 	fqdn := kargo.Kargo.Spec.Fqdn.ValueString()
 	if subdomain != "" && fqdn != "" {
@@ -295,7 +404,7 @@ func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, cli *
 		return getKargoInstanceByIdentity(ctx, cli.KargoCli, orgID, kargo.ID.ValueString(), kargo.Name.ValueString())
 	}, "GetKargoInstance")
 	if err != nil {
-		return fmt.Errorf("unable to read Kargo instance: %w", err)
+		return errors.Wrap(err, "Unable to read Kargo instance")
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Get Kargo instance response: %s", resp))
 	kargo.ID = tftypes.StringValue(resp.Instance.Id)
@@ -309,6 +418,8 @@ func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, cli *
 		}
 	}
 
+	agentMaps := buildAgentMaps(ctx, cli.KargoCli, kargo.ID.ValueString(), orgID, idv1.Type_ID)
+
 	exportReq := &kargov1.ExportKargoInstanceRequest{
 		OrganizationId: orgID,
 		Id:             kargo.ID.ValueString(),
@@ -319,10 +430,55 @@ func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, cli *
 		return kargoexport.ExportKargoInstance(ctx, cli.KargoCli, exportReq)
 	}, "ExportKargoInstance")
 	if err != nil {
-		return fmt.Errorf("unable to export Kargo instance: %w", err)
+		return errors.Wrap(err, "Unable to export Kargo instance")
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Export Kargo instance response: %s", exportResp))
-	return kargo.Update(ctx, diagnostics, exportResp, isDataSource)
+	return kargo.Update(ctx, diagnostics, exportResp, agentMaps, isDataSource)
+}
+
+func buildAgentMaps(ctx context.Context, client kargov1.KargoServiceGatewayClient, instanceID, orgID string, idType idv1.Type) *types.AgentMaps {
+	if instanceID == "" || orgID == "" {
+		return nil
+	}
+	if idType == idv1.Type_NAME {
+		instance, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.GetKargoInstanceResponse, error) {
+			return client.GetKargoInstance(ctx, &kargov1.GetKargoInstanceRequest{
+				OrganizationId: orgID,
+				Name:           instanceID,
+			})
+		}, "GetKargoInstance")
+		if err != nil {
+			tflog.Warn(ctx, fmt.Sprintf("Unable to get Kargo instance: %s", err))
+			return nil
+		}
+		instanceID = instance.GetInstance().GetId()
+	}
+	agentsResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ListKargoInstanceAgentsResponse, error) {
+		return client.ListKargoInstanceAgents(ctx, &kargov1.ListKargoInstanceAgentsRequest{
+			OrganizationId: orgID,
+			InstanceId:     instanceID,
+		})
+	}, "ListKargoInstanceAgents")
+	if err != nil {
+		tflog.Warn(ctx, fmt.Sprintf("Unable to list Kargo agents for name<->ID mapping: %s", err))
+		return nil
+	}
+
+	agentMaps := &types.AgentMaps{
+		NameToID: make(map[string]string),
+		IDToName: make(map[string]string),
+	}
+
+	for _, agent := range agentsResp.GetAgents() {
+		name := agent.GetName()
+		id := agent.GetId()
+		if name != "" && id != "" {
+			agentMaps.NameToID[name] = id
+			agentMaps.IDToName[id] = name
+		}
+	}
+
+	return agentMaps
 }
 
 func getWorkspace(ctx context.Context, orgc orgcv1.OrganizationServiceGatewayClient, orgid, name string) (*orgcv1.Workspace, error) {
@@ -332,7 +488,7 @@ func getWorkspace(ctx context.Context, orgc orgcv1.OrganizationServiceGatewayCli
 		})
 	}, "ListWorkspaces")
 	if err != nil {
-		return nil, fmt.Errorf("unable to read org workspaces: %w", err)
+		return nil, errors.Wrap(err, "unable to read org workspaces")
 	}
 	for _, w := range workspaces.GetWorkspaces() {
 		if name == "" && w.IsDefault {
@@ -348,16 +504,6 @@ func getWorkspace(ctx context.Context, orgc orgcv1.OrganizationServiceGatewayCli
 	return nil, status.Errorf(codes.NotFound, "workspace %s not found", name)
 }
 
-func getKargoInstanceByID(ctx context.Context, cli *AkpCli, instanceID string) (*kargov1.KargoInstance, error) {
-	resp, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.GetKargoInstanceResponse, error) {
-		return getKargoInstanceByIdentity(ctx, cli.KargoCli, cli.OrgId, instanceID, "")
-	}, "GetKargoInstance")
-	if err != nil {
-		return nil, err
-	}
-	return resp.GetInstance(), nil
-}
-
 func getWorkspaceByID(ctx context.Context, orgc orgcv1.OrganizationServiceGatewayClient, orgid, id string) (*orgcv1.Workspace, error) {
 	workspaces, err := retryWithBackoff(ctx, func(ctx context.Context) (*orgcv1.ListWorkspacesResponse, error) {
 		return orgc.ListWorkspaces(ctx, &orgcv1.ListWorkspacesRequest{
@@ -365,7 +511,7 @@ func getWorkspaceByID(ctx context.Context, orgc orgcv1.OrganizationServiceGatewa
 		})
 	}, "ListWorkspaces")
 	if err != nil {
-		return nil, fmt.Errorf("unable to read org workspaces: %w", err)
+		return nil, errors.Wrap(err, "unable to read org workspaces")
 	}
 	for _, w := range workspaces.GetWorkspaces() {
 		if w.Id == id {

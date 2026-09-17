@@ -2,10 +2,10 @@ package types
 
 import (
 	"context"
-	"slices"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 )
@@ -70,8 +70,9 @@ func (i *Instance) Update(ctx context.Context, diagnostics *diag.Diagnostics, ex
 	if isDataSource {
 		diagnostics.Append(BuildStateFromAPI(ctx, apiMap, i.ArgoCD, nil, ReverseOverridesMap, ReverseRenamesMap, "argocd")...)
 	} else {
-		plan := DeepCopy(i.ArgoCD)
+		plan := DeepCopyArgoCD(i.ArgoCD)
 		diagnostics.Append(BuildStateFromAPI(ctx, apiMap, i.ArgoCD, plan, ReverseOverridesMap, ReverseRenamesMap, "argocd")...)
+		preserveInstanceAutoscalerPlanQuantities(i.ArgoCD, plan)
 	}
 	if isDataSource {
 		i.ArgoCDConfigMap = ToDataSourceConfigMapTFModel(ctx, diagnostics, exportResp.ArgocdConfigmap, i.ArgoCDConfigMap)
@@ -97,7 +98,10 @@ func (i *Instance) syncArgoResources(
 	diagnostics *diag.Diagnostics,
 	isDataSource bool,
 ) error {
-	appliedResources := slices.Concat(exportResp.Applications, exportResp.ApplicationSets, exportResp.AppProjects)
+	appliedResources := make([]*structpb.Struct, 0)
+	appliedResources = append(appliedResources, exportResp.Applications...)
+	appliedResources = append(appliedResources, exportResp.ApplicationSets...)
+	appliedResources = append(appliedResources, exportResp.AppProjects...)
 
 	newMap, err := syncResources(
 		ctx,

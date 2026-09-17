@@ -3,7 +3,6 @@ package akp
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -111,7 +110,7 @@ func applyTeamResponse(data *types.Team, userTeam *orgcv1.UserTeam) {
 	data.Description = tftypes.StringValue(team.GetDescription())
 	data.CustomRoles = applyStringList(data.CustomRoles, userTeam.GetCustomRoles())
 	if t := team.GetCreateTime(); t != nil {
-		data.CreateTime = tftypes.StringValue(t.AsTime().Format(time.RFC3339))
+		data.CreateTime = tftypes.StringValue(t.AsTime().Format("2006-01-02T15:04:05Z07:00"))
 	}
 	data.MemberCount = tftypes.Int64Value(team.GetMemberCount())
 }

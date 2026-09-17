@@ -22,6 +22,8 @@ type agentSizeDefaultValidator struct {
 	// defaultsPath locates the customization defaults object, which differs
 	// between the Argo CD instance and the Kargo instance schemas.
 	defaultsPath path.Path
+	// autoSize is the size value the scaling limits belong to.
+	autoSize string
 }
 
 func (v agentSizeDefaultValidator) Description(context.Context) string {
@@ -37,25 +39,50 @@ func (v agentSizeDefaultValidator) ValidateResource(
 	req resource.ValidateConfigRequest,
 	resp *resource.ValidateConfigResponse,
 ) {
-	var size tftypes.String
-	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, v.defaultsPath.AtName("size"), &size)...)
-	var autoscaler tftypes.Object
-	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, v.defaultsPath.AtName("autoscaler_config"), &autoscaler)...)
-	// An unknown size is resolved at apply time; the control plane still rejects a bad combination.
-	if resp.Diagnostics.HasError() || size.IsUnknown() || autoscaler.IsNull() || autoscaler.IsUnknown() || size.ValueString() == "auto" {
+	var defaults tftypes.Object
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, v.defaultsPath, &defaults)...)
+	if resp.Diagnostics.HasError() || defaults.IsNull() || defaults.IsUnknown() {
 		return
 	}
-	got := size.ValueString()
-	if got == "" {
-		got = "unset"
+
+	var size tftypes.String
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, v.defaultsPath.AtName("size"), &size)...)
+	if resp.Diagnostics.HasError() || size.IsUnknown() {
+		return
 	}
-	resp.Diagnostics.AddAttributeError(
-		v.defaultsPath.AtName("autoscaler_config"),
-		`autoscaler_config requires size = "auto"`,
-		fmt.Sprintf(`autoscaler_config is only stored for an "auto" agent-size default, but size is %s. `+
-			`The control plane drops it otherwise, which would fail the apply with an inconsistent-result error. `+
-			`Set size = "auto" or remove autoscaler_config.`, got),
-	)
+
+	// A null size means no default at all, which cannot carry either override.
+	sizeValue := ""
+	if !size.IsNull() {
+		sizeValue = size.ValueString()
+	}
+
+	check := func(attribute, requiredSize string) {
+		var override tftypes.Object
+		resp.Diagnostics.Append(req.Config.GetAttribute(ctx, v.defaultsPath.AtName(attribute), &override)...)
+		if resp.Diagnostics.HasError() || override.IsNull() || override.IsUnknown() {
+			return
+		}
+		if sizeValue == requiredSize {
+			return
+		}
+		got := sizeValue
+		if got == "" {
+			got = "unset"
+		}
+		resp.Diagnostics.AddAttributeError(
+			v.defaultsPath.AtName(attribute),
+			fmt.Sprintf("%s requires size = %q", attribute, requiredSize),
+			fmt.Sprintf(
+				"%s is only stored for a %q agent-size default, but size is %s. "+
+					"The control plane drops it otherwise, which would fail the apply with an "+
+					"inconsistent-result error. Set size = %q or remove %s.",
+				attribute, requiredSize, got, requiredSize, attribute,
+			),
+		)
+	}
+
+	check("autoscaler_config", v.autoSize)
 }
 
 var _ resource.ConfigValidator = agentSizeDefaultValidator{}

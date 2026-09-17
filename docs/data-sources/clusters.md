@@ -37,18 +37,21 @@ data "akp_clusters" "example" {
 <a id="nestedatt--clusters"></a>
 ### Nested Schema for `clusters`
 
+Required:
+
+- `instance_id` (String) Argo CD instance ID
+- `name` (String) Cluster name
+
 Read-Only:
 
 - `annotations` (Map of String) Annotations
 - `ensure_healthy` (Boolean) If true, terraform apply will fail if the cluster agent becomes degraded or does not become healthy within the timeout period. When false (default), terraform will not wait for the resource status to be reported.
 - `id` (String) Cluster ID
-- `instance_id` (String) Argo CD instance ID
 - `kube_config` (Attributes) Kubernetes connection settings. If configured, terraform will try to connect to the cluster and install the agent (see [below for nested schema](#nestedatt--clusters--kube_config))
 - `labels` (Map of String) Labels
-- `name` (String) Cluster name
 - `namespace` (String) Agent installation namespace
-- `reapply_manifests_on_update` (Boolean) If true, re-apply generated Argo CD agent manifests to the target cluster on every update when `kube_config` is provided.
-- `remove_agent_resources_on_destroy` (Boolean) Remove agent Kubernetes resources from the managed cluster when destroying cluster, default to `true`
+- `reapply_manifests_on_update` (Boolean) Whether to reapply manifests on update
+- `remove_agent_resources_on_destroy` (Boolean) Remove agent Kubernetes resources from the managed cluster when destroying cluster
 - `spec` (Attributes) Cluster spec (see [below for nested schema](#nestedatt--clusters--spec))
 
 <a id="nestedatt--clusters--kube_config"></a>
@@ -64,24 +67,12 @@ Read-Only:
 - `config_context_cluster` (String)
 - `config_path` (String) Path to the kube config file.
 - `config_paths` (List of String) A list of paths to kube config files.
-- `exec` (Attributes) Configuration for the Kubernetes client authentication exec‐plugin (see [below for nested schema](#nestedatt--clusters--kube_config--exec))
 - `host` (String) The hostname (in form of URI) of Kubernetes master.
 - `insecure` (Boolean) Whether server should be accessed without verifying the TLS certificate.
 - `password` (String, Sensitive) The password to use for HTTP basic authentication when accessing the Kubernetes master endpoint.
 - `proxy_url` (String) URL to the proxy to be used for all API requests
-- `token` (String, Sensitive) Token to authenticate a service account
+- `token` (String, Sensitive) Token to authenticate an service account
 - `username` (String) The username to use for HTTP basic authentication when accessing the Kubernetes master endpoint.
-
-<a id="nestedatt--clusters--kube_config--exec"></a>
-### Nested Schema for `clusters.kube_config.exec`
-
-Read-Only:
-
-- `api_version` (String)
-- `args` (List of String) Arguments to pass to the exec plugin
-- `command` (String) The exec plugin binary to call
-- `env` (Map of String) Environment variables for the exec plugin
-
 
 
 <a id="nestedatt--clusters--spec"></a>
@@ -101,26 +92,26 @@ Read-Only:
 - `app_replication` (Boolean) Enables Argo CD state replication to the managed cluster that allows disconnecting the cluster from Akuity Platform without losing core Argocd features
 - `argocd_notifications_settings` (Attributes) ArgoCD notifications settings (see [below for nested schema](#nestedatt--clusters--spec--data--argocd_notifications_settings))
 - `auto_agent_size_config` (Attributes) Autoscaler config for auto agent size (see [below for nested schema](#nestedatt--clusters--spec--data--auto_agent_size_config))
-- `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
+- `auto_upgrade_disabled` (Boolean) Disables agents auto upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
 - `compatibility` (Attributes) Cluster compatibility settings (see [below for nested schema](#nestedatt--clusters--spec--data--compatibility))
-- `connectivity` (String) How the cluster is reached. One of `public` (internet) or `private` (AWS PrivateLink). Defaults to `public`.
+- `connectivity` (String) How the cluster is reached. One of `public` (internet) or `private` (AWS PrivateLink).
 - `custom_agent_size_config` (Attributes) Custom agent size config (see [below for nested schema](#nestedatt--clusters--spec--data--custom_agent_size_config))
-- `custom_ca_bundle` (String) PEM bundle of one or more CA certificates the agent workloads trust in addition to the system roots (e.g. a TLS-intercepting proxy CA). Certificates must be unexpired.
+- `custom_ca_bundle` (String) PEM bundle of one or more CA certificates the agent workloads trust in addition to the system roots (e.g. a TLS-intercepting proxy CA).
 - `datadog_annotations_enabled` (Boolean) Enable Datadog metrics collection of Application Controller and Repo Server. Make sure that you install Datadog agent in cluster.
 - `direct_cluster_spec` (Attributes) Direct cluster integration spec. Currently supports `kargo` (see [below for nested schema](#nestedatt--clusters--spec--data--direct_cluster_spec))
 - `eks_addon_enabled` (Boolean) Enable this if you are installing this cluster on EKS.
 - `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
-- `maintenance_mode` (Boolean) Enable maintenance mode for the cluster. When enabled, alerts for degraded agents are muted.
-- `maintenance_mode_expiry` (String) Expiry time for maintenance mode in RFC3339 format. Requires `maintenance_mode = true`. The control plane clears the expiry when maintenance mode is disabled.
+- `maintenance_mode` (Boolean) Whether maintenance mode is enabled for the cluster.
+- `maintenance_mode_expiry` (String) Expiry time for maintenance mode in RFC3339 format when maintenance mode is enabled.
 - `managed_cluster_config` (Attributes) The config to access managed Kubernetes cluster. By default agent is using "in-cluster" config. (see [below for nested schema](#nestedatt--clusters--spec--data--managed_cluster_config))
 - `multi_cluster_k8s_dashboard_enabled` (Boolean) Enable the KubeVision feature on the managed cluster
-- `pod_inherit_metadata` (Boolean) Enable pod metadata inheritance. When enabled, pods inherit labels and annotations from the cluster.
+- `pod_inherit_metadata` (Boolean) Whether pod metadata inheritance is enabled for the cluster.
 - `project` (String) Project name
 - `redis_tunneling` (Boolean) Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy
 - `server_side_diff_enabled` (Boolean) Enables the ability to set server-side diff on the application-controller.
 - `size` (String) Cluster Size. One of `small`, `medium`, `large`, `custom` or `auto`
 - `target_version` (String) The version of the agent to install on your cluster
-- `use_local_repo_creds` (Boolean) Enable local repository credentials injection. When enabled, the agent injects repository credentials from the local cluster into requests to Argo CD.
+- `use_local_repo_creds` (Boolean) Whether local repository credentials injection is enabled for the cluster.
 
 <a id="nestedatt--clusters--spec--data--argocd_notifications_settings"></a>
 ### Nested Schema for `clusters.spec.data.argocd_notifications_settings`
@@ -171,7 +162,7 @@ Read-Only:
 Read-Only:
 
 - `replicas_maximum` (Number) Replica maximum
-- `replicas_minimum` (Number) Replica minimum, this should be set to 1 as a minimum
+- `replicas_minimum` (Number) Replica minimum
 - `resource_maximum` (Attributes) Resource maximum (see [below for nested schema](#nestedatt--clusters--spec--data--auto_agent_size_config--repo_server--resource_maximum))
 - `resource_minimum` (Attributes) Resource minimum (see [below for nested schema](#nestedatt--clusters--spec--data--auto_agent_size_config--repo_server--resource_minimum))
 
