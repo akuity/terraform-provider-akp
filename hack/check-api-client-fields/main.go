@@ -2,72 +2,41 @@ package main
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 )
 
-// CLI flags. All have sane defaults relative to the project root, so the
-// common local invocation is just `go run ./hack/check-api-client-fields`.
-type options struct {
-	v1alpha1Dir   string
-	apiClientPkgs stringList
-	allowlistPath string
-	modulePath    string
-	projectRoot   string
-}
+// Run from the repository root: `go run ./hack/check-api-client-fields`.
+const (
+	v1Dir     = "akp/apis/v1alpha1"
+	allowPath = "hack/check-api-client-fields/allowlist.yaml"
+	module    = "github.com/akuity/api-client-go"
+)
 
-// stringList is a repeatable string flag (e.g. -pkg a -pkg b).
-type stringList []string
-
-func (s *stringList) String() string     { return strings.Join(*s, ",") }
-func (s *stringList) Set(v string) error { *s = append(*s, v); return nil }
+var apiClientPkgs = []string{"pkg/api/gen/argocd/v1", "pkg/api/gen/kargo/v1", "pkg/api/gen/types/mcp/v1"}
 
 func main() {
-	if err := run(os.Args[1:], os.Stdout); err != nil {
+	if err := run(os.Stdout); err != nil {
 		fmt.Fprintf(os.Stderr, "check-api-client-fields: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func run(args []string, stdout *os.File) error {
-	opts, err := parseArgs(args)
+func run(stdout *os.File) error {
+	apiClientDir, apiClientVersion, err := resolveModuleDir()
 	if err != nil {
-		return err
-	}
-
-	// Resolve project root so every path below is absolute and errors are
-	// easy to copy-paste.
-	root, err := resolveProjectRoot(opts.projectRoot)
-	if err != nil {
-		return fmt.Errorf("resolve project root: %w", err)
-	}
-
-	v1Dir := opts.v1alpha1Dir
-	if !filepath.IsAbs(v1Dir) {
-		v1Dir = filepath.Join(root, v1Dir)
-	}
-	allowPath := opts.allowlistPath
-	if !filepath.IsAbs(allowPath) {
-		allowPath = filepath.Join(root, allowPath)
-	}
-
-	// Resolve the on-disk location of the pinned api-client-go module using
-	// `go list -m`. This avoids hard-coding $GOMODCACHE semantics and works
-	// identically locally and in CI.
-	apiClientDir, apiClientVersion, err := resolveModuleDir(root, opts.modulePath)
-	if err != nil {
-		return fmt.Errorf("locate module %s: %w", opts.modulePath, err)
+		return fmt.Errorf("locate module %s: %w", module, err)
 	}
 
 	fmt.Fprintf(stdout, "check-api-client-fields\n")
-	fmt.Fprintf(stdout, "  project root      : %s\n", root)
 	fmt.Fprintf(stdout, "  v1alpha1 dir      : %s\n", v1Dir)
-	fmt.Fprintf(stdout, "  api-client-go     : %s@%s\n", opts.modulePath, apiClientVersion)
+	fmt.Fprintf(stdout, "  api-client-go     : %s@%s\n", module, apiClientVersion)
 	fmt.Fprintf(stdout, "  api-client-go dir : %s\n", apiClientDir)
 	fmt.Fprintf(stdout, "  allowlist         : %s\n", allowPath)
 	fmt.Fprintln(stdout)
@@ -77,10 +46,10 @@ func run(args []string, stdout *os.File) error {
 	if err != nil {
 		return fmt.Errorf("parse v1alpha1: %w", err)
 	}
-	fmt.Fprintf(stdout, "parsed %d structs from %s\n", len(v1Structs), relOrAbs(root, v1Dir))
+	fmt.Fprintf(stdout, "parsed %d structs from %s\n", len(v1Structs), v1Dir)
 
-	// Parse api-client-go. Resolve any -pkg entries against the module root.
-	apiFiles, err := resolveApiClientFiles(apiClientDir, opts.apiClientPkgs)
+	// Parse api-client-go.
+	apiFiles, err := resolveApiClientFiles(apiClientDir, apiClientPkgs)
 	if err != nil {
 		return fmt.Errorf("resolve api-client-go files: %w", err)
 	}
@@ -114,62 +83,11 @@ func run(args []string, stdout *os.File) error {
 	return nil
 }
 
-func parseArgs(args []string) (options, error) {
-	var opts options
-	fs := flag.NewFlagSet("check-api-client-fields", flag.ContinueOnError)
-	fs.StringVar(&opts.v1alpha1Dir, "v1alpha1", "akp/apis/v1alpha1",
-		"directory containing v1alpha1 Go files (relative to project root or absolute)")
-	fs.StringVar(&opts.allowlistPath, "allowlist", "hack/check-api-client-fields/allowlist.yaml",
-		"path to the allowlist YAML file")
-	fs.StringVar(&opts.modulePath, "module", "github.com/akuity/api-client-go",
-		"Go module path of the API client")
-	fs.StringVar(&opts.projectRoot, "project-root", "",
-		"project root (defaults to the closest ancestor containing go.mod)")
-	fs.Var(&opts.apiClientPkgs, "pkg",
-		"api-client-go subpackage containing protobuf Go types; may be repeated. "+
-			"Default: pkg/api/gen/argocd/v1, pkg/api/gen/kargo/v1, and pkg/api/gen/types/mcp/v1")
-	if err := fs.Parse(args); err != nil {
-		return opts, err
-	}
-	if len(opts.apiClientPkgs) == 0 {
-		opts.apiClientPkgs = []string{"pkg/api/gen/argocd/v1", "pkg/api/gen/kargo/v1", "pkg/api/gen/types/mcp/v1"}
-	}
-	return opts, nil
-}
-
-// resolveProjectRoot walks up from cwd (or the override) until it finds go.mod.
-func resolveProjectRoot(override string) (string, error) {
-	start := override
-	if start == "" {
-		var err error
-		start, err = os.Getwd()
-		if err != nil {
-			return "", err
-		}
-	}
-	start, err := filepath.Abs(start)
-	if err != nil {
-		return "", err
-	}
-	dir := start
-	for {
-		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return dir, nil
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "", fmt.Errorf("no go.mod found at or above %s", start)
-		}
-		dir = parent
-	}
-}
-
 // resolveModuleDir invokes `go list -m -f {{.Dir}}|{{.Version}} <module>` from
 // the project root and returns the module's on-disk directory plus version.
 // Using `go list` means we respect replace directives and local GOMODCACHE.
-func resolveModuleDir(projectRoot, module string) (dir, version string, err error) {
+func resolveModuleDir() (dir, version string, err error) {
 	cmd := exec.Command("go", "list", "-m", "-f", "{{.Dir}}|{{.Version}}", module)
-	cmd.Dir = projectRoot
 	var out, errOut bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &errOut
@@ -248,11 +166,7 @@ func printReport(w *os.File, f findings, allow allowlist) {
 		for _, m := range f.Fields {
 			byStruct[m.Struct] = append(byStruct[m.Struct], m.Field)
 		}
-		keys := make([]string, 0, len(byStruct))
-		for k := range byStruct {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
+		keys := slices.Sorted(maps.Keys(byStruct))
 		total := len(f.Fields)
 		fmt.Fprintf(w, "\nFields in v1alpha1 not present in api-client-go (%d field(s) across %d struct(s)):\n",
 			total, len(keys))
