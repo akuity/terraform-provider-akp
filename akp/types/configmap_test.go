@@ -200,6 +200,75 @@ func TestToConfigMapTFModel_UsesAPIValueWhenResourceCustomizationsDiffer(t *test
 	assert.Equal(t, apiReturnedYAML, got.ValueString(), "API value should win when it has keys not in the planned value")
 }
 
+func TestToConfigMapTFModel_PreservesEquivalentDeepLinks(t *testing.T) {
+	apiJSON := `[{"title":"Google","url":"https://www.google.com"}]`
+	testCases := map[string]struct {
+		key      string
+		planned  string
+		api      string
+		expected string
+	}{
+		"yaml flow style planned, json returned": {
+			key:      "application.links",
+			planned:  "[{url: 'https://www.google.com', title: 'Google'}]",
+			api:      apiJSON,
+			expected: "[{url: 'https://www.google.com', title: 'Google'}]",
+		},
+		"yaml block style planned, json returned": {
+			key:      "project.links",
+			planned:  "- url: https://www.google.com\n  title: Google\n",
+			api:      apiJSON,
+			expected: "- url: https://www.google.com\n  title: Google\n",
+		},
+		"unsorted json planned, sorted json returned": {
+			key:      "resource.links",
+			planned:  `[{"url":"https://www.google.com","title":"Google"}]`,
+			api:      apiJSON,
+			expected: `[{"url":"https://www.google.com","title":"Google"}]`,
+		},
+		"yaml bool if planned, string if returned": {
+			key:      "application.links",
+			planned:  "- url: https://www.google.com\n  title: Google\n  if: true\n",
+			api:      `[{"title":"Google","url":"https://www.google.com","if":"true"}]`,
+			expected: "- url: https://www.google.com\n  title: Google\n  if: true\n",
+		},
+		"empty description planned, omitted by api": {
+			key:      "application.links",
+			planned:  "- url: https://www.google.com\n  title: Google\n  description: \"\"\n",
+			api:      apiJSON,
+			expected: "- url: https://www.google.com\n  title: Google\n  description: \"\"\n",
+		},
+		"different if value uses api value": {
+			key:      "application.links",
+			planned:  "- url: https://www.google.com\n  title: Google\n  if: false\n",
+			api:      `[{"title":"Google","url":"https://www.google.com","if":"true"}]`,
+			expected: `[{"if":"true","title":"Google","url":"https://www.google.com"}]`,
+		},
+		"different link uses api value": {
+			key:      "application.links",
+			planned:  "[{url: 'https://www.example.com', title: 'Example'}]",
+			api:      apiJSON,
+			expected: apiJSON,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			apiData, err := structpb.NewStruct(map[string]any{tc.key: tc.api})
+			require.NoError(t, err)
+			oldCM := stringMapValue(map[string]string{tc.key: tc.planned})
+
+			var diags diag.Diagnostics
+			result := ToConfigMapTFModel(context.Background(), &diags, apiData, oldCM)
+			require.False(t, diags.HasError(), "unexpected diagnostics: %s", diags.Errors())
+
+			got, ok := result.Elements()[tc.key].(tftypes.String)
+			require.True(t, ok)
+			assert.Equal(t, tc.expected, got.ValueString())
+		})
+	}
+}
+
 func TestToConfigMapTFModel_KeepsIndividualKeysWhenCombinedDiverges(t *testing.T) {
 	// When the API combined YAML diverges from the planned (yamlIsSubset fails), the API
 	// value wins and the individual `resource.customizations.<field>.<group_kind>` keys

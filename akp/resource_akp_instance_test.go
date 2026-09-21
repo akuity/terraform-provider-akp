@@ -172,6 +172,8 @@ func runInstanceConfigTests(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd_cm.ui.bannercontent", "Hello there!"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd_cm.ui.bannerurl", "https://argoproj.github.io"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd_cm.accounts.alice", "apiKey,login"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd_cm.application.links", "[{url: 'https://www.google.com', title: 'Google'}]"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd_cm.application.links", `[{"title":"Google","url":"https://www.google.com"}]`),
 					resource.TestCheckResourceAttr("akp_instance.test", "repo_credential_secrets.%", "2"),
 					resource.TestCheckResourceAttr("akp_instance.test", "managed_secrets.%", "1"),
 					resource.TestCheckResourceAttr("akp_instance.test", "managed_secrets.terraform-acceptance.labels.environment", "example"),
@@ -1306,6 +1308,7 @@ resource "akp_instance" "test" {
 
     "kustomize.buildOptions" = "--load_restrictor none"
     "accounts.alice"         = "apiKey,login"
+    "application.links"      = "[{url: 'https://www.google.com', title: 'Google'}]"
     "dex.config" = <<-EOF
         connectors:
           # GitHub example
