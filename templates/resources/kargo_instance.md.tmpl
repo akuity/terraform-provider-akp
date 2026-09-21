@@ -16,6 +16,14 @@ description: |-
 
 ## Example Usage (Exhaustive)
 {{ tffile "./examples/resources/akp_kargo_instance/resource.tf" }}
+
+## Example Usage (GitHub SSO with Dex)
+
+Configure a GitHub OAuth app with the callback URL `https://<kargo_hostname>/dex/callback`, and grant it access to your GitHub organization. Replace the team slugs in the example with your own teams. Run this example separately from the basic and exhaustive examples.
+
+Supply `github_client_secret` through a sensitive variable, e.g. `TF_VAR_github_client_secret`. Terraform still stores this value in state, so protect access to your state backend.
+
+{{ tffile "./examples/resources/akp_kargo_instance/resource_dex.tf" }}
 {{- end }}
 
 {{ .SchemaMarkdown | trimspace }}
