@@ -111,6 +111,7 @@ func TestAccAll(t *testing.T) {
 		t.Run("Kargo", func(t *testing.T) {
 			t.Parallel()
 			t.Run("Configs", func(t *testing.T) { t.Parallel(); runKargoConfigTests(t) })
+			t.Run("DexExample", func(t *testing.T) { t.Parallel(); runKargoDexExample(t) })
 			t.Run("NestedOptionalObjectStability", func(t *testing.T) { t.Parallel(); runKargo_NestedOptionalObjectStability(t) })
 			t.Run("MinimalSpecImport", func(t *testing.T) { t.Parallel(); runKargo_MinimalSpecImport(t) })
 			t.Run("PartialOIDCImport", func(t *testing.T) { t.Parallel(); runKargo_PartialOIDCImport(t) })

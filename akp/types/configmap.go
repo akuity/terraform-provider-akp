@@ -113,6 +113,9 @@ func equivalentConfigMapString(key, oldValue, newValue string) bool {
 	if isAccountCapabilitiesKey(key) {
 		return normalizeAccountCapabilities(oldValue) == normalizeAccountCapabilities(newValue)
 	}
+	if isDeepLinksKey(key) {
+		return equivalentDeepLinks(oldValue, newValue)
+	}
 	if json.Valid([]byte(oldValue)) && json.Valid([]byte(newValue)) {
 		sortedOld, err := sortJSONString(oldValue)
 		if err != nil {
@@ -125,6 +128,42 @@ func equivalentConfigMapString(key, oldValue, newValue string) bool {
 		return sortedOld == sortedNew
 	}
 	return strings.TrimSpace(oldValue) == strings.TrimSpace(newValue)
+}
+
+func isDeepLinksKey(key string) bool {
+	return strings.HasPrefix(key, "project.links") ||
+		strings.HasPrefix(key, "application.links") ||
+		strings.HasPrefix(key, "resource.links")
+}
+
+type deepLink struct {
+	Title       string `json:"title"`
+	URL         string `json:"url"`
+	Description string `json:"description,omitempty"`
+	IconClass   string `json:"icon.class,omitempty"`
+	If          string `json:"if,omitempty"`
+}
+
+func parseDeepLinks(value string) ([]deepLink, error) {
+	var links []deepLink
+	if err := json.Unmarshal([]byte(value), &links); err != nil {
+		if err := yaml.Unmarshal([]byte(value), &links); err != nil {
+			return nil, err
+		}
+	}
+	return links, nil
+}
+
+func equivalentDeepLinks(oldValue, newValue string) bool {
+	oldLinks, err := parseDeepLinks(oldValue)
+	if err != nil {
+		return false
+	}
+	newLinks, err := parseDeepLinks(newValue)
+	if err != nil {
+		return false
+	}
+	return reflect.DeepEqual(oldLinks, newLinks)
 }
 
 func isAccountCapabilitiesKey(key string) bool {
@@ -312,12 +351,10 @@ func ToConfigMapTFModel(ctx context.Context, diagnostics *diag.Diagnostics, data
 			// to the planned value, preserve the planned value verbatim so Terraform doesn't
 			// flag an inconsistent-result on apply. The pre-loop block above relies on this
 			// branch firing to keep the strip and preservation in sync.
-			if k == "resource.customizations" {
-				if oldVal, ok := oldElems[k]; ok {
-					if oldStr, ok := configMapStringValue(oldVal); ok && yamlIsSubset(t, oldStr) {
-						m[k] = oldStr
-						continue
-					}
+			if oldStr, ok := configMapStringValue(oldElems[k]); ok {
+				if (k == "resource.customizations" && yamlIsSubset(t, oldStr)) || equivalentConfigMapString(k, oldStr, t) {
+					m[k] = oldStr
+					continue
 				}
 			}
 			sortedValue, err := sortJSONString(t)
