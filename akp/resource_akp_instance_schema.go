@@ -755,7 +755,7 @@ func getClusterCustomizationAttributes() map[string]schema.Attribute {
 			},
 		},
 		"custom_ca_bundle": schema.StringAttribute{
-			MarkdownDescription: "Default PEM bundle of one or more CA certificates applied to new clusters that do not specify their own. Certificates must be unexpired.",
+			MarkdownDescription: "Default PEM bundle of one or more CA certificates applied to new clusters that do not specify their own. Certificates must be unexpired." + instanceCABundleRemovalNote,
 			Optional:            true,
 			Computed:            true,
 			PlanModifiers: []planmodifier.String{

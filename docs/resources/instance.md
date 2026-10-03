@@ -989,7 +989,7 @@ Optional:
 - `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
 - `autoscaler_config` (Attributes) Default min/max scaling limits applied when `size` is `auto`. Required for an `auto` default, ignored for any other size. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--cluster_customization_defaults--autoscaler_config))
 - `connectivity` (String) Default agent connectivity applied to new agents. One of `public` (internet) or `private` (AWS PrivateLink).
-- `custom_ca_bundle` (String) Default PEM bundle of one or more CA certificates applied to new clusters that do not specify their own. Certificates must be unexpired.
+- `custom_ca_bundle` (String) Default PEM bundle of one or more CA certificates applied to new clusters that do not specify their own. Certificates must be unexpired. Omitting it from your configuration clears the default, including one set outside Terraform; clusters that inherited the old default are reset on their next plan.
 - `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
 - `redis_tunneling` (Boolean) Enables the ability to connect to Redis over a web-socket tunnel that allows using Akuity agent behind HTTPS proxy
 - `server_side_diff_enabled` (Boolean) Enables the ability to set server-side diff on the application-controller.

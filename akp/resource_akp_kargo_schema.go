@@ -315,7 +315,7 @@ func getKargoAgentCustomizationAttributes() map[string]schema.Attribute {
 			},
 		},
 		"custom_ca_bundle": schema.StringAttribute{
-			MarkdownDescription: "Default PEM bundle of one or more CA certificates applied to new agents that do not specify their own. Certificates must be unexpired.",
+			MarkdownDescription: "Default PEM bundle of one or more CA certificates applied to new agents that do not specify their own. Certificates must be unexpired." + kargoInstanceCABundleRemovalNote,
 			Optional:            true,
 			Computed:            true,
 			PlanModifiers: []planmodifier.String{

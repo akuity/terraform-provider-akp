@@ -33,6 +33,12 @@ func NewAkpKargoInstanceResource() resource.Resource {
 		ReadFunc:       kargoInstanceRead,
 		UpdateFunc:     kargoInstanceCreateOrUpdate,
 		DeleteFunc:     kargoInstanceDelete,
+		// The instance-level default inherits from nothing, so removing it
+		// clears it.
+		ResetOnRemoval: []resetOnRemoval{{
+			attribute: path.Root("kargo").AtName("spec").AtName("kargo_instance_spec").
+				AtName("agent_customization_defaults").AtName("custom_ca_bundle"),
+		}},
 		ImportStateFunc: func(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 			resource.ImportStatePassthroughID(ctx, path.Root("name"), req, resp)
 		},

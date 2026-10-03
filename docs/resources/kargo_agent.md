@@ -165,7 +165,7 @@ Optional:
 - `auto_upgrade_disabled` (Boolean) Disable Agents Auto Upgrade. On resource update terraform will try to update the agent if this is set to `true`. Otherwise agent will update itself automatically
 - `autoscaler_config` (Attributes) Autoscaler configuration for the Kargo agent. (see [below for nested schema](#nestedatt--spec--data--autoscaler_config))
 - `connectivity` (String) How the Kargo agent is reached. One of `public` (internet) or `private` (AWS PrivateLink). Defaults to `public`.
-- `custom_ca_bundle` (String) PEM bundle of one or more CA certificates the agent workloads trust in addition to the system roots (e.g. a TLS-intercepting proxy CA). Certificates must be unexpired.
+- `custom_ca_bundle` (String) PEM bundle of one or more CA certificates the agent workloads trust in addition to the system roots (e.g. a TLS-intercepting proxy CA). Certificates must be unexpired. Omitting it from your configuration resets a non-empty bundle, including one set outside Terraform, to the one a new agent would inherit from the instance-level default, which is the empty bundle when the instance defines none. An agent with no bundle keeps none, even once the instance defines a default.
 - `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
 - `maintenance_mode` (Boolean) Enable maintenance mode for the agent. When enabled, alerts for degraded agents are muted.
 - `maintenance_mode_expiry` (String) Expiry time for maintenance mode in RFC3339 format. Maintenance mode will be automatically disabled after this time.

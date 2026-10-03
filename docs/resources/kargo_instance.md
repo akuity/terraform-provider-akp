@@ -448,7 +448,7 @@ Optional:
 - `auto_upgrade_disabled` (Boolean) Whether auto upgrade is disabled
 - `autoscaler_config` (Attributes) Default min/max scaling limits applied when `size` is `auto`. Required for an `auto` default, ignored for any other size. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--agent_customization_defaults--autoscaler_config))
 - `connectivity` (String) Default agent connectivity applied to new agents. One of `public` (internet) or `private` (AWS PrivateLink).
-- `custom_ca_bundle` (String) Default PEM bundle of one or more CA certificates applied to new agents that do not specify their own. Certificates must be unexpired.
+- `custom_ca_bundle` (String) Default PEM bundle of one or more CA certificates applied to new agents that do not specify their own. Certificates must be unexpired. Omitting it from your configuration clears the default, including one set outside Terraform; agents that inherited the old default are reset on their next plan.
 - `kustomization` (String) Kustomization that will be applied to the Kargo agent to generate agent installation manifests
 - `size` (String) Default agent size applied to new agents that do not specify their own. One of `small`, `medium`, `large` or `auto`. A Custom default is expressed as `large` plus resource patches in `kustomization`. Akuity-managed agents never inherit it — their size is managed by Akuity.
 
