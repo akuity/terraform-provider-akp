@@ -24,12 +24,16 @@ import (
 
 func NewAkpKargoAgentResource() resource.Resource {
 	return &GenericResource[types.KargoAgent]{
-		TypeNameSuffix:  "kargo_agent",
-		SchemaFunc:      kargoAgentSchema,
-		CreateFunc:      kargoAgentCreate,
-		ReadFunc:        kargoAgentRead,
-		UpdateFunc:      kargoAgentUpdate,
-		DeleteFunc:      kargoAgentDelete,
+		TypeNameSuffix: "kargo_agent",
+		SchemaFunc:     kargoAgentSchema,
+		CreateFunc:     kargoAgentCreate,
+		ReadFunc:       kargoAgentRead,
+		UpdateFunc:     kargoAgentUpdate,
+		DeleteFunc:     kargoAgentDelete,
+		ResetOnRemoval: []resetOnRemoval{{
+			attribute: path.Root("spec").AtName("data").AtName("custom_ca_bundle"),
+			inherited: kargoAgentInheritedCustomCABundle,
+		}},
 		ImportStateFunc: importSplitID("instance_id", "name"),
 		Validators:      []resource.ConfigValidator{kargoAgentConfigValidator{}},
 	}

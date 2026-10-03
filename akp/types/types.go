@@ -694,3 +694,41 @@ func toAutoScalerConfigTFModel(plan *Cluster, apiConfig *argocdv1.AutoScalerConf
 	}
 	return result
 }
+
+// OIDCIssuer maps the API's OIDCIssuer. Name is immutable server-side; the
+// key material is described by KeySource plus whichever of JWKSURI or
+// StaticJWKS that source needs.
+type OIDCIssuer struct {
+	ID              types.String   `tfsdk:"id"`
+	Name            types.String   `tfsdk:"name"`
+	IssuerURL       types.String   `tfsdk:"issuer_url"`
+	KeySource       types.String   `tfsdk:"key_source"`
+	JWKSURI         types.String   `tfsdk:"jwks_uri"`
+	StaticJWKS      types.String   `tfsdk:"static_jwks"`
+	Audiences       []types.String `tfsdk:"audiences"`
+	TokenTTLSeconds types.Int64    `tfsdk:"token_ttl_seconds"`
+	DefaultAudience types.String   `tfsdk:"default_audience"`
+	KeysUpdatedTime types.String   `tfsdk:"keys_updated_time"`
+	CreateTime      types.String   `tfsdk:"create_time"`
+}
+
+// ServiceAccount maps the API's ServiceAccount. Like ApiKey it is scoped to
+// the organization or, when Workspace is set, to one workspace, and holds
+// the same permission shape.
+type ServiceAccount struct {
+	ID           types.String               `tfsdk:"id"`
+	Workspace    types.String               `tfsdk:"workspace"`
+	Description  types.String               `tfsdk:"description"`
+	Permissions  *ApiKeyPermissions         `tfsdk:"permissions"`
+	IPAllowlist  []types.String             `tfsdk:"ip_allowlist"`
+	OIDCBinding  *ServiceAccountOIDCBinding `tfsdk:"oidc_binding"`
+	Disabled     types.Bool                 `tfsdk:"disabled"`
+	WorkspaceID  types.String               `tfsdk:"workspace_id"`
+	CreateTime   types.String               `tfsdk:"create_time"`
+	LastUsedTime types.String               `tfsdk:"last_used_time"`
+}
+
+type ServiceAccountOIDCBinding struct {
+	IssuerID types.String `tfsdk:"issuer_id"`
+	Match    types.Map    `tfsdk:"match"`
+}

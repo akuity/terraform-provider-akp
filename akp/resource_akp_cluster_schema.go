@@ -335,7 +335,7 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 			},
 		},
 		"custom_ca_bundle": schema.StringAttribute{
-			MarkdownDescription: "PEM bundle of one or more CA certificates the agent workloads trust in addition to the system roots (e.g. a TLS-intercepting proxy CA). Certificates must be unexpired.",
+			MarkdownDescription: "PEM bundle of one or more CA certificates the agent workloads trust in addition to the system roots (e.g. a TLS-intercepting proxy CA). Certificates must be unexpired." + clusterCABundleRemovalNote,
 			Optional:            true,
 			Computed:            true,
 			PlanModifiers: []planmodifier.String{

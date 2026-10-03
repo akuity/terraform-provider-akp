@@ -3,8 +3,9 @@ module github.com/akuity/terraform-provider-akp
 go 1.27.1
 
 require (
-	github.com/akuity/api-client-go v0.29.1-0.20260921190307-0d27f0f1ccc1
+	github.com/akuity/api-client-go v0.29.1-0.20261003005757-289221cdd204
 	github.com/akuity/grpc-gateway-client v0.0.0-20260723085237-ba27dc2ed546
+	github.com/go-jose/go-jose/v4 v4.1.4
 	github.com/hashicorp/terraform-plugin-docs v0.21.0
 	github.com/hashicorp/terraform-plugin-framework v1.19.0
 	github.com/hashicorp/terraform-plugin-framework-validators v0.19.0
@@ -46,7 +47,7 @@ require (
 	github.com/emicklei/go-restful/v3 v3.12.2 // indirect
 	github.com/fatih/color v1.19.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
-	github.com/go-git/go-git/v5 v5.19.1 // indirect
+	github.com/go-git/go-git/v5 v5.19.2 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-openapi/jsonpointer v0.21.0 // indirect
 	github.com/go-openapi/jsonreference v0.21.0 // indirect

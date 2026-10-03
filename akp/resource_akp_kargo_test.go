@@ -317,6 +317,94 @@ resource "akp_kargo_instance" "test" {
 }`, name, getKargoVersion())
 }
 
+// A claim applied as `values = []` comes back from the platform as `"values": null`
+// (dedupArray drops the empty list before it is persisted). Both applies have to converge,
+// or the first one fails with "Provider produced inconsistent result after apply" — and,
+// because `kargo` is sensitive, without saying which attribute disagreed (issue #12697).
+func runKargo_EmptyClaimValues(t *testing.T) {
+	name := acctest.RandomWithPrefix("kargo-empty-claims")
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig + testAccKargoEmptyClaimValuesConfig(name),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "name", name),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.oidc_config.admin_account.claims.email.values.#", "0"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.oidc_config.admin_account.claims.groups.values.#", "0"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.oidc_config.admin_account.claims.sub.values.#", "0"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.oidc_config.viewer_account.claims.email.values.#", "0"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.oidc_config.viewer_account.claims.sub.values.#", "0"),
+					resource.TestCheckTypeSetElemAttr("akp_kargo_instance.test", "kargo.spec.oidc_config.viewer_account.claims.groups.values.*", "app_github_employee"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.oidc_config.user_account.claims.groups.values.#", "0"),
+					resource.TestCheckResourceAttr("akp_kargo_instance.test", "kargo.spec.oidc_config.project_creator_account.claims.groups.values.#", "0"),
+				),
+			},
+			{
+				Config: providerConfig + testAccKargoEmptyClaimValuesConfig(name),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectEmptyPlan(),
+					},
+				},
+			},
+		},
+	})
+}
+
+func testAccKargoEmptyClaimValuesConfig(name string) string {
+	return fmt.Sprintf(`
+resource "akp_kargo_instance" "test" {
+  name = %q
+  kargo = {
+    spec = {
+      version     = %q
+      description = "Empty OIDC claim values"
+      kargo_instance_spec = {
+        backend_ip_allow_list_enabled = true
+        promo_controller_enabled      = true
+      }
+      oidc_config = {
+        enabled       = true
+        dex_enabled   = false
+        issuer_url    = "https://test-issuer.example.com"
+        client_id     = "test-client-id"
+        cli_client_id = "test-cli-client-id"
+        admin_account = {
+          claims = {
+            email  = { values = [] }
+            groups = { values = [] }
+            sub    = { values = [] }
+          }
+        }
+        viewer_account = {
+          claims = {
+            email  = { values = [] }
+            groups = { values = ["app_github_employee"] }
+            sub    = { values = [] }
+          }
+        }
+        user_account = {
+          claims = {
+            email  = { values = [] }
+            groups = { values = [] }
+            sub    = { values = [] }
+          }
+        }
+        project_creator_account = {
+          claims = {
+            email  = { values = [] }
+            groups = { values = [] }
+            sub    = { values = [] }
+          }
+        }
+      }
+    }
+  }
+}`, name, getKargoVersion())
+}
+
 func runKargo_PartialKargoInstanceSpecImport(t *testing.T) {
 	name := acctest.RandomWithPrefix("kargo-partial-spec")
 	resource.Test(t, resource.TestCase{
