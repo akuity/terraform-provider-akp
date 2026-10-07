@@ -429,6 +429,15 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 				boolplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
+		"pinned_agent_version": schema.StringAttribute{
+			MarkdownDescription: "Agent version every cluster of the instance is pinned to. Setting it moves all clusters to that version and rejects per-cluster version changes until unpinned. Empty means unpinned: each cluster follows its own target version." + pinnedAgentVersionRemovalNote,
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+				stringplanmodifier2.SuppressProtobufDefault(),
+			},
+		},
 		"host_aliases": schema.ListNestedAttribute{
 			MarkdownDescription: "Host Aliases that override the DNS entries for control plane Argo CD components such as API Server and Dex.",
 			Optional:            true,
@@ -755,7 +764,7 @@ func getClusterCustomizationAttributes() map[string]schema.Attribute {
 			},
 		},
 		"custom_ca_bundle": schema.StringAttribute{
-			MarkdownDescription: "Default PEM bundle of one or more CA certificates applied to new clusters that do not specify their own. Certificates must be unexpired.",
+			MarkdownDescription: "Default PEM bundle of one or more CA certificates applied to new clusters that do not specify their own. Certificates must be unexpired." + instanceCABundleRemovalNote,
 			Optional:            true,
 			Computed:            true,
 			PlanModifiers: []planmodifier.String{

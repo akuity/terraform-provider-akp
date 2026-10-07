@@ -79,6 +79,7 @@ type KargoInstanceSpec struct {
 	TerminationProtectionNotes   types.String             `tfsdk:"termination_protection_notes"`
 	Connectivity                 types.String             `tfsdk:"connectivity"`
 	McpServer                    *MCPServerConfig         `tfsdk:"mcp_server"`
+	PinnedAgentVersion           types.String             `tfsdk:"pinned_agent_version"`
 }
 
 type KargoArgoCDUIConfig struct {

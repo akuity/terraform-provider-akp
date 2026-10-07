@@ -180,6 +180,9 @@ EOT
         termination_protection_notes   = "Critical production instance - do not delete"
         # How the Kargo instance is reached: "public" (internet) or "private" (AWS PrivateLink).
         connectivity = "public"
+        # Pin every agent of the instance to one agent version. Omit to let
+        # each agent follow its own target version.
+        pinned_agent_version = "0.5.92"
       }
     }
   }

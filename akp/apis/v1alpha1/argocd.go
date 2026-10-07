@@ -235,6 +235,7 @@ type InstanceSpec struct {
 	Connectivity                    Connectivity            `json:"connectivity,omitempty"`
 	McpServer                       *MCPServerConfig        `json:"mcpServer,omitempty"`
 	AppsetNewGitFileGlobbingEnabled *bool                   `json:"appsetNewGitFileGlobbingEnabled,omitempty"`
+	PinnedAgentVersion              *string                 `json:"pinnedAgentVersion,omitempty"`
 }
 
 type AppsetPlugins struct {

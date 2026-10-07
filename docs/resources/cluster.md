@@ -318,7 +318,7 @@ Optional:
 - `compatibility` (Attributes) Cluster compatibility settings (see [below for nested schema](#nestedatt--spec--data--compatibility))
 - `connectivity` (String) How the cluster is reached. One of `public` (internet) or `private` (AWS PrivateLink). Defaults to `public`.
 - `custom_agent_size_config` (Attributes) Custom agent size config (see [below for nested schema](#nestedatt--spec--data--custom_agent_size_config))
-- `custom_ca_bundle` (String) PEM bundle of one or more CA certificates the agent workloads trust in addition to the system roots (e.g. a TLS-intercepting proxy CA). Certificates must be unexpired.
+- `custom_ca_bundle` (String) PEM bundle of one or more CA certificates the agent workloads trust in addition to the system roots (e.g. a TLS-intercepting proxy CA). Certificates must be unexpired. Omitting it from your configuration resets a non-empty bundle, including one set outside Terraform, to the one a new cluster would inherit from the instance-level default, which is the empty bundle when the instance defines none. A cluster with no bundle keeps none, even once the instance defines a default.
 - `datadog_annotations_enabled` (Boolean) Enable Datadog metrics collection of Application Controller and Repo Server. Make sure that you install Datadog agent in cluster.
 - `direct_cluster_spec` (Attributes) Direct cluster integration spec. Currently supports `kargo` (see [below for nested schema](#nestedatt--spec--data--direct_cluster_spec))
 - `eks_addon_enabled` (Boolean) Enable this if you are installing this cluster on EKS.

@@ -364,6 +364,9 @@ EOF
         termination_protection_notes   = "Critical production instance - do not delete"
         # How the instance is reached: "public" (internet) or "private" (AWS PrivateLink).
         connectivity = "public"
+        # Pin every cluster of the instance to one agent version. Omit to let
+        # each cluster follow its own target version.
+        pinned_agent_version = "0.5.92"
         # Delegate Image Updater to a specific cluster
         # image_updater_delegate = {
         #   control_plane = false

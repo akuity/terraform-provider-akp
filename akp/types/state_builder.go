@@ -890,9 +890,11 @@ func buildTFMap(
 	var diags diag.Diagnostics
 
 	elemType := attr.Type(types.StringType)
+	var planElems map[string]attr.Value
 	if planFieldVal.IsValid() {
 		if pv, ok := planFieldVal.Interface().(types.Map); ok && !pv.IsNull() && !pv.IsUnknown() {
 			elemType = pv.ElementType(ctx)
+			planElems = pv.Elements()
 		}
 	}
 	if elemType == types.StringType {
@@ -909,10 +911,54 @@ func buildTFMap(
 
 	elems := make(map[string]attr.Value)
 	for k, v := range objMap {
-		elems[k] = convertAPIValueToAttr(ctx, v, elemType, fullPath+"."+k)
+		val := convertAPIValueToAttr(ctx, v, elemType, fullPath+"."+k)
+		if apiObj, ok := val.(types.Object); ok {
+			if planObj, ok := planElems[k].(types.Object); ok {
+				val = restorePlannedEmptyCollections(ctx, apiObj, planObj)
+			}
+		}
+		elems[k] = val
 	}
 
 	m, d := types.MapValue(elemType, elems)
 	diags.Append(d...)
 	return &m, diags
+}
+
+// restorePlannedEmptyCollections returns apiObj with every attribute the API reported as
+// null restored to the planned value when that planned value is a known empty collection.
+// Terraform keeps null and [] apart, but the platform persists an applied empty list as nil
+// and exports it back as null — the Kargo OIDC predefined-account claim values do this via
+// dedupArray. Without this, an applied `values = []` never converges: the state no longer
+// matches the plan and apply fails with "Provider produced inconsistent result after apply".
+// Only empty planned collections are restored, so clearing a populated one out of band is
+// still reported as drift.
+func restorePlannedEmptyCollections(ctx context.Context, apiObj, planObj types.Object) types.Object {
+	if apiObj.IsNull() {
+		return apiObj
+	}
+	attrs := apiObj.Attributes()
+	for name, planVal := range planObj.Attributes() {
+		if val, ok := attrs[name]; ok && val.IsNull() && isEmptyCollection(planVal) {
+			attrs[name] = planVal
+		}
+	}
+	obj, d := types.ObjectValue(apiObj.AttributeTypes(ctx), attrs)
+	if d.HasError() {
+		return apiObj
+	}
+	return obj
+}
+
+// isEmptyCollection reports whether v is a known list, set or map with no elements.
+func isEmptyCollection(v attr.Value) bool {
+	switch c := v.(type) {
+	case types.List:
+		return !c.IsNull() && !c.IsUnknown() && len(c.Elements()) == 0
+	case types.Set:
+		return !c.IsNull() && !c.IsUnknown() && len(c.Elements()) == 0
+	case types.Map:
+		return !c.IsNull() && !c.IsUnknown() && len(c.Elements()) == 0
+	}
+	return false
 }

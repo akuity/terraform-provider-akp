@@ -20,6 +20,7 @@ import (
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
 	orgcv1 "github.com/akuity/api-client-go/pkg/api/gen/organization/v1"
+	serviceaccountv1 "github.com/akuity/api-client-go/pkg/api/gen/serviceaccount/v1"
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
 )
 
@@ -30,20 +31,22 @@ type AkpProvider struct {
 }
 
 type AkpProviderModel struct {
-	ServerUrl        types.String `tfsdk:"server_url"`
-	ApiKeyId         types.String `tfsdk:"api_key_id"`
-	ApiKeySecret     types.String `tfsdk:"api_key_secret"`
-	OrganizationName types.String `tfsdk:"org_name"`
-	SkipTLSVerify    types.Bool   `tfsdk:"skip_tls_verify"`
+	ServerUrl           types.String `tfsdk:"server_url"`
+	ApiKeyId            types.String `tfsdk:"api_key_id"`
+	ApiKeySecret        types.String `tfsdk:"api_key_secret"`
+	ServiceAccountToken types.String `tfsdk:"service_account_token"`
+	OrganizationName    types.String `tfsdk:"org_name"`
+	SkipTLSVerify       types.Bool   `tfsdk:"skip_tls_verify"`
 }
 
 type AkpCli struct {
-	Cli       argocdv1.ArgoCDServiceGatewayClient
-	KargoCli  kargov1.KargoServiceGatewayClient
-	Cred      accesscontrol.ClientCredential
-	OrgCli    orgcv1.OrganizationServiceGatewayClient
-	ApiKeyCli apikeyv1.APIKeyServiceGatewayClient
-	OrgId     string
+	Cli               argocdv1.ArgoCDServiceGatewayClient
+	KargoCli          kargov1.KargoServiceGatewayClient
+	Cred              accesscontrol.ClientCredential
+	OrgCli            orgcv1.OrganizationServiceGatewayClient
+	ApiKeyCli         apikeyv1.APIKeyServiceGatewayClient
+	ServiceAccountCli serviceaccountv1.ServiceAccountServiceGatewayClient
+	OrgId             string
 }
 
 func (p *AkpProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -76,6 +79,11 @@ func (p *AkpProvider) Schema(ctx context.Context, req provider.SchemaRequest, re
 				Optional:            true,
 				Sensitive:           true,
 			},
+			"service_account_token": schema.StringAttribute{
+				MarkdownDescription: "Credential minted by the OIDC token exchange for a service account, used instead of an API key. Use environment variable `AKUITY_SERVICE_ACCOUNT_TOKEN`.",
+				Optional:            true,
+				Sensitive:           true,
+			},
 		},
 	}
 }
@@ -93,6 +101,7 @@ func (p *AkpProvider) Configure(ctx context.Context, req provider.ConfigureReque
 	ServerUrl := os.Getenv("AKUITY_SERVER_URL")
 	apiKeyID := os.Getenv("AKUITY_API_KEY_ID")
 	apiKeySecret := os.Getenv("AKUITY_API_KEY_SECRET")
+	serviceAccountToken := os.Getenv("AKUITY_SERVICE_ACCOUNT_TOKEN")
 
 	skipTLSVerify := config.SkipTLSVerify.ValueBool()
 	if ServerUrl == "" {
@@ -104,24 +113,45 @@ func (p *AkpProvider) Configure(ctx context.Context, req provider.ConfigureReque
 	if apiKeySecret == "" {
 		apiKeySecret = config.ApiKeySecret.ValueString()
 	}
+	if serviceAccountToken == "" {
+		serviceAccountToken = config.ServiceAccountToken.ValueString()
+	}
 	if ServerUrl == "" {
 		ServerUrl = "https://akuity.cloud"
 	}
 
-	if apiKeyID == "" {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("api_key_id"),
-			"Missing Akuity Platform API Key Id",
-			"The provider cannot create the Akuity Platform API client as the API key is missing. "+
-				"Use the AKUITY_API_KEY_ID environment variable to configure it.",
-		)
-	}
-	if apiKeySecret == "" {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("api_key_secret"),
-			"Missing Akuity Platform API Key Secret",
-			"The provider cannot create the Akuity Platform API client as the API key is missing. "+
-				"Use the AKUITY_API_KEY_SECRET environment variable to configure it.",
+	// An API key pair or a service account credential; the key pair wins when
+	// both are set, matching the CLI.
+	var cred accesscontrol.ClientCredential
+	switch {
+	case apiKeyID != "" || apiKeySecret != "":
+		if apiKeyID == "" {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("api_key_id"),
+				"Missing Akuity Platform API Key Id",
+				"The provider cannot create the Akuity Platform API client as the API key is missing. "+
+					"Use the AKUITY_API_KEY_ID environment variable to configure it.",
+			)
+		}
+		if apiKeySecret == "" {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("api_key_secret"),
+				"Missing Akuity Platform API Key Secret",
+				"The provider cannot create the Akuity Platform API client as the API key is missing. "+
+					"Use the AKUITY_API_KEY_SECRET environment variable to configure it.",
+			)
+		}
+		cred = accesscontrol.NewAPIKeyCredential(apiKeyID, apiKeySecret)
+	case serviceAccountToken != "":
+		// The gateway routes the credential by its own token type, so it
+		// travels exactly like a user's access token.
+		cred = accesscontrol.NewUserCredential(serviceAccountToken)
+	default:
+		resp.Diagnostics.AddError(
+			"Missing Akuity Platform credentials",
+			"The provider needs either an API key (api_key_id and api_key_secret, or the AKUITY_API_KEY_ID and "+
+				"AKUITY_API_KEY_SECRET environment variables) or a service account credential (service_account_token, "+
+				"or the AKUITY_SERVICE_ACCOUNT_TOKEN environment variable).",
 		)
 	}
 
@@ -136,7 +166,6 @@ func (p *AkpProvider) Configure(ctx context.Context, req provider.ConfigureReque
 
 	tflog.Debug(ctx, "Getting Organization ID by name")
 
-	cred := accesscontrol.NewAPIKeyCredential(apiKeyID, apiKeySecret)
 	// Get Organizaton ID by name
 	ctx = httpctx.SetAuthorizationHeader(ctx, cred.Scheme(), cred.Credential())
 	gwc := gwoption.NewClient(ServerUrl, skipTLSVerify)
@@ -171,14 +200,16 @@ func (p *AkpProvider) Configure(ctx context.Context, req provider.ConfigureReque
 	kargoc := kargov1.NewKargoServiceGatewayClient(gwc)
 	orgc = orgcv1.NewOrganizationServiceGatewayClient(gwc)
 	apikeyc := apikeyv1.NewAPIKeyServiceGatewayClient(gwc)
+	serviceaccountc := serviceaccountv1.NewServiceAccountServiceGatewayClient(gwc)
 
 	akpCli := &AkpCli{
-		Cli:       argoc,
-		KargoCli:  kargoc,
-		Cred:      cred,
-		OrgId:     orgID,
-		OrgCli:    orgc,
-		ApiKeyCli: apikeyc,
+		Cli:               argoc,
+		KargoCli:          kargoc,
+		Cred:              cred,
+		OrgId:             orgID,
+		OrgCli:            orgc,
+		ApiKeyCli:         apikeyc,
+		ServiceAccountCli: serviceaccountc,
 	}
 	resp.DataSourceData = akpCli
 	resp.ResourceData = akpCli
@@ -193,6 +224,8 @@ func (p *AkpProvider) Resources(ctx context.Context) []func() resource.Resource 
 		NewAkpKargoAgentResource,
 		NewAkpKargoDefaultShardAgentResource,
 		NewAkpApiKeyResource,
+		NewAkpOIDCIssuerResource,
+		NewAkpServiceAccountResource,
 		NewAkpCustomRoleResource,
 		NewAkpWorkspaceResource,
 		NewAkpWorkspaceMemberResource,

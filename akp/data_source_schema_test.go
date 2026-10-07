@@ -5,6 +5,7 @@ package akp
 import (
 	"context"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -64,6 +65,54 @@ func TestDataSourceSchemas(t *testing.T) {
 		}
 	}
 	require.Equal(t, reflect.TypeFor[types.ManagedSecretDataSource]().NumField(), len(getManagedSecretDataSourceAttributes()))
+}
+
+// Notes about editing configuration stay on the resources: a data source takes
+// no configuration for them to describe.
+func TestDataSourceSchemasOmitResourceOnlyNotes(t *testing.T) {
+	ctx := context.Background()
+	for _, ds := range []datasource.DataSource{
+		&AkpInstanceDataSource{},
+		&AkpClusterDataSource{},
+		&AkpClustersDataSource{},
+		&AkpKargoDataSource{},
+		&AkpKargoAgentDataSource{},
+		&AkpKargoAgentsDataSource{},
+	} {
+		var resp datasource.SchemaResponse
+		ds.Schema(ctx, datasource.SchemaRequest{}, &resp)
+		walkDataSourceAttributes(resp.Schema.Attributes, "", func(name string, a schema.Attribute) {
+			for _, note := range resourceOnlyNotes {
+				require.False(t, strings.HasSuffix(a.GetMarkdownDescription(), note), "%T %s", ds, name)
+				require.False(t, strings.HasSuffix(a.GetDescription(), note), "%T %s", ds, name)
+			}
+		})
+	}
+
+	// The notes are still on the resource schemas they were written for.
+	for note, description := range map[string]string{
+		clusterCABundleRemovalNote:       getClusterDataAttributes()["custom_ca_bundle"].GetMarkdownDescription(),
+		kargoAgentCABundleRemovalNote:    getAKPKargoAgentDataAttributes()["custom_ca_bundle"].GetMarkdownDescription(),
+		instanceCABundleRemovalNote:      getClusterCustomizationAttributes()["custom_ca_bundle"].GetMarkdownDescription(),
+		kargoInstanceCABundleRemovalNote: getKargoAgentCustomizationAttributes()["custom_ca_bundle"].GetMarkdownDescription(),
+	} {
+		require.True(t, strings.HasSuffix(description, note), description)
+	}
+}
+
+func walkDataSourceAttributes(attrs map[string]schema.Attribute, prefix string, visit func(string, schema.Attribute)) {
+	for name, a := range attrs {
+		name = prefix + name
+		visit(name, a)
+		switch n := a.(type) {
+		case schema.SingleNestedAttribute:
+			walkDataSourceAttributes(n.Attributes, name+".", visit)
+		case schema.ListNestedAttribute:
+			walkDataSourceAttributes(n.NestedObject.Attributes, name+".", visit)
+		case schema.MapNestedAttribute:
+			walkDataSourceAttributes(n.NestedObject.Attributes, name+".", visit)
+		}
+	}
 }
 
 func TestInstanceDataSourceModelRoundTrip(t *testing.T) {

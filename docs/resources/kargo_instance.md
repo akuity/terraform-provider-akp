@@ -207,6 +207,9 @@ EOT
         termination_protection_notes   = "Critical production instance - do not delete"
         # How the Kargo instance is reached: "public" (internet) or "private" (AWS PrivateLink).
         connectivity = "public"
+        # Pin every agent of the instance to one agent version. Omit to let
+        # each agent follow its own target version.
+        pinned_agent_version = "0.5.92"
       }
     }
   }
@@ -435,6 +438,7 @@ Optional:
 - `global_service_account_ns` (List of String) List of global service account namespaces
 - `ip_allow_list` (Attributes List) List of allowed IPs (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--ip_allow_list))
 - `mcp_server` (Attributes) MCP server configuration for the instance. Turns MCP agent access on or off: the instance's own `/mcp` endpoint and instance actions performed through the organization's platform MCP endpoint. Enabling it requires the organization's MCP server feature. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--mcp_server))
+- `pinned_agent_version` (String) Agent version every agent of the instance is pinned to. Setting it moves all agents to that version and rejects per-agent version changes until unpinned; Akuity-managed agents always run the latest version and are not affected. Empty means unpinned: each agent follows its own target version. Omitting it from your configuration unpins the instance, including a pin set outside Terraform.
 - `promo_controller_enabled` (Boolean) Whether Kargo Promotion Controller is enabled for this instance
 - `secrets` (Attributes) Cross-cluster secret synchronization configuration. Selects which Kubernetes Secrets are synchronized from source clusters to destination clusters. Secrets opt in by carrying the `akuity.io/secret-sync: "true"` label. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--secrets))
 - `termination_protection_enabled` (Boolean) When enabled, prevents accidental deletion of this Kargo instance.
@@ -448,7 +452,7 @@ Optional:
 - `auto_upgrade_disabled` (Boolean) Whether auto upgrade is disabled
 - `autoscaler_config` (Attributes) Default min/max scaling limits applied when `size` is `auto`. Required for an `auto` default, ignored for any other size. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--agent_customization_defaults--autoscaler_config))
 - `connectivity` (String) Default agent connectivity applied to new agents. One of `public` (internet) or `private` (AWS PrivateLink).
-- `custom_ca_bundle` (String) Default PEM bundle of one or more CA certificates applied to new agents that do not specify their own. Certificates must be unexpired.
+- `custom_ca_bundle` (String) Default PEM bundle of one or more CA certificates applied to new agents that do not specify their own. Certificates must be unexpired. Omitting it from your configuration clears the default, including one set outside Terraform; agents that inherited the old default are reset on their next plan.
 - `kustomization` (String) Kustomization that will be applied to the Kargo agent to generate agent installation manifests
 - `size` (String) Default agent size applied to new agents that do not specify their own. One of `small`, `medium`, `large` or `auto`. A Custom default is expressed as `large` plus resource patches in `kustomization`. Akuity-managed agents never inherit it — their size is managed by Akuity.
 

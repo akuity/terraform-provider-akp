@@ -306,6 +306,8 @@ func runInstanceConfigTests(t *testing.T) {
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.manifest_generation.kustomize.additional_versions.#", "2"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.termination_protection_enabled", "true"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.termination_protection_notes", "Critical production instance - do not delete"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.pinned_agent_version", "0.5.92"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.pinned_agent_version", "0.5.92"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.connectivity", "public"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.cluster_customization_defaults.connectivity", "public"),
 					resource.TestCheckResourceAttrSet("data.akp_instance.test", "argocd.spec.instance_spec.cluster_customization_defaults.connectivity"),
@@ -1569,6 +1571,7 @@ resource "akp_instance" "test" {
         termination_protection_enabled = true
         termination_protection_notes   = "Critical production instance - do not delete"
         connectivity                   = "public"
+        pinned_agent_version           = "0.5.92"
       }
     }
   }
