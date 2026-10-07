@@ -1385,3 +1385,157 @@ func runKargoAgent_DefaultShardDeleteRejected(t *testing.T) {
 		},
 	})
 }
+
+// runKargoAgentResourceCustomCABundleRemoval covers issue #12590: dropping
+// custom_ca_bundle from the configuration must clear the bundle rather than
+// leave the previously applied one in place.
+func runKargoAgentResourceCustomCABundleRemoval(t *testing.T) {
+	t.Parallel()
+	name := fmt.Sprintf("kargoagent-ca-%s", acctest.RandString(10))
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig + testAccKargoAgentResourceConfigCustomCABundle(name, getKargoInstanceId(), true),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("akp_kargo_agent.test", "id"),
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.custom_ca_bundle", testCABundle),
+				),
+			},
+			{
+				Config: providerConfig + testAccKargoAgentResourceConfigCustomCABundle(name, getKargoInstanceId(), false),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.custom_ca_bundle", ""),
+				),
+			},
+			testAccKargoAgentImportStateStep(getKargoInstanceId(), name, testAccKargoAgentCommonImportStateVerifyIgnore...),
+		},
+	})
+}
+
+func testAccKargoAgentResourceConfigCustomCABundle(name, kargoInstanceId string, withBundle bool) string {
+	bundle := ""
+	if withBundle {
+		bundle = fmt.Sprintf("\n      custom_ca_bundle = %q", testCABundle)
+	}
+	return fmt.Sprintf(`
+resource "akp_kargo_agent" "test" {
+  instance_id = %q
+  name        = %q
+  namespace   = "test"
+  spec = {
+    description = "Custom CA bundle removal test"
+    data = {
+      size           = "small"
+      remote_argocd  = %q
+      akuity_managed = false%s
+    }
+  }
+  remove_agent_resources_on_destroy = true
+}
+`, kargoInstanceId, name, getInstanceId(), bundle)
+}
+
+// runKargoAgentResourceCustomCABundleInheritance covers the other half of
+// issue #12590: a bundle the agent inherited from its instance's
+// agent_customization_defaults was never written in this configuration, so
+// leaving the attribute out must not produce a diff — and once the agent does
+// set its own bundle, removing it again falls back to that inherited default
+// rather than to nothing.
+func runKargoAgentResourceCustomCABundleInheritance(t *testing.T) {
+	t.Parallel()
+	instanceName := fmt.Sprintf("kargoagent-ca-inherit-%s", acctest.RandString(8))
+	agentName := fmt.Sprintf("kargoagent-ca-inherit-%s", acctest.RandString(10))
+	inherited := func(agentBundle string) string {
+		return providerConfig + testAccKargoAgentResourceConfigInheritedCABundle(instanceName, agentName, agentBundle)
+	}
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: inherited(""),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("akp_kargo_instance.test",
+						"kargo.spec.kargo_instance_spec.agent_customization_defaults.custom_ca_bundle", testCABundle),
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.custom_ca_bundle", testCABundle),
+				),
+			},
+			{
+				// The agent's configuration never set the bundle, so re-planning
+				// the same configuration must not offer to take it away.
+				Config: inherited(""),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectEmptyPlan(),
+					},
+				},
+			},
+			{
+				Config: inherited(testCABundleAlternate),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.custom_ca_bundle", testCABundleAlternate),
+				),
+			},
+			{
+				// Removing the agent's own bundle returns it to what a new agent
+				// would inherit, which is the instance default rather than "".
+				Config: inherited(""),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.custom_ca_bundle", testCABundle),
+				),
+			},
+		},
+	})
+}
+
+func testAccKargoAgentResourceConfigInheritedCABundle(instanceName, agentName, agentBundle string) string {
+	agentCABundle := ""
+	if agentBundle != "" {
+		agentCABundle = fmt.Sprintf("\n      custom_ca_bundle = %q", agentBundle)
+	}
+	return fmt.Sprintf(`
+resource "akp_kargo_instance" "test" {
+  name = %q
+  kargo = {
+    spec = {
+      version     = %q
+      description = "Inherited CA bundle test"
+      kargo_instance_spec = {
+        backend_ip_allow_list_enabled = true
+        promo_controller_enabled      = true
+        agent_customization_defaults = {
+          auto_upgrade_disabled = false
+          custom_ca_bundle      = %q
+        }
+      }
+    }
+  }
+}
+
+resource "akp_kargo_agent" "test" {
+  instance_id = akp_kargo_instance.test.id
+  name        = %q
+  namespace   = "test"
+  spec = {
+    description = "Inherited CA bundle test"
+    data = {
+      size           = "small"
+      remote_argocd  = %q
+      akuity_managed = false%s
+    }
+  }
+  remove_agent_resources_on_destroy = true
+}
+
+# The first agent on a fresh instance is auto-promoted to its default shard,
+# and a default shard agent cannot be deleted. Owning that assignment lets the
+# teardown clear it before the agent is destroyed.
+resource "akp_kargo_default_shard_agent" "test" {
+  kargo_instance_id = akp_kargo_instance.test.id
+  agent_id          = akp_kargo_agent.test.id
+}
+`, instanceName, getKargoVersion(), testCABundle, agentName, getInstanceId(), agentCABundle)
+}

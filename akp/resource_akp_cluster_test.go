@@ -30,6 +30,7 @@ import (
 	argocdv1 "github.com/akuity/api-client-go/pkg/api/gen/argocd/v1"
 	kargov1 "github.com/akuity/api-client-go/pkg/api/gen/kargo/v1"
 	orgcv1 "github.com/akuity/api-client-go/pkg/api/gen/organization/v1"
+	serviceaccountv1 "github.com/akuity/api-client-go/pkg/api/gen/serviceaccount/v1"
 	idv1 "github.com/akuity/api-client-go/pkg/api/gen/types/id/v1"
 	healthv1 "github.com/akuity/api-client-go/pkg/api/gen/types/status/health/v1"
 	"github.com/akuity/terraform-provider-akp/akp/types"
@@ -131,14 +132,16 @@ func getTestAkpCli() *AkpCli {
 	argoc := argocdv1.NewArgoCDServiceGatewayClient(gwc)
 	kargoc := kargov1.NewKargoServiceGatewayClient(gwc)
 	apikeyc := apikeyv1.NewAPIKeyServiceGatewayClient(gwc)
+	serviceaccountc := serviceaccountv1.NewServiceAccountServiceGatewayClient(gwc)
 
 	testAkpCli = &AkpCli{
-		Cli:       argoc,
-		KargoCli:  kargoc,
-		Cred:      cred,
-		OrgId:     orgID,
-		OrgCli:    orgc,
-		ApiKeyCli: apikeyc,
+		Cli:               argoc,
+		KargoCli:          kargoc,
+		Cred:              cred,
+		OrgId:             orgID,
+		OrgCli:            orgc,
+		ApiKeyCli:         apikeyc,
+		ServiceAccountCli: serviceaccountc,
 	}
 	return testAkpCli
 }
@@ -959,6 +962,10 @@ resource "akp_cluster" "test" {
 // exercise the custom_ca_bundle field. It must stay unexpired so the API's
 // certificate validation accepts it.
 const testCABundle = "-----BEGIN CERTIFICATE-----\nMIIBeTCCAR+gAwIBAgIBATAKBggqhkjOPQQDAjAjMSEwHwYDVQQDExhha3VpdHkt\ndGVycmFmb3JtLXRlc3QtY2EwIBcNMjAwMTAxMDAwMDAwWhgPMjEyNDAxMDEwMDAw\nMDBaMCMxITAfBgNVBAMTGGFrdWl0eS10ZXJyYWZvcm0tdGVzdC1jYTBZMBMGByqG\nSM49AgEGCCqGSM49AwEHA0IABPePjBDkeKh1c5ht4R6DDwAiFdDSr8qVabTDRT4H\n6GOsfypUJ1KEEUkvmbDbLal2xtwbgATaEkv9vnNBMB9npTujQjBAMA4GA1UdDwEB\n/wQEAwIBBjAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBQpNPENoihyQtyEoLe2\n5gA/dus+wTAKBggqhkjOPQQDAgNIADBFAiEAwxZlhfnDyRVW0RPgVyAwobLcgB78\nG9UyFGmg6eNKQk0CIGEJnP6hUK5+adYgdEIPi4rb21xYNNCyZaTj9XjfYznr\n-----END CERTIFICATE-----\n"
+
+// testCABundleAlternate is a second unexpired self-signed CA, used where a
+// test needs to tell one configured bundle from another.
+const testCABundleAlternate = "-----BEGIN CERTIFICATE-----\nMIIBfTCCASOgAwIBAgIBATAKBggqhkjOPQQDAjAlMSMwIQYDVQQDExpha3VpdHkt\ndGVycmFmb3JtLXRlc3QtY2EtMjAgFw0yMDAxMDEwMDAwMDBaGA8yMTI0MDEwMTAw\nMDAwMFowJTEjMCEGA1UEAxMaYWt1aXR5LXRlcnJhZm9ybS10ZXN0LWNhLTIwWTAT\nBgcqhkjOPQIBBggqhkjOPQMBBwNCAAT24d6Bxwt1VRAK5cl7KrSG82wXdwaYQ04h\nzZC+aiaLQOOqgxYkjRKyx9ruhTZ6mc745ntW0C5w9fCJgBC9nxlTo0IwQDAOBgNV\nHQ8BAf8EBAMCAQYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUYcIN63yeUyI1\nYbAmqJX2k1dLITgwCgYIKoZIzj0EAwIDSAAwRQIgNI8Mh3K5pAhPZs2FshHCqDxJ\n2qbeBDdzuppQZ4SUdawCIQDGHCuwFhTuwMEA6sMA/yaS1YNb3ZsVjkJI48YlnxmF\nwA==\n-----END CERTIFICATE-----\n"
 
 func testAccClusterResourceConfigFeatures(name, instanceId string) string {
 	return fmt.Sprintf(`

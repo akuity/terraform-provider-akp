@@ -84,6 +84,7 @@ type KargoInstanceSpec struct {
 	TerminationProtectionNotes   *string                  `json:"terminationProtectionNotes,omitempty"`
 	Connectivity                 Connectivity             `json:"connectivity,omitempty"`
 	McpServer                    *MCPServerConfig         `json:"mcpServer,omitempty"`
+	PinnedAgentVersion           *string                  `json:"pinnedAgentVersion,omitempty"`
 }
 
 type KargoArgoCDUIConfig struct {

@@ -18,6 +18,7 @@ var (
 	_ resource.Resource                     = &GenericResource[any]{}
 	_ resource.ResourceWithImportState      = &GenericResource[any]{}
 	_ resource.ResourceWithConfigValidators = &GenericResource[any]{}
+	_ resource.ResourceWithModifyPlan       = &GenericResource[any]{}
 )
 
 type GenericResource[Plan any] struct {
@@ -32,6 +33,10 @@ type GenericResource[Plan any] struct {
 	ImportStateFunc     func(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse)
 	Validators          []resource.ConfigValidator
 	CopyWriteOnlyFunc   func(ctx context.Context, config tfsdk.Config, diags *diag.Diagnostics, plan *Plan)
+	// ResetOnRemoval lists attributes that go back to the value a freshly
+	// created resource would receive when the configuration stops setting
+	// them; see resetOnRemoval and ModifyPlan.
+	ResetOnRemoval []resetOnRemoval
 }
 
 // importSplitID returns an ImportStateFunc that splits the "/"-separated import

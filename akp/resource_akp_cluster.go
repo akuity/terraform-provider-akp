@@ -35,12 +35,16 @@ import (
 
 func NewAkpClusterResource() resource.Resource {
 	return &GenericResource[types.Cluster]{
-		TypeNameSuffix:  "cluster",
-		SchemaFunc:      clusterSchema,
-		CreateFunc:      clusterCreate,
-		ReadFunc:        clusterRead,
-		UpdateFunc:      clusterUpdate,
-		DeleteFunc:      clusterDelete,
+		TypeNameSuffix: "cluster",
+		SchemaFunc:     clusterSchema,
+		CreateFunc:     clusterCreate,
+		ReadFunc:       clusterRead,
+		UpdateFunc:     clusterUpdate,
+		DeleteFunc:     clusterDelete,
+		ResetOnRemoval: []resetOnRemoval{{
+			attribute: path.Root("spec").AtName("data").AtName("custom_ca_bundle"),
+			inherited: clusterInheritedCustomCABundle,
+		}},
 		ImportStateFunc: importSplitID("instance_id", "name"),
 		Validators: []resource.ConfigValidator{
 			// auto_agent_size_config and custom_agent_size_config are mutually exclusive

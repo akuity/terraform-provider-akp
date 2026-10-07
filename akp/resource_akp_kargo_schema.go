@@ -266,6 +266,15 @@ func getKargoSpecInstanceAttributes() map[string]schema.Attribute {
 				stringplanmodifier.UseStateForUnknown(),
 			},
 		},
+		"pinned_agent_version": schema.StringAttribute{
+			MarkdownDescription: "Agent version every agent of the instance is pinned to. Setting it moves all agents to that version and rejects per-agent version changes until unpinned; Akuity-managed agents always run the latest version and are not affected. Empty means unpinned: each agent follows its own target version." + pinnedAgentVersionRemovalNote,
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+				stringplanmodifier2.SuppressProtobufDefault(),
+			},
+		},
 	}
 }
 
@@ -315,7 +324,7 @@ func getKargoAgentCustomizationAttributes() map[string]schema.Attribute {
 			},
 		},
 		"custom_ca_bundle": schema.StringAttribute{
-			MarkdownDescription: "Default PEM bundle of one or more CA certificates applied to new agents that do not specify their own. Certificates must be unexpired.",
+			MarkdownDescription: "Default PEM bundle of one or more CA certificates applied to new agents that do not specify their own. Certificates must be unexpired." + kargoInstanceCABundleRemovalNote,
 			Optional:            true,
 			Computed:            true,
 			PlanModifiers: []planmodifier.String{

@@ -227,6 +227,7 @@ type InstanceSpec struct {
 	Connectivity                    types.String                   `tfsdk:"connectivity"`
 	McpServer                       *MCPServerConfig               `tfsdk:"mcp_server"`
 	AppsetNewGitFileGlobbingEnabled types.Bool                     `tfsdk:"appset_new_git_file_globbing_enabled"`
+	PinnedAgentVersion              types.String                   `tfsdk:"pinned_agent_version"`
 }
 
 type AppsetPlugins struct {

@@ -52,6 +52,7 @@ type InstanceSpecDataSource struct {
 	AssistantExtensionEnabled       types.Bool                     `tfsdk:"assistant_extension_enabled"`
 	AppsetPolicy                    types.Object                   `tfsdk:"appset_policy"`
 	AppsetNewGitFileGlobbingEnabled types.Bool                     `tfsdk:"appset_new_git_file_globbing_enabled"`
+	PinnedAgentVersion              types.String                   `tfsdk:"pinned_agent_version"`
 	HostAliases                     []*HostAliases                 `tfsdk:"host_aliases"`
 	AgentPermissionsRules           []*AgentPermissionsRule        `tfsdk:"agent_permissions_rules"`
 	Fqdn                            types.String                   `tfsdk:"fqdn"`
@@ -111,6 +112,7 @@ func NewInstanceDataSourceModel(instance *Instance, managedSecrets map[string]*M
 					AssistantExtensionEnabled:       instance.ArgoCD.Spec.InstanceSpec.AssistantExtensionEnabled,
 					AppsetPolicy:                    instance.ArgoCD.Spec.InstanceSpec.AppsetPolicy,
 					AppsetNewGitFileGlobbingEnabled: instance.ArgoCD.Spec.InstanceSpec.AppsetNewGitFileGlobbingEnabled,
+					PinnedAgentVersion:              instance.ArgoCD.Spec.InstanceSpec.PinnedAgentVersion,
 					HostAliases:                     instance.ArgoCD.Spec.InstanceSpec.HostAliases,
 					AgentPermissionsRules:           instance.ArgoCD.Spec.InstanceSpec.AgentPermissionsRules,
 					Fqdn:                            instance.ArgoCD.Spec.InstanceSpec.Fqdn,

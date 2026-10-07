@@ -68,6 +68,7 @@ Read-Only:
 - `global_service_account_ns` (List of String) List of global service account namespaces
 - `ip_allow_list` (Attributes List) List of allowed IPs (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--ip_allow_list))
 - `mcp_server` (Attributes) MCP server configuration for the instance. Turns MCP agent access on or off: the instance's own `/mcp` endpoint and instance actions performed through the organization's platform MCP endpoint. Enabling it requires the organization's MCP server feature. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--mcp_server))
+- `pinned_agent_version` (String) Agent version every agent of the instance is pinned to. Setting it moves all agents to that version and rejects per-agent version changes until unpinned; Akuity-managed agents always run the latest version and are not affected. Empty means unpinned: each agent follows its own target version.
 - `promo_controller_enabled` (Boolean) Whether Kargo Promotion Controller is enabled for this instance
 - `secrets` (Attributes) Cross-cluster secret synchronization configuration. Selects which Kubernetes Secrets are synchronized from source clusters to destination clusters. Secrets opt in by carrying the `akuity.io/secret-sync: "true"` label. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--secrets))
 - `termination_protection_enabled` (Boolean) When enabled, prevents accidental deletion of this Kargo instance.
