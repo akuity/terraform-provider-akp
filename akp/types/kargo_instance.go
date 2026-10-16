@@ -82,6 +82,7 @@ func (k *KargoInstance) syncKargoResources(
 		exportResp.Projects, exportResp.ProjectConfigs, exportResp.MessageChannels, exportResp.ClusterMessageChannels,
 		exportResp.EventRouters, exportResp.CustomPromotionSteps, exportResp.ClusterConfigs, exportResp.Warehouses,
 		exportResp.Stages, exportResp.ServiceAccounts, exportResp.Roles, exportResp.RoleBindings, exportResp.Configmaps,
+		exportResp.ValidatingAdmissionPolicies, exportResp.ValidatingAdmissionPolicyBindings,
 	)
 
 	newMap, err := syncResources(

@@ -71,7 +71,7 @@ func getAKPKargoInstanceAttributes() map[string]schema.Attribute {
 			},
 		},
 		"kargo_resources": schema.MapAttribute{
-			MarkdownDescription: "Map of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`, `ProjectConfig`, `ClusterConfig`, `Warehouse`, `Stage`, `PromotionTask`, `ClusterPromotionTask` (Group `kargo.akuity.io`); `MessageChannel`, `ClusterMessageChannel`, `EventRouter`, `CustomPromotionStep` (Group `ee.kargo.akuity.io`); `AnalysisTemplate` (Group `argoproj.io`); `Secret` (only with `kargo.akuity.io/cred-type` label); `ConfigMap`; `Role`, `RoleBinding`, `ServiceAccount` (`rbac.kargo.akuity.io/managed=\"true\"` annotation required)",
+			MarkdownDescription: "Map of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`, `ProjectConfig`, `ClusterConfig`, `Warehouse`, `Stage`, `PromotionTask`, `ClusterPromotionTask` (Group `kargo.akuity.io`); `MessageChannel`, `ClusterMessageChannel`, `EventRouter`, `CustomPromotionStep` (Group `ee.kargo.akuity.io`); `AnalysisTemplate` (Group `argoproj.io`); `Secret` (only with `kargo.akuity.io/cred-type` label); `ConfigMap`; `Role`, `RoleBinding`, `ServiceAccount` (`rbac.kargo.akuity.io/managed=\"true\"` annotation required); `ValidatingAdmissionPolicy`, `ValidatingAdmissionPolicyBinding` (apiVersion `admissionregistration.k8s.io/v1`, policies may only match `stages` in group `kargo.akuity.io`; once any is declared here, Terraform owns the instance's whole set of admission policies and removes ones not declared, including ones added in the portal)",
 			Optional:            true,
 			ElementType:         types.StringType,
 			PlanModifiers: []planmodifier.Map{
@@ -182,7 +182,7 @@ func getKargoSpecInstanceAttributes() map[string]schema.Attribute {
 			},
 		},
 		"global_credentials_ns": schema.ListAttribute{
-			MarkdownDescription: "List of global credentials namespaces",
+			MarkdownDescription: "List of global credentials namespaces. Applies to Kargo v1.11 and below. Ignored in v1.12 and later.",
 			Optional:            true,
 			ElementType:         types.StringType,
 		},

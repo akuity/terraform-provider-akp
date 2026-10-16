@@ -114,3 +114,61 @@ func pruneNormalizedEmptyFields(rawMap map[string]any, keys ...string) {
 		}
 	}
 }
+
+// admissionPolicyAPIVersion is the only apiVersion accepted for admission
+// policy manifests in argocd_resources / kargo_resources.
+const admissionPolicyAPIVersion = "admissionregistration.k8s.io/v1"
+
+// admissionPolicyKinds are the manifests in argocd_resources / kargo_resources
+// that the instance stores as its admission policies.
+var admissionPolicyKinds = map[string]bool{
+	"ValidatingAdmissionPolicy":        true,
+	"ValidatingAdmissionPolicyBinding": true,
+}
+
+// hasAdmissionPolicyResources reports whether a resources map carries any
+// admission policy manifest. Keys are user-chosen, so the manifests themselves
+// are inspected.
+func hasAdmissionPolicyResources(resources types.Map) bool {
+	if resources.IsNull() || resources.IsUnknown() {
+		return false
+	}
+	for _, element := range resources.Elements() {
+		value, ok := element.(types.String)
+		if !ok || value.IsNull() || value.IsUnknown() {
+			continue
+		}
+		var manifest struct {
+			APIVersion string `json:"apiVersion"`
+			Kind       string `json:"kind"`
+		}
+		if err := json.Unmarshal([]byte(value.ValueString()), &manifest); err != nil {
+			continue
+		}
+		if manifest.APIVersion == admissionPolicyAPIVersion && admissionPolicyKinds[manifest.Kind] {
+			return true
+		}
+	}
+	return false
+}
+
+type managesAdmissionPoliciesKey struct{}
+
+// withManagedAdmissionPolicies records that the prior state managed admission
+// policies, so the apply request built further down replaces the stored set
+// even when the plan removed the last one.
+func withManagedAdmissionPolicies(ctx context.Context, managed bool) context.Context {
+	return context.WithValue(ctx, managesAdmissionPoliciesKey{}, managed)
+}
+
+// managesAdmissionPolicies reports whether Terraform owns the instance's
+// admission policies: the plan or the prior state carries any. Only then does
+// the apply replace the stored set, so policies managed in the portal UI are
+// left alone for configurations that never declare one.
+func managesAdmissionPolicies(ctx context.Context, plan types.Map) bool {
+	if hasAdmissionPolicyResources(plan) {
+		return true
+	}
+	managed, _ := ctx.Value(managesAdmissionPoliciesKey{}).(bool)
+	return managed
+}

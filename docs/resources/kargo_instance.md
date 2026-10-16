@@ -392,7 +392,7 @@ resource "akp_kargo_instance" "github_sso" {
 ### Optional
 
 - `kargo_cm` (Map of String) ConfigMap to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf
-- `kargo_resources` (Map of String) Map of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`, `ProjectConfig`, `ClusterConfig`, `Warehouse`, `Stage`, `PromotionTask`, `ClusterPromotionTask` (Group `kargo.akuity.io`); `MessageChannel`, `ClusterMessageChannel`, `EventRouter`, `CustomPromotionStep` (Group `ee.kargo.akuity.io`); `AnalysisTemplate` (Group `argoproj.io`); `Secret` (only with `kargo.akuity.io/cred-type` label); `ConfigMap`; `Role`, `RoleBinding`, `ServiceAccount` (`rbac.kargo.akuity.io/managed="true"` annotation required)
+- `kargo_resources` (Map of String) Map of Kargo custom resources to be managed alongside the Kargo instance. Currently supported resources are: `Project`, `ProjectConfig`, `ClusterConfig`, `Warehouse`, `Stage`, `PromotionTask`, `ClusterPromotionTask` (Group `kargo.akuity.io`); `MessageChannel`, `ClusterMessageChannel`, `EventRouter`, `CustomPromotionStep` (Group `ee.kargo.akuity.io`); `AnalysisTemplate` (Group `argoproj.io`); `Secret` (only with `kargo.akuity.io/cred-type` label); `ConfigMap`; `Role`, `RoleBinding`, `ServiceAccount` (`rbac.kargo.akuity.io/managed="true"` annotation required); `ValidatingAdmissionPolicy`, `ValidatingAdmissionPolicyBinding` (apiVersion `admissionregistration.k8s.io/v1`, policies may only match `stages` in group `kargo.akuity.io`; once any is declared here, Terraform owns the instance's whole set of admission policies and removes ones not declared, including ones added in the portal)
 - `kargo_secret` (Map of String, Sensitive) Secret to configure system account accesses. The usage can be found in the examples/resources/akp_kargo_instance/resource.tf
 - `workspace` (String) Workspace name for the Kargo instance
 
@@ -434,7 +434,7 @@ Optional:
 - `backend_ip_allow_list_enabled` (Boolean) Whether IP allow list is enabled for the backend
 - `connectivity` (String) How the Kargo instance is reached. One of `public` (internet) or `private` (AWS PrivateLink). Defaults to `public`.
 - `gc_config` (Attributes) Garbage collector configuration (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--gc_config))
-- `global_credentials_ns` (List of String) List of global credentials namespaces
+- `global_credentials_ns` (List of String) List of global credentials namespaces. Applies to Kargo v1.11 and below. Ignored in v1.12 and later.
 - `global_service_account_ns` (List of String) List of global service account namespaces
 - `ip_allow_list` (Attributes List) List of allowed IPs (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--ip_allow_list))
 - `mcp_server` (Attributes) MCP server configuration for the instance. Turns MCP agent access on or off: the instance's own `/mcp` endpoint and instance actions performed through the organization's platform MCP endpoint. Enabling it requires the organization's MCP server feature. (see [below for nested schema](#nestedatt--kargo--spec--kargo_instance_spec--mcp_server))

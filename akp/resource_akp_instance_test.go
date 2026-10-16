@@ -294,6 +294,10 @@ func runInstanceConfigTests(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_instance.test", "name", name),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.extensions.#", "1"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.extensions.0.id", "argo_rollouts"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.extensions.0.version", "v0.4.0"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.extensions.0.id", "argo_rollouts"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.extensions.0.version", "v0.4.0"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.cluster_customization_defaults.auto_upgrade_disabled", "true"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.appset_policy.policy", "create-update"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.appset_new_git_file_globbing_enabled", "true"),
@@ -1523,8 +1527,8 @@ resource "akp_instance" "test" {
         declarative_management_enabled = true
         extensions = [
           {
-            id      = "test-extension"
-            version = "v0.1.0"
+            id      = "argo_rollouts"
+            version = "v0.4.0"
           }
         ]
         cluster_customization_defaults = {
