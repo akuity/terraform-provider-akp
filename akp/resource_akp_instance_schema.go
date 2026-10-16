@@ -176,7 +176,7 @@ func getAKPInstanceAttributes() map[string]schema.Attribute {
 			},
 		},
 		"argocd_resources": schema.MapAttribute{
-			MarkdownDescription: "Map of ArgoCD custom resources to be managed alongside the ArgoCD instance. Currently supported resources are: `ApplicationSet`, `Application`, `AppProject`. Should all be in the apiVersion `argoproj.io/v1alpha1`.",
+			MarkdownDescription: "Map of ArgoCD custom resources to be managed alongside the ArgoCD instance. Currently supported resources are: `ApplicationSet`, `Application`, `AppProject` (apiVersion `argoproj.io/v1alpha1`); `ValidatingAdmissionPolicy`, `ValidatingAdmissionPolicyBinding` (apiVersion `admissionregistration.k8s.io/v1`, policies may only match `applications` and `applicationsets` in group `argoproj.io`). Once any admission policy or binding is declared here, Terraform owns the instance's whole set of admission policies: policies not declared, including ones added in the portal, are removed.",
 			Optional:            true,
 			ElementType:         types.StringType,
 			PlanModifiers: []planmodifier.Map{

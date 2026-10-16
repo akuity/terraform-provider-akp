@@ -97,7 +97,8 @@ func (i *Instance) syncArgoResources(
 	diagnostics *diag.Diagnostics,
 	isDataSource bool,
 ) error {
-	appliedResources := slices.Concat(exportResp.Applications, exportResp.ApplicationSets, exportResp.AppProjects)
+	appliedResources := slices.Concat(exportResp.Applications, exportResp.ApplicationSets, exportResp.AppProjects,
+		exportResp.ValidatingAdmissionPolicies, exportResp.ValidatingAdmissionPolicyBindings)
 
 	newMap, err := syncResources(
 		ctx,
