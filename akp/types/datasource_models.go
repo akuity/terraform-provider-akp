@@ -60,6 +60,8 @@ type InstanceSpecDataSource struct {
 	AkuityIntelligenceExtension     *AkuityIntelligenceExtension   `tfsdk:"akuity_intelligence_extension"`
 	KubeVisionConfig                *KubeVisionConfig              `tfsdk:"kube_vision_config"`
 	AppInAnyNamespaceConfig         *AppInAnyNamespaceConfig       `tfsdk:"app_in_any_namespace_config"`
+	AppsetScmConfig                 *AppsetScmConfig               `tfsdk:"appset_scm_config"`
+	AppsetInAnyNamespaceEnabled     types.Bool                     `tfsdk:"appset_in_any_namespace_enabled"`
 	Secrets                         *SecretsManagementConfig       `tfsdk:"secrets"`
 	AppsetPlugins                   []*AppsetPlugins               `tfsdk:"appset_plugins"`
 	ApplicationSetExtension         *ApplicationSetExtension       `tfsdk:"application_set_extension"`
@@ -120,6 +122,8 @@ func NewInstanceDataSourceModel(instance *Instance, managedSecrets map[string]*M
 					AkuityIntelligenceExtension:     instance.ArgoCD.Spec.InstanceSpec.AkuityIntelligenceExtension,
 					KubeVisionConfig:                instance.ArgoCD.Spec.InstanceSpec.KubeVisionConfig,
 					AppInAnyNamespaceConfig:         instance.ArgoCD.Spec.InstanceSpec.AppInAnyNamespaceConfig,
+					AppsetScmConfig:                 instance.ArgoCD.Spec.InstanceSpec.AppsetScmConfig,
+					AppsetInAnyNamespaceEnabled:     instance.ArgoCD.Spec.InstanceSpec.AppsetInAnyNamespaceEnabled,
 					Secrets:                         instance.ArgoCD.Spec.InstanceSpec.Secrets,
 					AppsetPlugins:                   instance.ArgoCD.Spec.InstanceSpec.AppsetPlugins,
 					ApplicationSetExtension:         instance.ArgoCD.Spec.InstanceSpec.ApplicationSetExtension,

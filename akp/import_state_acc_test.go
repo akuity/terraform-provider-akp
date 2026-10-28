@@ -99,6 +99,7 @@ var (
 		"argocd.spec.instance_spec.kube_vision_config.cve_scan_config.rescan_interval", // Optional-only inside UseStateForNullUnknown
 		"argocd.spec.instance_spec.kube_vision_config.cve_scan_config.scan_enabled",    // Optional-only inside UseStateForNullUnknown
 		// SuppressProtobufDefault fields (ImportStateVerify bypasses plan modifiers)
+		"argocd.spec.instance_spec.appset_in_any_namespace_enabled",      // SuppressProtobufDefault (bool)
 		"argocd.spec.instance_spec.appset_new_git_file_globbing_enabled", // SuppressProtobufDefault (bool)
 		"argocd.spec.instance_spec.assistant_extension_enabled",          // SuppressProtobufDefault (bool)
 		"argocd.spec.instance_spec.audit_extension_enabled",              // SuppressProtobufDefault (bool)
@@ -242,6 +243,7 @@ var (
 		"argocd.spec.instance_spec.application_set_extension",   // UseStateForNullUnknown, omitted
 		"argocd.spec.instance_spec.cluster_addons_extension",    // UseStateForNullUnknown, omitted
 		"argocd.spec.instance_spec.app_in_any_namespace_config", // UseStateForNullUnknown, omitted
+		"argocd.spec.instance_spec.appset_scm_config",           // UseStateForNullUnknown, omitted
 		"argocd_notifications_cm",                               // UseStateForNullUnknown Map, omitted
 		"argocd_image_updater_config",                           // UseStateForNullUnknown Map, omitted
 		"argocd_image_updater_ssh_config",                       // UseStateForNullUnknown Map, omitted
@@ -254,6 +256,7 @@ var (
 		"argocd.spec.instance_spec.application_set_extension",   // UseStateForNullUnknown, omitted
 		"argocd.spec.instance_spec.cluster_addons_extension",    // UseStateForNullUnknown, omitted
 		"argocd.spec.instance_spec.app_in_any_namespace_config", // UseStateForNullUnknown, omitted
+		"argocd.spec.instance_spec.appset_scm_config",           // UseStateForNullUnknown, omitted
 		"argocd_notifications_cm",                               // UseStateForNullUnknown Map, omitted
 		"argocd_image_updater_config",                           // UseStateForNullUnknown Map, omitted
 		"argocd_image_updater_ssh_config",                       // UseStateForNullUnknown Map, omitted

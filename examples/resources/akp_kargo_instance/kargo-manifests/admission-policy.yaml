@@ -1,0 +1,28 @@
+# Customer ValidatingAdmissionPolicies may only match kargo.akuity.io stages.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: require-stage-team-label
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["kargo.akuity.io"]
+        apiVersions: ["v1alpha1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["stages"]
+  matchConditions:
+    # Only evaluate spec changes, so status updates by Kargo are never blocked.
+    - name: spec-changed
+      expression: "oldObject == null || object.spec != oldObject.spec"
+  validations:
+    - expression: "has(object.metadata.labels) && 'team' in object.metadata.labels"
+      message: all Stages must have a team label
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: require-stage-team-label
+spec:
+  policyName: require-stage-team-label
+  validationActions: ["Deny"]

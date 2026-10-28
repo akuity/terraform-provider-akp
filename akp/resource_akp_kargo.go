@@ -27,12 +27,12 @@ import (
 
 func NewAkpKargoInstanceResource() resource.Resource {
 	return &GenericResource[types.KargoInstance]{
-		TypeNameSuffix: "kargo_instance",
-		SchemaFunc:     kargoInstanceSchema,
-		CreateFunc:     kargoInstanceCreateOrUpdate,
-		ReadFunc:       kargoInstanceRead,
-		UpdateFunc:     kargoInstanceCreateOrUpdate,
-		DeleteFunc:     kargoInstanceDelete,
+		TypeNameSuffix:      "kargo_instance",
+		SchemaFunc:          kargoInstanceSchema,
+		CreateFunc:          kargoInstanceCreateOrUpdate,
+		ReadFunc:            kargoInstanceRead,
+		UpdateWithStateFunc: kargoInstanceUpdate,
+		DeleteFunc:          kargoInstanceDelete,
 		// Instance-level settings inherit from nothing, so removing one clears it.
 		ResetOnRemoval: []resetOnRemoval{
 			{attribute: path.Root("kargo").AtName("spec").AtName("kargo_instance_spec").
@@ -49,6 +49,11 @@ func NewAkpKargoInstanceResource() resource.Resource {
 			},
 		},
 	}
+}
+
+func kargoInstanceUpdate(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, state, plan *types.KargoInstance) (*types.KargoInstance, error) {
+	ctx = withManagedAdmissionPolicies(ctx, hasAdmissionPolicyResources(state.KargoResources))
+	return kargoInstanceCreateOrUpdate(ctx, cli, diags, plan)
 }
 
 func kargoInstanceCreateOrUpdate(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, plan *types.KargoInstance) (*types.KargoInstance, error) {
@@ -221,6 +226,11 @@ func buildKargoApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, 
 			"Kargo",
 		)
 	}
+	// When Terraform manages admission policies it owns the whole set, so a policy
+	// removed from kargo_resources is deleted.
+	if managesAdmissionPolicies(ctx, kargo.KargoResources) {
+		applyReq.PruneResourceTypes = append(applyReq.PruneResourceTypes, kargov1.PruneResourceType_PRUNE_RESOURCE_TYPE_VALIDATING_ADMISSION_POLICIES)
+	}
 
 	return applyReq
 }
@@ -245,11 +255,20 @@ var kargoResourceGroups = map[string]resourceGroup[kargoApplyReq]{
 	"ServiceAccount":        {"", func(r kargoApplyReq) *[]*structpb.Struct { return &r.ServiceAccounts }},
 	"ConfigMap":             {"", func(r kargoApplyReq) *[]*structpb.Struct { return &r.Configmaps }},
 	"Secret":                {"", func(r kargoApplyReq) *[]*structpb.Struct { return &r.RepoCredentials }},
+	"ValidatingAdmissionPolicy": {"admissionregistration.k8s.io", func(r kargoApplyReq) *[]*structpb.Struct {
+		return &r.ValidatingAdmissionPolicies
+	}},
+	"ValidatingAdmissionPolicyBinding": {"admissionregistration.k8s.io", func(r kargoApplyReq) *[]*structpb.Struct {
+		return &r.ValidatingAdmissionPolicyBindings
+	}},
 }
 
 func isKargoResourceValid(un *unstructured.Unstructured) error {
 	if err := validateResource(un, kargoResourceGroups); err != nil {
 		return err
+	}
+	if un.GroupVersionKind().Group == "admissionregistration.k8s.io" && un.GetAPIVersion() != admissionPolicyAPIVersion {
+		return errors.New("unsupported apiVersion")
 	}
 	if un.GetKind() == "Secret" && un.GetLabels()["kargo.akuity.io/cred-type"] == "" {
 		return errors.New("secret must have a kargo.akuity.io/cred-type label")

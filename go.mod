@@ -1,9 +1,9 @@
 module github.com/akuity/terraform-provider-akp
 
-go 1.27.1
+go 1.27.3
 
 require (
-	github.com/akuity/api-client-go v0.29.1-0.20261003005757-289221cdd204
+	github.com/akuity/api-client-go v0.29.1-0.20261028063610-ae6708ba81f8
 	github.com/akuity/grpc-gateway-client v0.0.0-20260723085237-ba27dc2ed546
 	github.com/go-jose/go-jose/v4 v4.1.4
 	github.com/hashicorp/terraform-plugin-docs v0.21.0
@@ -28,7 +28,7 @@ require (
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260415201107-50325440f8f2.1 // indirect
 	dario.cat/mergo v1.0.1 // indirect
-	github.com/BurntSushi/toml v1.5.0 // indirect
+	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/Kunde21/markdownfmt/v3 v3.1.0 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver/v3 v3.5.0 // indirect
@@ -66,7 +66,7 @@ require (
 	github.com/go-resty/resty/v2 v2.17.2 // indirect
 	github.com/go-test/deep v1.1.1 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/google/cel-go v0.28.1 // indirect
+	github.com/google/cel-go v0.29.0 // indirect
 	github.com/google/gnostic-models v0.7.0 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
@@ -125,14 +125,14 @@ require (
 	golang.org/x/crypto v0.57.0 // indirect
 	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f // indirect
 	golang.org/x/mod v0.41.0 // indirect
-	golang.org/x/net v0.59.0 // indirect
+	golang.org/x/net v0.60.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/term v0.46.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
-	golang.org/x/tools v0.49.0 // indirect
+	golang.org/x/tools v0.50.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto v0.0.0-20260319201613-d00831a3d3e7 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260928230214-8a89bd6388cc // indirect

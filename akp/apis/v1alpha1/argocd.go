@@ -236,6 +236,14 @@ type InstanceSpec struct {
 	McpServer                       *MCPServerConfig        `json:"mcpServer,omitempty"`
 	AppsetNewGitFileGlobbingEnabled *bool                   `json:"appsetNewGitFileGlobbingEnabled,omitempty"`
 	PinnedAgentVersion              *string                 `json:"pinnedAgentVersion,omitempty"`
+	AppsetScmConfig                 *AppsetScmConfig        `json:"appsetScmConfig,omitempty"`
+	AppsetInAnyNamespaceEnabled     *bool                   `json:"appsetInAnyNamespaceEnabled,omitempty"`
+}
+
+type AppsetScmConfig struct {
+	ScmProvidersDisabled       *bool    `json:"scmProvidersDisabled,omitempty"`
+	AllowedScmProviders        []string `json:"allowedScmProviders,omitempty"`
+	TokenRefStrictModeDisabled *bool    `json:"tokenRefStrictModeDisabled,omitempty"`
 }
 
 type AppsetPlugins struct {

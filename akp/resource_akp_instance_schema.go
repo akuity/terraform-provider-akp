@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -176,7 +177,7 @@ func getAKPInstanceAttributes() map[string]schema.Attribute {
 			},
 		},
 		"argocd_resources": schema.MapAttribute{
-			MarkdownDescription: "Map of ArgoCD custom resources to be managed alongside the ArgoCD instance. Currently supported resources are: `ApplicationSet`, `Application`, `AppProject`. Should all be in the apiVersion `argoproj.io/v1alpha1`.",
+			MarkdownDescription: "Map of ArgoCD custom resources to be managed alongside the ArgoCD instance. Currently supported resources are: `ApplicationSet`, `Application`, `AppProject` (apiVersion `argoproj.io/v1alpha1`); `ValidatingAdmissionPolicy`, `ValidatingAdmissionPolicyBinding` (apiVersion `admissionregistration.k8s.io/v1`, policies may only match `applications` and `applicationsets` in group `argoproj.io`). Once any admission policy or binding is declared here, Terraform owns the instance's whole set of admission policies: policies not declared, including ones added in the portal, are removed.",
 			Optional:            true,
 			ElementType:         types.StringType,
 			PlanModifiers: []planmodifier.Map{
@@ -429,6 +430,24 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 				boolplanmodifier2.SuppressProtobufDefault(),
 			},
 		},
+		"appset_scm_config": schema.SingleNestedAttribute{
+			MarkdownDescription: "SCM Provider and Pull Request generator settings of the Application Set controller. Omit it to keep the current settings; set the fields explicitly to reset them. Defaults: generators on, no URL allow list, tokenRef strict mode on.",
+			Optional:            true,
+			Computed:            true,
+			Attributes:          getAppsetScmConfigAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier2.UseStateForNullUnknown(),
+			},
+		},
+		"appset_in_any_namespace_enabled": schema.BoolAttribute{
+			MarkdownDescription: "Let the Application Set controller reconcile ApplicationSets in any namespace (all but kube-system). Requires `app_in_any_namespace_config.enabled`, and `appset_scm_config` with the generators disabled or an allow list set.",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Bool{
+				boolplanmodifier.UseStateForUnknown(),
+				boolplanmodifier2.SuppressProtobufDefault(),
+			},
+		},
 		"pinned_agent_version": schema.StringAttribute{
 			MarkdownDescription: "Agent version every cluster of the instance is pinned to. Setting it moves all clusters to that version and rejects per-cluster version changes until unpinned. Empty means unpinned: each cluster follows its own target version." + pinnedAgentVersionRemovalNote,
 			Optional:            true,
@@ -641,7 +660,7 @@ func getAppsetPluginsAttributes() map[string]schema.Attribute {
 			Required:            true,
 		},
 		"token": schema.StringAttribute{
-			MarkdownDescription: "Plugin token",
+			MarkdownDescription: "Secret key reference for the plugin token: `$<secret>:<key>`, such as `$application-set-secret:<key>`, or `$<key>` for a key in `argocd-secret`",
 			Required:            true,
 		},
 		"base_url": schema.StringAttribute{
@@ -1065,6 +1084,36 @@ func getCrossplaneExtensionResourceAttributes() map[string]schema.Attribute {
 		"group": schema.StringAttribute{
 			MarkdownDescription: "Glob pattern of the group to match.",
 			Optional:            true,
+		},
+	}
+}
+
+func getAppsetScmConfigAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"scm_providers_disabled": schema.BoolAttribute{
+			MarkdownDescription: "Turns the SCM Provider and Pull Request generators off. Defaults to `false` (generators run).",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Bool{
+				boolplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"allowed_scm_providers": schema.ListAttribute{
+			MarkdownDescription: "Custom SCM provider API URLs (protocol included, exact match) the generators may call. Empty allows any URL. Providers without a custom API URL are always allowed.",
+			Optional:            true,
+			Computed:            true,
+			ElementType:         types.StringType,
+			PlanModifiers: []planmodifier.List{
+				listplanmodifier.UseStateForUnknown(),
+			},
+		},
+		"token_ref_strict_mode_disabled": schema.BoolAttribute{
+			MarkdownDescription: "Lets `tokenRef` read secrets without the `argocd.argoproj.io/secret-type=scm-creds` label. Defaults to `false` (strict mode on).",
+			Optional:            true,
+			Computed:            true,
+			PlanModifiers: []planmodifier.Bool{
+				boolplanmodifier.UseStateForUnknown(),
+			},
 		},
 	}
 }

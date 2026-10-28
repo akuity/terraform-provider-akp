@@ -294,6 +294,10 @@ func runInstanceConfigTests(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("akp_instance.test", "name", name),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.extensions.#", "1"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.extensions.0.id", "argo_rollouts"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.extensions.0.version", "v0.4.0"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.extensions.0.id", "argo_rollouts"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.extensions.0.version", "v0.4.0"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.cluster_customization_defaults.auto_upgrade_disabled", "true"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.appset_policy.policy", "create-update"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.appset_new_git_file_globbing_enabled", "true"),
@@ -302,6 +306,13 @@ func runInstanceConfigTests(t *testing.T) {
 					// check-terraform-field-usage only enforces coverage for resource
 					// attribute paths — so a missing line there would go unnoticed.
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.appset_new_git_file_globbing_enabled", "true"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.appset_scm_config.scm_providers_disabled", "false"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.appset_scm_config.allowed_scm_providers.#", "1"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.appset_scm_config.allowed_scm_providers.0", "https://git.example.com/"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.appset_scm_config.token_ref_strict_mode_disabled", "true"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.appset_scm_config.token_ref_strict_mode_disabled", "true"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.appset_in_any_namespace_enabled", "true"),
+					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.appset_in_any_namespace_enabled", "true"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.manifest_generation.kustomize.default_version", "v5.4.3"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.manifest_generation.kustomize.additional_versions.#", "2"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.termination_protection_enabled", "true"),
@@ -1523,8 +1534,8 @@ resource "akp_instance" "test" {
         declarative_management_enabled = true
         extensions = [
           {
-            id      = "test-extension"
-            version = "v0.1.0"
+            id      = "argo_rollouts"
+            version = "v0.4.0"
           }
         ]
         cluster_customization_defaults = {
@@ -1554,10 +1565,16 @@ resource "akp_instance" "test" {
         app_in_any_namespace_config = {
           enabled = true
         }
+        appset_scm_config = {
+          scm_providers_disabled         = false
+          allowed_scm_providers          = ["https://git.example.com/"]
+          token_ref_strict_mode_disabled = true
+        }
+        appset_in_any_namespace_enabled = true
         appset_plugins = [
           {
             name            = "plugin-test"
-            token           = "random-token"
+            token           = "$application-set-secret:token"
             base_url        = "https://example.com"
             request_timeout = 30
           }
