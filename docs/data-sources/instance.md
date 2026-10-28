@@ -37,7 +37,7 @@ output "managed_secrets" {
 - `argocd_image_updater_ssh_config` (Map of String) contains the ssh configuration for Argo CD image updater, and it is aligned with `argocd-image-updater-ssh-config` ConfigMap of Argo CD, for available options and examples, refer to [this documentation](https://argocd-image-updater.readthedocs.io/en/stable/).
 - `argocd_notifications_cm` (Map of String) configures Argo CD notifications, and it is aligned with `argocd-notifications-cm` ConfigMap of Argo CD, for more details and examples, refer to [this documentation](https://argo-cd.readthedocs.io/en/latest/operator-manual/notifications/).
 - `argocd_rbac_cm` (Map of String) is aligned with the options in `argocd-rbac-cm` ConfigMap as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-rbac-cm-yaml/).
-- `argocd_resources` (Map of String) Map of ArgoCD custom resources to be managed alongside the ArgoCD instance. Currently supported resources are: `ApplicationSet`, `Application`, `AppProject`. Should all be in the apiVersion `argoproj.io/v1alpha1`.
+- `argocd_resources` (Map of String) Map of ArgoCD custom resources to be managed alongside the ArgoCD instance. Currently supported resources are: `ApplicationSet`, `Application`, `AppProject` (apiVersion `argoproj.io/v1alpha1`); `ValidatingAdmissionPolicy`, `ValidatingAdmissionPolicyBinding` (apiVersion `admissionregistration.k8s.io/v1`, policies may only match `applications` and `applicationsets` in group `argoproj.io`). Once any admission policy or binding is declared here, Terraform owns the instance's whole set of admission policies: policies not declared, including ones added in the portal, are removed.
 - `argocd_ssh_known_hosts_cm` (Map of String) is aligned with the options in `argocd-ssh-known-hosts-cm` ConfigMap as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-ssh-known-hosts-cm-yaml/).
 - `argocd_tls_certs_cm` (Map of String) is aligned with the options in `argocd-tls-certs-cm` ConfigMap as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-tls-certs-cm-yaml/).
 - `config_management_plugins` (Attributes Map) is a map of [Config Management Plugins](https://argo-cd.readthedocs.io/en/stable/operator-manual/config-management-plugins/#config-management-plugins), the key of map entry is the `name` of the plugin, and the value is the definition of the Config Management Plugin(v2). (see [below for nested schema](#nestedatt--config_management_plugins))
@@ -72,9 +72,11 @@ Read-Only:
 - `app_in_any_namespace_config` (Attributes) App in any namespace config (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--app_in_any_namespace_config))
 - `app_set_delegate` (Attributes) Select cluster in which you want to Install Application Set controller (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--app_set_delegate))
 - `application_set_extension` (Attributes) Configuration for the ApplicationSet extension, enabling the controller and UI integration within Argo CD. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--application_set_extension))
+- `appset_in_any_namespace_enabled` (Boolean) Let the Application Set controller reconcile ApplicationSets in any namespace (all but kube-system). Requires `app_in_any_namespace_config.enabled`, and `appset_scm_config` with the generators disabled or an allow list set.
 - `appset_new_git_file_globbing_enabled` (Boolean) Enable doublestar globbing for the Application Set git file generator. By default `*` matches across directories (like `**`); the new globbing treats `*` as a single path segment. Existing generators written for the old behavior may stop matching.
 - `appset_plugins` (Attributes List) Application Set plugins (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--appset_plugins))
 - `appset_policy` (Attributes) Configures Application Set policy settings. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--appset_policy))
+- `appset_scm_config` (Attributes) SCM Provider and Pull Request generator settings of the Application Set controller. Omit it to keep the current settings; set the fields explicitly to reset them. Defaults: generators on, no URL allow list, tokenRef strict mode on. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--appset_scm_config))
 - `assistant_extension_enabled` (Boolean, Deprecated) Deprecated: upcoming removal. Enable Powerful AI-powered assistant Extension. It helps analyze Kubernetes resources behavior and provides suggestions about resolving issues.
 - `audit_extension_enabled` (Boolean) Enable Audit Extension. Set this to `true` to install Audit Extension to Argo CD instance.
 - `backend_ip_allow_list_enabled` (Boolean) Enable ip allow list for cluster agents
@@ -164,7 +166,7 @@ Read-Only:
 - `base_url` (String) Plugin base URL
 - `name` (String) Plugin name
 - `request_timeout` (Number) Plugin request timeout
-- `token` (String) Plugin token
+- `token` (String) Secret key reference for the plugin token: `$<secret>:<key>`, such as `$application-set-secret:<key>`, or `$<key>` for a key in `argocd-secret`
 
 
 <a id="nestedatt--argocd--spec--instance_spec--appset_policy"></a>
@@ -179,6 +181,16 @@ Available options: `sync`, `create-only`, `create-delete`, and `create-update`.
   - Policy `create-only`: Prevents ApplicationSet controller from modifying or deleting Applications.
   - Policy `create-update`: Prevents ApplicationSet controller from deleting Applications. Update is allowed.
   - Policy `create-delete`: Prevents ApplicationSet controller from modifying Applications, Delete is allowed.
+
+
+<a id="nestedatt--argocd--spec--instance_spec--appset_scm_config"></a>
+### Nested Schema for `argocd.spec.instance_spec.appset_scm_config`
+
+Read-Only:
+
+- `allowed_scm_providers` (List of String) Custom SCM provider API URLs (protocol included, exact match) the generators may call. Empty allows any URL. Providers without a custom API URL are always allowed.
+- `scm_providers_disabled` (Boolean) Turns the SCM Provider and Pull Request generators off. Defaults to `false` (generators run).
+- `token_ref_strict_mode_disabled` (Boolean) Lets `tokenRef` read secrets without the `argocd.argoproj.io/secret-type=scm-creds` label. Defaults to `false` (strict mode on).
 
 
 <a id="nestedatt--argocd--spec--instance_spec--cluster_addons_extension"></a>

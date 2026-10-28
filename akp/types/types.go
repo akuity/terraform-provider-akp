@@ -444,14 +444,14 @@ spec:
               memory: %s`, name, name, memory, cpu, memory)
 }
 
-func areResourcesEquivalent(plan, new string) bool {
+func areResourcesEquivalent(plan, actual string) bool {
 	if plan == "" {
 		return true
 	}
 	planQ, err1 := resource.ParseQuantity(plan)
-	newQ, err2 := resource.ParseQuantity(new)
+	newQ, err2 := resource.ParseQuantity(actual)
 	if err1 != nil || err2 != nil {
-		return plan == new
+		return plan == actual
 	}
 
 	planVal := planQ.Value()

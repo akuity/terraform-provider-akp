@@ -228,6 +228,14 @@ type InstanceSpec struct {
 	McpServer                       *MCPServerConfig               `tfsdk:"mcp_server"`
 	AppsetNewGitFileGlobbingEnabled types.Bool                     `tfsdk:"appset_new_git_file_globbing_enabled"`
 	PinnedAgentVersion              types.String                   `tfsdk:"pinned_agent_version"`
+	AppsetScmConfig                 *AppsetScmConfig               `tfsdk:"appset_scm_config"`
+	AppsetInAnyNamespaceEnabled     types.Bool                     `tfsdk:"appset_in_any_namespace_enabled"`
+}
+
+type AppsetScmConfig struct {
+	ScmProvidersDisabled       types.Bool     `tfsdk:"scm_providers_disabled"`
+	AllowedScmProviders        []types.String `tfsdk:"allowed_scm_providers"`
+	TokenRefStrictModeDisabled types.Bool     `tfsdk:"token_ref_strict_mode_disabled"`
 }
 
 type AppsetPlugins struct {

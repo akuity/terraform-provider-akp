@@ -232,7 +232,7 @@ func createTestInstance() string {
 					"appsetPlugins": []any{
 						map[string]any{
 							"name":           "plugin-test",
-							"token":          "random-token",
+							"token":          "$application-set-secret:token",
 							"baseUrl":        "http://random-test.xp",
 							"requestTimeout": 0,
 						},

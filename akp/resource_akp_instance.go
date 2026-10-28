@@ -34,6 +34,18 @@ var argoResourceGroups = map[string]resourceGroup[argoApplyReq]{
 	"Application":    {"argoproj.io", func(r argoApplyReq) *[]*structpb.Struct { return &r.Applications }},
 	"ApplicationSet": {"argoproj.io", func(r argoApplyReq) *[]*structpb.Struct { return &r.ApplicationSets }},
 	"AppProject":     {"argoproj.io", func(r argoApplyReq) *[]*structpb.Struct { return &r.AppProjects }},
+	"ValidatingAdmissionPolicy": {"admissionregistration.k8s.io", func(r argoApplyReq) *[]*structpb.Struct {
+		return &r.ValidatingAdmissionPolicies
+	}},
+	"ValidatingAdmissionPolicyBinding": {"admissionregistration.k8s.io", func(r argoApplyReq) *[]*structpb.Struct {
+		return &r.ValidatingAdmissionPolicyBindings
+	}},
+}
+
+// argoResourceAPIVersions are the apiVersions accepted in argocd_resources, keyed by API group.
+var argoResourceAPIVersions = map[string]string{
+	"argoproj.io":                  "argoproj.io/v1alpha1",
+	"admissionregistration.k8s.io": admissionPolicyAPIVersion,
 }
 
 func NewAkpInstanceResource() resource.Resource {
@@ -97,6 +109,7 @@ func instanceCreate(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, p
 }
 
 func instanceUpdate(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, state, plan *types.Instance) (*types.Instance, error) {
+	ctx = withManagedAdmissionPolicies(ctx, hasAdmissionPolicyResources(state.ArgoCDResources))
 	created, err := createAddedManagedSecrets(ctx, cli, diags, state, plan)
 	if err != nil {
 		return withCreatedManagedSecrets(state, created), err
@@ -543,6 +556,11 @@ func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, insta
 		ConfigManagementPlugins:       buildCMPs(ctx, diagnostics, instance.ConfigManagementPlugins),
 		PruneResourceTypes:            []argocdv1.PruneResourceType{argocdv1.PruneResourceType_PRUNE_RESOURCE_TYPE_CONFIG_MANAGEMENT_PLUGINS},
 	}
+	// When Terraform manages admission policies it owns the whole set, so a policy
+	// removed from argocd_resources is deleted.
+	if managesAdmissionPolicies(ctx, instance.ArgoCDResources) {
+		applyReq.PruneResourceTypes = append(applyReq.PruneResourceTypes, argocdv1.PruneResourceType_PRUNE_RESOURCE_TYPE_VALIDATING_ADMISSION_POLICIES)
+	}
 
 	if !instance.ArgoCDResources.IsUnknown() {
 		processResources(
@@ -707,7 +725,7 @@ func refreshManagedSecrets(ctx context.Context, diagnostics *diag.Diagnostics, c
 }
 
 func isArgoResourceValid(un *unstructured.Unstructured) error {
-	if un != nil && un.GetAPIVersion() != "argoproj.io/v1alpha1" {
+	if un != nil && un.GetAPIVersion() != argoResourceAPIVersions[un.GroupVersionKind().Group] {
 		return errors.New("unsupported apiVersion")
 	}
 	return validateResource(un, argoResourceGroups)
