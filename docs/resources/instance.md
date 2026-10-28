@@ -258,7 +258,7 @@ EOF
             # name needs to start with plugin-
             name = "plugin-test"
             # the secret that refers to
-            token           = "$application-set-secret:token"
+            token           = "$application-set-secret:my-appset-secret"
             base_url        = "https://example.com"
             request_timeout = 30
           }
@@ -266,6 +266,12 @@ EOF
         app_in_any_namespace_config = {
           enabled = true
         }
+        appset_scm_config = {
+          scm_providers_disabled         = false
+          allowed_scm_providers          = ["https://git.example.com/"]
+          token_ref_strict_mode_disabled = false
+        }
+        appset_in_any_namespace_enabled = true
 
         ##############################################################################
         # Extensions Configuration

@@ -18,6 +18,8 @@ spec:
   validations:
     - expression: >-
         has(object.spec.syncPolicy) && has(object.spec.syncPolicy.automated)
+          && (!has(object.spec.syncPolicy.automated.enabled)
+            || object.spec.syncPolicy.automated.enabled != false)
           && has(object.spec.syncPolicy.automated.selfHeal) && object.spec.syncPolicy.automated.selfHeal
       message: all Applications must use automated sync with selfHeal enabled
 ---
