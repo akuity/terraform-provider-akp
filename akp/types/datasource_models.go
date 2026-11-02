@@ -49,7 +49,6 @@ type InstanceSpecDataSource struct {
 	McpServer                       *MCPServerConfig               `tfsdk:"mcp_server"`
 	ImageUpdaterDelegate            *ImageUpdaterDelegate          `tfsdk:"image_updater_delegate"`
 	AppSetDelegate                  *AppSetDelegate                `tfsdk:"app_set_delegate"`
-	AssistantExtensionEnabled       types.Bool                     `tfsdk:"assistant_extension_enabled"`
 	AppsetPolicy                    types.Object                   `tfsdk:"appset_policy"`
 	AppsetNewGitFileGlobbingEnabled types.Bool                     `tfsdk:"appset_new_git_file_globbing_enabled"`
 	PinnedAgentVersion              types.String                   `tfsdk:"pinned_agent_version"`
@@ -111,7 +110,6 @@ func NewInstanceDataSourceModel(instance *Instance, managedSecrets map[string]*M
 					McpServer:                       instance.ArgoCD.Spec.InstanceSpec.McpServer,
 					ImageUpdaterDelegate:            instance.ArgoCD.Spec.InstanceSpec.ImageUpdaterDelegate,
 					AppSetDelegate:                  instance.ArgoCD.Spec.InstanceSpec.AppSetDelegate,
-					AssistantExtensionEnabled:       instance.ArgoCD.Spec.InstanceSpec.AssistantExtensionEnabled,
 					AppsetPolicy:                    instance.ArgoCD.Spec.InstanceSpec.AppsetPolicy,
 					AppsetNewGitFileGlobbingEnabled: instance.ArgoCD.Spec.InstanceSpec.AppsetNewGitFileGlobbingEnabled,
 					PinnedAgentVersion:              instance.ArgoCD.Spec.InstanceSpec.PinnedAgentVersion,

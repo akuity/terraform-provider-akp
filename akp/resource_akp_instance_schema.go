@@ -393,16 +393,6 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 			Optional:            true,
 			Attributes:          getAppSetDelegateAttributes(),
 		},
-		"assistant_extension_enabled": schema.BoolAttribute{
-			MarkdownDescription: "Deprecated: upcoming removal. Enable Powerful AI-powered assistant Extension. It helps analyze Kubernetes resources behavior and provides suggestions about resolving issues.",
-			Optional:            true,
-			Computed:            true,
-			DeprecationMessage:  "assistant_extension_enabled field will be removed in a future release; remove it from configs.",
-			PlanModifiers: []planmodifier.Bool{
-				boolplanmodifier.UseStateForUnknown(),
-				boolplanmodifier2.SuppressProtobufDefault(),
-			},
-		},
 		"application_set_extension": schema.SingleNestedAttribute{
 			MarkdownDescription: "Configuration for the ApplicationSet extension, enabling the controller and UI integration within Argo CD.",
 			Optional:            true,

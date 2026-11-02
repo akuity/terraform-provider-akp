@@ -77,7 +77,6 @@ Read-Only:
 - `appset_plugins` (Attributes List) Application Set plugins (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--appset_plugins))
 - `appset_policy` (Attributes) Configures Application Set policy settings. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--appset_policy))
 - `appset_scm_config` (Attributes) SCM Provider and Pull Request generator settings of the Application Set controller. Omit it to keep the current settings; set the fields explicitly to reset them. Defaults: generators on, no URL allow list, tokenRef strict mode on. (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--appset_scm_config))
-- `assistant_extension_enabled` (Boolean, Deprecated) Deprecated: upcoming removal. Enable Powerful AI-powered assistant Extension. It helps analyze Kubernetes resources behavior and provides suggestions about resolving issues.
 - `audit_extension_enabled` (Boolean) Enable Audit Extension. Set this to `true` to install Audit Extension to Argo CD instance.
 - `backend_ip_allow_list_enabled` (Boolean) Enable ip allow list for cluster agents
 - `cluster_addons_extension` (Attributes) Cluster Addons Extension configuration for managing cluster addons (see [below for nested schema](#nestedatt--argocd--spec--instance_spec--cluster_addons_extension))
