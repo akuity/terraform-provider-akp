@@ -209,7 +209,6 @@ type InstanceSpec struct {
 	CrossplaneExtension             *CrossplaneExtension           `json:"crossplaneExtension,omitempty"`
 	ImageUpdaterDelegate            *ImageUpdaterDelegate          `json:"imageUpdaterDelegate,omitempty"`
 	AppSetDelegate                  *AppSetDelegate                `json:"appSetDelegate,omitempty"`
-	AssistantExtensionEnabled       *bool                          `json:"assistantExtensionEnabled,omitempty"`
 	AppsetPolicy                    *AppsetPolicy                  `json:"appsetPolicy,omitempty"`
 	HostAliases                     []*HostAliases                 `json:"hostAliases,omitempty"`
 	AgentPermissionsRules           []*AgentPermissionsRule        `json:"agentPermissionsRules,omitempty"`

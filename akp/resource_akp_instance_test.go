@@ -1296,7 +1296,6 @@ resource "akp_instance" "test" {
         audit_extension_enabled             = true
         sync_history_extension_enabled      = true
         multi_cluster_k8s_dashboard_enabled = true
-        assistant_extension_enabled         = true
       }
     }
   }

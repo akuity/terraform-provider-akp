@@ -178,7 +178,6 @@ func createTestInstance() string {
 					"backendIpAllowListEnabled":   false,
 					"auditExtensionEnabled":       false,
 					"syncHistoryExtensionEnabled": false,
-					"assistantExtensionEnabled":   false,
 					"appsetPolicy": map[string]any{
 						"policy":         "sync",
 						"overridePolicy": false,
