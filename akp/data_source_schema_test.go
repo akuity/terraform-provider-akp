@@ -53,7 +53,7 @@ func TestDataSourceSchemas(t *testing.T) {
 	(&AkpInstanceDataSource{}).Schema(ctx, datasource.SchemaRequest{}, &instanceSchema)
 	instance := instanceSchema.Schema.Attributes
 	spec := instance["argocd"].(schema.SingleNestedAttribute).Attributes["spec"].(schema.SingleNestedAttribute).Attributes["instance_spec"].(schema.SingleNestedAttribute)
-	require.NotEmpty(t, spec.Attributes["assistant_extension_enabled"].GetDeprecationMessage())
+	require.NotContains(t, spec.Attributes, "assistant_extension_enabled")
 
 	// Cluster data sources keep their existing sensitive kubeconfig fields.
 	for _, ds := range []datasource.DataSource{&AkpClusterDataSource{}, &AkpKargoAgentDataSource{}} {

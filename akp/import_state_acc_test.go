@@ -101,7 +101,6 @@ var (
 		// SuppressProtobufDefault fields (ImportStateVerify bypasses plan modifiers)
 		"argocd.spec.instance_spec.appset_in_any_namespace_enabled",      // SuppressProtobufDefault (bool)
 		"argocd.spec.instance_spec.appset_new_git_file_globbing_enabled", // SuppressProtobufDefault (bool)
-		"argocd.spec.instance_spec.assistant_extension_enabled",          // SuppressProtobufDefault (bool)
 		"argocd.spec.instance_spec.audit_extension_enabled",              // SuppressProtobufDefault (bool)
 		"argocd.spec.instance_spec.backend_ip_allow_list_enabled",        // SuppressProtobufDefault (bool)
 		"argocd.spec.instance_spec.fqdn",                                 // SuppressProtobufDefault (string)

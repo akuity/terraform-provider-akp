@@ -204,7 +204,6 @@ type InstanceSpec struct {
 	CrossplaneExtension             *CrossplaneExtension           `tfsdk:"crossplane_extension"`
 	ImageUpdaterDelegate            *ImageUpdaterDelegate          `tfsdk:"image_updater_delegate"`
 	AppSetDelegate                  *AppSetDelegate                `tfsdk:"app_set_delegate"`
-	AssistantExtensionEnabled       types.Bool                     `tfsdk:"assistant_extension_enabled"`
 	AppsetPolicy                    types.Object                   `tfsdk:"appset_policy"`
 	HostAliases                     []*HostAliases                 `tfsdk:"host_aliases"`
 	AgentPermissionsRules           []*AgentPermissionsRule        `tfsdk:"agent_permissions_rules"`
