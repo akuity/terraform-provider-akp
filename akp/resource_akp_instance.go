@@ -110,6 +110,7 @@ func instanceCreate(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, p
 
 func instanceUpdate(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, state, plan *types.Instance) (*types.Instance, error) {
 	ctx = withManagedAdmissionPolicies(ctx, hasAdmissionPolicyResources(state.ArgoCDResources))
+	ctx = withRemovedRepoCredentialSecrets(ctx, state, plan)
 	created, err := createAddedManagedSecrets(ctx, cli, diags, state, plan)
 	if err != nil {
 		return withCreatedManagedSecrets(state, created), err
@@ -561,6 +562,7 @@ func buildApplyRequest(ctx context.Context, diagnostics *diag.Diagnostics, insta
 	if managesAdmissionPolicies(ctx, instance.ArgoCDResources) {
 		applyReq.PruneResourceTypes = append(applyReq.PruneResourceTypes, argocdv1.PruneResourceType_PRUNE_RESOURCE_TYPE_VALIDATING_ADMISSION_POLICIES)
 	}
+	applyReq.DeleteRepoCredentialSecretNames, _ = ctx.Value(removedRepoCredentialSecretsKey{}).([]string)
 
 	if !instance.ArgoCDResources.IsUnknown() {
 		processResources(
@@ -596,6 +598,33 @@ func buildArgoCD(_ context.Context, diag *diag.Diagnostics, instance *types.Inst
 		return nil
 	}
 	return s
+}
+
+type removedRepoCredentialSecretsKey struct{}
+
+func withRemovedRepoCredentialSecrets(ctx context.Context, state, plan *types.Instance) context.Context {
+	if plan.RepoCredentialSecrets.IsUnknown() || plan.RepoTemplateCredentialSecrets.IsUnknown() {
+		return ctx
+	}
+	planned := secretNames(plan.RepoCredentialSecrets, plan.RepoTemplateCredentialSecrets)
+	var removed []string
+	for name := range secretNames(state.RepoCredentialSecrets, state.RepoTemplateCredentialSecrets) {
+		if !planned[name] {
+			removed = append(removed, name)
+		}
+	}
+	slices.Sort(removed)
+	return context.WithValue(ctx, removedRepoCredentialSecretsKey{}, removed)
+}
+
+func secretNames(secretMaps ...tftypes.Map) map[string]bool {
+	names := make(map[string]bool)
+	for _, secrets := range secretMaps {
+		for name := range secrets.Elements() {
+			names[name] = true
+		}
+	}
+	return names
 }
 
 func buildSecrets(ctx context.Context, diagnostics *diag.Diagnostics, secrets tftypes.Map, labels map[string]string) []*structpb.Struct {
