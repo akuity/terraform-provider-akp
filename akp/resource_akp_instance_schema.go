@@ -152,7 +152,7 @@ func getAKPInstanceAttributes() map[string]schema.Attribute {
 			},
 		},
 		"repo_credential_secrets": schema.MapAttribute{
-			MarkdownDescription: "is a map of repo credential secrets, the key of map entry is the `name` of the secret, and the value is the aligned with options in `argocd-repositories.yaml.data` as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-repositories-yaml/).",
+			MarkdownDescription: "is a map of repo credential secrets, the key of map entry is the `name` of the secret, and the value is the aligned with options in `argocd-repositories.yaml.data` as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-repositories-yaml/). Each secret's data is replaced with the values in its entry, so a removed key is removed from the secret. Removing an entry deletes that secret; secrets that this resource never managed are not deleted.",
 			Optional:            true,
 			Sensitive:           true,
 			ElementType:         types.MapType{ElemType: types.StringType},
@@ -161,7 +161,7 @@ func getAKPInstanceAttributes() map[string]schema.Attribute {
 			},
 		},
 		"repo_template_credential_secrets": schema.MapAttribute{
-			MarkdownDescription: "is a map of repository credential templates secrets, the key of map entry is the `name` of the secret, and the value is the aligned with options in `argocd-repo-creds.yaml.data` as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-repo-creds.yaml/).",
+			MarkdownDescription: "is a map of repository credential templates secrets, the key of map entry is the `name` of the secret, and the value is the aligned with options in `argocd-repo-creds.yaml.data` as described in the [ArgoCD Atomic Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#atomic-configuration). For a concrete example, refer to [this documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-repo-creds.yaml/). Each secret's data is replaced with the values in its entry, so a removed key is removed from the secret. Removing an entry deletes that secret; secrets that this resource never managed are not deleted.",
 			Optional:            true,
 			Sensitive:           true,
 			ElementType:         types.MapType{ElemType: types.StringType},
