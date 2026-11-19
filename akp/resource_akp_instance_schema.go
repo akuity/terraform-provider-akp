@@ -528,7 +528,7 @@ func getInstanceSpecAttributes() map[string]schema.Attribute {
 			},
 		},
 		"cluster_addons_extension": schema.SingleNestedAttribute{
-			MarkdownDescription: "Cluster Addons Extension configuration for managing cluster addons. Enabling it requires the fleet management feature on the organization; an instance that already has it enabled keeps it, but once disabled it cannot be re-enabled without that feature.",
+			MarkdownDescription: "Cluster Addons Extension configuration for managing cluster addons",
 			Optional:            true,
 			Computed:            true,
 			Attributes:          getClusterAddonsExtensionAttributes(),
