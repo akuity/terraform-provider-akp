@@ -50,6 +50,11 @@ func (r *AkpInstanceDataSource) Schema(ctx context.Context, req datasource.Schem
 		Computed:            true,
 		NestedObject:        schema.NestedAttributeObject{Attributes: getManagedSecretDataSourceAttributes()},
 	}
+	attrs["resource_filter"] = resourceFilterAttribute("ArgoCD", "argocd_resources",
+		"`argoproj.io/v1alpha1/Application/team-a/guestbook`. An Application, ApplicationSet, or AppProject in the `argocd` namespace can be written "+
+			"with that namespace or, as this data source keys it, without: `argoproj.io/v1alpha1/AppProject/argocd/team-a` and `argoproj.io/v1alpha1/AppProject//team-a` "+
+			"name the same object. The default AppProject is never included",
+		"every Application, ApplicationSet, and AppProject")
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Gets information about an Argo CD instance by its name",
 		Attributes:          attrs,
@@ -88,6 +93,11 @@ func (r *AkpInstanceDataSource) Read(ctx context.Context, req datasource.ReadReq
 		return
 	}
 
+	filter := readResourceFilter("ArgoCD", data.ResourceFilter, &resp.Diagnostics)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	ctx = r.AuthCtx(ctx)
 
 	instance := &types.Instance{Name: data.Name}
@@ -95,7 +105,7 @@ func (r *AkpInstanceDataSource) Read(ctx context.Context, req datasource.ReadReq
 		OrganizationId: r.akpCli.OrgId,
 		IdType:         idv1.Type_NAME,
 		Id:             data.Name.ValueString(),
-	}, true); err != nil {
+	}, true, filter); err != nil {
 		resp.Diagnostics.AddError("Failed to refresh instance state", err.Error())
 		return
 	}
@@ -104,7 +114,9 @@ func (r *AkpInstanceDataSource) Read(ctx context.Context, req datasource.ReadReq
 		resp.Diagnostics.AddError("Failed to read instance managed secrets", err.Error())
 		return
 	}
+	resourceFilter := data.ResourceFilter
 	data = types.NewInstanceDataSourceModel(instance, managedSecrets)
+	data.ResourceFilter = resourceFilter
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 

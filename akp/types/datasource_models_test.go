@@ -32,6 +32,12 @@ var instanceDataSourceExcludedTags = map[string]struct{}{
 	"metrics_ingress_password_hash":    {},
 }
 
+// dataSourceInputTags are data source inputs with no resource counterpart. Read copies them
+// from the configuration rather than projecting them.
+var dataSourceInputTags = map[string]struct{}{
+	"resource_filter": {},
+}
+
 var kargoDataSourceExcludedTags = map[string]struct{}{
 	"kargo_secret":      {},
 	"dex_config_secret": {},
@@ -162,6 +168,9 @@ func assertProjectionMatches(t *testing.T, source, target reflect.Value, exclude
 
 	var extra []string
 	for tag := range targetFields {
+		if _, input := dataSourceInputTags[tag]; input {
+			continue
+		}
 		if _, ok := sourceFields[tag]; !ok {
 			extra = append(extra, tag)
 		}

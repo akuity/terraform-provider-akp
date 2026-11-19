@@ -75,6 +75,7 @@ func TestSyncResources_DataSourceSerializesJSONAndNormalizesArgoKeys(t *testing.
 		[]*structpb.Struct{defaultProject, managedProject},
 		"ArgoCD",
 		true,
+		nil,
 	)
 	require.NoError(t, err)
 	require.False(t, diags.HasError())

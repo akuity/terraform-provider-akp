@@ -240,6 +240,14 @@ func runInstanceConfigTests(t *testing.T) {
 					// argocd_resources
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd_resources.%", "1"),
 					resource.TestCheckResourceAttrSet("akp_instance.test", "argocd_resources.argoproj.io/v1alpha1/AppProject//test-project"),
+					resource.TestCheckResourceAttrSet("data.akp_instance.test", "argocd_resources.argoproj.io/v1alpha1/AppProject//test-project"),
+					// resource_filter keeps only the named objects that exist.
+					resource.TestCheckResourceAttr("data.akp_instance.filtered", "argocd_resources.%", "1"),
+					resource.TestCheckResourceAttrPair("data.akp_instance.filtered", "argocd_resources.argoproj.io/v1alpha1/AppProject//test-project",
+						"data.akp_instance.test", "argocd_resources.argoproj.io/v1alpha1/AppProject//test-project"),
+					resource.TestCheckResourceAttrPair("data.akp_instance.filtered", "argocd_cm.%", "data.akp_instance.test", "argocd_cm.%"),
+					resource.TestCheckResourceAttr("data.akp_instance.none", "argocd_resources.%", "0"),
+					resource.TestCheckResourceAttr("data.akp_instance.none", "resource_filter.#", "0"),
 					// argocd_ssh_known_hosts_cm
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd_ssh_known_hosts_cm.%", "1"),
 					resource.TestCheckResourceAttrSet("akp_instance.test", "argocd_ssh_known_hosts_cm.ssh_known_hosts"),
@@ -313,7 +321,7 @@ func runInstanceConfigTests(t *testing.T) {
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.appset_scm_config.token_ref_strict_mode_disabled", "true"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.appset_in_any_namespace_enabled", "true"),
 					resource.TestCheckResourceAttr("data.akp_instance.test", "argocd.spec.instance_spec.appset_in_any_namespace_enabled", "true"),
-					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.manifest_generation.kustomize.default_version", "v5.4.3"),
+					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.manifest_generation.kustomize.default_version", "v5.8.1"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.manifest_generation.kustomize.additional_versions.#", "2"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.termination_protection_enabled", "true"),
 					resource.TestCheckResourceAttr("akp_instance.test", "argocd.spec.instance_spec.termination_protection_notes", "Critical production instance - do not delete"),
@@ -638,7 +646,7 @@ resource "akp_instance" "test" {
         declarative_management_enabled = true
         manifest_generation = {
           kustomize = {
-            default_version = "v5.4.3"
+            default_version = "v5.8.1"
           }
         }
       }
@@ -681,7 +689,7 @@ resource "akp_instance" "test" {
         declarative_management_enabled = true
         manifest_generation = {
           kustomize = {
-            default_version = "v5.4.3"
+            default_version = "v5.8.1"
           }
         }
       }
@@ -732,7 +740,7 @@ resource "akp_instance" "test" {
         declarative_management_enabled = true
         manifest_generation = {
           kustomize = {
-            default_version = "v5.4.3"
+            default_version = "v5.8.1"
           }
         }
       }
@@ -779,7 +787,7 @@ resource "akp_instance" "test" {
         declarative_management_enabled = true
         manifest_generation = {
           kustomize = {
-            default_version = "v5.4.3"
+            default_version = "v5.8.1"
           }
         }
       }
@@ -818,7 +826,7 @@ resource "akp_instance" "test" {
         declarative_management_enabled = true
         manifest_generation = {
           kustomize = {
-            default_version = "v5.4.3"
+            default_version = "v5.8.1"
           }
         }
       }
@@ -1518,6 +1526,16 @@ vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOf
 
 data "akp_instance" "test" {
   name = akp_instance.test.name
+}
+
+data "akp_instance" "filtered" {
+  name            = akp_instance.test.name
+  resource_filter = ["argoproj.io/v1alpha1/AppProject//test-project", "argoproj.io/v1alpha1/Application/argocd/missing"]
+}
+
+data "akp_instance" "none" {
+  name            = akp_instance.test.name
+  resource_filter = []
 }`, name, getInstanceVersion(), managedSecretConfig)
 }
 
@@ -1580,8 +1598,8 @@ resource "akp_instance" "test" {
         ]
         manifest_generation = {
           kustomize = {
-            default_version     = "v5.4.3"
-            additional_versions = ["v5.6.0", "v5.7.0"]
+            default_version     = "v5.8.1"
+            additional_versions = ["v5.7.0", "v5.8.0"]
           }
         }
         termination_protection_enabled = true
@@ -1629,7 +1647,7 @@ resource "akp_instance" "test" {
         }
         manifest_generation = {
           kustomize = {
-            default_version = "v5.4.3"
+            default_version = "v5.8.1"
           }
         }
         cluster_customization_defaults = {
@@ -1762,7 +1780,7 @@ resource "akp_instance" "test" {
         declarative_management_enabled = true
         manifest_generation = {
           kustomize = {
-            default_version = "v5.4.3"
+            default_version = "v5.8.1"
           }
         }
       }
@@ -1805,7 +1823,7 @@ resource "akp_instance" "test" {
         declarative_management_enabled = true
         manifest_generation = {
           kustomize = {
-            default_version = "v5.4.3"
+            default_version = "v5.8.1"
           }
         }
       }

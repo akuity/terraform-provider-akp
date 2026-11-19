@@ -368,7 +368,7 @@ func instanceRead(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics, dat
 		ctx = types.WithReadContext(ctx)
 	}
 	tflog.MaskLogStrings(ctx, data.GetSensitiveStrings(ctx, diags)...)
-	return refreshState(ctx, diags, cli, data, instanceGetRequest(cli.OrgId, data.ID.ValueString(), data.Name.ValueString()), false)
+	return refreshState(ctx, diags, cli, data, instanceGetRequest(cli.OrgId, data.ID.ValueString(), data.Name.ValueString()), false, nil)
 }
 
 func instanceDelete(ctx context.Context, cli *AkpCli, _ *diag.Diagnostics, state *types.Instance) error {
@@ -496,7 +496,7 @@ func instanceUpsert(ctx context.Context, cli *AkpCli, diagnostics *diag.Diagnost
 		},
 		TargetStatuses: []healthv1.StatusCode{healthv1.StatusCode_STATUS_CODE_HEALTHY},
 		Refresh: func(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.Instance) error {
-			return refreshState(ctx, diagnostics, cli, plan, instanceGetRequest(cli.OrgId, plan.ID.ValueString(), plan.Name.ValueString()), false)
+			return refreshState(ctx, diagnostics, cli, plan, instanceGetRequest(cli.OrgId, plan.ID.ValueString(), plan.Name.ValueString()), false, nil)
 		},
 		RefreshAfterApplyError: func(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.Instance) error {
 			return refreshStateAfterWorkspaceMoveError(ctx, diagnostics, cli, plan, instanceGetRequest(cli.OrgId, plan.ID.ValueString(), plan.Name.ValueString()))
@@ -680,15 +680,17 @@ func buildCMPs(_ context.Context, diagnostics *diag.Diagnostics, cmps map[string
 	return res
 }
 
-func refreshState(ctx context.Context, diagnostics *diag.Diagnostics, cli *AkpCli, instance *types.Instance, getInstanceReq *argocdv1.GetInstanceRequest, isDataSource bool) error {
-	return refreshStateWithWorkspaceMode(ctx, diagnostics, cli, instance, getInstanceReq, isDataSource, false)
+// refreshState reads instance from the API. filter is the data source's resource_filter; the
+// resource passes nil.
+func refreshState(ctx context.Context, diagnostics *diag.Diagnostics, cli *AkpCli, instance *types.Instance, getInstanceReq *argocdv1.GetInstanceRequest, isDataSource bool, filter *types.ResourceFilter) error {
+	return refreshStateWithWorkspaceMode(ctx, diagnostics, cli, instance, getInstanceReq, isDataSource, false, filter)
 }
 
 func refreshStateAfterWorkspaceMoveError(ctx context.Context, diagnostics *diag.Diagnostics, cli *AkpCli, instance *types.Instance, getInstanceReq *argocdv1.GetInstanceRequest) error {
-	return refreshStateWithWorkspaceMode(ctx, diagnostics, cli, instance, getInstanceReq, false, true)
+	return refreshStateWithWorkspaceMode(ctx, diagnostics, cli, instance, getInstanceReq, false, true, nil)
 }
 
-func refreshStateWithWorkspaceMode(ctx context.Context, diagnostics *diag.Diagnostics, cli *AkpCli, instance *types.Instance, getInstanceReq *argocdv1.GetInstanceRequest, isDataSource, strictWorkspace bool) error {
+func refreshStateWithWorkspaceMode(ctx context.Context, diagnostics *diag.Diagnostics, cli *AkpCli, instance *types.Instance, getInstanceReq *argocdv1.GetInstanceRequest, isDataSource, strictWorkspace bool, filter *types.ResourceFilter) error {
 	tflog.Debug(ctx, fmt.Sprintf("Get instance request: %s", getInstanceReq))
 	getInstanceResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.GetInstanceResponse, error) {
 		return cli.Cli.GetInstance(ctx, getInstanceReq)
@@ -719,6 +721,13 @@ func refreshStateWithWorkspaceMode(ctx context.Context, diagnostics *diag.Diagno
 		Id:             instance.ID.ValueString(),
 		WorkspaceId:    getInstanceResp.Instance.WorkspaceId,
 	}
+	// The resource keeps only the objects in its state, so it asks for just those.
+	// The data source exposes every exported object unless resource_filter names some.
+	if !isDataSource {
+		exportReq.OnlyListedResources, exportReq.Resources = exportResourceFilter(instance.ArgoCDResources)
+	} else if filter != nil {
+		exportReq.OnlyListedResources, exportReq.Resources = true, filter.Refs()
+	}
 	tflog.Debug(ctx, fmt.Sprintf("Export instance request: %s", exportReq))
 	exportResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*argocdv1.ExportInstanceResponse, error) {
 		return argocdexport.ExportInstance(ctx, cli.Cli, exportReq)
@@ -726,7 +735,7 @@ func refreshStateWithWorkspaceMode(ctx context.Context, diagnostics *diag.Diagno
 	if err != nil {
 		return fmt.Errorf("unable to export Argo CD instance: %w", err)
 	}
-	if err := instance.Update(ctx, diagnostics, exportResp, isDataSource); err != nil {
+	if err := instance.Update(ctx, diagnostics, exportResp, isDataSource, filter); err != nil {
 		return err
 	}
 	if !isDataSource {

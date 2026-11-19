@@ -5,13 +5,69 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
+	"slices"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"google.golang.org/protobuf/types/known/structpb"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/akuity/api-client-go/pkg/api/exportfilter"
 )
+
+// maxExportFilterQueryBytes bounds the URL-encoded size of the export filter,
+// which travels in the export's GET query string. nginx answers 414 to request
+// lines over 8 KiB by default (large_client_header_buffers), and self-hosted
+// portals may sit behind one; past this budget a resource read does a full
+// export and a data source read fails. It also keeps a filter far below the
+// server's 1000-entry limit.
+const maxExportFilterQueryBytes = 4096
+
+// exportFilterQueryBytes is the size refs take in the export's query string.
+func exportFilterQueryBytes(refs []string) int {
+	size := 0
+	for _, ref := range refs {
+		size += len("&resources=") + len(url.QueryEscape(ref))
+	}
+	return size
+}
+
+// exportResourceFilter returns the export filter for the objects in a
+// resource's argocd_resources or kargo_resources state, so a read fetches only
+// those instead of every object on the instance. ok=false means a full export.
+// Keys are caller-chosen; only "<apiVersion>/<kind>/<namespace>/<name>"
+// (extractResourceMetadata) can match an exported object. Any other key, or one
+// that isn't a valid entry, is dropped: the server would reject the whole export.
+func exportResourceFilter(resources types.Map) (ok bool, refs []string) {
+	if resources.IsUnknown() {
+		return false, nil
+	}
+	for key := range resources.Elements() {
+		parts := strings.Split(key, "/")
+		var group string
+		switch len(parts) {
+		case 4: // core group: apiVersion is just "v1"
+		case 5:
+			group = parts[0]
+		default:
+			continue
+		}
+		n := len(parts)
+		ref := strings.Join([]string{group, parts[n-3], parts[n-2], parts[n-1]}, "/")
+		if _, err := exportfilter.Parse(ref); err != nil {
+			continue
+		}
+		refs = append(refs, ref)
+	}
+	if exportFilterQueryBytes(refs) > maxExportFilterQueryBytes {
+		return false, nil
+	}
+	slices.Sort(refs)
+	return true, refs
+}
 
 // resourceGroup maps a manifest kind to the API group it belongs to and the
 // request slice that carries it.

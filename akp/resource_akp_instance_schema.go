@@ -626,16 +626,16 @@ func getManifestGenerationAttributes() map[string]schema.Attribute {
 func getConfigManagementToolVersionsAttributes() map[string]schema.Attribute {
 	semverValidator := stringvalidator.RegexMatches(
 		regexp.MustCompile(`^v\d+\.\d+\.\d+$`),
-		"must be a semantic version with 'v' prefix (e.g. \"v5.4.3\")",
+		"must be a semantic version with 'v' prefix (e.g. \"v5.8.1\")",
 	)
 	return map[string]schema.Attribute{
 		"default_version": schema.StringAttribute{
-			MarkdownDescription: "Default version of the config management tool (e.g. \"v5.4.3\")",
+			MarkdownDescription: "Default version of the config management tool (e.g. \"v5.8.1\")",
 			Optional:            true,
 			Validators:          []validator.String{semverValidator},
 		},
 		"additional_versions": schema.ListAttribute{
-			MarkdownDescription: "Additional versions of the config management tool (e.g. [\"v5.6.0\", \"v5.7.0\"])",
+			MarkdownDescription: "Additional versions of the config management tool (e.g. [\"v5.7.0\", \"v5.8.0\"])",
 			Optional:            true,
 			ElementType:         types.StringType,
 			Validators:          []validator.List{listvalidator.ValueStringsAre(semverValidator)},

@@ -85,6 +85,11 @@ func runKargoConfigTests(t *testing.T) {
 					// ...and is returned by the instance via the data source (export path),
 					// proving the Kargo instance received and persisted it.
 					resource.TestCheckResourceAttrSet("data.akp_kargo_instance.test", "kargo_resources.kargo.akuity.io/v1alpha1/ClusterConfig//cluster"),
+					resource.TestCheckResourceAttrSet("data.akp_kargo_instance.test", "kargo_resources.kargo.akuity.io/v1alpha1/Project//test-project"),
+					// resource_filter leaves out the Project the unfiltered data source returns.
+					resource.TestCheckResourceAttr("data.akp_kargo_instance.filtered", "kargo_resources.%", "1"),
+					resource.TestCheckResourceAttrPair("data.akp_kargo_instance.filtered", "kargo_resources.kargo.akuity.io/v1alpha1/ClusterConfig//cluster",
+						"data.akp_kargo_instance.test", "kargo_resources.kargo.akuity.io/v1alpha1/ClusterConfig//cluster"),
 				),
 			},
 			// Step 4: OIDC and Extras
@@ -623,6 +628,11 @@ resource "akp_kargo_instance" "test" {
 
 data "akp_kargo_instance" "test" {
   name = akp_kargo_instance.test.name
+}
+
+data "akp_kargo_instance" "filtered" {
+  name            = akp_kargo_instance.test.name
+  resource_filter = ["kargo.akuity.io/v1alpha1/ClusterConfig//cluster"]
 }`, name, getKargoVersion())
 }
 

@@ -96,7 +96,7 @@ func TestKargoOIDCEmptyClaimValuesRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 
 	var diags diag.Diagnostics
-	require.NoError(t, instance.Update(ctx, &diags, &kargov1.ExportKargoInstanceResponse{Kargo: kargo}, false))
+	require.NoError(t, instance.Update(ctx, &diags, &kargov1.ExportKargoInstanceResponse{Kargo: kargo}, false, nil))
 	require.Empty(t, diags)
 
 	oidc := instance.Kargo.Spec.OidcConfig
@@ -134,7 +134,7 @@ func TestKargoOIDCEmptyClaimValuesDataSource(t *testing.T) {
 	require.NoError(t, err)
 
 	var diags diag.Diagnostics
-	require.NoError(t, instance.Update(ctx, &diags, &kargov1.ExportKargoInstanceResponse{Kargo: kargo}, true))
+	require.NoError(t, instance.Update(ctx, &diags, &kargov1.ExportKargoInstanceResponse{Kargo: kargo}, true, nil))
 	require.Empty(t, diags)
 
 	claims := instance.Kargo.Spec.OidcConfig.AdminAccount.Claims.Elements()
