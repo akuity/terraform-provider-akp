@@ -68,7 +68,7 @@ func kargoInstanceRead(ctx context.Context, cli *AkpCli, diags *diag.Diagnostics
 	if data.Kargo == nil || data.ID.IsNull() || data.ID.ValueString() == "" {
 		ctx = types.WithReadContext(ctx)
 	}
-	return refreshKargoState(ctx, diags, cli, data, cli.OrgId, false)
+	return refreshKargoState(ctx, diags, cli, data, cli.OrgId, false, nil)
 }
 
 func kargoInstanceDelete(ctx context.Context, cli *AkpCli, _ *diag.Diagnostics, state *types.KargoInstance) error {
@@ -183,7 +183,7 @@ func kargoInstanceUpsert(ctx context.Context, cli *AkpCli, diagnostics *diag.Dia
 		},
 		TargetStatuses: []healthv1.StatusCode{healthv1.StatusCode_STATUS_CODE_HEALTHY},
 		Refresh: func(ctx context.Context, diagnostics *diag.Diagnostics, plan *types.KargoInstance) error {
-			return refreshKargoState(ctx, diagnostics, cli, plan, cli.OrgId, false)
+			return refreshKargoState(ctx, diagnostics, cli, plan, cli.OrgId, false, nil)
 		},
 		ResourceName: func(plan *types.KargoInstance) string {
 			return fmt.Sprintf("Instance %s", plan.Name.ValueString())
@@ -314,7 +314,9 @@ func buildKargo(_ context.Context, diagnostics *diag.Diagnostics, kargo *types.K
 	return s
 }
 
-func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, cli *AkpCli, kargo *types.KargoInstance, orgID string, isDataSource bool) error {
+// refreshKargoState reads kargo from the API. filter is the data source's resource_filter; the
+// resource passes nil.
+func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, cli *AkpCli, kargo *types.KargoInstance, orgID string, isDataSource bool, filter *types.ResourceFilter) error {
 	tflog.Debug(ctx, fmt.Sprintf("Get Kargo instance by identity: id=%q name=%q", kargo.ID.ValueString(), kargo.Name.ValueString()))
 	resp, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.GetKargoInstanceResponse, error) {
 		return getKargoInstanceByIdentity(ctx, cli.KargoCli, orgID, kargo.ID.ValueString(), kargo.Name.ValueString())
@@ -339,6 +341,13 @@ func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, cli *
 		Id:             kargo.ID.ValueString(),
 		WorkspaceId:    resp.Instance.WorkspaceId,
 	}
+	// The resource keeps only the objects in its state, so it asks for just those.
+	// The data source exposes every exported object unless resource_filter names some.
+	if !isDataSource {
+		exportReq.OnlyListedResources, exportReq.Resources = exportResourceFilter(kargo.KargoResources)
+	} else if filter != nil {
+		exportReq.OnlyListedResources, exportReq.Resources = true, filter.Refs()
+	}
 	tflog.Debug(ctx, fmt.Sprintf("Export Kargo instance request: %s", exportReq))
 	exportResp, err := retryWithBackoff(ctx, func(ctx context.Context) (*kargov1.ExportKargoInstanceResponse, error) {
 		return kargoexport.ExportKargoInstance(ctx, cli.KargoCli, exportReq)
@@ -347,7 +356,7 @@ func refreshKargoState(ctx context.Context, diagnostics *diag.Diagnostics, cli *
 		return fmt.Errorf("unable to export Kargo instance: %w", err)
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Export Kargo instance response: %s", exportResp))
-	return kargo.Update(ctx, diagnostics, exportResp, isDataSource)
+	return kargo.Update(ctx, diagnostics, exportResp, isDataSource, filter)
 }
 
 func getWorkspace(ctx context.Context, orgc orgcv1.OrganizationServiceGatewayClient, orgid, name string) (*orgcv1.Workspace, error) {

@@ -21,6 +21,7 @@ type InstanceDataSource struct {
 	ConfigManagementPlugin map[string]*ConfigManagementPlugin  `tfsdk:"config_management_plugins"`
 	ArgoCDResources        types.Map                           `tfsdk:"argocd_resources"`
 	ManagedSecrets         map[string]*ManagedSecretDataSource `tfsdk:"managed_secrets"`
+	ResourceFilter         types.Set                           `tfsdk:"resource_filter"`
 }
 
 type ArgoCDDataSource struct {
@@ -88,6 +89,8 @@ func NewInstanceDataSourceModel(instance *Instance, managedSecrets map[string]*M
 		ConfigManagementPlugin: instance.ConfigManagementPlugins,
 		ArgoCDResources:        normalizeStringMap(instance.ArgoCDResources),
 		ManagedSecrets:         managedSecrets,
+		// An input the data source's Read copies back from its configuration.
+		ResourceFilter: types.SetNull(types.StringType),
 	}
 	if instance.ArgoCD != nil {
 		model.ArgoCD = &ArgoCDDataSource{
@@ -146,6 +149,7 @@ type KargoInstanceDataSource struct {
 	KargoConfigMap types.Map        `tfsdk:"kargo_cm"`
 	Workspace      types.String     `tfsdk:"workspace"`
 	KargoResources types.Map        `tfsdk:"kargo_resources"`
+	ResourceFilter types.Set        `tfsdk:"resource_filter"`
 }
 
 type KargoDataSource struct {
@@ -183,6 +187,8 @@ func NewKargoInstanceDataSourceModel(instance *KargoInstance) KargoInstanceDataS
 		KargoConfigMap: normalizeStringMap(instance.KargoConfigMap),
 		Workspace:      instance.Workspace,
 		KargoResources: normalizeStringMap(instance.KargoResources),
+		// An input the data source's Read copies back from its configuration.
+		ResourceFilter: types.SetNull(types.StringType),
 	}
 	if instance.Kargo != nil {
 		model.Kargo = &KargoDataSource{

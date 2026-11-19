@@ -27,7 +27,9 @@ type KargoInstance struct {
 	KargoResources types.Map    `tfsdk:"kargo_resources"`
 }
 
-func (k *KargoInstance) Update(ctx context.Context, diagnostics *diag.Diagnostics, exportResp *kargov1.ExportKargoInstanceResponse, isDataSource bool) error {
+// Update refreshes k from an export. filter applies only to a data source's kargo_resources;
+// resources pass nil.
+func (k *KargoInstance) Update(ctx context.Context, diagnostics *diag.Diagnostics, exportResp *kargov1.ExportKargoInstanceResponse, isDataSource bool, filter *ResourceFilter) error {
 	if k.Kargo == nil {
 		k.Kargo = &Kargo{}
 	}
@@ -64,7 +66,7 @@ func (k *KargoInstance) Update(ctx context.Context, diagnostics *diag.Diagnostic
 	}
 	k.KargoConfigMap = ToConfigMapTFModel(ctx, diagnostics, configMapStruct, k.KargoConfigMap)
 
-	if err := k.syncKargoResources(ctx, exportResp, diagnostics, isDataSource); err != nil {
+	if err := k.syncKargoResources(ctx, exportResp, diagnostics, isDataSource, filter); err != nil {
 		return err
 	}
 
@@ -76,6 +78,7 @@ func (k *KargoInstance) syncKargoResources(
 	exportResp *kargov1.ExportKargoInstanceResponse,
 	diagnostics *diag.Diagnostics,
 	isDataSource bool,
+	filter *ResourceFilter,
 ) error {
 	appliedResources := slices.Concat(
 		exportResp.AnalysisTemplates, exportResp.PromotionTasks, exportResp.ClusterPromotionTasks,
@@ -92,6 +95,7 @@ func (k *KargoInstance) syncKargoResources(
 		appliedResources,
 		"Kargo",
 		isDataSource,
+		filter,
 	)
 	if err != nil {
 		return err
@@ -129,6 +133,7 @@ func syncResources(
 	exportedResources []*structpb.Struct,
 	resourceType string,
 	isDataSource bool,
+	filter *ResourceFilter,
 ) (types.Map, error) {
 	if resources.IsUnknown() {
 		return resources, nil
@@ -163,7 +168,10 @@ func syncResources(
 	if isDataSource {
 		// Data sources should expose API resources as canonical JSON strings.
 		for _, obj := range exportedResourceMap {
-			if shouldExcludeDefaultDataSourceResource(resourceType, obj.AsMap()) {
+			// The filter is applied here too: portals that predate it export everything, and
+			// admission policies are always exported in full.
+			objMap := obj.AsMap()
+			if !filter.keeps(objMap) || shouldExcludeDefaultDataSourceResource(resourceType, objMap) {
 				continue
 			}
 			key, err := normalizeDataSourceResourceKey(resourceType, obj.AsMap())
@@ -203,6 +211,10 @@ func syncResources(
 		}
 	}
 	if len(elementsToAdd) == 0 {
+		// An explicit filter always yields a map, so callers can index and count it.
+		if filter != nil {
+			return types.MapValueMust(types.StringType, elementsToAdd), nil
+		}
 		return resources, nil
 	}
 
@@ -246,15 +258,24 @@ func normalizeDataSourceResourceKey(resourceType string, resourceMap map[string]
 
 	metadata, _ := resourceMap["metadata"].(map[string]any)
 	namespace, _ := metadata["namespace"].(string)
-	if namespace != "argocd" {
-		return key, nil
-	}
-
-	if kind != "Application" && kind != "ApplicationSet" && kind != "AppProject" {
+	if namespace != "argocd" || !slices.Contains(argoCDKindsKeyedWithoutNamespace, kind) {
 		return key, nil
 	}
 
 	apiVersion, _ := resourceMap["apiVersion"].(string)
 	name, _ := metadata["name"].(string)
 	return fmt.Sprintf("%s/%s//%s", apiVersion, kind, name), nil
+}
+
+// argoCDKindsKeyedWithoutNamespace are the Argo CD kinds whose data source keys leave out the
+// argocd namespace.
+var argoCDKindsKeyedWithoutNamespace = []string{"Application", "ApplicationSet", "AppProject"}
+
+// DataSourceKeyNamespace is the namespace of an object whose data source key has namespace:
+// argocd for the Argo CD kinds keyed without it.
+func DataSourceKeyNamespace(resourceType, kind, namespace string) string {
+	if resourceType == "ArgoCD" && namespace == "" && slices.Contains(argoCDKindsKeyedWithoutNamespace, kind) {
+		return "argocd"
+	}
+	return namespace
 }

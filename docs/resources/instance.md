@@ -321,8 +321,8 @@ EOF
         # Manifest Generation - Configure config management tool versions
         manifest_generation = {
           kustomize = {
-            default_version     = "v5.4.3"
-            additional_versions = ["v5.3.0", "v5.2.1"]
+            default_version     = "v5.8.1"
+            additional_versions = ["v5.7.0", "v5.8.0"]
           }
         }
 
@@ -1311,8 +1311,8 @@ Optional:
 
 Optional:
 
-- `additional_versions` (List of String) Additional versions of the config management tool (e.g. ["v5.6.0", "v5.7.0"])
-- `default_version` (String) Default version of the config management tool (e.g. "v5.4.3")
+- `additional_versions` (List of String) Additional versions of the config management tool (e.g. ["v5.7.0", "v5.8.0"])
+- `default_version` (String) Default version of the config management tool (e.g. "v5.8.1")
 
 
 

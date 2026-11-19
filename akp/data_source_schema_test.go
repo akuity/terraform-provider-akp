@@ -5,6 +5,7 @@ package akp
 import (
 	"context"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -22,31 +23,35 @@ import (
 )
 
 // Every data source schema must be valid, with all attributes Computed except
-// its lookup keys. TestDataSourceWholeObjectOutput covers the omitted secrets.
+// its lookup keys and optional inputs. TestDataSourceWholeObjectOutput covers
+// the omitted secrets.
 func TestDataSourceSchemas(t *testing.T) {
 	ctx := context.Background()
 	for _, tc := range []struct {
 		ds       datasource.DataSource
 		required []string
+		optional []string
 	}{
-		{&AkpInstanceDataSource{}, []string{"name"}},
-		{&AkpClusterDataSource{}, []string{"instance_id", "name"}},
-		{&AkpClustersDataSource{}, []string{"instance_id"}},
-		{&AkpKargoDataSource{}, []string{"name"}},
-		{&AkpKargoAgentDataSource{}, []string{"instance_id", "name"}},
-		{&AkpKargoAgentsDataSource{}, []string{"instance_id"}},
+		{&AkpInstanceDataSource{}, []string{"name"}, []string{"resource_filter"}},
+		{&AkpClusterDataSource{}, []string{"instance_id", "name"}, nil},
+		{&AkpClustersDataSource{}, []string{"instance_id"}, nil},
+		{&AkpKargoDataSource{}, []string{"name"}, []string{"resource_filter"}},
+		{&AkpKargoAgentDataSource{}, []string{"instance_id", "name"}, nil},
+		{&AkpKargoAgentsDataSource{}, []string{"instance_id"}, nil},
 	} {
 		var resp datasource.SchemaResponse
 		tc.ds.Schema(ctx, datasource.SchemaRequest{}, &resp)
 		require.False(t, resp.Diagnostics.HasError(), resp.Diagnostics)
 		require.Empty(t, resp.Schema.ValidateImplementation(ctx).Errors())
+		for _, name := range tc.optional {
+			require.Contains(t, resp.Schema.Attributes, name, "%T", tc.ds)
+		}
 		for name, a := range resp.Schema.Attributes {
-			required := false
-			for _, r := range tc.required {
-				required = required || r == name
-			}
+			required := slices.Contains(tc.required, name)
+			optional := slices.Contains(tc.optional, name)
 			require.Equal(t, required, a.IsRequired(), "%T %s", tc.ds, name)
-			require.Equal(t, !required, a.IsComputed(), "%T %s", tc.ds, name)
+			require.Equal(t, optional, a.IsOptional(), "%T %s", tc.ds, name)
+			require.Equal(t, !required && !optional, a.IsComputed(), "%T %s", tc.ds, name)
 		}
 	}
 	var instanceSchema datasource.SchemaResponse
@@ -123,7 +128,7 @@ func TestInstanceDataSourceModelRoundTrip(t *testing.T) {
 	instance := &types.Instance{Name: data.Name}
 	argocd, err := structpb.NewStruct(map[string]any{
 		"spec": map[string]any{
-			"version": "v3.0.0",
+			"version": "v3.1.0",
 			"instanceSpec": map[string]any{
 				"subdomain":                  "example",
 				"metricsIngressUsername":     "metrics-user",
@@ -133,7 +138,7 @@ func TestInstanceDataSourceModelRoundTrip(t *testing.T) {
 	})
 	require.NoError(t, err)
 	var diags diag.Diagnostics
-	require.NoError(t, instance.Update(ctx, &diags, &argocdv1.ExportInstanceResponse{Argocd: argocd}, true))
+	require.NoError(t, instance.Update(ctx, &diags, &argocdv1.ExportInstanceResponse{Argocd: argocd}, true, nil))
 	require.Empty(t, diags)
 	managedSecrets := types.ToManagedSecretsDataSourceModel(ctx, &diags, []*argocdv1.ManagedSecret{
 		{
@@ -149,7 +154,7 @@ func TestInstanceDataSourceModelRoundTrip(t *testing.T) {
 	var result types.InstanceDataSource
 	require.Empty(t, state.Get(ctx, &result))
 	require.Equal(t, "example", result.Name.ValueString())
-	require.Equal(t, "v3.0.0", result.ArgoCD.Spec.Version.ValueString())
+	require.Equal(t, "v3.1.0", result.ArgoCD.Spec.Version.ValueString())
 	require.Equal(t, "metrics-user", result.ArgoCD.Spec.InstanceSpec.MetricsIngressUsername.ValueString())
 	require.Equal(t, "env=prod", result.ManagedSecrets["registry"].ClusterSelector.ValueString())
 	var secretKeys []string
@@ -179,7 +184,7 @@ func TestKargoDataSourceModelRoundTrip(t *testing.T) {
 	})
 	require.NoError(t, err)
 	var diags diag.Diagnostics
-	require.NoError(t, instance.Update(ctx, &diags, &kargov1.ExportKargoInstanceResponse{Kargo: kargo}, true))
+	require.NoError(t, instance.Update(ctx, &diags, &kargov1.ExportKargoInstanceResponse{Kargo: kargo}, true, nil))
 	require.Empty(t, diags)
 	data = types.NewKargoInstanceDataSourceModel(instance)
 	state := tfsdk.State{Schema: config.Schema}
