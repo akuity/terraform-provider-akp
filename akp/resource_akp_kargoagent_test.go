@@ -215,9 +215,9 @@ func createTestKargoInstance() string {
 				"subscriptions": []any{
 					map[string]any{
 						"image": map[string]any{
-							"repoURL":          "public.ecr.aws/nginx/nginx",
-							"semverConstraint": "^1.28.0",
-							"discoveryLimit":   5,
+							"repoURL":        "public.ecr.aws/nginx/nginx",
+							"constraint":     "^1.28.0",
+							"discoveryLimit": 5,
 						},
 					},
 				},
