@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-go/tftypes"
 )
 
 type readContextKey struct{}
@@ -75,7 +76,87 @@ func BuildStateFromAPI(
 	}
 
 	diags.Append(buildStruct(ctx, apiMap, tfVal, planVal, overrides, renames, pathPrefix)...)
+	nullUnknowns(ctx, tfVal)
 	return diags
+}
+
+// nullUnknowns replaces every unknown TF value reachable from v, at any depth, with a typed
+// null. Values copied from the plan where the API is silent can carry unknowns (an unset
+// Optional+Computed field, possibly inside a known object), and state must be fully known or
+// the apply fails with "unknown value after apply".
+func nullUnknowns(ctx context.Context, v reflect.Value) {
+	switch v.Kind() {
+	case reflect.Ptr:
+		if !v.IsNil() {
+			nullUnknowns(ctx, v.Elem())
+		}
+	case reflect.Struct:
+		if av, ok := v.Interface().(attr.Value); ok {
+			if nv := unknownToNull(ctx, av); v.CanSet() && reflect.TypeOf(nv).AssignableTo(v.Type()) {
+				v.Set(reflect.ValueOf(nv))
+			}
+			return
+		}
+		for i := range v.NumField() {
+			if f := v.Field(i); f.CanSet() {
+				nullUnknowns(ctx, f)
+			}
+		}
+	case reflect.Slice:
+		for i := range v.Len() {
+			nullUnknowns(ctx, v.Index(i))
+		}
+	case reflect.Map:
+		iter := v.MapRange()
+		for iter.Next() {
+			elem := reflect.New(iter.Value().Type()).Elem()
+			elem.Set(iter.Value())
+			nullUnknowns(ctx, elem)
+			v.SetMapIndex(iter.Key(), elem)
+		}
+	}
+}
+
+// unknownToNull returns av with every unknown, including those nested in objects and
+// collections, replaced by a null of the same type.
+func unknownToNull(ctx context.Context, av attr.Value) attr.Value {
+	if av.IsUnknown() {
+		t := av.Type(ctx)
+		if nv, err := t.ValueFromTerraform(ctx, tftypes.NewValue(t.TerraformType(ctx), nil)); err == nil {
+			return nv
+		}
+		return av
+	}
+	if av.IsNull() {
+		return av
+	}
+	switch tv := av.(type) {
+	case types.Object:
+		attrs := make(map[string]attr.Value, len(tv.Attributes()))
+		for k, a := range tv.Attributes() {
+			attrs[k] = unknownToNull(ctx, a)
+		}
+		return types.ObjectValueMust(tv.AttributeTypes(ctx), attrs)
+	case types.List:
+		return types.ListValueMust(tv.ElementType(ctx), elemsUnknownToNull(ctx, tv.Elements()))
+	case types.Set:
+		return types.SetValueMust(tv.ElementType(ctx), elemsUnknownToNull(ctx, tv.Elements()))
+	case types.Map:
+		elems := make(map[string]attr.Value, len(tv.Elements()))
+		for k, e := range tv.Elements() {
+			elems[k] = unknownToNull(ctx, e)
+		}
+		return types.MapValueMust(tv.ElementType(ctx), elems)
+	}
+	return av
+}
+
+func elemsUnknownToNull(ctx context.Context, elems []attr.Value) []attr.Value {
+	out := make([]attr.Value, len(elems))
+	for i, e := range elems {
+		out[i] = unknownToNull(ctx, e)
+	}
+	return out
 }
 
 // buildStruct walks a single TF struct level and populates each field from the API map.
@@ -546,7 +627,7 @@ func buildTFObject(
 
 		apiVal, exists := objMap[apiKey]
 		if !exists || apiVal == nil {
-			// Use plan value or null
+			// Use plan value or null; BuildStateFromAPI nulls any unknown it carries.
 			if planAttrs != nil {
 				if pv, ok := planAttrs[name]; ok {
 					attrs[name] = pv
