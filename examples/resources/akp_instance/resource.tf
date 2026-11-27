@@ -4,6 +4,10 @@ variable "managed_secret_token" {
 }
 
 resource "akp_instance" "example" {
+  lifecycle {
+    prevent_destroy = true
+  }
+
   name      = "test"
   workspace = "test-workspace"
   managed_secrets = {

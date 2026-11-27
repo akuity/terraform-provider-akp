@@ -92,4 +92,12 @@ type ClusterData struct {
 	UseLocalRepoCreds               *bool                               `json:"useLocalRepoCreds,omitempty"`
 	Connectivity                    Connectivity                        `json:"connectivity,omitempty"`
 	CustomCaBundle                  string                              `json:"customCaBundle,omitempty"`
+	Federation                      *ClusterFederation                  `json:"federation,omitempty"`
+}
+
+type ClusterFederation struct {
+	Enabled bool   `json:"enabled,omitempty"`
+	Issuer  string `json:"issuer,omitempty"`
+	Jwks    string `json:"jwks,omitempty"`
+	JwksUrl string `json:"jwksUrl,omitempty"`
 }

@@ -10,9 +10,23 @@ description: |-
 
 Manages an Argo CD instance
 
+## Protecting an instance from deletion or replacement
+
+The examples below enable Terraform's [`prevent_destroy`](https://developer.hashicorp.com/terraform/language/meta-arguments/lifecycle#prevent_destroy) lifecycle rule. Terraform rejects plans that would delete or replace the instance, including `terraform destroy`. Deleting an instance removes its control plane and tenant data, including Application definitions; recreating it does not restore that data automatically.
+
+Adding this lifecycle block alone to a healthy existing instance does not modify or recreate it. This is a Terraform configuration setting, not a provider schema default, so existing customer configurations do not gain this protection automatically.
+
+For an intentional deletion or replacement, explicitly set `prevent_destroy = false` or remove the `prevent_destroy` rule, then generate and review a new plan before applying it. Re-enable the protection afterward for any instance you keep managing.
+
+The protection applies only while the resource block remains in your configuration. Removing the entire `resource "akp_instance"` block also removes the protection, so Terraform can plan to destroy the instance.
+
 ## Example Usage (Basic)
 ```terraform
 resource "akp_instance" "argocd" {
+  lifecycle {
+    prevent_destroy = true
+  }
+
   name = "argocd"
   argocd = {
     "spec" = {
@@ -40,6 +54,10 @@ Please read the [Managing Config Management Plugins Guide](../guides/managing-cm
 
 ```terraform
 resource "akp_instance" "argocd" {
+  lifecycle {
+    prevent_destroy = true
+  }
+
   name = "argocd"
   argocd = {
     "spec" = {
@@ -125,6 +143,10 @@ variable "managed_secret_token" {
 }
 
 resource "akp_instance" "example" {
+  lifecycle {
+    prevent_destroy = true
+  }
+
   name      = "test"
   workspace = "test-workspace"
   managed_secrets = {

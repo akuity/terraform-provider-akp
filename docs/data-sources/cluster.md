@@ -101,6 +101,7 @@ Read-Only:
 - `datadog_annotations_enabled` (Boolean) Enable Datadog metrics collection of Application Controller and Repo Server. Make sure that you install Datadog agent in cluster.
 - `direct_cluster_spec` (Attributes) Direct cluster integration spec. Currently supports `kargo` (see [below for nested schema](#nestedatt--spec--data--direct_cluster_spec))
 - `eks_addon_enabled` (Boolean) Enable this if you are installing this cluster on EKS.
+- `federation` (Attributes) Agent federation: the agent authenticates to the control plane with service account tokens issued by its own cluster instead of a static token. Setting this block enables federation and rotates the agent credentials once; the agent manifests must be re-applied unless auto-upgrade is on. Once enabled the settings cannot be changed or removed, and leaving the block out keeps the stored settings. Requires the agent federation feature for the organization. (see [below for nested schema](#nestedatt--spec--data--federation))
 - `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
 - `maintenance_mode` (Boolean) Enable maintenance mode for the cluster. When enabled, alerts for degraded agents are muted.
 - `maintenance_mode_expiry` (String) Expiry time for maintenance mode in RFC3339 format. Requires `maintenance_mode = true`. The control plane clears the expiry when maintenance mode is disabled.
@@ -230,6 +231,17 @@ Read-Only:
 
 - `cluster_type` (String) Cluster type
 - `kargo_instance_id` (String) Kargo instance ID
+
+
+<a id="nestedatt--spec--data--federation"></a>
+### Nested Schema for `spec.data.federation`
+
+Read-Only:
+
+- `enabled` (Boolean) Must be `true` when set. The block itself enables federation, which cannot be turned off once enabled, so `false` is rejected; leave the block out to keep federation off.
+- `issuer` (String) OIDC issuer of the cluster's service account tokens (https).
+- `jwks` (String) Static JSON Web Key Set of the cluster, as a JSON string (for example with `jsonencode`). Mutually exclusive with `jwks_url`. With neither, keys are discovered from the issuer.
+- `jwks_url` (String) URL serving the cluster's JSON Web Key Set (https). Mutually exclusive with `jwks`.
 
 
 <a id="nestedatt--spec--data--managed_cluster_config"></a>

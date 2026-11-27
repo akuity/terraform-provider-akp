@@ -115,4 +115,12 @@ type ClusterData struct {
 	UseLocalRepoCreds               types.Bool                          `tfsdk:"use_local_repo_creds"`
 	Connectivity                    types.String                        `tfsdk:"connectivity"`
 	CustomCaBundle                  types.String                        `tfsdk:"custom_ca_bundle"`
+	Federation                      *ClusterFederation                  `tfsdk:"federation"`
+}
+
+type ClusterFederation struct {
+	Enabled types.Bool   `tfsdk:"enabled"`
+	Issuer  types.String `tfsdk:"issuer"`
+	Jwks    types.String `tfsdk:"jwks"`
+	JwksUrl types.String `tfsdk:"jwks_url"`
 }

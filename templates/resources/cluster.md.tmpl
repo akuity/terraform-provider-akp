@@ -41,6 +41,11 @@ For existing state and configuration migration, see the
 
 - This example uses the `auto` agent size, which will automatically scale the agent based on the number of applications in the cluster. `auto_upgrade_disabled` cannot be set to `true` when using `auto` agent size.
 
+## Example Usage (Agent federation)
+{{ tffile "./examples/resources/akp_cluster/federation.tf" }}
+
+Setting `federation` enables agent federation: the agent authenticates with service account tokens issued by its own cluster instead of a static token. Enabling it rotates the agent credentials once. Once enabled the settings cannot be changed, and removing the block from the configuration keeps them. The organization needs the agent federation feature.
+
 ## Example Usage (Exhaustive)
 {{ tffile "./examples/resources/akp_cluster/resource.tf" }}
 {{- end }}

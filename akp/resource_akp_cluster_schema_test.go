@@ -17,4 +17,5 @@ func TestNoNewClusterFields(t *testing.T) {
 	assert.Equal(t, reflect.TypeFor[types.Cluster]().NumField(), len(getAKPClusterAttributes()))
 	assert.Equal(t, reflect.TypeFor[types.ClusterSpec]().NumField(), len(getClusterSpecAttributes()))
 	assert.Equal(t, reflect.TypeFor[types.ClusterData]().NumField(), len(getClusterDataAttributes()))
+	assert.Equal(t, reflect.TypeFor[types.ClusterFederation]().NumField(), len(getClusterFederationAttributes()))
 }

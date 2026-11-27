@@ -82,6 +82,7 @@ var (
 		// Enum fields: protojson outputs proto names (e.g., "CLUSTER_SIZE_SMALL"), TF expects lowercase
 		"data.size":                             ProtoEnumToLowerString(clusterSizeProtoToTF),
 		"data.direct_cluster_spec.cluster_type": ProtoEnumToLowerString(directClusterTypeProtoToTF),
+		"data.federation.jwks":                  PreserveEquivalentJSON(),
 		// Connectivity enum: normalize proto name to public/private, defaulting to public when unset
 		"data.connectivity":               ConnectivityReverseOverride(),
 		"spec.instance_spec.connectivity": ConnectivityReverseOverride(),
@@ -160,6 +161,9 @@ func (c *Cluster) Update(ctx context.Context, diagnostics *diag.Diagnostics, api
 		planForPostProcessing = &Cluster{Spec: &ClusterSpec{Data: planData}}
 	}
 	c.Spec.Data.AutoscalerConfig = toAutoScalerConfigTFModel(planForPostProcessing, apiCluster.GetData().GetAutoscalerConfig())
+	if f := c.Spec.Data.Federation; f != nil {
+		nullUnsetOnImport(ctx, &f.Jwks, &f.JwksUrl)
+	}
 
 	customConfig := inferCustomAgentSizeConfig(apiCluster, planData, diagnostics)
 	c.Spec.Data.CustomAgentSizeConfig = customConfig

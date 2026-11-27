@@ -175,7 +175,7 @@ func TestClientApply(t *testing.T) {
 				Operation:  metav1.ManagedFieldsOperationUpdate,
 				APIVersion: "v1",
 				FieldsType: "FieldsV1",
-				FieldsV1:   &metav1.FieldsV1{Raw: []byte(`{"f:data":{"f:stale":{}},"f:metadata":{"f:annotations":{"f:kubectl.kubernetes.io/last-applied-configuration":{}}}}`)},
+				FieldsV1:   metav1.NewFieldsV1(`{"f:data":{"f:stale":{}},"f:metadata":{"f:annotations":{"f:kubectl.kubernetes.io/last-applied-configuration":{}}}}`),
 			}})
 			for name, tc := range map[string]struct {
 				conflicts int
