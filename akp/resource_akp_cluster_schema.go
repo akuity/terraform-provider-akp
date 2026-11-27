@@ -4,6 +4,7 @@ import (
 	"context"
 	"regexp"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/boolvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -342,6 +343,39 @@ func getClusterDataAttributes() map[string]schema.Attribute {
 				stringplanmodifier.UseStateForUnknown(),
 				stringplanmodifier2.SuppressProtobufDefault(),
 			},
+		},
+		"federation": schema.SingleNestedAttribute{
+			MarkdownDescription: "Agent federation: the agent authenticates to the control plane with service account tokens issued by its own cluster instead of a static token. Setting this block enables federation and rotates the agent credentials once; the agent manifests must be re-applied unless auto-upgrade is on. Once enabled the settings cannot be changed or removed, and leaving the block out keeps the stored settings. Requires the agent federation feature for the organization.",
+			Optional:            true,
+			Computed:            true,
+			Attributes:          getClusterFederationAttributes(),
+			PlanModifiers: []planmodifier.Object{
+				objectplanmodifier2.UseStateForNullUnknown(),
+			},
+		},
+	}
+}
+
+func getClusterFederationAttributes() map[string]schema.Attribute {
+	return map[string]schema.Attribute{
+		"enabled": schema.BoolAttribute{
+			MarkdownDescription: "Must be `true` when set. The block itself enables federation, which cannot be turned off once enabled, so `false` is rejected; leave the block out to keep federation off.",
+			Optional:            true,
+			Validators: []validator.Bool{
+				boolvalidator.Equals(true),
+			},
+		},
+		"issuer": schema.StringAttribute{
+			MarkdownDescription: "OIDC issuer of the cluster's service account tokens (https).",
+			Required:            true,
+		},
+		"jwks": schema.StringAttribute{
+			MarkdownDescription: "Static JSON Web Key Set of the cluster, as a JSON string (for example with `jsonencode`). Mutually exclusive with `jwks_url`. With neither, keys are discovered from the issuer.",
+			Optional:            true,
+		},
+		"jwks_url": schema.StringAttribute{
+			MarkdownDescription: "URL serving the cluster's JSON Web Key Set (https). Mutually exclusive with `jwks`.",
+			Optional:            true,
 		},
 	}
 }

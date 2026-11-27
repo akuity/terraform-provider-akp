@@ -54,4 +54,13 @@ type KargoAgentData struct {
 	AutoscalerConfig      *KargoAutoscalerConfig `json:"autoscalerConfig,omitempty"`
 	Connectivity          Connectivity           `json:"connectivity,omitempty"`
 	CustomCaBundle        string                 `json:"customCaBundle,omitempty"`
+	Federation            *KargoAgentFederation  `json:"federation,omitempty"`
+}
+
+type KargoAgentFederation struct {
+	Enabled                  bool     `json:"enabled,omitempty"`
+	Issuer                   string   `json:"issuer,omitempty"`
+	Jwks                     string   `json:"jwks,omitempty"`
+	JwksUrl                  string   `json:"jwksUrl,omitempty"`
+	PromotionServiceAccounts []string `json:"promotionServiceAccounts,omitempty"`
 }

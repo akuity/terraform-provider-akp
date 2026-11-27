@@ -1,4 +1,8 @@
 resource "akp_instance" "argocd" {
+  lifecycle {
+    prevent_destroy = true
+  }
+
   name = "argocd"
   argocd = {
     "spec" = {

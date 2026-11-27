@@ -26,6 +26,19 @@ func WithoutReadContext(ctx context.Context) context.Context {
 	return context.WithValue(ctx, readContextKey{}, false)
 }
 
+// nullUnsetOnImport turns the empty strings the import path fills in for unset
+// fields back into null, which is what apply stores for Optional-only fields.
+func nullUnsetOnImport(ctx context.Context, fields ...*types.String) {
+	if !isReadContext(ctx) {
+		return
+	}
+	for _, f := range fields {
+		if f.ValueString() == "" {
+			*f = types.StringNull()
+		}
+	}
+}
+
 // BuildStateFromAPI constructs a TF state struct from an API response map, guided by the
 // plan/prior-state and registered schema metadata. Unlike MapToTFWithOverrides which patches
 // the existing struct in place, this function builds the state from first principles using

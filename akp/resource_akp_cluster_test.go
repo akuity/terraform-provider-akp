@@ -4,10 +4,13 @@ package akp
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 	"regexp"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -2509,4 +2512,132 @@ resource "akp_cluster" "test" {
   }
 }
 `, instanceId, name)
+}
+
+// testFederationJWKS is the public key set of a throwaway RSA key, used to
+// enable agent federation without a real cluster.
+const testFederationJWKS = `{"keys":[{"kty":"RSA","use":"sig","alg":"RS256","kid":"akp-tf-test","n":"vT_bwcKdhD7kinwF5E2S7Dx0R5qo2S9U93l5T80tNRLwPbOR9nNjyLvOnhx4BoWvQpfKnouIPKtUqIuA_V6amzHGokez3b9DwAZTVA0zShzuUtRcD1byRgvw8KVjypEVEwhWSsbYrt0aVbSQhJzNLSG6r-8OYmYYtumTNdNQwGiD61etmW7_ov9C4HmGJuTYWlk_Oo6ScCMHcCAU5x1JMWa9gH1XHTMOdQwgCvGWggbqn_SEvasbi6btbQoTi8tvMBDcDjkN2ug88aYDNq5y9vC49t4rU-ZXk5j9GTYsD6prAyLBIkxtqdyyhRXZge2AXajunOH_wbEDaiRg3bKmWQ","e":"AQAB"}]}`
+
+const testFederationIssuer = "https://kubernetes.default.svc.cluster.local"
+
+// runClusterResourceFederation enables federation on create, then drops the
+// block while changing the description: the update sends the stored block back
+// and it must stay.
+func runClusterResourceFederation(t *testing.T) {
+	t.Parallel()
+	name := fmt.Sprintf("cluster-federation-%s", acctest.RandString(10))
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config:      providerConfig + withFederationEnabled(testAccClusterResourceConfigFederation(name, getInstanceId(), "Agent federation test cluster", true), "false"),
+				PlanOnly:    true,
+				ExpectError: regexp.MustCompile(`federation\.enabled[\s\S]*must be "true"`),
+			},
+			{
+				Config: providerConfig + withFederationEnabled(testAccClusterResourceConfigFederation(name, getInstanceId(), "Agent federation test cluster", true), "true"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("akp_cluster.test", "id"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.federation.enabled", "true"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.federation.issuer", testFederationIssuer),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.federation.jwks", testFederationJWKS),
+					resource.TestCheckNoResourceAttr("akp_cluster.test", "spec.data.federation.jwks_url"),
+					resource.TestCheckResourceAttr("data.akp_cluster.test", "spec.data.federation.issuer", testFederationIssuer),
+					resource.TestCheckResourceAttrWith("data.akp_cluster.test", "spec.data.federation.jwks", testAccCheckJSONEqual(testFederationJWKS)),
+				),
+			},
+			{
+				Config: providerConfig + testAccClusterResourceConfigFederation(name, getInstanceId(), "Agent federation test cluster updated", false),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.description", "Agent federation test cluster updated"),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.federation.issuer", testFederationIssuer),
+					resource.TestCheckResourceAttr("akp_cluster.test", "spec.data.federation.jwks", testFederationJWKS),
+					resource.TestCheckResourceAttr("data.akp_cluster.test", "spec.data.federation.issuer", testFederationIssuer),
+				),
+			},
+			// Import reads the key set as Postgres stores it, re-serialized.
+			testAccClusterImportStateStep(getInstanceId(), name, appendImportStateVerifyIgnore(testAccClusterCommonImportStateVerifyIgnore, "spec.data.federation.jwks", "spec.data.federation.enabled")...),
+		},
+	})
+}
+
+// runClusterResourceFederationExisting adds the block to an existing cluster.
+// Its agent never connects in CI, so the platform must refuse and store nothing.
+func runClusterResourceFederationExisting(t *testing.T) {
+	t.Parallel()
+	name := fmt.Sprintf("cluster-federation-existing-%s", acctest.RandString(10))
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig + testAccClusterResourceConfigFederation(name, getInstanceId(), "Agent federation test cluster", false),
+				Check:  resource.TestCheckNoResourceAttr("data.akp_cluster.test", "spec.data.federation.issuer"),
+			},
+			{
+				Config:      providerConfig + testAccClusterResourceConfigFederation(name, getInstanceId(), "Agent federation test cluster", true),
+				ExpectError: regexp.MustCompile(`agent\s+has\s+not\s+connected\s+yet`),
+			},
+			{
+				Config: providerConfig + testAccClusterResourceConfigFederation(name, getInstanceId(), "Agent federation test cluster", false),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckNoResourceAttr("akp_cluster.test", "spec.data.federation.issuer"),
+					resource.TestCheckNoResourceAttr("data.akp_cluster.test", "spec.data.federation.issuer"),
+				),
+			},
+		},
+	})
+}
+
+// testAccCheckJSONEqual compares a JSON attribute by value, since the API
+// returns it as Postgres re-serialized it.
+func testAccCheckJSONEqual(want string) resource.CheckResourceAttrWithFunc {
+	return func(got string) error {
+		var w, g any
+		if err := json.Unmarshal([]byte(want), &w); err != nil {
+			return err
+		}
+		if err := json.Unmarshal([]byte(got), &g); err != nil {
+			return fmt.Errorf("%q is not JSON: %w", got, err)
+		}
+		if !reflect.DeepEqual(w, g) {
+			return fmt.Errorf("got %s, want %s", got, want)
+		}
+		return nil
+	}
+}
+
+func testAccClusterResourceConfigFederation(name, instanceId, description string, withFederation bool) string {
+	federation := ""
+	if withFederation {
+		federation = fmt.Sprintf(`
+      federation = {
+        issuer = %q
+        jwks   = %q
+      }`, testFederationIssuer, testFederationJWKS)
+	}
+	return fmt.Sprintf(`
+resource "akp_cluster" "test" {
+  instance_id = %q
+  name        = %q
+  namespace   = "test"
+  spec = {
+    description = %q
+    data = {
+      size = "small"%s
+    }
+  }
+}
+
+data "akp_cluster" "test" {
+  instance_id = akp_cluster.test.instance_id
+  name        = akp_cluster.test.name
+}
+`, instanceId, name, description, federation)
+}
+
+// withFederationEnabled sets enabled in the federation block of config.
+func withFederationEnabled(config, enabled string) string {
+	return strings.Replace(config, "federation = {", "federation = {\n        enabled = "+enabled, 1)
 }

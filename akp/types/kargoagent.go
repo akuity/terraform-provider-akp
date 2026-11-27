@@ -64,4 +64,13 @@ type KargoAgentData struct {
 	AutoscalerConfig      *KargoAutoscalerConfig `tfsdk:"autoscaler_config"`
 	Connectivity          types.String           `tfsdk:"connectivity"`
 	CustomCaBundle        types.String           `tfsdk:"custom_ca_bundle"`
+	Federation            *KargoAgentFederation  `tfsdk:"federation"`
+}
+
+type KargoAgentFederation struct {
+	Enabled                  types.Bool     `tfsdk:"enabled"`
+	Issuer                   types.String   `tfsdk:"issuer"`
+	Jwks                     types.String   `tfsdk:"jwks"`
+	JwksUrl                  types.String   `tfsdk:"jwks_url"`
+	PromotionServiceAccounts []types.String `tfsdk:"promotion_service_accounts"`
 }

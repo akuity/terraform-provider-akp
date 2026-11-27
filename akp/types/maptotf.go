@@ -361,6 +361,23 @@ func PreserveEquivalentQuantity() ReverseFieldOverride {
 	}
 }
 
+// PreserveEquivalentJSON keeps the planned spelling of a JSON string when the
+// API returns the same value re-serialized (Postgres JSONB reorders keys and
+// adds spaces). A different value falls through so drift stays visible.
+func PreserveEquivalentJSON() ReverseFieldOverride {
+	return func(mapValue any, planValue reflect.Value) (attr.Value, bool) {
+		apiStr, ok := mapValue.(string)
+		if !ok || !planValue.IsValid() {
+			return nil, false
+		}
+		plan, ok := planValue.Interface().(types.String)
+		if !ok || plan.IsNull() || plan.IsUnknown() || !normalizedYAMLEqual(plan.ValueString(), apiStr) {
+			return nil, false
+		}
+		return plan, true
+	}
+}
+
 // TFOnlyField returns an override that always preserves the plan/state value
 // and falls back to a default attr.Value when the plan has no value.
 // Use for fields that exist only in the TF schema with no API equivalent

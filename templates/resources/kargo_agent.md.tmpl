@@ -19,6 +19,11 @@ description: |-
 ## Example Usage (Self-hosted agent)
 {{ tffile "./examples/resources/akp_kargo_agent/self_hosted.tf" }}
 
+## Example Usage (Agent federation)
+{{ tffile "./examples/resources/akp_kargo_agent/federation.tf" }}
+
+Setting `federation` enables agent federation: the agent authenticates with service account tokens issued by its own cluster instead of a static token. Enabling it rotates the agent credentials once. Once enabled the settings cannot be changed, and removing the block from the configuration keeps them. The organization needs the agent federation feature.
+
 {{ .SchemaMarkdown | trimspace }}
 
 ## Import

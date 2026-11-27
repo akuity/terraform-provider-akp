@@ -91,6 +91,7 @@ Read-Only:
 - `autoscaler_config` (Attributes) Autoscaler configuration for the Kargo agent. (see [below for nested schema](#nestedatt--spec--data--autoscaler_config))
 - `connectivity` (String) How the Kargo agent is reached. One of `public` (internet) or `private` (AWS PrivateLink). Defaults to `public`.
 - `custom_ca_bundle` (String) PEM bundle of one or more CA certificates the agent workloads trust in addition to the system roots (e.g. a TLS-intercepting proxy CA). Certificates must be unexpired.
+- `federation` (Attributes) Agent federation: the agent authenticates to the control plane with service account tokens issued by its own cluster instead of a static token. Setting this block enables federation and rotates the agent credentials once; the agent manifests must be re-applied unless auto-upgrade is on. Once enabled the settings cannot be changed or removed, and leaving the block out keeps the stored settings. Requires the agent federation feature for the organization. (see [below for nested schema](#nestedatt--spec--data--federation))
 - `kustomization` (String) Kustomize configuration that will be applied to generated agent installation manifests
 - `maintenance_mode` (Boolean) Enable maintenance mode for the agent. When enabled, alerts for degraded agents are muted.
 - `maintenance_mode_expiry` (String) Expiry time for maintenance mode in RFC3339 format. Maintenance mode will be automatically disabled after this time.
@@ -131,3 +132,17 @@ Read-Only:
 
 - `cpu` (String) CPU
 - `mem` (String) Memory
+
+
+
+
+<a id="nestedatt--spec--data--federation"></a>
+### Nested Schema for `spec.data.federation`
+
+Read-Only:
+
+- `enabled` (Boolean) Must be `true` when set. The block itself enables federation, which cannot be turned off once enabled, so `false` is rejected; leave the block out to keep federation off.
+- `issuer` (String) OIDC issuer of the cluster's service account tokens (https).
+- `jwks` (String) Static JSON Web Key Set of the cluster, as a JSON string (for example with `jsonencode`). Mutually exclusive with `jwks_url`. With neither, keys are discovered from the issuer.
+- `jwks_url` (String) URL serving the cluster's JSON Web Key Set (https). Mutually exclusive with `jwks`.
+- `promotion_service_accounts` (List of String) Extra service accounts, besides the default one, that promotion pods may run as (see the `ee.kargo.akuity.io/promotion-sa` Stage annotation).

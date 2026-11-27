@@ -1539,3 +1539,108 @@ resource "akp_kargo_default_shard_agent" "test" {
 }
 `, instanceName, getKargoVersion(), testCABundle, agentName, getInstanceId(), agentCABundle)
 }
+
+// runKargoAgentResourceFederation enables federation with promotion service
+// accounts on create, then drops the block while changing the description: the
+// update sends the stored block back and it must stay.
+func runKargoAgentResourceFederation(t *testing.T) {
+	t.Parallel()
+	name := fmt.Sprintf("kargoagent-federation-%s", acctest.RandString(10))
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config:      providerConfig + withFederationEnabled(testAccKargoAgentResourceConfigFederation(name, getKargoInstanceId(), "Agent federation test", true), "false"),
+				PlanOnly:    true,
+				ExpectError: regexp.MustCompile(`federation\.enabled[\s\S]*must be "true"`),
+			},
+			{
+				Config: providerConfig + testAccKargoAgentResourceConfigFederation(name, getKargoInstanceId(), "Agent federation test", true),
+				Check:  testAccCheckKargoAgentFederation(),
+			},
+			{
+				Config: providerConfig + testAccKargoAgentResourceConfigFederation(name, getKargoInstanceId(), "Agent federation test updated", false),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.description", "Agent federation test updated"),
+					testAccCheckKargoAgentFederation(),
+				),
+			},
+			// Import reads the key set as Postgres stores it, re-serialized.
+			testAccKargoAgentImportStateStep(getKargoInstanceId(), name, appendImportStateVerifyIgnore(testAccKargoAgentCommonImportStateVerifyIgnore, "spec.data.federation.jwks", "spec.data.federation.enabled")...),
+		},
+	})
+}
+
+// runKargoAgentResourceFederationExisting adds the block to an existing agent.
+// A new agent has no credential rotation pending, so this is allowed even
+// though the agent never connects in CI.
+func runKargoAgentResourceFederationExisting(t *testing.T) {
+	t.Parallel()
+	name := fmt.Sprintf("kargoagent-federation-existing-%s", acctest.RandString(10))
+	withFederation := providerConfig + testAccKargoAgentResourceConfigFederation(name, getKargoInstanceId(), "Agent federation test", true)
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: providerConfig + testAccKargoAgentResourceConfigFederation(name, getKargoInstanceId(), "Agent federation test", false),
+				Check:  resource.TestCheckNoResourceAttr("data.akp_kargo_agent.test", "spec.data.federation.issuer"),
+			},
+			{
+				Config: withFederation,
+				Check:  testAccCheckKargoAgentFederation(),
+			},
+			{
+				Config:   withFederation,
+				PlanOnly: true,
+			},
+		},
+	})
+}
+
+func testAccCheckKargoAgentFederation() resource.TestCheckFunc {
+	return resource.ComposeAggregateTestCheckFunc(
+		resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.federation.issuer", testFederationIssuer),
+		resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.federation.jwks", testFederationJWKS),
+		resource.TestCheckNoResourceAttr("akp_kargo_agent.test", "spec.data.federation.jwks_url"),
+		resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.federation.promotion_service_accounts.#", "1"),
+		resource.TestCheckResourceAttr("akp_kargo_agent.test", "spec.data.federation.promotion_service_accounts.0", "kargo-promoter"),
+		resource.TestCheckResourceAttr("data.akp_kargo_agent.test", "spec.data.federation.issuer", testFederationIssuer),
+		resource.TestCheckResourceAttrWith("data.akp_kargo_agent.test", "spec.data.federation.jwks", testAccCheckJSONEqual(testFederationJWKS)),
+		resource.TestCheckResourceAttr("data.akp_kargo_agent.test", "spec.data.federation.promotion_service_accounts.0", "kargo-promoter"),
+	)
+}
+
+func testAccKargoAgentResourceConfigFederation(name, kargoInstanceId, description string, withFederation bool) string {
+	federation := ""
+	if withFederation {
+		federation = fmt.Sprintf(`
+      federation = {
+        issuer                     = %q
+        jwks                       = %q
+        promotion_service_accounts = ["kargo-promoter"]
+      }`, testFederationIssuer, testFederationJWKS)
+	}
+	return fmt.Sprintf(`
+resource "akp_kargo_agent" "test" {
+  instance_id = %q
+  name        = %q
+  namespace   = "test"
+  spec = {
+    description = %q
+    data = {
+      size           = "small"
+      remote_argocd  = %q
+      akuity_managed = false%s
+    }
+  }
+  remove_agent_resources_on_destroy = true
+}
+
+data "akp_kargo_agent" "test" {
+  instance_id = akp_kargo_agent.test.instance_id
+  name        = akp_kargo_agent.test.name
+}
+`, kargoInstanceId, name, description, getInstanceId(), federation)
+}

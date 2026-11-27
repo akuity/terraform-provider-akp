@@ -43,7 +43,8 @@ var (
 		"remove_agent_resources_on_destroy": TFOnlyField(types.BoolValue(true)),
 		"reapply_manifests_on_update":       TFOnlyField(types.BoolValue(false)),
 		// Enum fields: protojson outputs proto names, TF expects lowercase
-		"data.size": ProtoEnumToLowerString(kargoAgentSizeProtoToTF),
+		"data.size":            ProtoEnumToLowerString(kargoAgentSizeProtoToTF),
+		"data.federation.jwks": PreserveEquivalentJSON(),
 		// Connectivity enum: normalize proto name to public/private, defaulting to public when unset
 		"data.connectivity":                     ConnectivityReverseOverride(),
 		"spec.kargo_instance_spec.connectivity": ConnectivityReverseOverride(),
@@ -112,6 +113,9 @@ func (ka *KargoAgent) Update(ctx context.Context, diagnostics *diag.Diagnostics,
 	}
 
 	preserveKargoAutoscalerConfigPlanValues(ka.Spec.Data.AutoscalerConfig, planSpec)
+	if f := ka.Spec.Data.Federation; f != nil {
+		nullUnsetOnImport(ctx, &f.Jwks, &f.JwksUrl)
+	}
 
 	defaultNullOrUnknownString(&ka.Spec.Data.ArgocdNamespace)
 	defaultNullOrUnknownString(&ka.Spec.Data.Kustomization)
